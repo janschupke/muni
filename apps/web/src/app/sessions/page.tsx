@@ -9,6 +9,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 
+import { ListActions } from '@/components/list-actions'
 import { SessionTable } from '@/components/session-table'
 import { param, type SearchParams, withParams } from '@/lib/search-params'
 import { requireReader } from '@/server/auth'
@@ -58,6 +59,7 @@ export default async function SessionsPage({ searchParams }: Props) {
             t('description')
           )
         }
+        actions={canWrite(user.role) && <ListActions kind="session" />}
       />
       <LinkTabs aria-label={t('title')}>
         {WINDOWS.map(w => (

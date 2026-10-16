@@ -8,6 +8,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import {
+  archivedCandidates,
   COMMIT_ORDER,
   committable,
   type DatasetKind,
@@ -20,7 +21,7 @@ import {
 import { todayIn } from '@muni/utils/dates'
 
 import type { Db } from './client'
-import { loadReferenceSnapshot } from './reference'
+import { findArchivedKeys, loadReferenceSnapshot } from './reference'
 import { chunk, commitChunk } from './writer'
 
 const log = (line: string) => process.stdout.write(`${line}\n`)
@@ -40,7 +41,11 @@ export async function seedFromDirectory(db: Db, dir: string, today = todayIn()) 
     ;(batch as Record<string, unknown>)[file.kind] = file.rows
   }
 
-  const validated = validateBatch(batch, await loadReferenceSnapshot(db))
+  const reference = {
+    ...(await loadReferenceSnapshot(db)),
+    archived: await findArchivedKeys(db, archivedCandidates(batch)),
+  }
+  const validated = validateBatch(batch, reference)
   const results: Partial<
     Record<DatasetKind, { created: number; updated: number; skipped: number }>
   > = {}
@@ -56,9 +61,10 @@ export async function seedFromDirectory(db: Db, dir: string, today = todayIn()) 
       updated += result.updated
     }
     const summary = summarize(rows)
-    results[kind] = { created, updated, skipped: summary.invalid }
+    const skipped = summary.invalid + summary.skipped
+    results[kind] = { created, updated, skipped }
     log(
-      `\n${kind}: ${created} created, ${updated} updated, ${summary.invalid} skipped, ${summary.warnings} with warnings`
+      `\n${kind}: ${created} created, ${updated} updated, ${skipped} skipped, ${summary.warnings} with warnings`
     )
     const codes = new Map<string, number>()
     for (const row of rows) {

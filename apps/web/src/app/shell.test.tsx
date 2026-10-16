@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppFailure } from '@/components/app-failure'
 import { NotFoundMessage } from '@/components/not-found-message'
 import { setLocale } from '@/server/actions/locale'
+import { isAccountArchived } from '@/server/auth'
 import { signInAs, signOut } from '@/test/auth'
 import { advisorInput, dashboard, session } from '@/test/fixtures'
 import { setViewportWidth } from '@/test/media'
@@ -25,6 +26,7 @@ import Template from './template'
 vi.mock('@clerk/nextjs', () => ({
   ClerkProvider: ({ children }: { children: ReactNode }) => children,
   SignInButton: ({ children }: { children: ReactNode }) => children,
+  SignOutButton: ({ children }: { children: ReactNode }) => children,
   UserButton: () => <button type="button">Account</button>,
   SignIn: () => <p>Clerk sign-in form</p>,
   SignUp: () => <p>Clerk sign-up form</p>,
@@ -239,6 +241,15 @@ describe('home', () => {
     expect(screen.getByText('Full access')).toBeTruthy()
     expect(getDashboard).not.toHaveBeenCalled()
     expect(getAdvisorInput).not.toHaveBeenCalled()
+  })
+
+  it('tells a signed-in user whom an admin archived that their access has ended', async () => {
+    signOut()
+    vi.mocked(isAccountArchived).mockResolvedValue(true)
+    await renderServer(DashboardPage())
+    expect(screen.getByRole('heading', { level: 1, name: 'Your access has ended' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeTruthy()
+    expect(getDashboard).not.toHaveBeenCalled()
   })
 })
 

@@ -330,7 +330,9 @@
       "room_online_not_allowed": "Tento kurz se online nekoná.",
       "room_too_small": "Místnost má méně míst, než termín otevírá.",
       "room_missing_capabilities": "Místnosti chybí vybavení, které kurz potřebuje.",
-      "company_id": "Zadejte osmimístné IČO; u tohoto nesedí kontrolní číslice."
+      "company_id": "Zadejte osmimístné IČO; u tohoto nesedí kontrolní číslice.",
+      "room_archived": "Místnost je archivovaná.",
+      "course_archived": "Kurz je archivovaný."
     },
     "course": {
       "title": "Upravit kurz {code}",
@@ -428,7 +430,9 @@
       "errorPrefix": "Chyba",
       "warningPrefix": "Upozornění",
       "back": "Zpět k souborům",
-      "next": "Pokračovat"
+      "next": "Pokračovat",
+      "skipped": "Přeskočeno",
+      "skippedNotice": "{count, plural, one {# řádek odkazuje na archivovaný záznam a bude přeskočen} few {# řádky odkazují na archivované záznamy a budou přeskočeny} other {# řádků odkazuje na archivované záznamy a bude přeskočeno}}. Chcete-li je naimportovat, nejdřív záznamy obnovte."
     },
     "confirm": {
       "title": "Připraveno k importu",
@@ -440,7 +444,7 @@
     "progress": {
       "running": "{done} z {total} záznamů",
       "doneTitle": "Import dokončen",
-      "result": "{kind}: vytvořeno {created}, aktualizováno {updated}",
+      "result": "{kind}: vytvořeno {created}, aktualizováno {updated}{skipped, plural, =0 {} other {, přeskočeno # (archivované)}}",
       "failed": "Import selhal: {message}",
       "partial": "Před selháním se zapsalo {count, plural, one {# záznam} few {# záznamy} other {# záznamů}}.",
       "again": "Importovat další soubory"
@@ -522,7 +526,8 @@
       "OVERBOOKED": "Obsazeno {booked} míst z {capacity}.",
       "ZERO_CAPACITY": "Kapacita je 0.",
       "FUTURE_COMPLETION": "Datum absolvování {value} je v budoucnosti.",
-      "ROOM_DERIVED": "Místnost „{value}“ není v seznamu; vytvoří se podle termínů, které se v ní konají."
+      "ROOM_DERIVED": "Místnost „{value}“ není v seznamu; vytvoří se podle termínů, které se v ní konají.",
+      "ARCHIVED": "„{value}“ je archivováno, řádek se proto přeskočí. Pro import řádku záznam obnovte."
     }
   },
   "errors": {
@@ -769,13 +774,7 @@
       "capacity": "Místa",
       "capacityHelp": "Online místnost nemá omezení míst; každá jiná místnost potřebuje počet míst.",
       "capabilities": "Vybavení",
-      "note": "Poznámka",
-      "delete": "Smazat místnost",
-      "deleteHint": "Místnost lze smazat, jen dokud ji nepoužívá žádný termín.",
-      "confirmTitle": "Smazat místnost {name}?",
-      "confirmBody": "Místnost i s vybavením se natrvalo odstraní.",
-      "confirm": "Smazat",
-      "inUse": "Místnost má termíny, proto ji nelze smazat."
+      "note": "Poznámka"
     }
   },
   "providers": {
@@ -834,13 +833,7 @@
       "phone": "Telefon",
       "website": "Web",
       "websiteHelp": "Adresa bez protokolu, např. www.example.cz, se čte jako https.",
-      "note": "Poznámka",
-      "delete": "Smazat dodavatele",
-      "deleteHint": "Dodavatele lze smazat, jen dokud ho neuvádí žádné absolvování.",
-      "confirmTitle": "Smazat dodavatele {name}?",
-      "confirmBody": "Dodavatel i s údaji se natrvalo odstraní.",
-      "confirm": "Smazat",
-      "inUse": "Dodavatele uvádějí absolvování, proto ho nelze smazat."
+      "note": "Poznámka"
     }
   },
   "org": {
@@ -952,7 +945,9 @@
       "ROOM_BUSY": "Místnost mezitím někdo v tu dobu obsadil. Obnovený plán nabízí jiný termín.",
       "ROOM_ONLINE_NOT_ALLOWED": "Tento kurz se online nekoná. Obnovený plán nabízí jinou místnost.",
       "ROOM_TOO_SMALL": "Místnost má méně míst, než termín otevírá. Obnovený plán nabízí jinou místnost.",
-      "ROOM_MISSING_CAPABILITIES": "Místnosti chybí vybavení, které kurz potřebuje. Obnovený plán nabízí jinou místnost."
+      "ROOM_MISSING_CAPABILITIES": "Místnosti chybí vybavení, které kurz potřebuje. Obnovený plán nabízí jinou místnost.",
+      "ROOM_ARCHIVED": "Místnost byla mezitím archivována. Obnovený plán nabízí jinou místnost.",
+      "COURSE_ARCHIVED": "Kurz byl mezitím archivován. Načtěte plánovač znovu."
     },
     "problems": {
       "NO_ROOM_WITH": "I nejlépe vybavené místnosti chybí {missing}.",
@@ -1003,6 +998,11 @@
         "title": "Správce",
         "body": "Navíc upravuje záznamy, přihlašuje na termíny a importuje data. Přiděluje správce."
       }
+    },
+    "archived": {
+      "title": "Váš přístup skončil",
+      "body": "Správce váš účet archivoval, registr je pro něj proto uzavřený. Pokud jde o omyl, požádejte správce, aby účet obnovil.",
+      "signOut": "Odhlásit se"
     }
   },
   "users": {
@@ -1013,6 +1013,115 @@
       "email": "E-mail",
       "role": "Role",
       "lastSignInAt": "Poslední přihlášení"
+    }
+  },
+  "archive": {
+    "archived": "archivováno",
+    "badge": "Archivováno",
+    "action": "Archivovat",
+    "actionLabel": "Archivovat {name}",
+    "confirmTitle": "Archivovat {name}?",
+    "confirmBody": "Zmizí ze všech seznamů a součtů, jeho historie zůstane. Správce jej může obnovit.",
+    "checking": "Zjišťuji, co s tím souvisí…",
+    "removesBookings": "{count, plural, one {Jeho # rezervace na budoucí termín bude zrušena.} few {Jeho # rezervace na budoucí termíny budou zrušeny.} other {Jeho # rezervací na budoucí termíny bude zrušeno.}}",
+    "confirm": "Archivovat",
+    "unarchive": "Obnovit",
+    "unarchiveLabel": "Obnovit {name}",
+    "person": "Archivovaný zaměstnanec #{tag}",
+    "refused": {
+      "not_found": "Záznam už neexistuje, nebo je už archivovaný.",
+      "in_use": "{kind, select, room {{count, plural, one {Koná se tu # budoucí termín.} few {Konají se tu # budoucí termíny.} other {Koná se tu # budoucích termínů.}} Nejdřív je přesuňte nebo zrušte.} other {{count, plural, one {Patří sem # člověk.} few {Patří sem # lidé.} other {Patří sem # lidí.}} Nejdřív je přesuňte jinam.}}",
+      "has_upcoming_sessions": "{count, plural, one {Čeká jej # termín.} few {Čekají jej # termíny.} other {Čeká jej # termínů.}} Nejdřív je zrušte nebo archivujte.",
+      "has_bookings": "{count, plural, one {Na termínu je obsazené # místo.} few {Na termínu jsou obsazená # místa.} other {Na termínu je obsazeno # míst.}} Nejdřív termín zrušte; rezervace pak zůstanou jako historie.",
+      "self": "Sami sebe archivovat nemůžete.",
+      "last_admin": "Je to poslední správce. Nejdřív udělejte správcem někoho jiného.",
+      "taken": "Aktivní záznam teď používá stejné pole: {fields}. Nejdřív jej přejmenujte nebo archivujte.",
+      "parent_archived": "Patří k něčemu, co je archivované. Nejdřív obnovte to.",
+      "generic": "Nepovedlo se to. Zkuste to znovu."
+    },
+    "fields": {
+      "name": "název",
+      "code": "kód",
+      "externalId": "ID",
+      "email": "e-mail",
+      "companyId": "IČO",
+      "clerkId": "přihlašovací účet",
+      "department": "Útvar",
+      "position": "Pozice",
+      "status": "Stav",
+      "hiredOn": "Nástup",
+      "leftOn": "Odchod",
+      "role": "Role",
+      "lastSignInAt": "Poslední přihlášení",
+      "validityMonths": "Platnost (měsíce)",
+      "course": "Kurz",
+      "startsAt": "Začátek",
+      "endsAt": "Konec",
+      "room": "Místnost",
+      "capacity": "Kapacita",
+      "completedOn": "Absolvováno",
+      "validUntil": "Platí do",
+      "provider": "Dodavatel",
+      "kind": "Druh",
+      "note": "Poznámka",
+      "phone": "Telefon",
+      "website": "Web"
+    },
+    "user": "Archivovaný uživatel #{tag}",
+    "kinds": {
+      "employee": {
+        "title": "Archivovaní zaměstnanci",
+        "list": "Zaměstnanci"
+      },
+      "course": {
+        "title": "Archivované kurzy",
+        "list": "Kurzy"
+      },
+      "session": {
+        "title": "Archivované termíny",
+        "list": "Termíny"
+      },
+      "completion": {
+        "title": "Archivovaná absolvování",
+        "list": "Zaměstnanci"
+      },
+      "department": {
+        "title": "Archivované útvary",
+        "list": "Útvary"
+      },
+      "position": {
+        "title": "Archivované pozice",
+        "list": "Pozice"
+      },
+      "room": {
+        "title": "Archivované místnosti",
+        "list": "Místnosti"
+      },
+      "provider": {
+        "title": "Archivovaní dodavatelé",
+        "list": "Dodavatelé"
+      },
+      "user": {
+        "title": "Archivovaní uživatelé",
+        "list": "Uživatelé"
+      }
+    },
+    "list": {
+      "show": "Archiv",
+      "description": "Archivované záznamy zůstávají i s historií, ale nejsou v žádném seznamu ani součtu. Lidé jsou uvedeni jen značkou; kdo to byl, uvidíte po otevření.",
+      "empty": "Nic tu není archivované.",
+      "columns": {
+        "name": "Název",
+        "when": "Datum",
+        "archivedAt": "Archivováno",
+        "archivedBy": "Archivoval(a)",
+        "actions": "Akce"
+      }
+    },
+    "record": {
+      "adminOnly": "Tuto stránku vidí jen správci. Jinde záznam chybí a člověk je uveden jen značkou.",
+      "archivedAt": "Archivováno",
+      "archivedBy": "Archivoval(a)"
     }
   }
 }

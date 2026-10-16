@@ -4,7 +4,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { removeRoom } from '@/server/actions/rooms'
+import { archiveAction, previewArchive } from '@/server/actions/archive'
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
@@ -25,9 +25,10 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
 }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/edit', () => ({ saveSession: vi.fn() }))
-vi.mock('@/server/actions/rooms', () => ({
-  saveRoom: vi.fn(),
-  removeRoom: vi.fn(() => Promise.resolve({ status: 'refused', reason: 'in_use' })),
+vi.mock('@/server/actions/rooms', () => ({ saveRoom: vi.fn() }))
+vi.mock('@/server/actions/archive', () => ({
+  archiveAction: vi.fn(),
+  previewArchive: vi.fn(() => Promise.resolve({ ok: false, reason: 'IN_USE', count: 7 })),
 }))
 
 beforeEach(() => {
@@ -198,8 +199,7 @@ describe('room forms', () => {
     await expectNoAxeViolations()
   })
 
-  it('edit a room with its current values, and refuse to delete one in use', async () => {
-    const user = userEvent.setup()
+  it('edit a room with its current values', async () => {
     await renderServer(EditRoomPage({ params: params({ id: 'room_aula_a' }) }))
     expect(screen.getByRole('heading', { level: 1, name: 'Edit Aula A' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /Seats/ })).toHaveProperty('value', '40')
@@ -207,20 +207,34 @@ describe('room forms', () => {
       'true'
     )
     await expectNoAxeViolations()
-    // It asks first: cancelling deletes nothing.
-    await user.click(screen.getByRole('button', { name: 'Delete room' }))
-    const confirm = await screen.findByRole('dialog', { name: 'Delete Aula A?' })
-    await user.click(within(confirm).getByRole('button', { name: 'Cancel' }))
-    expect(removeRoom).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: 'Delete room' }))
-    await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' })
-    )
-    expect(removeRoom).toHaveBeenCalled()
-    expect(
-      await screen.findByText('The room still has sessions, so it cannot be deleted.')
-    ).toBeTruthy()
     vi.mocked(getRoomForEdit).mockResolvedValue(null)
     await expect(EditRoomPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
+  })
+})
+
+describe('archiving a room', () => {
+  it('asks first, and refuses while sessions ahead are held there', async () => {
+    const user = userEvent.setup()
+    signInAs('ADMIN')
+    await renderServer(RoomPage({ params: params({ id: 'room_aula_a' }) }))
+    await user.click(screen.getByRole('button', { name: 'Archive' }))
+    const confirm = await screen.findByRole('dialog', { name: 'Archive Aula A?' })
+    expect(previewArchive).toHaveBeenCalledWith('room', 'room_aula_a')
+    expect(
+      await within(confirm).findByText('7 sessions ahead are held here. Move or cancel them first.')
+    ).toBeTruthy()
+    expect(within(confirm).getByRole('button', { name: 'Archive' })).toHaveProperty(
+      'disabled',
+      true
+    )
+    await expectNoAxeViolations()
+    await user.click(within(confirm).getByRole('button', { name: 'Cancel' }))
+    expect(archiveAction).not.toHaveBeenCalled()
+  })
+
+  it('offers no archiving to anyone but admins', async () => {
+    signInAs('FULL')
+    await renderServer(RoomPage({ params: params({ id: 'room_aula_a' }) }))
+    expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull()
   })
 })

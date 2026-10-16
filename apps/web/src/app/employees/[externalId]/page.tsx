@@ -21,6 +21,7 @@ import { notFound } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { cache } from 'react'
 
+import { PersonLink } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
 import { CompletionHistoryTable } from '@/components/completion-tables'
 import { OrgLink } from '@/components/org-links'
@@ -122,15 +123,7 @@ export default async function EmployeePage({ params }: Props) {
                     <OrgLink kind="positions" id={employee.positionId} name={employee.position} />
                   </DescriptionItem>
                   <DescriptionItem label={t('manager')}>
-                    {employee.manager ? (
-                      <TextLink asChild>
-                        <Link href={`/employees/${employee.manager.externalId}`}>
-                          {employee.manager.name}
-                        </Link>
-                      </TextLink>
-                    ) : (
-                      PLACEHOLDER
-                    )}
+                    {employee.manager ? <PersonLink person={employee.manager} /> : PLACEHOLDER}
                   </DescriptionItem>
                   <DescriptionItem label={t('hiredOn')}>{date(employee.hiredOn)}</DescriptionItem>
                   {employee.leftOn && (

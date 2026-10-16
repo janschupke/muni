@@ -14,7 +14,7 @@ export type ImportJob =
   | {
       status: 'succeeded'
       total: number
-      results: Partial<Record<DatasetKind, { created: number; updated: number }>>
+      results: Partial<Record<DatasetKind, { created: number; updated: number; skipped: number }>>
     }
   | { status: 'failed'; total: number; written: number; message: string }
 
@@ -60,13 +60,17 @@ export function ProgressStep({ job, onReset }: { job: ImportJob; onReset: () => 
         </Alert>
         <ul className="flex flex-col gap-1">
           {(
-            Object.entries(job.results) as [DatasetKind, { created: number; updated: number }][]
+            Object.entries(job.results) as [
+              DatasetKind,
+              { created: number; updated: number; skipped: number },
+            ][]
           ).map(([kind, r]) => (
             <li key={kind}>
               {t('progress.result', {
                 kind: t(`kinds.${kind}`),
                 created: r.created,
                 updated: r.updated,
+                skipped: r.skipped,
               })}
             </li>
           ))}

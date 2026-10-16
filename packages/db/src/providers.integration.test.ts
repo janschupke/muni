@@ -2,11 +2,11 @@ import path from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { unarchiveAll } from '../test/archive'
 import { createDb } from './client'
 import {
   createCompletion,
   createProvider,
-  deleteProvider,
   getProvider,
   getProviderForEdit,
   listProviders,
@@ -52,6 +52,7 @@ const cleanUp = async () => {
   })
   await db.provider.deleteMany({ where: { name: { in: CREATED } } })
   await db.provider.updateMany({ data: blank })
+  await unarchiveAll(db)
 }
 
 beforeAll(async () => {
@@ -127,9 +128,12 @@ describe('provider figures', () => {
     for (const c of recent) {
       const row = stored.find(r => r.externalId === c.externalId)
       expect(row?.providerId).toBe(listed?.id)
-      expect([c.employeeExternalId, c.employeeName, c.courseCode]).toEqual([
-        row?.employee.externalId,
-        `${row?.employee.lastName ?? ''} ${row?.employee.firstName ?? ''}`,
+      expect([c.employee, c.courseCode]).toEqual([
+        {
+          archived: false,
+          externalId: row?.employee.externalId,
+          name: `${row?.employee.lastName ?? ''} ${row?.employee.firstName ?? ''}`,
+        },
         row?.course.code,
       ])
     }
@@ -189,7 +193,6 @@ describe('a new provider', () => {
       byCourse: [{ code: 'LEAD', completions: 1, spend: null }],
       recentCompletions: [{ courseCode: 'LEAD', validUntil: null, price: null }],
     })
-    expect(await deleteProvider(created.id, options)).toBe('IN_USE')
   })
 })
 
@@ -249,17 +252,6 @@ describe('provider records', () => {
     ).rejects.toMatchObject({
       code: 'P2025',
     })
-  })
-
-  it('deletes a provider no completion names, and keeps one that some do', async () => {
-    const created = await createProvider({ ...blank, name: 'Třetí dodavatel' }, options)
-    if (!created.ok) throw new Error('not created')
-    expect(await deleteProvider(created.id, options)).toBe('DELETED')
-    expect(await getProviderForEdit(created.id, options)).toBeNull()
-    const used = await db.provider.findUniqueOrThrow({ where: { name: 'Externí lektor' } })
-    expect(await deleteProvider(used.id, options)).toBe('IN_USE')
-    expect(await db.courseCompletion.count({ where: { providerId: used.id } })).toBeGreaterThan(0)
-    await expect(deleteProvider('nope', options)).rejects.toMatchObject({ code: 'P2025' })
   })
 
   it('keeps the details entered in the app through a re-import', async () => {

@@ -17,13 +17,14 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import { ComplianceBar, ComplianceLegend } from '@/components/compliance-breakdown'
 import { SessionTable } from '@/components/session-table'
 import { rateTone } from '@/components/status-badges'
+import { ArchivedAccount } from '@/features/landing/archived-account'
 import { Landing } from '@/features/landing/landing'
-import { getSessionUser } from '@/server/auth'
+import { getSessionUser, isAccountArchived } from '@/server/auth'
 
 /** Visitors get the introduction; signed-in users the dashboard. */
 export default async function HomePage() {
   const user = await getSessionUser()
-  if (!user) return <Landing />
+  if (!user) return (await isAccountArchived()) ? <ArchivedAccount /> : <Landing />
   const [data, advisorInput, t, locale] = await Promise.all([
     getDashboard(),
     getAdvisorInput(),

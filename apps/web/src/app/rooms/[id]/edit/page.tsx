@@ -4,9 +4,8 @@ import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
 import { BackLink } from '@/components/back-link'
-import { ConfirmDeleteButton } from '@/components/confirm-delete-button'
 import { RoomForm } from '@/features/rooms/room-form'
-import { removeRoom, saveRoom } from '@/server/actions/rooms'
+import { saveRoom } from '@/server/actions/rooms'
 import { requireAdminPage } from '@/server/auth'
 
 export default async function EditRoomPage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,12 +20,6 @@ export default async function EditRoomPage({ params }: { params: Promise<{ id: s
         eyebrow={<BackLink fallback={{ href: `/rooms/${id}`, label: room.name }} />}
       />
       <RoomForm action={saveRoom.bind(null, id)} cancelHref={`/rooms/${id}`} defaults={room} />
-      <hr className="my-8 max-w-2xl border-border-muted" />
-      <ConfirmDeleteButton
-        name={room.name}
-        messages="rooms.form"
-        action={removeRoom.bind(null, id)}
-      />
     </>
   )
 }

@@ -1,12 +1,15 @@
 'use client'
 
 import {
+  archivedCandidates,
+  type ArchivedKeys,
   COMMIT_ORDER,
   committable,
   type DatasetKind,
   editCell,
   type ImportBatch,
   MAX_FILE_BYTES,
+  NO_ARCHIVED,
   type ParsedFile,
   parseFile,
   type ReferenceSnapshot,
@@ -18,7 +21,7 @@ import { StepIndicator } from '@muni/ui/step-indicator'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
-import { commitImportChunk } from './actions'
+import { commitImportChunk, findArchived } from './actions'
 import { ConfirmStep } from './confirm-step'
 import { type ImportJob, ProgressStep } from './progress-step'
 import { ReviewStep } from './review-step'
@@ -38,12 +41,15 @@ function batchFrom(files: Partial<Record<DatasetKind, ParsedFile>>): ImportBatch
  * the browser with the same @muni/importer the seed uses; the server re-validates each chunk.
  */
 export function ImportWizard({
-  reference,
+  reference: snapshot,
   today,
 }: {
   reference: ReferenceSnapshot
   today: string
 }) {
+  // The server says which of the files' keys are archived, once they are known.
+  const [archived, setArchived] = useState<ArchivedKeys>(NO_ARCHIVED)
+  const reference = { ...snapshot, archived }
   const { t } = useImportText()
   const router = useRouter()
   const ctx = { today }
@@ -71,9 +77,12 @@ export function ImportWizard({
           missingColumns: parsed.missingColumns,
         })
     }
+    const parsed = batchFrom(next)
+    const keys = await findArchived(archivedCandidates(parsed))
+    setArchived(keys)
     setFiles(next)
     setRejected(failed)
-    setBatch(validateBatch(batchFrom(next), reference))
+    setBatch(validateBatch(parsed, { ...snapshot, archived: keys }))
   }
 
   const removeFile = (kind: DatasetKind) => {
@@ -93,7 +102,9 @@ export function ImportWizard({
   const run = async () => {
     const kinds = COMMIT_ORDER.filter(kind => (batch[kind]?.length ?? 0) > 0)
     const total = kinds.reduce((sum, kind) => sum + committable(batch, kind).length, 0)
-    const results: Partial<Record<DatasetKind, { created: number; updated: number }>> = {}
+    const results: Partial<
+      Record<DatasetKind, { created: number; updated: number; skipped: number }>
+    > = {}
     let done = 0
     setStep(3)
     setJob({ status: 'running', done, total })
@@ -106,10 +117,11 @@ export function ImportWizard({
           router.refresh()
           return
         }
-        const sum = results[kind] ?? { created: 0, updated: 0 }
+        const sum = results[kind] ?? { created: 0, updated: 0, skipped: 0 }
         results[kind] = {
           created: sum.created + result.created,
           updated: sum.updated + result.updated,
+          skipped: sum.skipped + result.skipped,
         }
         done += Math.min(CHUNK, records.length - i)
         setJob({ status: 'running', done, total })

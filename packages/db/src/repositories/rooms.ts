@@ -9,6 +9,7 @@ import {
   zonedTimeToUtc,
 } from '@muni/utils/dates'
 
+import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions } from './context'
 import type { SessionListItem } from './courses'
 import { listSessions, upcomingSessionWhere } from './sessions'
@@ -73,7 +74,12 @@ function roomQuery(now: Date, window: Window) {
     capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
     _count: { select: { sessions: { where: upcomingSessionWhere(now) } } },
     sessions: {
-      where: { status: 'PLANNED', startsAt: { lt: window.until }, endsAt: { gt: window.from } },
+      where: {
+        ...ACTIVE,
+        status: 'PLANNED',
+        startsAt: { lt: window.until },
+        endsAt: { gt: window.from },
+      },
       select: { startsAt: true, endsAt: true },
     },
   } as const
@@ -106,6 +112,7 @@ export async function listRooms(options?: RepoOptions & { now?: Date }): Promise
   const now = options?.now ?? new Date()
   const window = utilisationWindow(now)
   const rooms = await dbOf(options).room.findMany({
+    where: ACTIVE,
     select: roomQuery(now, window),
     orderBy: { name: 'asc' },
   })
@@ -120,10 +127,13 @@ export async function getRoom(
   const now = options?.now ?? new Date()
   const window = utilisationWindow(now)
   const [room, upcoming, pastCount, courses] = await Promise.all([
-    db.room.findUnique({ where: { id }, select: roomQuery(now, window) }),
+    db.room.findFirst({ where: { id, ...ACTIVE }, select: roomQuery(now, window) }),
     listSessions({ window: 'upcoming', room: id, status: 'PLANNED' }, { ...options, now }),
-    db.courseSession.count({ where: { roomId: id, status: 'PLANNED', endsAt: { lt: now } } }),
+    db.courseSession.count({
+      where: { ...ACTIVE, roomId: id, status: 'PLANNED', endsAt: { lt: now } },
+    }),
     db.course.findMany({
+      where: ACTIVE,
       select: {
         code: true,
         name: true,
@@ -158,8 +168,8 @@ export async function getRoom(
 }
 
 export async function getRoomForEdit(id: string, options?: RepoOptions) {
-  const room = await dbOf(options).room.findUnique({
-    where: { id },
+  const room = await dbOf(options).room.findFirst({
+    where: { id, ...ACTIVE },
     select: {
       id: true,
       name: true,

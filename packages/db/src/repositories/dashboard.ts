@@ -1,5 +1,6 @@
 import { type ComplianceCounts, complianceRate, countStatuses } from '@muni/domain/compliance'
 
+import { ACTIVE } from './archive'
 import { mandatoryCourse } from './audience'
 import { dbOf, loadCompliance, type RepoOptions } from './context'
 import type { SessionListItem } from './courses'
@@ -25,7 +26,11 @@ export async function getDashboard(options?: RepoOptions): Promise<DashboardData
   const db = dbOf(options)
   const [compliance, departments, upcomingSessions] = await Promise.all([
     loadCompliance(options),
-    db.department.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+    db.department.findMany({
+      where: ACTIVE,
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
     listSessions({ window: 'upcoming', limit: 6 }, options),
   ])
   const active = new Set(compliance.employees.filter(e => e.status === 'ACTIVE').map(e => e.id))
@@ -89,14 +94,18 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
   const db = dbOf(options)
   const [compliance, departments, courses, people, bookings] = await Promise.all([
     loadCompliance(options),
-    db.department.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+    db.department.findMany({
+      where: ACTIVE,
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
     db.course.findMany({
-      where: mandatoryCourse,
+      where: { ...mandatoryCourse, ...ACTIVE },
       select: { id: true, code: true, name: true },
       orderBy: { code: 'asc' },
     }),
     db.employee.findMany({
-      where: { status: 'ACTIVE' },
+      where: { ...ACTIVE, status: 'ACTIVE' },
       select: {
         id: true,
         externalId: true,

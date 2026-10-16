@@ -3,12 +3,11 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
-import { TextLink } from '@muni/ui/text-link'
 import { toZonedParts } from '@muni/utils/dates'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
+import { PersonLink } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
 import { SessionForm } from '@/components/form/entity-forms'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
@@ -63,15 +62,15 @@ export default async function EditSessionPage({
       ) : (
         <ItemList className="max-w-2xl">
           {session.assigned.map(a => (
-            <ItemListRow key={a.externalId}>
-              <TextLink asChild>
-                <Link href={`/employees/${a.externalId}`}>{a.name}</Link>
-              </TextLink>
-              <RemoveBookingButton
-                sessionExternalId={externalId}
-                employeeExternalId={a.externalId}
-                label={t('attendees.remove', { name: a.name })}
-              />
+            <ItemListRow key={a.archived ? a.tag : a.externalId}>
+              <PersonLink person={a} />
+              {!a.archived && (
+                <RemoveBookingButton
+                  sessionExternalId={externalId}
+                  employeeExternalId={a.externalId}
+                  label={t('attendees.remove', { name: a.name })}
+                />
+              )}
             </ItemListRow>
           ))}
         </ItemList>

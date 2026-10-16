@@ -17,6 +17,7 @@ import { cleanFreeText } from '@muni/utils/text'
 import type * as z from 'zod'
 
 import type { Db, Tx } from './client'
+import { ACTIVE } from './repositories/archive'
 
 export const COMMIT_CHUNK_SIZE = 500
 const TX_OPTIONS = { timeout: 60_000, maxWait: 10_000 }
@@ -24,6 +25,49 @@ const TX_OPTIONS = { timeout: 60_000, maxWait: 10_000 }
 export interface CommitResult {
   created: number
   updated: number
+  /** Records left alone because they are, or refer to, something archived. */
+  skipped: number
+}
+
+// Every lookup here is among active records: an archived record's name, code or ID is free for
+// a new one. A record whose own key, or anything it refers to, matches ONLY archived records is
+// skipped (the review shows it as ARCHIVED): an import never revives an archived record, and
+// never creates an active twin of one.
+
+type Keyed = 'department' | 'position' | 'provider' | 'room' | 'course' | 'employee'
+type KeyField = 'name' | 'code' | 'externalId' | 'email'
+
+/** The values that only archived records hold. */
+async function archivedOnly(
+  tx: Tx,
+  model: Keyed | 'courseSession' | 'courseCompletion',
+  field: KeyField,
+  values: Iterable<string | null>
+): Promise<Set<string>> {
+  const wanted = [...new Set([...values].filter((v): v is string => v !== null))]
+  if (wanted.length === 0) return new Set()
+  const delegate = tx[model] as unknown as {
+    findMany(args: object): Promise<Record<string, unknown>[]>
+  }
+  const rows = await delegate.findMany({
+    where: { [field]: { in: wanted } },
+    select: { [field]: true, archivedAt: true },
+  })
+  const active = new Set(rows.filter(r => r['archivedAt'] === null).map(r => r[field]))
+  return new Set(
+    rows.filter(r => r['archivedAt'] !== null && !active.has(r[field])).map(r => r[field] as string)
+  )
+}
+
+/** Splits off the records that touch something archived. */
+function withoutArchived<T>(
+  records: T[],
+  checks: [Set<string>, (r: T) => (string | null)[]][]
+): { kept: T[]; skipped: number } {
+  const kept = records.filter(
+    r => !checks.some(([set, keys]) => keys(r).some(k => k !== null && set.has(k)))
+  )
+  return { kept, skipped: records.length - kept.length }
 }
 
 /**
@@ -66,10 +110,13 @@ async function upsertNames(
   if (unique.length === 0) return new Map()
   const delegate = tx[model] as unknown as {
     createMany(args: { data: { name: string }[]; skipDuplicates: boolean }): Promise<unknown>
-    findMany(args: { where: { name: { in: string[] } } }): Promise<{ id: string; name: string }[]>
+    findMany(args: {
+      where: { name: { in: string[] }; archivedAt: null }
+    }): Promise<{ id: string; name: string }[]>
   }
+  // ON CONFLICT DO NOTHING (no target) respects the partial unique index on active names.
   await delegate.createMany({ data: unique.map(name => ({ name })), skipDuplicates: true })
-  const rows = await delegate.findMany({ where: { name: { in: unique } } })
+  const rows = await delegate.findMany({ where: { name: { in: unique }, ...ACTIVE } })
   return new Map(rows.map(r => [r.name, r.id]))
 }
 
@@ -90,7 +137,18 @@ async function partition<T>(
   return { fresh, existing }
 }
 
-async function writeRooms(tx: Tx, records: RoomInput[]): Promise<CommitResult> {
+async function writeRooms(tx: Tx, all: RoomInput[]): Promise<CommitResult> {
+  const { kept: records, skipped } = withoutArchived(all, [
+    [
+      await archivedOnly(
+        tx,
+        'room',
+        'name',
+        all.map(r => r.name)
+      ),
+      r => [r.name],
+    ],
+  ])
   let created = 0
   let updated = 0
   for (const record of records) {
@@ -99,16 +157,13 @@ async function writeRooms(tx: Tx, records: RoomInput[]): Promise<CommitResult> {
       capacity: record.capacity,
       note: cleanFreeText(record.note),
     }
-    const existing = await tx.room.findUnique({
-      where: { name: record.name },
+    const existing = await tx.room.findFirst({
+      where: { name: record.name, ...ACTIVE },
       select: { id: true },
     })
-    const room = await tx.room.upsert({
-      where: { name: record.name },
-      create: { name: record.name, ...data },
-      update: data,
-      select: { id: true },
-    })
+    const room = existing
+      ? await tx.room.update({ where: { id: existing.id }, data, select: { id: true } })
+      : await tx.room.create({ data: { name: record.name, ...data }, select: { id: true } })
     if (existing) updated++
     else created++
     if (record.capabilities === null) continue
@@ -118,10 +173,28 @@ async function writeRooms(tx: Tx, records: RoomInput[]): Promise<CommitResult> {
       skipDuplicates: true,
     })
   }
-  return { created, updated }
+  return { created, updated, skipped }
 }
 
-async function writeCourses(tx: Tx, records: CourseInput[]): Promise<CommitResult> {
+const departmentsOf = (r: CourseInput) =>
+  r.requirements.flatMap(q => (q.scope === 'DEPARTMENT' ? [q.department] : []))
+const positionsOf = (r: CourseInput) =>
+  r.requirements.flatMap(q => (q.scope === 'POSITION' ? [q.position] : []))
+
+async function writeCourses(tx: Tx, all: CourseInput[]): Promise<CommitResult> {
+  const { kept: records, skipped } = withoutArchived(all, [
+    [
+      await archivedOnly(
+        tx,
+        'course',
+        'code',
+        all.map(r => r.code)
+      ),
+      r => [r.code],
+    ],
+    [await archivedOnly(tx, 'department', 'name', all.flatMap(departmentsOf)), departmentsOf],
+    [await archivedOnly(tx, 'position', 'name', all.flatMap(positionsOf)), positionsOf],
+  ])
   const departments = await upsertNames(
     tx,
     'department',
@@ -137,8 +210,8 @@ async function writeCourses(tx: Tx, records: CourseInput[]): Promise<CommitResul
   let created = 0
   let updated = 0
   for (const record of records) {
-    const existing = await tx.course.findUnique({
-      where: { code: record.code },
+    const existing = await tx.course.findFirst({
+      where: { code: record.code, ...ACTIVE },
       select: { id: true },
     })
     // The catalog says who must hold the course; what a session needs is set in the app
@@ -148,12 +221,9 @@ async function writeCourses(tx: Tx, records: CourseInput[]): Promise<CommitResul
       validityMonths: record.validityMonths,
       requiredForAll: record.requirements.some(q => q.scope === 'ALL'),
     }
-    const course = await tx.course.upsert({
-      where: { code: record.code },
-      create: { code: record.code, ...audience },
-      update: audience,
-      select: { id: true },
-    })
+    const course = existing
+      ? await tx.course.update({ where: { id: existing.id }, data: audience, select: { id: true } })
+      : await tx.course.create({ data: { code: record.code, ...audience }, select: { id: true } })
     if (existing) updated++
     else created++
     await tx.courseDepartmentRequirement.deleteMany({ where: { courseId: course.id } })
@@ -175,7 +245,49 @@ async function writeCourses(tx: Tx, records: CourseInput[]): Promise<CommitResul
       skipDuplicates: true,
     })
   }
-  return { created, updated }
+  return { created, updated, skipped }
+}
+
+/** Employee records that touch nothing archived (shared by both employee passes). */
+async function activeEmployeeRecords(tx: Tx, all: EmployeeInput[]) {
+  return withoutArchived(all, [
+    [
+      await archivedOnly(
+        tx,
+        'employee',
+        'externalId',
+        all.map(r => r.externalId)
+      ),
+      r => [r.externalId],
+    ],
+    [
+      await archivedOnly(
+        tx,
+        'employee',
+        'email',
+        all.map(r => r.managerEmail)
+      ),
+      r => [r.managerEmail],
+    ],
+    [
+      await archivedOnly(
+        tx,
+        'department',
+        'name',
+        all.map(r => r.department)
+      ),
+      r => [r.department],
+    ],
+    [
+      await archivedOnly(
+        tx,
+        'position',
+        'name',
+        all.map(r => r.position)
+      ),
+      r => [r.position],
+    ],
+  ])
 }
 
 async function writeEmployees(tx: Tx, records: EmployeeInput[]): Promise<CommitResult> {
@@ -208,7 +320,7 @@ async function writeEmployees(tx: Tx, records: EmployeeInput[]): Promise<CommitR
     async keys =>
       (
         await tx.employee.findMany({
-          where: { externalId: { in: keys } },
+          where: { externalId: { in: keys }, ...ACTIVE },
           select: { id: true, externalId: true },
         })
       ).map(e => ({ key: e.externalId, id: e.id }))
@@ -218,14 +330,14 @@ async function writeEmployees(tx: Tx, records: EmployeeInput[]): Promise<CommitR
   })
   for (const { record, id } of existing)
     await tx.employee.update({ where: { id }, data: toData(record) })
-  return { created: fresh.length, updated: existing.length }
+  return { created: fresh.length, updated: existing.length, skipped: 0 }
 }
 
 /** Second pass: managers are referenced by email and may appear later in the file. */
 async function linkManagers(tx: Tx, records: EmployeeInput[]): Promise<void> {
   const emails = [...new Set(records.flatMap(r => (r.managerEmail ? [r.managerEmail] : [])))]
   const managers = await tx.employee.findMany({
-    where: { email: { in: emails } },
+    where: { email: { in: emails }, ...ACTIVE },
     select: { id: true, email: true },
   })
   const idByEmail = new Map(managers.map(m => [m.email, m.id]))
@@ -238,7 +350,7 @@ async function linkManagers(tx: Tx, records: EmployeeInput[]): Promise<void> {
   }
   for (const [managerId, externalIds] of byManager) {
     await tx.employee.updateMany({
-      where: { externalId: { in: externalIds } },
+      where: { externalId: { in: externalIds }, ...ACTIVE },
       data: { managerId },
     })
   }
@@ -246,7 +358,7 @@ async function linkManagers(tx: Tx, records: EmployeeInput[]): Promise<void> {
 
 async function courseIds(tx: Tx, codes: string[]): Promise<Map<string, string>> {
   const rows = await tx.course.findMany({
-    where: { code: { in: [...new Set(codes)] } },
+    where: { code: { in: [...new Set(codes)] }, ...ACTIVE },
     select: { id: true, code: true },
   })
   return new Map(rows.map(c => [c.code, c.id]))
@@ -266,7 +378,7 @@ function lookup<T>(map: Map<string, T>, key: string, what: string): T {
 async function resolveRooms(tx: Tx, records: SessionInput[]): Promise<Map<string, string>> {
   const names = [...new Set(records.map(r => r.location))]
   const existing = await tx.room.findMany({
-    where: { name: { in: names } },
+    where: { name: { in: names }, ...ACTIVE },
     select: { id: true, name: true },
   })
   const ids = new Map(existing.map(r => [r.name, r.id]))
@@ -299,7 +411,7 @@ async function deriveSessionNeeds(tx: Tx, courseIdList: string[]): Promise<void>
     select: {
       id: true,
       sessions: {
-        where: { status: 'PLANNED', capacity: { gt: 0 } },
+        where: { ...ACTIVE, status: 'PLANNED', capacity: { gt: 0 } },
         select: { startsAt: true, endsAt: true, capacity: true, room: { select: { kind: true } } },
       },
     },
@@ -328,7 +440,36 @@ function mostCommon(values: number[]): number {
   return [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 0
 }
 
-async function writeSessions(tx: Tx, records: SessionInput[]): Promise<CommitResult> {
+async function writeSessions(tx: Tx, all: SessionInput[]): Promise<CommitResult> {
+  const { kept: records, skipped } = withoutArchived(all, [
+    [
+      await archivedOnly(
+        tx,
+        'courseSession',
+        'externalId',
+        all.map(r => r.externalId)
+      ),
+      r => [r.externalId],
+    ],
+    [
+      await archivedOnly(
+        tx,
+        'course',
+        'code',
+        all.map(r => r.courseCode)
+      ),
+      r => [r.courseCode],
+    ],
+    [
+      await archivedOnly(
+        tx,
+        'room',
+        'name',
+        all.map(r => r.location)
+      ),
+      r => [r.location],
+    ],
+  ])
   const courses = await courseIds(
     tx,
     records.map(r => r.courseCode)
@@ -354,7 +495,7 @@ async function writeSessions(tx: Tx, records: SessionInput[]): Promise<CommitRes
     async keys =>
       (
         await tx.courseSession.findMany({
-          where: { externalId: { in: keys } },
+          where: { externalId: { in: keys }, ...ACTIVE },
           select: { id: true, externalId: true, _count: { select: { assignments: true } } },
         })
       ).map(e => {
@@ -371,10 +512,48 @@ async function writeSessions(tx: Tx, records: SessionInput[]): Promise<CommitRes
       data: toData(record, assignedBySession.get(id) ?? 0),
     })
   await deriveSessionNeeds(tx, [...courses.values()])
-  return { created: fresh.length, updated: existing.length }
+  return { created: fresh.length, updated: existing.length, skipped }
 }
 
-async function writeCompletions(tx: Tx, records: CompletionInput[]): Promise<CommitResult> {
+async function writeCompletions(tx: Tx, all: CompletionInput[]): Promise<CommitResult> {
+  const { kept: records, skipped } = withoutArchived(all, [
+    [
+      await archivedOnly(
+        tx,
+        'courseCompletion',
+        'externalId',
+        all.map(r => r.externalId)
+      ),
+      r => [r.externalId],
+    ],
+    [
+      await archivedOnly(
+        tx,
+        'employee',
+        'externalId',
+        all.map(r => r.employeeExternalId)
+      ),
+      r => [r.employeeExternalId],
+    ],
+    [
+      await archivedOnly(
+        tx,
+        'course',
+        'code',
+        all.map(r => r.courseCode)
+      ),
+      r => [r.courseCode],
+    ],
+    [
+      await archivedOnly(
+        tx,
+        'provider',
+        'name',
+        all.map(r => r.provider)
+      ),
+      r => [r.provider],
+    ],
+  ])
   const courses = await courseIds(
     tx,
     records.map(r => r.courseCode)
@@ -382,7 +561,10 @@ async function writeCompletions(tx: Tx, records: CompletionInput[]): Promise<Com
   const employees = new Map(
     (
       await tx.employee.findMany({
-        where: { externalId: { in: [...new Set(records.map(r => r.employeeExternalId))] } },
+        where: {
+          externalId: { in: [...new Set(records.map(r => r.employeeExternalId))] },
+          ...ACTIVE,
+        },
         select: { id: true, externalId: true },
       })
     ).map(e => [e.externalId, e.id])
@@ -407,7 +589,7 @@ async function writeCompletions(tx: Tx, records: CompletionInput[]): Promise<Com
     async keys =>
       (
         await tx.courseCompletion.findMany({
-          where: { externalId: { in: keys } },
+          where: { externalId: { in: keys }, ...ACTIVE },
           select: { id: true, externalId: true },
         })
       ).map(e => ({ key: e.externalId, id: e.id }))
@@ -417,7 +599,7 @@ async function writeCompletions(tx: Tx, records: CompletionInput[]): Promise<Com
   })
   for (const { record, id } of existing)
     await tx.courseCompletion.update({ where: { id }, data: toData(record) })
-  return { created: fresh.length, updated: existing.length }
+  return { created: fresh.length, updated: existing.length, skipped }
 }
 
 /**
@@ -441,9 +623,10 @@ export async function commitChunk(
       case 'courses':
         return writeCourses(tx, records as CourseInput[])
       case 'employees': {
-        const result = await writeEmployees(tx, records as EmployeeInput[])
-        await linkManagers(tx, records as EmployeeInput[])
-        return result
+        const { kept, skipped } = await activeEmployeeRecords(tx, records as EmployeeInput[])
+        const result = await writeEmployees(tx, kept)
+        await linkManagers(tx, kept)
+        return { ...result, skipped }
       }
       case 'sessions':
         return writeSessions(tx, records as SessionInput[])

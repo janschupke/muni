@@ -1,13 +1,12 @@
 'use server'
 
-import { createProvider, deleteProvider, updateProvider } from '@muni/db/repositories'
+import { createProvider, updateProvider } from '@muni/db/repositories'
 import { providerSchema } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { type DeleteState, fieldErrors, formError, type FormState, text } from '@/lib/form'
+import { fieldErrors, formError, type FormState, text } from '@/lib/form'
 import { requireAdmin } from '@/server/auth'
-import { deleteRecord } from '@/server/delete-record'
 
 const codeOf = (error: unknown) => (error as { code?: unknown } | null)?.code
 
@@ -39,9 +38,4 @@ export async function saveProvider(
   if (!saved.ok) return { status: 'error', fieldErrors: { [saved.taken]: 'taken' } }
   revalidatePath('/', 'layout')
   redirect(`/providers/${saved.id}`)
-}
-
-/** Deletes a provider no completion names; one still named stays and says why. */
-export async function removeProvider(id: string, _state: DeleteState): Promise<DeleteState> {
-  return deleteRecord(() => deleteProvider(id), '/providers')
 }

@@ -3,6 +3,7 @@ import { PageHeader } from '@muni/ui/page-header'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
+import { ListActions } from '@/components/list-actions'
 import { UsersTable } from '@/features/users/users-table'
 import { requireAdminPage } from '@/server/auth'
 
@@ -15,7 +16,11 @@ export default async function UsersPage() {
   const [users, t] = await Promise.all([listUsers(), getTranslations('users')])
   return (
     <>
-      <PageHeader title={t('title')} description={t('description')} />
+      <PageHeader
+        title={t('title')}
+        description={t('description')}
+        actions={<ListActions kind="user" />}
+      />
       <UsersTable users={users} />
     </>
   )

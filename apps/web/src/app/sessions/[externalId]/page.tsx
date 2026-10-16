@@ -19,6 +19,7 @@ import { notFound } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { cache } from 'react'
 
+import { PersonLink } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RoomLink } from '@/components/session-links'
@@ -126,11 +127,9 @@ export default async function SessionPage({ params }: Props) {
               ) : (
                 <ItemList>
                   {session.assigned.map(a => (
-                    <ItemListRow key={a.externalId}>
-                      <TextLink asChild>
-                        <Link href={`/employees/${a.externalId}`}>{a.name}</Link>
-                      </TextLink>
-                      {canEdit && (
+                    <ItemListRow key={a.archived ? a.tag : a.externalId}>
+                      <PersonLink person={a} />
+                      {canEdit && !a.archived && (
                         <RemoveBookingButton
                           sessionExternalId={session.externalId}
                           employeeExternalId={a.externalId}

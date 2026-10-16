@@ -1,6 +1,7 @@
 /**
  * Every issue code the importer can raise. Errors skip the row; warnings import it
- * with the automatic fix described. The web app translates each as `import.issues.<CODE>`.
+ * with the automatic fix described, except the SKIPPING_CODES, which leave it out.
+ * The web app translates each as `import.issues.<CODE>`.
  */
 export const ISSUE_CODES = [
   // whole-row
@@ -50,6 +51,14 @@ export const ISSUE_CODES = [
   'OVERBOOKED',
   'ZERO_CAPACITY',
   'FUTURE_COMPLETION',
+  // left out (warnings that skip the row)
+  'ARCHIVED',
 ] as const
 
 export type IssueCode = (typeof ISSUE_CODES)[number]
+
+/**
+ * Warnings that leave the row out: it is, or refers to, a record that has been archived.
+ * An import never revives an archived record, nor creates an active twin of it.
+ */
+export const SKIPPING_CODES: readonly IssueCode[] = ['ARCHIVED']

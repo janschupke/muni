@@ -1,4 +1,4 @@
-import type { SessionProblem } from '@muni/db/repositories'
+import type { ArchiveRefusal, SessionProblem, UniqueField } from '@muni/db/repositories'
 import { parseCzk } from '@muni/utils/money'
 import type * as z from 'zod'
 
@@ -18,6 +18,8 @@ export type FieldErrorKey =
   | 'room_online_not_allowed'
   | 'room_too_small'
   | 'room_missing_capabilities'
+  | 'room_archived'
+  | 'course_archived'
   | 'company_id'
 
 /** What can go wrong with the whole form: i18n keys under forms.errors. */
@@ -34,14 +36,38 @@ export type FormState =
 
 export const IDLE: FormState = { status: 'idle' }
 
-/** What a delete action returns when it does not leave the page: why the record stays. */
-export type DeleteState =
-  { status: 'idle' } | { status: 'refused'; reason: 'in_use' | FormErrorKey }
+/** Why an archive or unarchive did not happen: i18n keys under archive.refused. */
+type ArchiveRefusalKey =
+  | Lowercase<Exclude<ArchiveRefusal, 'NOT_FOUND'>>
+  | 'not_found'
+  | 'taken'
+  | 'parent_archived'
+  | 'generic'
 
-export const refused = (reason: 'in_use' | FormErrorKey): DeleteState => ({
-  status: 'refused',
-  reason,
-})
+/**
+ * What an archive or unarchive action returns when it does not leave the page: done, or why
+ * not (with how many things are in the way, or which unique fields are taken).
+ */
+export type ArchiveState =
+  | { status: 'idle' }
+  | { status: 'done' }
+  | {
+      status: 'refused'
+      reason: ArchiveRefusalKey
+      count?: number | undefined
+      fields?: UniqueField[] | undefined
+    }
+
+export const ARCHIVE_IDLE: ArchiveState = { status: 'idle' }
+
+/** An archive refusal from the database, as the state the page shows. */
+export function archiveRefused(reason: ArchiveRefusal, count: number): ArchiveState {
+  return {
+    status: 'refused',
+    reason: reason === 'NOT_FOUND' ? 'not_found' : (reason.toLowerCase() as ArchiveRefusalKey),
+    count,
+  }
+}
 
 /** Trimmed text; empty → null. */
 export function text(form: FormData, key: string): string | null {

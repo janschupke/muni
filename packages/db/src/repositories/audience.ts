@@ -13,12 +13,18 @@ export interface RequirementView {
   target: string | null
   /** Department or position id; null for ALL. */
   targetId: string | null
+  /** The department or position is archived: shown muted, not linked. */
+  archived: boolean
 }
 
 /** Include this on a course to read its audience (with its scalar `requiredForAll`). */
 export const audienceInclude = {
-  departmentRequirements: { select: { department: { select: { id: true, name: true } } } },
-  positionRequirements: { select: { position: { select: { id: true, name: true } } } },
+  departmentRequirements: {
+    select: { department: { select: { id: true, name: true, archivedAt: true } } },
+  },
+  positionRequirements: {
+    select: { position: { select: { id: true, name: true, archivedAt: true } } },
+  },
 } as const
 
 /** Select this on a course to read its audience. */
@@ -27,8 +33,8 @@ export const audienceSelect = { requiredForAll: true, ...audienceInclude } as co
 export interface AudienceRow {
   id: string
   requiredForAll: boolean
-  departmentRequirements: { department: { id: string; name: string } }[]
-  positionRequirements: { position: { id: string; name: string } }[]
+  departmentRequirements: { department: { id: string; name: string; archivedAt: Date | null } }[]
+  positionRequirements: { position: { id: string; name: string; archivedAt: Date | null } }[]
 }
 
 /** Courses someone must hold (the rest are optional). */
@@ -62,16 +68,20 @@ export function rulesOf(course: AudienceRow): ComplianceRequirement[] {
 
 export function requirementViews(course: AudienceRow): RequirementView[] {
   const views: RequirementView[] = [
-    ...(course.requiredForAll ? [{ scope: 'ALL' as const, target: null, targetId: null }] : []),
+    ...(course.requiredForAll
+      ? [{ scope: 'ALL' as const, target: null, targetId: null, archived: false }]
+      : []),
     ...course.departmentRequirements.map(r => ({
       scope: 'DEPARTMENT' as const,
       target: r.department.name,
       targetId: r.department.id,
+      archived: r.department.archivedAt !== null,
     })),
     ...course.positionRequirements.map(r => ({
       scope: 'POSITION' as const,
       target: r.position.name,
       targetId: r.position.id,
+      archived: r.position.archivedAt !== null,
     })),
   ]
   return views.sort(

@@ -4,6 +4,7 @@ import path from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { deleteCourses, deleteRooms, unarchiveAll } from '../test/archive'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { createDb, getDb } from './client'
 import {
@@ -11,7 +12,6 @@ import {
   createCompletion,
   createRoom,
   createSession,
-  deleteRoom,
   getAdvisorInput,
   getCourse,
   getCourseForEdit,
@@ -64,8 +64,9 @@ const restore = async () => {
   await db.courseCompletion.deleteMany({ where: { externalId: { startsWith: 'A' } } })
   await db.courseSession.deleteMany({ where: { room: { name: { in: CREATED_ROOMS } } } })
   await db.courseSession.deleteMany({ where: { externalId: { startsWith: 'S' } } })
-  await db.course.deleteMany({ where: { code: { startsWith: 'TEST-' } } })
-  await db.room.deleteMany({ where: { name: { in: CREATED_ROOMS } } })
+  await deleteCourses(db, { code: { startsWith: 'TEST-' } })
+  await deleteRooms(db, CREATED_ROOMS)
+  await unarchiveAll(db)
   // Needs set by hand stay put through imports; clear them so the seed derives them afresh.
   await db.courseCapability.deleteMany()
   await db.course.updateMany({
@@ -452,10 +453,6 @@ describe('rooms', () => {
       ok: false,
       problem: 'ROOM_BUSY',
     })
-    expect(await deleteRoom(id, options)).toBe('IN_USE')
-    await db.courseSession.deleteMany({ where: { externalId: { in: ['S001', 'S002'] } } })
-    expect(await deleteRoom(id, options)).toBe('DELETED')
-    expect(await db.room.count({ where: { id } })).toBe(0)
   })
 
   it('imports rooms and creates the ones only sessions name', async () => {
@@ -469,7 +466,7 @@ describe('rooms', () => {
           note: null,
         },
       ])
-    ).toEqual({ created: 1, updated: 0 })
+    ).toEqual({ created: 1, updated: 0, skipped: 0 })
     expect(
       await commitChunk(db, 'rooms', [
         {
@@ -480,7 +477,7 @@ describe('rooms', () => {
           note: null,
         },
       ])
-    ).toEqual({ created: 0, updated: 1 })
+    ).toEqual({ created: 0, updated: 1, skipped: 0 })
     const imported = await db.room.findUniqueOrThrow({
       where: { name: CREATED.importedRoom },
       include: { capabilities: true },
@@ -607,7 +604,7 @@ describe('the writer refuses what it should never write', () => {
         requirements: [{ scope: 'POSITION', position: CREATED.position }],
       },
     ])
-    expect(result).toEqual({ created: 2, updated: 0 })
+    expect(result).toEqual({ created: 2, updated: 0, skipped: 0 })
   })
 })
 

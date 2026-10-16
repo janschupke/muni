@@ -4,7 +4,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { removeProvider } from '@/server/actions/providers'
+import { archiveAction, previewArchive } from '@/server/actions/archive'
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
@@ -24,9 +24,10 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   listProviders: vi.fn(),
 }))
 vi.mock('@/server/auth')
-vi.mock('@/server/actions/providers', () => ({
-  saveProvider: vi.fn(),
-  removeProvider: vi.fn(() => Promise.resolve({ status: 'refused', reason: 'in_use' })),
+vi.mock('@/server/actions/providers', () => ({ saveProvider: vi.fn() }))
+vi.mock('@/server/actions/archive', () => ({
+  archiveAction: vi.fn(() => Promise.resolve({ status: 'refused', reason: 'not_found' })),
+  previewArchive: vi.fn(() => Promise.resolve({ ok: true, removesBookings: 0 })),
 }))
 
 const internal = providerRow({
@@ -167,8 +168,7 @@ describe('provider forms', () => {
     await expectNoAxeViolations()
   })
 
-  it('edit a provider with its current values, and refuse to delete one in use', async () => {
-    const user = userEvent.setup()
+  it('edit a provider with its current values', async () => {
     await renderServer(EditProviderPage({ params: params({ id: 'prov_vzor' }) }))
     expect(
       screen.getByRole('heading', { level: 1, name: 'Edit Vzorový školicí ústav' })
@@ -176,19 +176,34 @@ describe('provider forms', () => {
     expect(screen.getByRole('textbox', { name: /IČO/ })).toHaveProperty('value', '00216224')
     expect(screen.getByText(/Renaming changes the name/)).toBeTruthy()
     await expectNoAxeViolations()
-    await user.click(screen.getByRole('button', { name: 'Delete provider' }))
-    await user.click(
-      within(
-        await screen.findByRole('dialog', { name: 'Delete Vzorový školicí ústav?' })
-      ).getByRole('button', { name: 'Delete' })
-    )
-    expect(removeProvider).toHaveBeenCalled()
-    expect(
-      await screen.findByText('Completions name this provider, so it cannot be deleted.')
-    ).toBeTruthy()
     vi.mocked(getProviderForEdit).mockResolvedValue(null)
     await expect(EditProviderPage({ params: params({ id: 'gone' }) })).rejects.toThrow(
       NotFoundError
     )
+  })
+})
+
+describe('archiving a provider', () => {
+  it('archives from the provider page and says when it is gone already', async () => {
+    const user = userEvent.setup()
+    signInAs('ADMIN')
+    await renderServer(ProviderPage({ params: params({ id: 'prov_vzor' }) }))
+    await user.click(screen.getByRole('button', { name: 'Archive' }))
+    const confirm = await screen.findByRole('dialog', { name: 'Archive Vzorový školicí ústav?' })
+    expect(previewArchive).toHaveBeenCalledWith('provider', 'prov_vzor')
+    const archive = within(confirm).getByRole('button', { name: 'Archive' })
+    await vi.waitFor(() => {
+      expect(archive).toHaveProperty('disabled', false)
+    })
+    await user.click(archive)
+    expect(archiveAction).toHaveBeenCalledWith(
+      'provider',
+      'prov_vzor',
+      '/providers',
+      expect.anything()
+    )
+    expect(
+      await within(confirm).findByText('It no longer exists, or it is archived already.')
+    ).toBeTruthy()
   })
 })

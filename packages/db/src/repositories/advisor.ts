@@ -1,7 +1,8 @@
 import { type AdvisorInput, type AdvisorNeed, forecastEnd } from '@muni/domain/advisor'
 
+import { ACTIVE } from './archive'
 import { dbOf, loadCompliance, type RepoOptions, toAmount } from './context'
-import { roomRefSelect } from './sessions'
+import { roomRefSelect, toRoomRef } from './sessions'
 
 /**
  * Everything the advisor needs, as plain data: every training that is non-compliant now or
@@ -17,7 +18,7 @@ export async function getAdvisorInput(
   const [compliance, employees, courses, sessions] = await Promise.all([
     loadCompliance(options),
     db.employee.findMany({
-      where: { status: { not: 'TERMINATED' } },
+      where: { ...ACTIVE, status: { not: 'TERMINATED' } },
       select: {
         id: true,
         externalId: true,
@@ -27,9 +28,9 @@ export async function getAdvisorInput(
         department: { select: { name: true } },
       },
     }),
-    db.course.findMany({ select: { id: true, code: true, name: true } }),
+    db.course.findMany({ where: ACTIVE, select: { id: true, code: true, name: true } }),
     db.courseSession.findMany({
-      where: { startsAt: { gt: now } },
+      where: { ...ACTIVE, startsAt: { gt: now }, course: ACTIVE },
       select: {
         externalId: true,
         startsAt: true,
@@ -40,6 +41,7 @@ export async function getAdvisorInput(
         status: true,
         room: { select: roomRefSelect },
         course: { select: { code: true, name: true } },
+        // Every named booking holds a seat. (Archiving a person removes their future ones.)
         assignments: { select: { employee: { select: { externalId: true } } } },
       },
       orderBy: [{ startsAt: 'asc' }, { externalId: 'asc' }],
@@ -77,7 +79,7 @@ export async function getAdvisorInput(
       externalId: s.externalId,
       courseCode: s.course.code,
       courseName: s.course.name,
-      room: s.room,
+      room: toRoomRef(s.room),
       startsAt: s.startsAt.toISOString(),
       endsAt: s.endsAt.toISOString(),
       capacity: s.capacity,

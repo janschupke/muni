@@ -32,7 +32,7 @@ const KIND_ICON: Record<DatasetKind, LucideIcon> = {
   completions: GraduationCap,
 }
 
-type Filter = 'all' | 'valid' | 'errors' | 'warnings' | 'removed'
+type Filter = 'all' | 'valid' | 'errors' | 'warnings' | 'skipped' | 'removed'
 const PAGE_SIZE = 50
 
 function matches(row: ParsedRow<unknown>, filter: Filter): boolean {
@@ -40,11 +40,13 @@ function matches(row: ParsedRow<unknown>, filter: Filter): boolean {
     case 'all':
       return true
     case 'valid':
-      return row.isValid && !row.isRemoved
+      return row.isValid && !row.isSkipped && !row.isRemoved
     case 'errors':
       return !row.isValid && !row.isRemoved
     case 'warnings':
-      return row.isValid && !row.isRemoved && row.warnings.length > 0
+      return row.isValid && !row.isSkipped && !row.isRemoved && row.warnings.length > 0
+    case 'skipped':
+      return row.isSkipped && !row.isRemoved
     case 'removed':
       return row.isRemoved
   }
@@ -85,7 +87,7 @@ function DatasetReview({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard
           label={t('review.total')}
           value={count(summary.total)}
@@ -122,6 +124,14 @@ function DatasetReview({
           pressed={filter === 'warnings'}
         />
         <StatCard
+          label={t('review.skipped')}
+          value={count(summary.skipped)}
+          onClick={() => {
+            choose('skipped')
+          }}
+          pressed={filter === 'skipped'}
+        />
+        <StatCard
           label={t('review.removed')}
           value={count(summary.removed)}
           onClick={() => {
@@ -133,6 +143,9 @@ function DatasetReview({
       <Hint>{t('review.filterHint')}</Hint>
       {summary.invalid > 0 && (
         <Alert tone="warning">{t('review.invalidNotice', { count: summary.invalid })}</Alert>
+      )}
+      {summary.skipped > 0 && (
+        <Alert tone="info">{t('review.skippedNotice', { count: summary.skipped })}</Alert>
       )}
       <ReviewTable
         columns={columns}

@@ -10,6 +10,7 @@ import { sanitizeRecord } from '@muni/domain/sanitize'
 import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 
+import { ACTIVE, isArchived, type PersonRef, personSelect, toPersonRef } from './archive'
 import {
   countedCells,
   dbOf,
@@ -115,10 +116,11 @@ export async function listEmployees(
   const [employees, compliance, courses, bookings] = await Promise.all([
     db.employee.findMany({
       where: {
-        ...(filters.department && { department: { name: filters.department } }),
-        ...(filters.position && { position: { name: filters.position } }),
+        ...ACTIVE,
+        ...(filters.department && { department: { name: filters.department, ...ACTIVE } }),
+        ...(filters.position && { position: { name: filters.position, ...ACTIVE } }),
         ...(filters.manager && {
-          manager: { externalId: filters.manager },
+          manager: { externalId: filters.manager, ...ACTIVE },
           status: { not: 'TERMINATED' as const },
         }),
         ...(filters.status && { status: filters.status }),
@@ -135,7 +137,7 @@ export async function listEmployees(
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     }),
     loadCompliance(options),
-    db.course.findMany({ select: { id: true, code: true, name: true } }),
+    db.course.findMany({ where: ACTIVE, select: { id: true, code: true, name: true } }),
     loadNextBookings(db),
   ])
 
@@ -182,9 +184,11 @@ interface EmployeeCompletionRow {
   externalId: string
   courseCode: string
   courseName: string
+  /** The course is archived: shown muted, not linked. */
+  courseArchived: boolean
   completedOn: IsoDate
   validUntil: IsoDate | null
-  provider: { id: string; name: string } | null
+  provider: { id: string; name: string; archived: boolean } | null
   price?: number | null
   note?: string | null
 }
@@ -209,7 +213,8 @@ export interface EmployeeDetail {
   departmentId: string | null
   position: string | null
   positionId: string | null
-  manager: { externalId: string; name: string } | null
+  /** Anonymised once the manager is archived. */
+  manager: PersonRef | null
   /** Direct reports who have not left, with their compliance; empty for non-managers. */
   reports: TeamMember[]
   /** All of the reports' required trainings together. */
@@ -229,14 +234,14 @@ export async function getEmployee(
   options?: RepoOptions
 ): Promise<EmployeeDetail | null> {
   const db = dbOf(options)
-  const employee = await db.employee.findUnique({
-    where: { externalId },
+  const employee = await db.employee.findFirst({
+    where: { externalId, ...ACTIVE },
     include: {
       department: { select: { id: true, name: true } },
       position: { select: { id: true, name: true } },
-      manager: { select: { externalId: true, firstName: true, lastName: true } },
+      manager: { select: personSelect },
       reports: {
-        where: { status: { not: 'TERMINATED' } },
+        where: { ...ACTIVE, status: { not: 'TERMINATED' } },
         select: {
           id: true,
           externalId: true,
@@ -247,9 +252,10 @@ export async function getEmployee(
         },
       },
       completions: {
+        where: ACTIVE,
         include: {
-          course: { select: { code: true, name: true } },
-          provider: { select: { id: true, name: true } },
+          course: { select: { code: true, name: true, archivedAt: true } },
+          provider: { select: { id: true, name: true, archivedAt: true } },
         },
         orderBy: { completedOn: 'desc' },
       },
@@ -294,12 +300,7 @@ export async function getEmployee(
     departmentId: employee.department?.id ?? null,
     position: employee.position?.name ?? null,
     positionId: employee.position?.id ?? null,
-    manager: employee.manager
-      ? {
-          externalId: employee.manager.externalId,
-          name: `${employee.manager.lastName} ${employee.manager.firstName}`,
-        }
-      : null,
+    manager: employee.manager ? toPersonRef(employee.manager) : null,
     reports,
     // The team's rate counts its active people, like every other rate.
     teamCounts: countStatuses(
@@ -326,9 +327,14 @@ export async function getEmployee(
           externalId: c.externalId,
           courseCode: c.course.code,
           courseName: c.course.name,
+          courseArchived: isArchived(c.course),
           completedOn: isoDateFromUtc(c.completedOn),
           validUntil: c.validUntil ? isoDateFromUtc(c.validUntil) : null,
-          provider: c.provider,
+          provider: c.provider && {
+            id: c.provider.id,
+            name: c.provider.name,
+            archived: isArchived(c.provider),
+          },
           price: toAmount(c.price),
           note: c.note,
         },
@@ -340,8 +346,8 @@ export async function getEmployee(
 
 /** Raw values for the edit form. Only call once the user is known to be an admin. */
 export async function getEmployeeForEdit(externalId: string, options?: RepoOptions) {
-  const employee = await dbOf(options).employee.findUnique({
-    where: { externalId },
+  const employee = await dbOf(options).employee.findFirst({
+    where: { externalId, ...ACTIVE },
     include: { department: { select: { name: true } }, position: { select: { name: true } } },
   })
   if (!employee) return null

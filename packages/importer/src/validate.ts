@@ -9,8 +9,15 @@ import { addMonths } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 
 import { Canonicalizer, DEPARTMENT_ALIASES } from './canonical'
-import type { IssueCode } from './issues'
-import type { ImportBatch, ParsedRow, ReferenceSnapshot, Severity, ValidationIssue } from './types'
+import { type IssueCode, SKIPPING_CODES } from './issues'
+import type {
+  ArchivedKeys,
+  ImportBatch,
+  ParsedRow,
+  ReferenceSnapshot,
+  Severity,
+  ValidationIssue,
+} from './types'
 
 type Extra = ValidationIssue[]
 
@@ -27,8 +34,39 @@ function finalize<T>(row: ParsedRow<T>, data: T | null, extra: Extra): ParsedRow
   const errors = issues.filter(i => i.severity === 'error')
   const warnings = issues.filter(i => i.severity === 'warning')
   const isValid = row.base.data !== null && errors.length === 0
-  return { ...row, data: isValid ? data : null, errors, warnings, isValid }
+  const isSkipped = isValid && warnings.some(w => SKIPPING_CODES.includes(w.code))
+  return { ...row, data: isValid ? data : null, errors, warnings, isValid, isSkipped }
 }
+
+/**
+ * Keys only archived records hold, by kind. Names compare folded (as the canonicalizers do);
+ * codes and IDs exactly.
+ */
+function archivedChecks(reference: ReferenceSnapshot) {
+  const a = reference.archived
+  const folded = (values: string[]) => {
+    const set = new Set(values.map(fold))
+    return (value: string | null) => value !== null && set.has(fold(value))
+  }
+  const exact = (values: string[]) => {
+    const set = new Set(values)
+    return (value: string | null) => value !== null && set.has(value)
+  }
+  return {
+    course: exact(a.courses),
+    employee: exact(a.employees),
+    employeeEmail: exact(a.employeeEmails),
+    department: folded(a.departments),
+    position: folded(a.positions),
+    provider: folded(a.providers),
+    room: folded(a.rooms),
+    session: exact(a.sessions),
+    completion: exact(a.completions),
+  }
+}
+
+const archivedIssue = (field: string, value: string) =>
+  issue(field, 'ARCHIVED', 'warning', { value })
 
 /** Rows that can serve as a reference for other rows: mapped cleanly and not removed. */
 const usable = <T>(row: ParsedRow<T>): row is ParsedRow<T> & { base: { data: T } } =>
@@ -62,6 +100,7 @@ function duplicateOf<T>(
  */
 export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot): ImportBatch {
   const out: ImportBatch = {}
+  const archived = archivedChecks(reference)
 
   // ---- departments / positions (shared by employees and course requirements) ----------
   const employeeRows = batch.employees ?? []
@@ -101,16 +140,21 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
     if (!usable(row)) return finalize(row, null, extra)
     const owner = duplicateOf(row, firstCourse, row.base.data.code)
     if (owner) extra.push(issue('code', 'DUPLICATE_ID', 'error', { firstRow: owner.rowNumber }))
+    if (archived.course(row.base.data.code)) extra.push(archivedIssue('code', row.base.data.code))
 
     const requirements = row.base.data.requirements.map(r => {
       if (r.scope === 'DEPARTMENT') {
-        if (!knownDepartments.has(r.department)) {
+        if (archived.department(r.department)) {
+          extra.push(archivedIssue('requiredFor', r.department))
+        } else if (!knownDepartments.has(r.department)) {
           extra.push(issue('requiredFor', 'UNKNOWN_DEPARTMENT', 'warning', { value: r.department }))
         }
         return { ...r, department: departments.canonical(r.department) }
       }
       if (r.scope === 'POSITION') {
-        if (!knownPositions.has(r.position)) {
+        if (archived.position(r.position)) {
+          extra.push(archivedIssue('requiredFor', r.position))
+        } else if (!knownPositions.has(r.position)) {
           extra.push(issue('requiredFor', 'UNKNOWN_POSITION', 'warning', { value: r.position }))
         }
         return { ...r, position: positions.canonical(r.position) }
@@ -124,7 +168,7 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
     reference.courses.map(c => [c.code, c.validityMonths])
   )
   for (const row of out.courses) {
-    if (row.isValid && !row.isRemoved && row.data)
+    if (row.isValid && !row.isSkipped && !row.isRemoved && row.data)
       courseValidity.set(row.data.code, row.data.validityMonths)
   }
 
@@ -144,6 +188,12 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
     const data = row.base.data
 
     const owner = duplicateOf(row, firstEmployee, data.externalId)
+    if (archived.employee(data.externalId)) extra.push(archivedIssue('externalId', data.externalId))
+    if (archived.employeeEmail(data.managerEmail))
+      extra.push(archivedIssue('managerEmail', data.managerEmail ?? ''))
+    if (archived.department(data.department))
+      extra.push(archivedIssue('department', data.department ?? ''))
+    if (archived.position(data.position)) extra.push(archivedIssue('position', data.position ?? ''))
     if (owner) {
       extra.push(issue('externalId', 'DUPLICATE_ID', 'error', { firstRow: owner.rowNumber }))
     } else {
@@ -189,14 +239,14 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
   const validEmployeeIds = new Set<string>(reference.employees.map(e => e.externalId))
   const nameById = new Map<string, string>(reference.employees.map(e => [e.externalId, e.fullName]))
   for (const row of out.employees) {
-    if (!row.isValid || row.isRemoved || !row.data) continue
+    if (!row.isValid || row.isSkipped || row.isRemoved || !row.data) continue
     validEmployeeIds.add(row.data.externalId)
     nameById.set(row.data.externalId, `${row.data.lastName} ${row.data.firstName}`)
     if (row.data.email) validEmails.add(row.data.email)
   }
   out.employees = out.employees.map(row => {
     const managerEmail = row.data?.managerEmail
-    if (!row.data || !managerEmail || validEmails.has(managerEmail)) return row
+    if (!row.data || !managerEmail || validEmails.has(managerEmail) || row.isSkipped) return row
     return {
       ...row,
       data: { ...row.data, managerEmail: null },
@@ -221,13 +271,14 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
     const data = row.base.data
     const owner = duplicateOf(row, firstRoom, fold(data.name))
     if (owner) extra.push(issue('name', 'DUPLICATE_ID', 'error', { firstRow: owner.rowNumber }))
+    if (archived.room(data.name)) extra.push(archivedIssue('name', data.name))
     const name = roomSpelling.canonical(data.name)
     if (!owner && name !== data.name)
       extra.push(issue('name', 'VALUE_NORMALIZED', 'warning', { raw: data.name, value: name }))
     return finalize<RoomInput>(row, { ...data, name }, extra)
   })
   const roomNames = out.rooms.flatMap(r =>
-    r.isValid && !r.isRemoved && r.data ? [r.data.name] : []
+    r.isValid && !r.isSkipped && !r.isRemoved && r.data ? [r.data.name] : []
   )
 
   // ---- sessions ---------------------------------------------------------------------------
@@ -253,7 +304,10 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
     const owner = duplicateOf(row, firstSession, data.externalId)
     if (owner)
       extra.push(issue('externalId', 'DUPLICATE_ID', 'error', { firstRow: owner.rowNumber }))
-    if (!courseValidity.has(data.courseCode)) {
+    if (archived.session(data.externalId)) extra.push(archivedIssue('externalId', data.externalId))
+    if (archived.course(data.courseCode)) {
+      extra.push(archivedIssue('courseCode', data.courseCode))
+    } else if (!courseValidity.has(data.courseCode)) {
       extra.push(issue('courseCode', 'COURSE_NOT_FOUND', 'error', { value: data.courseCode }))
     }
     const slotTwin = duplicateOf(
@@ -267,7 +321,9 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
       )
     }
     const location = rooms.canonical(data.location)
-    if (!knownRooms.has(data.location)) {
+    if (archived.room(data.location)) {
+      extra.push(archivedIssue('location', data.location))
+    } else if (!knownRooms.has(data.location)) {
       if (firstInRoom.get(rooms.keyOf(data.location)) === row)
         extra.push(issue('location', 'ROOM_DERIVED', 'warning', { value: location }))
     } else if (location !== data.location) {
@@ -295,6 +351,8 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
     const owner = duplicateOf(row, firstCompletion, data.externalId)
     if (owner)
       extra.push(issue('externalId', 'DUPLICATE_ID', 'error', { firstRow: owner.rowNumber }))
+    if (archived.completion(data.externalId))
+      extra.push(archivedIssue('externalId', data.externalId))
 
     const survivor = aliases.get(data.employeeExternalId)
     if (survivor) {
@@ -306,7 +364,9 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
       )
       data = { ...data, employeeExternalId: survivor }
     }
-    if (!validEmployeeIds.has(data.employeeExternalId)) {
+    if (archived.employee(data.employeeExternalId)) {
+      extra.push(archivedIssue('employeeExternalId', data.employeeExternalId))
+    } else if (!validEmployeeIds.has(data.employeeExternalId)) {
       extra.push(
         issue('employeeExternalId', 'EMPLOYEE_NOT_FOUND', 'error', {
           value: data.employeeExternalId,
@@ -322,7 +382,9 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
       }
     }
 
-    if (!courseValidity.has(data.courseCode)) {
+    if (archived.course(data.courseCode)) {
+      extra.push(archivedIssue('courseCode', data.courseCode))
+    } else if (!courseValidity.has(data.courseCode)) {
       extra.push(issue('courseCode', 'COURSE_NOT_FOUND', 'error', { value: data.courseCode }))
     } else {
       const months = courseValidity.get(data.courseCode) ?? null
@@ -342,7 +404,9 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
       }
     }
 
-    if (data.provider) {
+    if (archived.provider(data.provider)) {
+      extra.push(archivedIssue('provider', data.provider ?? ''))
+    } else if (data.provider) {
       const provider = providers.canonical(data.provider)
       if (provider !== data.provider) {
         extra.push(
@@ -362,4 +426,59 @@ function sameName(given: string, expected: string): boolean {
   const a = fold(given)
   const b = fold(expected)
   return a === b || a === b.split(' ').reverse().join(' ')
+}
+
+/**
+ * Every key in the batch that could name an archived record, for the server to check (it
+ * answers with the ones only archived records hold). Names are sent as written; the server
+ * compares them folded.
+ */
+export function archivedCandidates(batch: ImportBatch): ArchivedKeys {
+  const keys = <T>(rows: ParsedRow<T>[] | undefined, pick: (data: T) => (string | null)[]) => [
+    ...new Set(
+      (rows ?? []).flatMap(r => (r.base.data ? pick(r.base.data) : [])).filter(v => v !== null)
+    ),
+  ]
+  const requirementsOf = (scope: 'DEPARTMENT' | 'POSITION') => (c: CourseInput) =>
+    c.requirements.flatMap(q =>
+      q.scope === 'DEPARTMENT' && scope === 'DEPARTMENT'
+        ? [q.department]
+        : q.scope === 'POSITION' && scope === 'POSITION'
+          ? [q.position]
+          : []
+    )
+  return {
+    courses: [
+      ...new Set([
+        ...keys(batch.courses, c => [c.code]),
+        ...keys(batch.sessions, s => [s.courseCode]),
+        ...keys(batch.completions, c => [c.courseCode]),
+      ]),
+    ],
+    employees: [
+      ...new Set([
+        ...keys(batch.employees, e => [e.externalId]),
+        ...keys(batch.completions, c => [c.employeeExternalId]),
+      ]),
+    ],
+    employeeEmails: keys(batch.employees, e => [e.managerEmail]),
+    departments: [
+      ...new Set([
+        ...keys(batch.employees, e => [e.department]),
+        ...keys(batch.courses, requirementsOf('DEPARTMENT')),
+      ]),
+    ],
+    positions: [
+      ...new Set([
+        ...keys(batch.employees, e => [e.position]),
+        ...keys(batch.courses, requirementsOf('POSITION')),
+      ]),
+    ],
+    providers: keys(batch.completions, c => [c.provider]),
+    rooms: [
+      ...new Set([...keys(batch.rooms, r => [r.name]), ...keys(batch.sessions, s => [s.location])]),
+    ],
+    sessions: keys(batch.sessions, s => [s.externalId]),
+    completions: keys(batch.completions, c => [c.externalId]),
+  }
 }

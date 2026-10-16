@@ -7,7 +7,14 @@ const db = createDb()
 const options = { db }
 const PREFIX = 'user_it_'
 
-const cleanUp = () => db.user.deleteMany({ where: { clerkId: { startsWith: PREFIX } } })
+const cleanUp = async () => {
+  // Archived-by points at users too; clear it before the rows go.
+  await db.user.updateMany({
+    where: { clerkId: { startsWith: PREFIX } },
+    data: { archivedAt: null, archivedById: null },
+  })
+  await db.user.deleteMany({ where: { clerkId: { startsWith: PREFIX } } })
+}
 beforeAll(cleanUp)
 afterAll(async () => {
   await cleanUp()
@@ -48,6 +55,28 @@ describe('users', () => {
     expect(await findUserByClerkId(`${PREFIX}missing`, options)).toBeNull()
   })
 
+  it('creates one row when two first requests come at once', async () => {
+    const [a, b] = await Promise.all([
+      upsertUserFromClerk(sync('race', { name: 'Rita' }), options),
+      upsertUserFromClerk(sync('race', { name: 'Rita' }), options),
+    ])
+    expect(a.id).toBe(b.id)
+    expect(await db.user.count({ where: { clerkId: `${PREFIX}race` } })).toBe(1)
+  })
+
+  it('keeps an archived user archived: signing in neither revives them nor makes a new row', async () => {
+    const user = await upsertUserFromClerk(sync('gone', { name: 'Gustav', role: 'ADMIN' }), options)
+    await db.user.update({
+      where: { id: user.id },
+      data: { archivedAt: new Date(), archivedById: user.id },
+    })
+    const again = await upsertUserFromClerk(sync('gone', { name: 'Gustav N.' }), options)
+    expect(again).toMatchObject({ id: user.id, archived: true, name: 'Gustav', role: 'ADMIN' })
+    expect(await findUserByClerkId(`${PREFIX}gone`, options)).toMatchObject({ archived: true })
+    expect(await db.user.count({ where: { clerkId: `${PREFIX}gone` } })).toBe(1)
+    expect((await listUsers(options)).some(u => u.id === user.id)).toBe(false)
+  })
+
   it('lists admins first, then by name', async () => {
     await upsertUserFromClerk(sync('b', { name: 'Bára', role: 'ADMIN' }), options)
     await upsertUserFromClerk(sync('c', { name: 'Cyril' }), options)
@@ -56,6 +85,7 @@ describe('users', () => {
       ['Bára', 'ADMIN'],
       ['Alena', 'FULL'],
       ['Cyril', 'VIEWER'],
+      ['Rita', 'VIEWER'],
     ])
   })
 })

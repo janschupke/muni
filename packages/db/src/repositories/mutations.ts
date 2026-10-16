@@ -18,6 +18,7 @@ import { isoDateToUtc, zonedTimeToUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
 
 import type { Tx } from '../client'
+import { ACTIVE, isArchived } from './archive'
 import { dbOf, type RepoOptions } from './context'
 
 // Mutations. Callers (server actions) must have verified a signed-in user first;
@@ -27,7 +28,7 @@ export async function updateCourse(code: string, input: CourseEdit, options?: Re
   const data = courseEditSchema.parse(input)
   return dbOf(options).$transaction(async tx => {
     const course = await tx.course.update({
-      where: { code },
+      where: { code, ...ACTIVE },
       data: {
         name: data.name,
         validityMonths: data.validityMonths,
@@ -50,7 +51,12 @@ export async function updateCourse(code: string, input: CourseEdit, options?: Re
 
 /** Why a session cannot be saved in the room and time asked for. */
 export type SessionProblem =
-  'ROOM_BUSY' | 'ROOM_ONLINE_NOT_ALLOWED' | 'ROOM_TOO_SMALL' | 'ROOM_MISSING_CAPABILITIES'
+  | 'ROOM_BUSY'
+  | 'ROOM_ONLINE_NOT_ALLOWED'
+  | 'ROOM_TOO_SMALL'
+  | 'ROOM_MISSING_CAPABILITIES'
+  | 'ROOM_ARCHIVED'
+  | 'COURSE_ARCHIVED'
 
 export type SessionWrite =
   { ok: true; externalId: string; courseCode: string } | { ok: false; problem: SessionProblem }
@@ -64,8 +70,9 @@ const MISMATCH_PROBLEM: Record<RoomMismatch['kind'], SessionProblem> = {
 /**
  * Whether a planned session of the course may take the room at that time: the room suits
  * what the course needs and has a seat for each place the session opens, and no other
- * planned session holds it then. An online room is never taken: it has no walls. Run inside
- * the transaction that writes, after the sessions lock.
+ * planned session holds it then. An online room is never taken: it has no walls. Nothing is
+ * planned in an archived room or of an archived course. Run inside the transaction that
+ * writes, after the sessions lock (archiving a room or course takes it too).
  */
 async function sessionProblem(
   tx: Tx,
@@ -75,13 +82,22 @@ async function sessionProblem(
   const [room, course] = await Promise.all([
     tx.room.findUniqueOrThrow({
       where: { id: session.roomId },
-      select: { id: true, name: true, kind: true, capacity: true, capabilities: true },
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        capacity: true,
+        capabilities: true,
+        archivedAt: true,
+      },
     }),
     tx.course.findUniqueOrThrow({
       where: { id: session.courseId },
-      select: { groupSize: true, onlineAllowed: true, capabilities: true },
+      select: { groupSize: true, onlineAllowed: true, capabilities: true, archivedAt: true },
     }),
   ])
+  if (isArchived(room)) return 'ROOM_ARCHIVED'
+  if (isArchived(course)) return 'COURSE_ARCHIVED'
   const mismatch = roomMismatch(
     { ...room, capabilities: room.capabilities.map(c => c.capability) },
     { ...course, capabilities: course.capabilities.map(c => c.capability) },
@@ -91,6 +107,7 @@ async function sessionProblem(
   if (room.kind === 'ONLINE') return null
   const clash = await tx.courseSession.findFirst({
     where: {
+      ...ACTIVE,
       roomId: room.id,
       status: 'PLANNED',
       startsAt: { lt: session.endsAt },
@@ -114,9 +131,9 @@ export async function updateSession(
   const data = sessionEditSchema.parse(input)
   return dbOf(options).$transaction(async tx => {
     await lockSessions(tx)
-    const current = await tx.courseSession.findUniqueOrThrow({
-      where: { externalId },
-      select: { courseId: true, course: { select: { code: true } } },
+    const current = await tx.courseSession.findFirstOrThrow({
+      where: { externalId, ...ACTIVE },
+      select: { id: true, courseId: true, course: { select: { code: true } } },
     })
     const startsAt = zonedTimeToUtc(data.date, data.startTime)
     const endsAt = zonedTimeToUtc(data.date, data.endTime)
@@ -135,7 +152,7 @@ export async function updateSession(
       if (problem) return { ok: false, problem }
     }
     await tx.courseSession.update({
-      where: { externalId },
+      where: { id: current.id },
       data: {
         startsAt,
         endsAt,
@@ -161,8 +178,8 @@ export async function createSession(
   const data = sessionCreateSchema.parse(input)
   return dbOf(options).$transaction(async tx => {
     await lockSessions(tx)
-    const course = await tx.course.findUniqueOrThrow({
-      where: { code: data.courseCode },
+    const course = await tx.course.findFirstOrThrow({
+      where: { code: data.courseCode, ...ACTIVE },
       select: { id: true, code: true },
     })
     const startsAt = zonedTimeToUtc(data.date, data.startTime)
@@ -176,6 +193,7 @@ export async function createSession(
       if (problem) return { ok: false, problem }
     }
     const ids = await tx.courseSession.findMany({
+      // eslint-disable-next-line no-restricted-syntax -- archived ones count: an ID is never reused
       where: { externalId: { startsWith: APP_ID_PREFIX.session } },
       select: { externalId: true },
     })
@@ -211,7 +229,7 @@ async function writeRoom(
       note: cleanFreeText(data.note),
     }
     const room = id
-      ? await tx.room.update({ where: { id }, data: fields, select: { id: true } })
+      ? await tx.room.update({ where: { id, ...ACTIVE }, data: fields, select: { id: true } })
       : await tx.room.create({ data: fields, select: { id: true } })
     if (data.capabilities !== null) {
       await tx.roomCapability.deleteMany({ where: { roomId: room.id } })
@@ -230,21 +248,10 @@ export const createRoom = (input: RoomEdit, options?: RepoOptions) =>
 export const updateRoom = (id: string, input: RoomEdit, options?: RepoOptions) =>
   writeRoom(options, id, input)
 
-/** Deletes a room nobody uses; a room with sessions (past ones too) is kept. */
-export async function deleteRoom(id: string, options?: RepoOptions): Promise<'DELETED' | 'IN_USE'> {
-  try {
-    return await dbOf(options).$transaction(async tx => {
-      if ((await tx.courseSession.count({ where: { roomId: id } })) > 0) return 'IN_USE'
-      await tx.room.delete({ where: { id } })
-      return 'DELETED'
-    })
-  } catch (error) {
-    // A session created for the room between the count and the delete: the key refuses it.
-    if ((error as { code?: string }).code === 'P2003') return 'IN_USE'
-    throw error
-  }
-}
-
+/**
+ * An active department's or position's id by name, created when there is none. (An archived
+ * one of that name is left alone: a new active one takes the name.)
+ */
 async function nameId(
   options: RepoOptions | undefined,
   model: 'department' | 'position',
@@ -252,21 +259,23 @@ async function nameId(
 ): Promise<string | null> {
   if (!name) return null
   const db = dbOf(options)
-  const row =
-    model === 'department'
-      ? await db.department.upsert({
-          where: { name },
-          create: { name },
-          update: {},
-          select: { id: true },
-        })
-      : await db.position.upsert({
-          where: { name },
-          create: { name },
-          update: {},
-          select: { id: true },
-        })
-  return row.id
+  const delegate = (model === 'department' ? db.department : db.position) as unknown as {
+    findFirst(args: object): Promise<{ id: string } | null>
+    create(args: object): Promise<{ id: string }>
+  }
+  return (
+    (await delegate.findFirst({ where: { name, ...ACTIVE }, select: { id: true } })) ??
+    (await delegate.create({ data: { name }, select: { id: true } }))
+  ).id
+}
+
+/** An active provider's id by name, created when there is none. */
+async function providerId(options: RepoOptions | undefined, name: string): Promise<string> {
+  const db = dbOf(options)
+  return (
+    (await db.provider.findFirst({ where: { name, ...ACTIVE }, select: { id: true } })) ??
+    (await db.provider.create({ data: { name }, select: { id: true } }))
+  ).id
 }
 
 export async function updateEmployee(
@@ -276,7 +285,7 @@ export async function updateEmployee(
 ) {
   const data = employeeEditSchema.parse(input)
   return dbOf(options).employee.update({
-    where: { externalId },
+    where: { externalId, ...ACTIVE },
     data: {
       firstName: data.firstName,
       lastName: data.lastName,
@@ -301,20 +310,16 @@ export async function createCompletion(
   const data = completionCreateSchema.parse(input)
   const db = dbOf(options)
   const [employee, course] = await Promise.all([
-    db.employee.findUniqueOrThrow({
-      where: { externalId: employeeExternalId },
+    db.employee.findFirstOrThrow({
+      where: { externalId: employeeExternalId, ...ACTIVE },
       select: { id: true },
     }),
-    db.course.findUniqueOrThrow({ where: { code: data.courseCode }, select: { id: true } }),
+    db.course.findFirstOrThrow({
+      where: { code: data.courseCode, ...ACTIVE },
+      select: { id: true },
+    }),
   ])
-  const provider = data.provider
-    ? await db.provider.upsert({
-        where: { name: data.provider },
-        create: { name: data.provider },
-        update: {},
-        select: { id: true },
-      })
-    : null
+  const provider = data.provider ? await providerId(options, data.provider) : null
   return db.courseCompletion.create({
     data: {
       externalId:
@@ -323,7 +328,7 @@ export async function createCompletion(
       courseId: course.id,
       completedOn: isoDateToUtc(data.completedOn),
       validUntil: data.validUntil ? isoDateToUtc(data.validUntil) : null,
-      providerId: provider?.id ?? null,
+      providerId: provider,
       price: data.price,
       note: cleanFreeText(data.note),
     },

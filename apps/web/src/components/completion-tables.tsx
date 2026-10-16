@@ -3,11 +3,11 @@
 import type { CourseDetail, EmployeeDetail } from '@muni/db/repositories'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
-import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatDate, PLACEHOLDER } from '@muni/utils/format'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
+
+import { PersonLink, personText, RecordLink } from './archived'
 
 type EmployeeCompletion = EmployeeDetail['completions'][number]
 type CourseCompletion = CourseDetail['recentCompletions'][number]
@@ -37,11 +37,12 @@ export function CompletionHistoryTable({
           cell: ({ row }) => (
             <CellStack
               title={
-                <TextLink asChild>
-                  <Link href={`/courses/${row.original.courseCode}`}>
-                    {row.original.courseName}
-                  </Link>
-                </TextLink>
+                <RecordLink
+                  href={`/courses/${row.original.courseCode}`}
+                  archived={row.original.courseArchived}
+                >
+                  {row.original.courseName}
+                </RecordLink>
               }
               meta={row.original.externalId}
             />
@@ -70,9 +71,9 @@ export function CompletionHistoryTable({
           cell: ({ row }) => {
             const { provider } = row.original
             return provider ? (
-              <TextLink asChild>
-                <Link href={`/providers/${provider.id}`}>{provider.name}</Link>
-              </TextLink>
+              <RecordLink href={`/providers/${provider.id}`} archived={provider.archived}>
+                {provider.name}
+              </RecordLink>
             ) : (
               PLACEHOLDER
             )
@@ -112,17 +113,11 @@ export function RecentCompletionsTable({ completions }: { completions: CourseCom
   const columns = useMemo(
     () =>
       recent.columns([
-        recent.accessor('employeeName', {
+        recent.accessor(c => personText(c.employee), {
           id: 'employee',
           header: t('courses.detail.employee'),
           sortFn: 'text',
-          cell: ({ row }) => (
-            <TextLink asChild>
-              <Link href={`/employees/${row.original.employeeExternalId}`}>
-                {row.original.employeeName}
-              </Link>
-            </TextLink>
-          ),
+          cell: ({ row }) => <PersonLink person={row.original.employee} />,
         }),
         recent.accessor('completedOn', {
           header: t('courses.detail.completedOn'),

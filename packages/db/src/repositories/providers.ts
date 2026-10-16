@@ -4,6 +4,7 @@ import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
 
 import { Prisma } from '../generated/prisma/client'
+import { ACTIVE, isArchived, type PersonRef, personSelect, toPersonRef } from './archive'
 import { dbOf, getPolicy, type RepoOptions, toAmount } from './context'
 
 // Training providers: who delivered the completions on record, with their contact details
@@ -43,10 +44,10 @@ export interface ProviderDetail extends ProviderListItem {
   /** The newest completions, newest first. */
   recentCompletions: {
     externalId: string
-    employeeExternalId: string
-    employeeName: string
+    employee: PersonRef
     courseCode: string
     courseName: string
+    courseArchived: boolean
     completedOn: IsoDate
     validUntil: IsoDate | null
     price: number | null
@@ -84,7 +85,10 @@ function totalsOf(row: TotalsRow, prices: boolean): ProviderTotals {
   }
 }
 
-/** Completion totals per provider; only `providerId`'s when given. */
+/**
+ * Completion totals per provider; only `providerId`'s when given. Archived completions are
+ * not counted; completions of people archived since still are (the training was delivered).
+ */
 function totalsByProvider(options: RepoOptions | undefined, providerId?: string) {
   const where = providerId
     ? Prisma.sql`cc.provider_id = ${providerId}`
@@ -92,7 +96,7 @@ function totalsByProvider(options: RepoOptions | undefined, providerId?: string)
   return dbOf(options).$queryRaw<(TotalsRow & { id: string })[]>`
     SELECT cc.provider_id AS id, ${TOTALS}
       FROM course_completions cc
-     WHERE ${where}
+     WHERE ${where} AND cc.archived_at IS NULL
      GROUP BY cc.provider_id`
 }
 
@@ -102,7 +106,7 @@ function totalsByCourse(options: RepoOptions | undefined, providerId: string) {
     SELECT c.code, c.name, ${TOTALS}
       FROM course_completions cc
       JOIN courses c ON c.id = cc.course_id
-     WHERE cc.provider_id = ${providerId}
+     WHERE cc.provider_id = ${providerId} AND cc.archived_at IS NULL
      GROUP BY c.code, c.name
      ORDER BY completions DESC, c.code`
 }
@@ -111,6 +115,7 @@ export async function listProviders(role: Role, options?: RepoOptions): Promise<
   const prices = pricesVisible(role)
   const [providers, totals] = await Promise.all([
     dbOf(options).provider.findMany({
+      where: ACTIVE,
       select: { id: true, name: true, companyId: true },
       orderBy: { name: 'asc' },
     }),
@@ -134,8 +139,8 @@ export async function getProvider(
   const db = dbOf(options)
   const prices = pricesVisible(role)
   const [provider, [total = NONE], perCourse, recent] = await Promise.all([
-    db.provider.findUnique({
-      where: { id },
+    db.provider.findFirst({
+      where: { id, ...ACTIVE },
       select: {
         id: true,
         name: true,
@@ -149,7 +154,7 @@ export async function getProvider(
     totalsByProvider(options, id),
     totalsByCourse(options, id),
     db.courseCompletion.findMany({
-      where: { providerId: id },
+      where: { providerId: id, ...ACTIVE },
       orderBy: [{ completedOn: 'desc' }, { externalId: 'desc' }],
       take: RECENT_COMPLETIONS,
       select: {
@@ -157,8 +162,8 @@ export async function getProvider(
         completedOn: true,
         validUntil: true,
         price: true,
-        employee: { select: { externalId: true, firstName: true, lastName: true } },
-        course: { select: { code: true, name: true } },
+        employee: { select: personSelect },
+        course: { select: { code: true, name: true, archivedAt: true } },
       },
     }),
   ])
@@ -171,10 +176,10 @@ export async function getProvider(
     byCourse: perCourse.map(row => ({ code: row.code, name: row.name, ...totalsOf(row, prices) })),
     recentCompletions: recent.map(c => ({
       externalId: c.externalId,
-      employeeExternalId: c.employee.externalId,
-      employeeName: `${c.employee.lastName} ${c.employee.firstName}`,
+      employee: toPersonRef(c.employee),
       courseCode: c.course.code,
       courseName: c.course.name,
+      courseArchived: isArchived(c.course),
       completedOn: isoDateFromUtc(c.completedOn),
       validUntil: c.validUntil ? isoDateFromUtc(c.validUntil) : null,
       price: prices ? toAmount(c.price) : null,
@@ -183,8 +188,8 @@ export async function getProvider(
 }
 
 export function getProviderForEdit(id: string, options?: RepoOptions) {
-  return dbOf(options).provider.findUnique({
-    where: { id },
+  return dbOf(options).provider.findFirst({
+    where: { id, ...ACTIVE },
     select: {
       id: true,
       name: true,
@@ -210,7 +215,7 @@ async function writeProvider(
   const db = dbOf(options)
   try {
     const saved = id
-      ? await db.provider.update({ where: { id }, data, select: { id: true } })
+      ? await db.provider.update({ where: { id, ...ACTIVE }, data, select: { id: true } })
       : await db.provider.create({ data, select: { id: true } })
     return { ok: true, id: saved.id }
   } catch (error) {
@@ -219,7 +224,7 @@ async function writeProvider(
     const holder =
       data.companyId &&
       (await db.provider.findFirst({
-        where: { companyId: data.companyId, id: { not: id ?? '' } },
+        where: { companyId: data.companyId, id: { not: id ?? '' }, ...ACTIVE },
         select: { id: true },
       }))
     return { ok: false, taken: holder ? 'companyId' : 'name' }
@@ -231,24 +236,7 @@ export const createProvider = (input: ProviderInput, options?: RepoOptions) =>
 
 /**
  * Saves a provider's details; a new name renames it everywhere its completions show. An
- * unknown id throws P2025.
+ * unknown or archived id throws P2025.
  */
 export const updateProvider = (id: string, input: ProviderInput, options?: RepoOptions) =>
   writeProvider(id, input, options)
-
-/**
- * Deletes a provider no completion names. The key would only clear the provider from its
- * completions, so the check is ours: the row lock holds off a completion naming it meanwhile.
- * An unknown id throws P2025, as an update does.
- */
-export async function deleteProvider(
-  id: string,
-  options?: RepoOptions
-): Promise<'DELETED' | 'IN_USE'> {
-  return dbOf(options).$transaction(async tx => {
-    await tx.$queryRaw`SELECT id FROM providers WHERE id = ${id} FOR UPDATE`
-    if ((await tx.courseCompletion.count({ where: { providerId: id } })) > 0) return 'IN_USE'
-    await tx.provider.delete({ where: { id } })
-    return 'DELETED'
-  })
-}

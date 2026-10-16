@@ -5,6 +5,8 @@ import { Wifi } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { RecordLink } from './archived'
+
 const sessionHref = (externalId: string) => `/sessions/${externalId}`
 const roomHref = (room: RoomRef) => `/rooms/${encodeURIComponent(room.id)}`
 
@@ -30,7 +32,7 @@ export function SessionDateLink({
   )
 }
 
-/** A room, linking to its page (its equipment and every session held there). */
+/** A room, linking to its page (its equipment and every session held there); muted once archived. */
 export function RoomLink({ room }: { room: RoomRef }) {
   const t = useTranslations('common')
   return (
@@ -38,11 +40,9 @@ export function RoomLink({ room }: { room: RoomRef }) {
       {room.kind === 'ONLINE' && (
         <Wifi aria-label={t('online')} className="size-3.5 text-fg-muted" />
       )}
-      <TextLink asChild>
-        <Link href={roomHref(room)} className={TARGET}>
-          {room.name}
-        </Link>
-      </TextLink>
+      <RecordLink href={roomHref(room)} archived={room.archived ?? false}>
+        {room.name}
+      </RecordLink>
     </span>
   )
 }

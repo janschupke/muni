@@ -9,6 +9,8 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { PersonLink, personText, RecordLink } from '@/components/archived'
+
 type CourseRow = ProviderDetail['byCourse'][number]
 type CompletionRow = ProviderDetail['recentCompletions'][number]
 
@@ -91,31 +93,30 @@ export function ProviderCompletionsTable({
   const columns = useMemo(
     () =>
       recent.columns([
-        recent.accessor('employeeName', {
+        recent.accessor(c => personText(c.employee), {
           id: 'employee',
           header: tc('employee'),
           sortFn: 'text',
-          cell: ({ row }) => (
-            <CellStack
-              title={
-                <TextLink asChild>
-                  <Link href={`/employees/${row.original.employeeExternalId}`}>
-                    {row.original.employeeName}
-                  </Link>
-                </TextLink>
-              }
-              meta={row.original.employeeExternalId}
-            />
-          ),
+          cell: ({ row }) => {
+            const person = row.original.employee
+            return person.archived ? (
+              <PersonLink person={person} />
+            ) : (
+              <CellStack title={<PersonLink person={person} />} meta={person.externalId} />
+            )
+          },
         }),
         recent.accessor('courseName', {
           id: 'course',
           header: tc('course'),
           sortFn: 'text',
           cell: ({ row }) => (
-            <TextLink asChild>
-              <Link href={`/courses/${row.original.courseCode}`}>{row.original.courseName}</Link>
-            </TextLink>
+            <RecordLink
+              href={`/courses/${row.original.courseCode}`}
+              archived={row.original.courseArchived}
+            >
+              {row.original.courseName}
+            </RecordLink>
           ),
         }),
         recent.accessor('completedOn', {

@@ -92,6 +92,9 @@ const OPEN_FAMILIES = [
   'forms.errors',
   'landing.features',
   'landing.access',
+  'archive.refused',
+  'archive.fields',
+  'archive.kinds',
 ]
 
 /** Every string literal in the app's (non-test) source. */

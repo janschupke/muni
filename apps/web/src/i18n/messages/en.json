@@ -330,7 +330,9 @@
       "room_online_not_allowed": "This course is not held online.",
       "room_too_small": "The room has fewer seats than this session opens.",
       "room_missing_capabilities": "The room lacks equipment this course needs.",
-      "company_id": "Enter the 8-digit IČO; this one's check digit does not match."
+      "company_id": "Enter the 8-digit IČO; this one's check digit does not match.",
+      "room_archived": "The room is archived.",
+      "course_archived": "The course is archived."
     },
     "course": {
       "title": "Edit course {code}",
@@ -428,7 +430,9 @@
       "errorPrefix": "Error",
       "warningPrefix": "Warning",
       "back": "Back to files",
-      "next": "Continue"
+      "next": "Continue",
+      "skipped": "Skipped",
+      "skippedNotice": "{count, plural, one {# row names an archived record and will be skipped} other {# rows name archived records and will be skipped}}. Bring the records back first to import them."
     },
     "confirm": {
       "title": "Ready to import",
@@ -440,7 +444,7 @@
     "progress": {
       "running": "{done} of {total} records",
       "doneTitle": "Import complete",
-      "result": "{kind}: {created} created, {updated} updated",
+      "result": "{kind}: {created} created, {updated} updated{skipped, plural, =0 {} other {, # skipped (archived)}}",
       "failed": "The import failed: {message}",
       "partial": "{count, plural, one {# record was} other {# records were}} written before the failure.",
       "again": "Import more files"
@@ -522,7 +526,8 @@
       "OVERBOOKED": "{booked} booked for {capacity} places.",
       "ZERO_CAPACITY": "Capacity is 0.",
       "FUTURE_COMPLETION": "Completion date {value} is in the future.",
-      "ROOM_DERIVED": "Room “{value}” is not listed; it is created from the sessions held there."
+      "ROOM_DERIVED": "Room “{value}” is not listed; it is created from the sessions held there.",
+      "ARCHIVED": "“{value}” is archived, so this row is skipped. Bring it back to import the row."
     }
   },
   "errors": {
@@ -769,13 +774,7 @@
       "capacity": "Seats",
       "capacityHelp": "An online room has no seat limit; every other room needs a seat count.",
       "capabilities": "Equipment",
-      "note": "Note",
-      "delete": "Delete room",
-      "deleteHint": "A room can be deleted only while no session uses it.",
-      "confirmTitle": "Delete {name}?",
-      "confirmBody": "The room and its equipment are removed for good.",
-      "confirm": "Delete",
-      "inUse": "The room still has sessions, so it cannot be deleted."
+      "note": "Note"
     }
   },
   "providers": {
@@ -834,13 +833,7 @@
       "phone": "Phone",
       "website": "Website",
       "websiteHelp": "A bare address such as www.example.cz is read as https.",
-      "note": "Note",
-      "delete": "Delete provider",
-      "deleteHint": "A provider can be deleted only while no completion names it.",
-      "confirmTitle": "Delete {name}?",
-      "confirmBody": "The provider and its details are removed for good.",
-      "confirm": "Delete",
-      "inUse": "Completions name this provider, so it cannot be deleted."
+      "note": "Note"
     }
   },
   "org": {
@@ -952,7 +945,9 @@
       "ROOM_BUSY": "The room has been taken at that time meanwhile. The refreshed plan offers another slot.",
       "ROOM_ONLINE_NOT_ALLOWED": "This course is not held online. The refreshed plan offers another room.",
       "ROOM_TOO_SMALL": "The room has fewer seats than the session opens. The refreshed plan offers another room.",
-      "ROOM_MISSING_CAPABILITIES": "The room lacks equipment the course needs. The refreshed plan offers another room."
+      "ROOM_MISSING_CAPABILITIES": "The room lacks equipment the course needs. The refreshed plan offers another room.",
+      "ROOM_ARCHIVED": "The room has been archived meanwhile. The refreshed plan offers another room.",
+      "COURSE_ARCHIVED": "The course has been archived meanwhile. Reload the planner."
     },
     "problems": {
       "NO_ROOM_WITH": "Even the best-equipped room lacks {missing}.",
@@ -1003,6 +998,11 @@
         "title": "Admin",
         "body": "Also edits records, books seats and imports data. Granted by an administrator."
       }
+    },
+    "archived": {
+      "title": "Your access has ended",
+      "body": "An admin has archived your account, so the register is closed to it. If that is a mistake, ask an admin to bring your account back.",
+      "signOut": "Sign out"
     }
   },
   "users": {
@@ -1013,6 +1013,115 @@
       "email": "Email",
       "role": "Role",
       "lastSignInAt": "Last sign-in"
+    }
+  },
+  "archive": {
+    "archived": "archived",
+    "badge": "Archived",
+    "action": "Archive",
+    "actionLabel": "Archive {name}",
+    "confirmTitle": "Archive {name}?",
+    "confirmBody": "It leaves every list and count, and its history stays. An admin can bring it back.",
+    "checking": "Checking what goes with it…",
+    "removesBookings": "{count, plural, one {Their # booking on a session ahead is removed.} other {Their # bookings on sessions ahead are removed.}}",
+    "confirm": "Archive",
+    "unarchive": "Bring back",
+    "unarchiveLabel": "Bring back {name}",
+    "person": "Archived employee #{tag}",
+    "refused": {
+      "not_found": "It no longer exists, or it is archived already.",
+      "in_use": "{kind, select, room {{count, plural, one {# session ahead is held here.} other {# sessions ahead are held here.}} Move or cancel them first.} other {{count, plural, one {# person belongs here.} other {# people belong here.}} Move them elsewhere first.}}",
+      "has_upcoming_sessions": "{count, plural, one {# session of it is ahead.} other {# sessions of it are ahead.}} Cancel or archive them first.",
+      "has_bookings": "{count, plural, one {# seat is taken on this session.} other {# seats are taken on this session.}} Cancel it first; its bookings then stay as history.",
+      "self": "You cannot archive yourself.",
+      "last_admin": "This is the last admin. Make someone else an admin first.",
+      "taken": "An active record now uses its {fields}. Rename or archive that one first.",
+      "parent_archived": "It belongs to something that is archived. Bring that back first.",
+      "generic": "That did not work. Please try again."
+    },
+    "fields": {
+      "name": "name",
+      "code": "code",
+      "externalId": "ID",
+      "email": "email",
+      "companyId": "IČO",
+      "clerkId": "sign-in account",
+      "department": "Department",
+      "position": "Position",
+      "status": "Status",
+      "hiredOn": "Hired",
+      "leftOn": "Left",
+      "role": "Role",
+      "lastSignInAt": "Last sign-in",
+      "validityMonths": "Valid for (months)",
+      "course": "Course",
+      "startsAt": "Starts",
+      "endsAt": "Ends",
+      "room": "Room",
+      "capacity": "Capacity",
+      "completedOn": "Completed on",
+      "validUntil": "Valid until",
+      "provider": "Provider",
+      "kind": "Kind",
+      "note": "Note",
+      "phone": "Phone",
+      "website": "Website"
+    },
+    "user": "Archived user #{tag}",
+    "kinds": {
+      "employee": {
+        "title": "Archived employees",
+        "list": "Employees"
+      },
+      "course": {
+        "title": "Archived courses",
+        "list": "Courses"
+      },
+      "session": {
+        "title": "Archived sessions",
+        "list": "Sessions"
+      },
+      "completion": {
+        "title": "Archived completions",
+        "list": "Employees"
+      },
+      "department": {
+        "title": "Archived departments",
+        "list": "Departments"
+      },
+      "position": {
+        "title": "Archived positions",
+        "list": "Positions"
+      },
+      "room": {
+        "title": "Archived rooms",
+        "list": "Rooms"
+      },
+      "provider": {
+        "title": "Archived providers",
+        "list": "Providers"
+      },
+      "user": {
+        "title": "Archived users",
+        "list": "Users"
+      }
+    },
+    "list": {
+      "show": "Archived",
+      "description": "Archived records are kept with their history but left out of every list and count. People appear by tag only; open one to see who it was.",
+      "empty": "Nothing is archived here.",
+      "columns": {
+        "name": "Name",
+        "when": "Date",
+        "archivedAt": "Archived on",
+        "archivedBy": "Archived by",
+        "actions": "Actions"
+      }
+    },
+    "record": {
+      "adminOnly": "Only admins see this page. Elsewhere this record is left out, and a person appears only by tag.",
+      "archivedAt": "Archived on",
+      "archivedBy": "Archived by"
     }
   }
 }

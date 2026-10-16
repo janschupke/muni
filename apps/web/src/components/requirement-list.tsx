@@ -1,14 +1,14 @@
 import type { RequirementView } from '@muni/db/repositories'
-import { TextLink } from '@muni/ui/text-link'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+
+import { RecordLink } from './archived'
 
 const hrefOf = (r: RequirementView) =>
   r.targetId === null
     ? null
     : `/${r.scope === 'DEPARTMENT' ? 'departments' : 'positions'}/${r.targetId}`
 
-/** Who must hold a course; departments and positions link to their pages. */
+/** Who must hold a course; departments and positions link to their pages (muted once archived). */
 export function RequirementList({ requirements }: { requirements: RequirementView[] }) {
   const t = useTranslations('status')
   if (requirements.length === 0) return <span className="text-fg-subtle">{t('optional')}</span>
@@ -22,9 +22,9 @@ export function RequirementList({ requirements }: { requirements: RequirementVie
               target: r.target ?? '',
               link: chunks =>
                 href ? (
-                  <TextLink asChild>
-                    <Link href={href}>{chunks}</Link>
-                  </TextLink>
+                  <RecordLink href={href} archived={r.archived}>
+                    {chunks}
+                  </RecordLink>
                 ) : (
                   chunks
                 ),

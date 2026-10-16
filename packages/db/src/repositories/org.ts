@@ -6,6 +6,7 @@ import {
 } from '@muni/domain/compliance'
 import type { EmploymentStatus } from '@muni/domain/enums'
 
+import { ACTIVE, type PersonRef, toPersonRef } from './archive'
 import {
   audienceInclude,
   mandatoryCourse,
@@ -21,11 +22,6 @@ import { upcomingSessionWhere } from './sessions'
 // Departments and positions as the register sees them: who is in them, who leads them,
 // what they must hold and how much of it they hold. Active people count toward compliance;
 // people on parental leave are listed but not counted, people who left are ignored.
-
-export interface PersonRef {
-  externalId: string
-  name: string
-}
 
 export interface CourseCompliance {
   code: string
@@ -76,6 +72,7 @@ interface Member {
   externalId: string
   firstName: string
   lastName: string
+  archivedAt: Date | null
   status: EmploymentStatus
   managerId: string | null
   departmentId: string | null
@@ -90,12 +87,13 @@ async function loadOrg(options?: RepoOptions & { now?: Date }) {
   const [compliance, people, bookings, courses, nextBookings] = await Promise.all([
     loadCompliance(options),
     db.employee.findMany({
-      where: { status: { not: 'TERMINATED' } },
+      where: { ...ACTIVE, status: { not: 'TERMINATED' } },
       select: {
         id: true,
         externalId: true,
         firstName: true,
         lastName: true,
+        archivedAt: true,
         status: true,
         managerId: true,
         departmentId: true,
@@ -105,11 +103,11 @@ async function loadOrg(options?: RepoOptions & { now?: Date }) {
       },
     }),
     db.sessionAssignment.findMany({
-      where: { session: upcomingSessionWhere(now) },
+      where: { session: upcomingSessionWhere(now), employee: ACTIVE },
       select: { employeeId: true },
     }),
     db.course.findMany({
-      where: mandatoryCourse,
+      where: { ...mandatoryCourse, ...ACTIVE },
       select: { id: true, code: true, name: true, requiredForAll: true, ...audienceInclude },
       orderBy: { code: 'asc' },
     }),
@@ -211,7 +209,7 @@ export function headOf<P extends Reporting & { firstName: string; lastName: stri
 
 function headRef(org: Org, members: Member[]): PersonRef | null {
   const head = headOf(members, org.byId)
-  return head ? { externalId: head.externalId, name: `${head.lastName} ${head.firstName}` } : null
+  return head ? toPersonRef(head) : null
 }
 
 /** Per mandatory course the group's active members hold, with why the group needs it. */
@@ -261,6 +259,7 @@ export async function listDepartmentSummaries(
   const [org, departments] = await Promise.all([
     loadOrg(options),
     dbOf(options).department.findMany({
+      where: ACTIVE,
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     }),
@@ -274,7 +273,10 @@ export async function getDepartment(
 ): Promise<DepartmentDetail | null> {
   const [org, department] = await Promise.all([
     loadOrg(options),
-    dbOf(options).department.findUnique({ where: { id }, select: { id: true, name: true } }),
+    dbOf(options).department.findFirst({
+      where: { id, ...ACTIVE },
+      select: { id: true, name: true },
+    }),
   ])
   if (!department) return null
   const members = org.people.filter(p => p.departmentId === id)
@@ -286,7 +288,11 @@ export async function listPositionSummaries(
 ): Promise<PositionSummary[]> {
   const [org, positions] = await Promise.all([
     loadOrg(options),
-    dbOf(options).position.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+    dbOf(options).position.findMany({
+      where: ACTIVE,
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
   ])
   return positions.map(p => positionSummary(org, p))
 }
@@ -297,7 +303,10 @@ export async function getPosition(
 ): Promise<PositionDetail | null> {
   const [org, position] = await Promise.all([
     loadOrg(options),
-    dbOf(options).position.findUnique({ where: { id }, select: { id: true, name: true } }),
+    dbOf(options).position.findFirst({
+      where: { id, ...ACTIVE },
+      select: { id: true, name: true },
+    }),
   ])
   if (!position) return null
   const members = org.people.filter(p => p.positionId === id)

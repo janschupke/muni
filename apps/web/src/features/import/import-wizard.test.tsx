@@ -17,10 +17,11 @@ import { ImportWizard } from './import-wizard'
 // The server action and router are the only things replaced; parsing, validation, the
 // review table and the commit loop are the real code, driven with the real exports.
 const commitImportChunk = vi.fn((_kind: string, records: unknown[]) =>
-  Promise.resolve({ ok: true as const, created: records.length, updated: 0 })
+  Promise.resolve({ ok: true as const, created: records.length, updated: 0, skipped: 0 })
 )
 vi.mock('./actions', () => ({
   commitImportChunk: (kind: string, records: unknown[]) => commitImportChunk(kind, records),
+  findArchived: async () => (await import('@muni/importer')).NO_ARCHIVED,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
 
@@ -256,7 +257,7 @@ describe('ImportWizard', () => {
   it('stops at a failed chunk, says how much was written, and starts over', async () => {
     const user = userEvent.setup()
     commitImportChunk
-      .mockResolvedValueOnce({ ok: true, created: 2, updated: 0 })
+      .mockResolvedValueOnce({ ok: true, created: 2, updated: 0, skipped: 0 })
       .mockResolvedValueOnce({ ok: false, error: 'failed' } as never)
     const { container } = renderWizard()
     await upload(user, container, [

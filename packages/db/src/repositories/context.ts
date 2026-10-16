@@ -8,6 +8,7 @@ import { loadPolicy, type SanitizePolicy } from '@muni/domain/sanitize'
 import { isoDateFromUtc, todayIn } from '@muni/utils/dates'
 
 import { type Db, getDb } from '../client'
+import { ACTIVE } from './archive'
 import { audienceSelect, mandatoryCourse, rulesOf } from './audience'
 
 let policy: SanitizePolicy | undefined
@@ -48,18 +49,21 @@ export interface ComplianceSnapshot {
 /**
  * Loads everything compliance needs and evaluates it in memory. At this register's size
  * (~170 people × 10 courses) that is a few milliseconds; a SQL view is the scaling path.
- * Terminated employees are excluded.
+ * Terminated and archived employees, archived courses and archived completions are excluded.
  */
 export async function loadCompliance(options?: RepoOptions): Promise<ComplianceSnapshot> {
   const db = dbOf(options)
   const [employees, requirements, completions] = await Promise.all([
     db.employee.findMany({
-      where: { status: { not: 'TERMINATED' } },
+      where: { ...ACTIVE, status: { not: 'TERMINATED' } },
       select: { id: true, departmentId: true, positionId: true, status: true },
     }),
-    db.course.findMany({ where: mandatoryCourse, select: { id: true, ...audienceSelect } }),
+    db.course.findMany({
+      where: { ...mandatoryCourse, ...ACTIVE },
+      select: { id: true, ...audienceSelect },
+    }),
     db.courseCompletion.findMany({
-      where: { employee: { status: { not: 'TERMINATED' } } },
+      where: { ...ACTIVE, employee: { ...ACTIVE, status: { not: 'TERMINATED' } }, course: ACTIVE },
       select: { employeeId: true, courseId: true, completedOn: true, validUntil: true },
     }),
   ])

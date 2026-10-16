@@ -3,6 +3,21 @@
 import 'server-only'
 
 export { getAdvisorInput } from './advisor'
+export type { PersonRef, UserRef } from './archive'
+export {
+  type ArchivedField,
+  type ArchivedItem,
+  type ArchivedRecord,
+  type ArchiveImpact,
+  archiveImpact,
+  archiveRecord,
+  type ArchiveRefusal,
+  getArchivedRecord,
+  listArchived,
+  type UnarchiveOutcome,
+  unarchiveRecord,
+  type UniqueField,
+} from './archiving'
 export {
   applyAssignments,
   ASSIGNMENT_FAILURES,
@@ -59,7 +74,6 @@ export {
   createCompletion,
   createRoom,
   createSession,
-  deleteRoom,
   type SessionProblem,
   type SessionWrite,
   updateCourse,
@@ -75,14 +89,12 @@ export {
   getPosition,
   listDepartmentSummaries,
   listPositionSummaries,
-  type PersonRef,
   type PositionDetail,
   type PositionSummary,
 } from './org'
 export { getPlannerInput } from './planner'
 export {
   createProvider,
-  deleteProvider,
   getProvider,
   getProviderForEdit,
   listProviders,

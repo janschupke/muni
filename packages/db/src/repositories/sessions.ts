@@ -1,5 +1,7 @@
+import type { RoomKind } from '@muni/domain/enums'
 import type { RoomRef } from '@muni/domain/rooms'
 
+import { ACTIVE, isArchived, personSelect, toPersonRef } from './archive'
 import { dbOf, type RepoOptions, toAmount } from './context'
 import type { SessionListItem } from './courses'
 
@@ -9,6 +11,7 @@ import type { SessionListItem } from './courses'
  * started takes nobody new; see assignments.)
  */
 export const upcomingSessionWhere = (now: Date) => ({
+  ...ACTIVE,
   status: 'PLANNED' as const,
   endsAt: { gte: now },
 })
@@ -17,32 +20,44 @@ export const upcomingSessionWhere = (now: Date) => ({
 export const isUpcoming = (s: { status: string; endsAt: Date }, now: Date) =>
   s.status === 'PLANNED' && s.endsAt >= now
 
-/** Select this to read a session's room as a `RoomRef`. */
-export const roomRefSelect = { id: true, name: true, kind: true } as const
+/** Select this to read a session's room as a `RoomRef` (through `toRoomRef`). */
+export const roomRefSelect = { id: true, name: true, kind: true, archivedAt: true } as const
+
+export const toRoomRef = (room: {
+  id: string
+  name: string
+  kind: RoomKind
+  archivedAt: Date | null
+}): RoomRef => ({ id: room.id, name: room.name, kind: room.kind, archived: isArchived(room) })
 
 export type SessionWindow = 'upcoming' | 'past'
 
 /** What every session read selects: the course and the named bookings. */
 export const sessionInclude = {
-  course: { select: { code: true, name: true } },
+  course: { select: { code: true, name: true, archivedAt: true } },
   room: { select: roomRefSelect },
-  assignments: {
-    select: { employee: { select: { externalId: true, firstName: true, lastName: true } } },
-    orderBy: { createdAt: 'asc' },
-  },
+  assignments: { select: { employee: { select: personSelect } }, orderBy: { createdAt: 'asc' } },
 } as const
 
 interface SessionRow {
   externalId: string
   startsAt: Date
   endsAt: Date
-  room: RoomRef
+  room: { id: string; name: string; kind: RoomKind; archivedAt: Date | null }
   capacity: number
   unnamedBookings: number
   pricePerPerson: { toString(): string } | null
   status: SessionListItem['status']
-  course: { code: string; name: string }
-  assignments: { employee: { externalId: string; firstName: string; lastName: string } }[]
+  course: { code: string; name: string; archivedAt: Date | null }
+  assignments: {
+    employee: {
+      id: string
+      externalId: string
+      firstName: string
+      lastName: string
+      archivedAt: Date | null
+    }
+  }[]
 }
 
 /** The booked total is derived: anonymous seats plus named assignments. */
@@ -51,15 +66,13 @@ export function toSessionItem(s: SessionRow): SessionListItem {
     externalId: s.externalId,
     courseCode: s.course.code,
     courseName: s.course.name,
+    courseArchived: isArchived(s.course),
     startsAt: s.startsAt.toISOString(),
     endsAt: s.endsAt.toISOString(),
-    room: s.room,
+    room: toRoomRef(s.room),
     capacity: s.capacity,
     unnamedBookings: s.unnamedBookings,
-    assigned: s.assignments.map(a => ({
-      externalId: a.employee.externalId,
-      name: `${a.employee.lastName} ${a.employee.firstName}`,
-    })),
+    assigned: s.assignments.map(a => toPersonRef(a.employee)),
     bookedCount: s.unnamedBookings + s.assignments.length,
     pricePerPerson: toAmount(s.pricePerPerson),
     status: s.status,
@@ -86,8 +99,9 @@ export async function listSessions(
   const now = options?.now ?? new Date()
   const sessions = await dbOf(options).courseSession.findMany({
     where: {
+      ...ACTIVE,
       ...(window === 'upcoming' ? { endsAt: { gte: now } } : { endsAt: { lt: now } }),
-      ...(course && { course: { code: course } }),
+      ...(course && { course: { code: course, ...ACTIVE } }),
       ...(room && { roomId: room }),
       ...(status && { status }),
     },
@@ -102,8 +116,8 @@ export async function getSession(
   externalId: string,
   options?: RepoOptions
 ): Promise<SessionListItem | null> {
-  const session = await dbOf(options).courseSession.findUnique({
-    where: { externalId },
+  const session = await dbOf(options).courseSession.findFirst({
+    where: { externalId, ...ACTIVE },
     include: sessionInclude,
   })
   return session ? toSessionItem(session) : null

@@ -1,5 +1,6 @@
 import type { Role } from '@muni/domain/enums'
 
+import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions } from './context'
 
 // Users mirrored from Clerk. Clerk owns sign-in and the role (`publicMetadata.role`); this
@@ -14,6 +15,8 @@ export interface UserRecord {
   lastSessionId: string | null
   lastSignInAt: Date | null
   syncedAt: Date
+  /** An archived user may not sign in; nothing about them is synced any more. */
+  archived: boolean
 }
 
 export interface UserListItem {
@@ -35,13 +38,31 @@ const RECORD = {
   lastSessionId: true,
   lastSignInAt: true,
   syncedAt: true,
+  archivedAt: true,
 } as const
 
-export function findUserByClerkId(
+type RecordRow = Omit<UserRecord, 'archived'> & { archivedAt: Date | null }
+
+const toRecord = ({ archivedAt, ...row }: RecordRow): UserRecord => ({
+  ...row,
+  archived: archivedAt !== null,
+})
+
+/** The active row first; an archived one only when there is no active one. */
+const ACTIVE_FIRST = { archivedAt: { sort: 'desc', nulls: 'first' } } as const
+
+/** The user signed in with this Clerk ID; `archived` when they have been archived. */
+export async function findUserByClerkId(
   clerkId: string,
   options?: RepoOptions
 ): Promise<UserRecord | null> {
-  return dbOf(options).user.findUnique({ where: { clerkId }, select: RECORD })
+  const row = await dbOf(options).user.findFirst({
+    // eslint-disable-next-line no-restricted-syntax -- an archived user is found, to refuse them
+    where: { clerkId },
+    orderBy: ACTIVE_FIRST,
+    select: RECORD,
+  })
+  return row && toRecord(row)
 }
 
 /** What Clerk says about a user, as of `syncedAt`. */
@@ -57,24 +78,35 @@ export interface ClerkUserSync {
   syncedAt: Date
 }
 
-/** Creates or refreshes the user's row from Clerk. */
-export function upsertUserFromClerk(
+/**
+ * Creates or refreshes the user's row from Clerk. An archived user is returned as they are:
+ * signing in again neither revives them nor creates a new row.
+ */
+export async function upsertUserFromClerk(
   sync: ClerkUserSync,
   options?: RepoOptions
 ): Promise<UserRecord> {
   const { clerkId, sessionId, ...fields } = sync
   const data = { ...fields, lastSessionId: sessionId }
-  return dbOf(options).user.upsert({
-    where: { clerkId },
-    create: { clerkId, ...data },
-    update: data,
-    select: RECORD,
-  })
+  const db = dbOf(options)
+  const current = await findUserByClerkId(clerkId, options)
+  if (current?.archived) return current
+  if (current) {
+    return toRecord(await db.user.update({ where: { id: current.id }, data, select: RECORD }))
+  }
+  try {
+    return toRecord(await db.user.create({ data: { clerkId, ...data }, select: RECORD }))
+  } catch (error) {
+    // Two first requests at once: the other created the row; refresh that one.
+    if ((error as { code?: unknown }).code !== 'P2002') throw error
+    return upsertUserFromClerk(sync, options)
+  }
 }
 
 /** Everyone who has signed in (or booked a seat before users existed), admins first. */
 export function listUsers(options?: RepoOptions): Promise<UserListItem[]> {
   return dbOf(options).user.findMany({
+    where: ACTIVE,
     select: {
       id: true,
       clerkId: true,

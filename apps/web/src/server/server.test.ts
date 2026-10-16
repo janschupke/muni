@@ -1,16 +1,18 @@
 import { auth, clerkClient, clerkMiddleware } from '@clerk/nextjs/server'
+import { findArchivedKeys } from '@muni/db/reference'
 import {
   applyAssignments,
+  archiveImpact,
+  archiveRecord,
   createCompletion,
   createProvider,
   createRoom,
   createSession,
-  deleteProvider,
-  deleteRoom,
   findUserByClerkId,
   getCourseForEdit,
   moveSeats,
   removeAssignment,
+  unarchiveRecord,
   updateCourse,
   updateEmployee,
   updateProvider,
@@ -21,10 +23,11 @@ import {
 } from '@muni/db/repositories'
 import { commitChunk, CommitValidationError } from '@muni/db/writer'
 import type { Role } from '@muni/domain/enums'
+import { NO_ARCHIVED } from '@muni/importer'
 import { revalidatePath } from 'next/cache'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { commitImportChunk } from '@/features/import/actions'
+import { commitImportChunk, findArchived } from '@/features/import/actions'
 import getRequestConfig from '@/i18n/request'
 import { courseForEdit } from '@/test/fixtures'
 import {
@@ -35,6 +38,7 @@ import {
   responseCookies,
 } from '@/test/next'
 
+import { archiveAction, previewArchive, unarchiveAction } from './actions/archive'
 import {
   applyAssignmentsAction,
   moveSeatsAction,
@@ -42,11 +46,12 @@ import {
 } from './actions/assignments'
 import { recordCompletion, saveCourse, saveEmployee, saveSession } from './actions/edit'
 import { setLocale } from './actions/locale'
-import { removeProvider, saveProvider } from './actions/providers'
-import { removeRoom, saveRoom } from './actions/rooms'
+import { saveProvider } from './actions/providers'
+import { saveRoom } from './actions/rooms'
 import { createOfferedSession, saveNewSession } from './actions/sessions'
 import {
   getSessionUser,
+  isAccountArchived,
   requireAdmin,
   requireAdminPage,
   requireReader,
@@ -60,12 +65,13 @@ vi.mock('@clerk/nextjs/server', () => ({
 }))
 vi.mock('@muni/db/repositories', () => ({
   applyAssignments: vi.fn(),
+  archiveImpact: vi.fn(),
+  archiveRecord: vi.fn(),
+  unarchiveRecord: vi.fn(),
   createCompletion: vi.fn(),
   createProvider: vi.fn(),
   createRoom: vi.fn(),
   createSession: vi.fn(),
-  deleteProvider: vi.fn(),
-  deleteRoom: vi.fn(),
   findUserByClerkId: vi.fn(),
   updateProvider: vi.fn(),
   updateRoom: vi.fn(),
@@ -78,6 +84,7 @@ vi.mock('@muni/db/repositories', () => ({
   upsertUserFromClerk: vi.fn(),
 }))
 vi.mock('@muni/db/client', () => ({ getDb: () => 'db' }))
+vi.mock('@muni/db/reference', () => ({ findArchivedKeys: vi.fn() }))
 vi.mock('@muni/db/writer', async importOriginal => ({
   ...(await importOriginal<object>()),
   commitChunk: vi.fn(),
@@ -95,6 +102,7 @@ const userRow = (clerkId: string, role: Role, overrides: Partial<UserRecord> = {
   lastSessionId: 'sess_1',
   lastSignInAt: null,
   syncedAt: new Date(),
+  archived: false,
   ...overrides,
 })
 
@@ -253,6 +261,26 @@ describe('session user', () => {
     vi.mocked(findUserByClerkId).mockResolvedValue(userRow('user_1', 'ADMIN', { syncedAt: stale }))
     clerkHas('viewer')
     expect(await getSessionUser()).toMatchObject({ role: 'VIEWER' })
+  })
+
+  it('gives an archived user no access, and says why', async () => {
+    vi.mocked(findUserByClerkId).mockResolvedValue(userRow('user_1', 'ADMIN', { archived: true }))
+    expect(await getSessionUser()).toBeNull()
+    expect(await isAccountArchived()).toBe(true)
+    expect(clerkClient).not.toHaveBeenCalled()
+    expect(await redirectOf(requireReader())).toBe('/')
+    await expect(requireAdmin()).rejects.toMatchObject({ name: 'UnauthorizedError' })
+    // Archived while their row was being refreshed: still nobody.
+    vi.mocked(findUserByClerkId).mockResolvedValue(null)
+    vi.mocked(upsertUserFromClerk).mockResolvedValueOnce(
+      userRow('user_1', 'ADMIN', { archived: true })
+    )
+    clerkHas('admin')
+    expect(await getSessionUser()).toBeNull()
+    signedIn(null)
+    expect(await isAccountArchived()).toBe(false)
+    signedIn('user_2', 'VIEWER')
+    expect(await isAccountArchived()).toBe(false)
   })
 
   it('keeps the stored role when Clerk cannot be reached, and fails without one', async () => {
@@ -529,11 +557,12 @@ describe('import commit', () => {
   const course = { code: 'BOZP-Z', name: 'BOZP', validityMonths: 24, requirements: [] }
 
   it('writes a chunk for a signed-in user', async () => {
-    vi.mocked(commitChunk).mockResolvedValue({ created: 1, updated: 0 })
+    vi.mocked(commitChunk).mockResolvedValue({ created: 1, updated: 0, skipped: 2 })
     expect(await commitImportChunk('courses', [course])).toEqual({
       ok: true,
       created: 1,
       updated: 0,
+      skipped: 2,
     })
     expect(commitChunk).toHaveBeenCalledWith('db', 'courses', [course])
   })
@@ -661,20 +690,6 @@ describe('room actions', () => {
     vi.mocked(updateRoom).mockRejectedValueOnce(new Error('down'))
     expect(await saveRoom('room_lab', idle, form(roomForm))).toMatchObject({ formError: 'generic' })
   })
-
-  it('delete a room only while nothing is held there', async () => {
-    vi.mocked(deleteRoom).mockResolvedValueOnce('IN_USE')
-    expect(await removeRoom('room_aula_a', idle)).toEqual({ status: 'refused', reason: 'in_use' })
-    vi.mocked(deleteRoom).mockResolvedValueOnce('DELETED')
-    expect(await redirectOf(removeRoom('room_new', idle))).toBe('/rooms')
-    vi.mocked(deleteRoom).mockRejectedValueOnce({ code: 'P2025' })
-    expect(await removeRoom('gone', idle)).toEqual({ status: 'refused', reason: 'not_found' })
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    vi.mocked(deleteRoom).mockRejectedValueOnce(new Error('down'))
-    expect(await removeRoom('room_new', idle)).toEqual({ status: 'refused', reason: 'generic' })
-    signedIn(null)
-    await expect(removeRoom('room_new', idle)).rejects.toMatchObject({ name: 'UnauthorizedError' })
-  })
 })
 
 describe('provider actions', () => {
@@ -731,16 +746,9 @@ describe('provider actions', () => {
     })
   })
 
-  it('delete a provider only while no completion names it, for signed-in users', async () => {
-    vi.mocked(deleteProvider).mockResolvedValueOnce('IN_USE')
-    expect(await removeProvider('prov_1', idle)).toEqual({ status: 'refused', reason: 'in_use' })
-    vi.mocked(deleteProvider).mockResolvedValueOnce('DELETED')
-    expect(await redirectOf(removeProvider('prov_new', idle))).toBe('/providers')
+  it('save providers for admins only', async () => {
     signedIn(null)
     await expect(saveProvider(null, idle, form(providerForm))).rejects.toMatchObject({
-      name: 'UnauthorizedError',
-    })
-    await expect(removeProvider('prov_1', idle)).rejects.toMatchObject({
       name: 'UnauthorizedError',
     })
   })
@@ -814,5 +822,111 @@ describe('session creation', () => {
     expect(await saveNewSession('POZ-OCH', idle, form(fields))).toMatchObject({
       fieldErrors: { roomId: 'room_missing_capabilities' },
     })
+  })
+})
+
+describe('archive actions', () => {
+  it('archive for an admin, as them, then show the list', async () => {
+    vi.mocked(archiveRecord).mockResolvedValue({ ok: true, removesBookings: 2 })
+    expect(await redirectOf(archiveAction('room', 'room_1', '/rooms', idle))).toBe('/rooms')
+    expect(archiveRecord).toHaveBeenCalledWith('room', 'room_1', 'usr_1')
+    expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
+    // From a list row, the page stays.
+    expect(await archiveAction('room', 'room_1', null, idle)).toEqual({ status: 'done' })
+  })
+
+  it('say why a record cannot be archived, and how much is in the way', async () => {
+    vi.mocked(archiveRecord).mockResolvedValueOnce({ ok: false, reason: 'IN_USE', count: 7 })
+    expect(await archiveAction('room', 'room_1', '/rooms', idle)).toEqual({
+      status: 'refused',
+      reason: 'in_use',
+      count: 7,
+    })
+    vi.mocked(archiveRecord).mockResolvedValueOnce({ ok: false, reason: 'NOT_FOUND', count: 0 })
+    expect(await archiveAction('room', 'gone', '/rooms', idle)).toMatchObject({
+      reason: 'not_found',
+    })
+    vi.mocked(archiveRecord).mockResolvedValueOnce({ ok: false, reason: 'LAST_ADMIN', count: 0 })
+    expect(await archiveAction('user', 'usr_2', null, idle)).toMatchObject({ reason: 'last_admin' })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(archiveRecord).mockRejectedValueOnce(new Error('down'))
+    expect(await archiveAction('room', 'room_1', null, idle)).toMatchObject({ reason: 'generic' })
+  })
+
+  it('take no kind, id or destination the app does not know', async () => {
+    for (const [kind, id, then] of [
+      ['pet', 'x', null],
+      ['room', '', null],
+      ['room', 'room_1', 'https://evil.example'],
+      ['room', 'room_1', '//evil.example'],
+    ] as const) {
+      expect(await archiveAction(kind as never, id, then, idle)).toMatchObject({
+        reason: 'generic',
+      })
+      expect(await unarchiveAction(kind as never, id, then, idle)).toMatchObject({
+        reason: 'generic',
+      })
+    }
+    expect(await previewArchive('pet' as never, 'x')).toBeNull()
+    expect(await previewArchive('room', '')).toBeNull()
+    expect(archiveRecord).not.toHaveBeenCalled()
+  })
+
+  it('bring a record back, or say what holds its name or what it belongs to', async () => {
+    vi.mocked(unarchiveRecord).mockResolvedValueOnce({ ok: true })
+    expect(await redirectOf(unarchiveAction('course', 'c1', '/courses', idle))).toBe('/courses')
+    vi.mocked(unarchiveRecord).mockResolvedValueOnce({
+      ok: false,
+      reason: 'TAKEN',
+      fields: ['code'],
+    })
+    expect(await unarchiveAction('course', 'c1', null, idle)).toEqual({
+      status: 'refused',
+      reason: 'taken',
+      fields: ['code'],
+    })
+    vi.mocked(unarchiveRecord).mockResolvedValueOnce({ ok: false, reason: 'PARENT_ARCHIVED' })
+    expect(await unarchiveAction('session', 's1', null, idle)).toMatchObject({
+      reason: 'parent_archived',
+    })
+    vi.mocked(unarchiveRecord).mockResolvedValueOnce({ ok: false, reason: 'NOT_FOUND' })
+    expect(await unarchiveAction('session', 's1', null, idle)).toMatchObject({
+      reason: 'not_found',
+    })
+    vi.mocked(unarchiveRecord).mockResolvedValueOnce({ ok: true })
+    expect(await unarchiveAction('session', 's1', null, idle)).toEqual({ status: 'done' })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(unarchiveRecord).mockRejectedValueOnce(new Error('down'))
+    expect(await unarchiveAction('session', 's1', null, idle)).toMatchObject({ reason: 'generic' })
+  })
+
+  it('preview for admins only; everyone else is refused', async () => {
+    vi.mocked(archiveImpact).mockResolvedValue({ ok: true, removesBookings: 1 })
+    expect(await previewArchive('employee', 'e1')).toEqual({ ok: true, removesBookings: 1 })
+    for (const role of ['VIEWER', 'FULL'] as const) {
+      signedIn('user_1', role)
+      expect(await previewArchive('employee', 'e1')).toBeNull()
+      await expect(archiveAction('employee', 'e1', null, idle)).rejects.toMatchObject({
+        name: 'UnauthorizedError',
+      })
+      await expect(unarchiveAction('employee', 'e1', null, idle)).rejects.toMatchObject({
+        name: 'UnauthorizedError',
+      })
+    }
+    expect(archiveImpact).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('archived keys for the import review', () => {
+  const candidates = { ...NO_ARCHIVED, employees: ['E0066'] }
+
+  it('asks the database about the batch keys, for admins only', async () => {
+    vi.mocked(findArchivedKeys).mockResolvedValue({ ...NO_ARCHIVED, employees: ['E0066'] })
+    expect(await findArchived(candidates)).toEqual({ ...NO_ARCHIVED, employees: ['E0066'] })
+    expect(findArchivedKeys).toHaveBeenCalledWith('db', candidates)
+    expect(await findArchived({ ...candidates, rooms: 'x' } as never)).toEqual(NO_ARCHIVED)
+    signedIn('user_1', 'FULL')
+    expect(await findArchived(candidates)).toEqual(NO_ARCHIVED)
+    expect(findArchivedKeys).toHaveBeenCalledTimes(1)
   })
 })

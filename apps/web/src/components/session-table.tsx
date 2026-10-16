@@ -6,13 +6,13 @@ import { Button } from '@muni/ui/button'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
 import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
-import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency } from '@muni/utils/format'
 import { Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { PersonLink, RecordLink } from './archived'
 import { RoomLink, SessionDateLink } from './session-links'
 import { OccupancyBadge, seatTone, SessionStatusBadge } from './status-badges'
 
@@ -46,11 +46,13 @@ export function SessionTable({
                 cell: ({ row }) => (
                   <CellStack
                     title={
-                      <TextLink asChild emphasis>
-                        <Link href={`/courses/${row.original.courseCode}`}>
-                          {row.original.courseName}
-                        </Link>
-                      </TextLink>
+                      <RecordLink
+                        href={`/courses/${row.original.courseCode}`}
+                        archived={row.original.courseArchived}
+                        emphasis
+                      >
+                        {row.original.courseName}
+                      </RecordLink>
                     }
                     meta={`${row.original.courseCode} · ${row.original.externalId}`}
                   />
@@ -172,10 +174,8 @@ function AttendeeList({ session }: { session: SessionListItem }) {
       </p>
       <ul className="flex flex-wrap gap-x-4 gap-y-1">
         {session.assigned.map(a => (
-          <li key={a.externalId}>
-            <TextLink asChild>
-              <Link href={`/employees/${a.externalId}`}>{a.name}</Link>
-            </TextLink>
+          <li key={a.archived ? a.tag : a.externalId}>
+            <PersonLink person={a} />
           </li>
         ))}
       </ul>

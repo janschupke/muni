@@ -52,6 +52,8 @@ export interface ParsedRow<T> {
   errors: ValidationIssue[]
   warnings: ValidationIssue[]
   isValid: boolean
+  /** Valid, but left out by a skipping warning (see SKIPPING_CODES). */
+  isSkipped: boolean
   isEdited: boolean
   isRemoved: boolean
 }
@@ -87,6 +89,40 @@ export interface ReferenceSnapshot {
   positions: string[]
   providers: string[]
   rooms: string[]
+  /**
+   * Keys of THIS batch that only archived records hold: a row with one of them, or naming one,
+   * is skipped. The server answers for the keys the browser sends (see archivedCandidates), so
+   * nothing about an archived record reaches the browser that the files did not already say.
+   */
+  archived: ArchivedKeys
+}
+
+export interface ArchivedKeys {
+  courses: string[]
+  /** Employee IDs. */
+  employees: string[]
+  /** Archived people's emails, as managers named by email. */
+  employeeEmails: string[]
+  departments: string[]
+  positions: string[]
+  providers: string[]
+  rooms: string[]
+  /** Session IDs. */
+  sessions: string[]
+  /** Completion IDs. */
+  completions: string[]
+}
+
+export const NO_ARCHIVED: ArchivedKeys = {
+  courses: [],
+  employees: [],
+  employeeEmails: [],
+  departments: [],
+  positions: [],
+  providers: [],
+  rooms: [],
+  sessions: [],
+  completions: [],
 }
 
 export const EMPTY_REFERENCE: ReferenceSnapshot = {
@@ -96,12 +132,15 @@ export const EMPTY_REFERENCE: ReferenceSnapshot = {
   positions: [],
   providers: [],
   rooms: [],
+  archived: NO_ARCHIVED,
 }
 
 export interface ValidationSummary {
   total: number
   valid: number
   invalid: number
+  /** Valid rows left out because they touch an archived record. */
+  skipped: number
   warnings: number
   removed: number
 }

@@ -4,9 +4,10 @@ import type { RoomRef } from '@muni/domain/rooms'
 import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 
 import type { Prisma } from '../generated/prisma/client'
+import { ACTIVE } from './archive'
 import { audienceSelect, rulesOf } from './audience'
 import { complianceOptions, dbOf, type RepoOptions } from './context'
-import { roomRefSelect } from './sessions'
+import { roomRefSelect, toRoomRef } from './sessions'
 
 type Tx = Prisma.TransactionClient
 
@@ -45,14 +46,17 @@ interface LockedSession {
   ends_at: Date
 }
 
-/** Locks the session row for the rest of the transaction; concurrent writers queue behind it. */
+/**
+ * Locks the (active) session rows for the rest of the transaction; concurrent writers queue
+ * behind them. Archiving a session takes the same lock.
+ */
 async function lockSessions(tx: Tx, externalIds: string[]): Promise<Map<string, LockedSession>> {
   // Id order is the lock order everywhere, so two movers in opposite directions cannot deadlock.
   const rows = await tx.$queryRaw<(LockedSession & { external_id: string })[]>`
     SELECT id, external_id, course_id, capacity, unnamed_bookings, status::text AS status,
            starts_at, ends_at
     FROM course_sessions
-    WHERE external_id = ANY(${externalIds})
+    WHERE external_id = ANY(${externalIds}) AND archived_at IS NULL
     ORDER BY id
     FOR UPDATE`
   return new Map(rows.map(r => [r.external_id, r]))
@@ -92,8 +96,8 @@ async function applyOne(
     request.sessionExternalId
   )
   if (!session) return 'SESSION_NOT_FOUND'
-  const employee = await tx.employee.findUnique({
-    where: { externalId: request.employeeExternalId },
+  const employee = await tx.employee.findFirst({
+    where: { externalId: request.employeeExternalId, ...ACTIVE },
     select: { id: true, status: true, departmentId: true, positionId: true },
   })
   if (!employee) return 'EMPLOYEE_NOT_FOUND'
@@ -101,8 +105,11 @@ async function applyOne(
   if (session.status !== 'PLANNED') return 'NOT_PLANNED'
   if (session.starts_at <= now) return 'PAST'
   // The person's row too (always after the session's): two concurrent applies for one person
-  // into overlapping sessions would otherwise both pass the clash check.
-  await tx.$queryRaw`SELECT id FROM employees WHERE id = ${employee.id} FOR UPDATE`
+  // into overlapping sessions would otherwise both pass the clash check. Archiving the person
+  // takes this lock as well, so re-check after it: they may have been archived meanwhile.
+  const [locked] = await tx.$queryRaw<{ archived_at: Date | null }[]>`
+    SELECT archived_at FROM employees WHERE id = ${employee.id} FOR UPDATE`
+  if (locked?.archived_at) return 'EMPLOYEE_NOT_FOUND'
 
   const existing = await tx.sessionAssignment.findUnique({
     where: { sessionId_employeeId: { sessionId: session.id, employeeId: employee.id } },
@@ -167,8 +174,8 @@ export async function removeAssignment(
 ): Promise<boolean> {
   const { count } = await dbOf(options).sessionAssignment.deleteMany({
     where: {
-      session: { externalId: sessionExternalId },
-      employee: { externalId: employeeExternalId },
+      session: { externalId: sessionExternalId, ...ACTIVE },
+      employee: { externalId: employeeExternalId, ...ACTIVE },
     },
   })
   return count > 0
@@ -237,8 +244,8 @@ export async function listEmployeeBookings(
 ): Promise<EmployeeBooking[]> {
   const rows = await dbOf(options).sessionAssignment.findMany({
     where: {
-      employee: { externalId: employeeExternalId },
-      session: { startsAt: { gt: options?.now ?? new Date() } },
+      employee: { externalId: employeeExternalId, ...ACTIVE },
+      session: { ...ACTIVE, startsAt: { gt: options?.now ?? new Date() } },
     },
     select: {
       source: true,
@@ -260,7 +267,7 @@ export async function listEmployeeBookings(
     courseName: r.session.course.name,
     startsAt: r.session.startsAt.toISOString(),
     endsAt: r.session.endsAt.toISOString(),
-    room: r.session.room,
+    room: toRoomRef(r.session.room),
     source: r.source,
   }))
 }

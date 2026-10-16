@@ -1,6 +1,7 @@
 import type { PlannerInput } from '@muni/domain/planner'
 import { toZonedParts } from '@muni/utils/dates'
 
+import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions } from './context'
 
 /** The most frequent value; the smallest one on a tie; null for none. */
@@ -21,6 +22,7 @@ export async function getPlannerInput(
   const now = options?.now ?? new Date()
   const [courses, rooms, sessions] = await Promise.all([
     db.course.findMany({
+      where: ACTIVE,
       select: {
         code: true,
         name: true,
@@ -28,11 +30,15 @@ export async function getPlannerInput(
         groupSize: true,
         onlineAllowed: true,
         capabilities: { select: { capability: true } },
-        sessions: { where: { status: 'PLANNED' }, select: { startsAt: true, roomId: true } },
+        sessions: {
+          where: { ...ACTIVE, status: 'PLANNED', room: ACTIVE },
+          select: { startsAt: true, roomId: true },
+        },
       },
       orderBy: { code: 'asc' },
     }),
     db.room.findMany({
+      where: ACTIVE,
       select: {
         id: true,
         name: true,
@@ -43,7 +49,7 @@ export async function getPlannerInput(
       orderBy: { name: 'asc' },
     }),
     db.courseSession.findMany({
-      where: { status: 'PLANNED', endsAt: { gte: now } },
+      where: { ...ACTIVE, status: 'PLANNED', endsAt: { gte: now } },
       select: { roomId: true, startsAt: true, endsAt: true },
     }),
   ])

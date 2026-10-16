@@ -4,6 +4,7 @@ import { forecastEnd, planAssignments } from '@muni/domain/advisor'
 import { addDays } from '@muni/utils/dates'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { unarchiveAll } from '../test/archive'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { createDb } from './client'
 import {
@@ -40,6 +41,7 @@ const options = { db, asOf }
 const DATA_DIR = path.join(import.meta.dirname, '../../../data')
 
 beforeAll(async () => {
+  await unarchiveAll(db)
   await seedFromDirectory(db, DATA_DIR, asOf)
 })
 
@@ -449,7 +451,7 @@ describe('departments and positions', () => {
       )
     )
     expect(lab?.courses.find(c => c.code === 'LAB-BEZ')?.requiredBy).toEqual([
-      { scope: 'DEPARTMENT', target: 'Laboratoře', targetId: id },
+      { scope: 'DEPARTMENT', target: 'Laboratoře', targetId: id, archived: false },
     ])
     expect(lab?.courses.find(c => c.code === 'BOZP-Z')?.requiredBy).toMatchObject([
       { scope: 'ALL' },
@@ -686,9 +688,9 @@ describe('assignments', () => {
     const before = await booked('T018')
     expect(await applyAssignments([request], TEST_USER, opts)).toEqual([{ request, ok: true }])
     expect(await booked('T018')).toBe((before ?? 0) + 1)
-    expect((await getSession('T018', options))?.assigned.map(a => a.externalId)).toEqual([
-      need.employee.externalId,
-    ])
+    expect(
+      (await getSession('T018', options))?.assigned.map(a => (a.archived ? a.tag : a.externalId))
+    ).toEqual([need.employee.externalId])
     const row = await db.sessionAssignment.findFirstOrThrow({
       where: { session: { externalId: 'T018' } },
     })
@@ -771,7 +773,9 @@ describe('assignments', () => {
       db.courseSession.update({ where: { externalId: 'T018' }, data: { unnamedBookings: -1 } })
     ).rejects.toThrow()
     const assigned = await db.sessionAssignment.findFirstOrThrow({ select: { employeeId: true } })
-    await expect(db.employee.delete({ where: { id: assigned.employeeId } })).rejects.toThrow()
+    await expect(db.employee.delete({ where: { id: assigned.employeeId } })).rejects.toMatchObject({
+      code: 'P2003',
+    })
   })
 
   it('re-importing derives unnamed seats from the export total', async () => {

@@ -66,6 +66,7 @@ function newRow<K extends DatasetKind>(
     errors: base.issues.filter(i => i.severity === 'error'),
     warnings: base.issues.filter(i => i.severity === 'warning'),
     isValid: base.data !== null,
+    isSkipped: false,
     isEdited: false,
     isRemoved: false,
   }
@@ -227,23 +228,28 @@ export function summarize(rows: readonly ParsedRow<unknown>[]): ValidationSummar
     total: rows.length,
     valid: 0,
     invalid: 0,
+    skipped: 0,
     warnings: 0,
     removed: 0,
   }
   for (const row of rows) {
     if (row.isRemoved) summary.removed++
-    else if (row.isValid) summary.valid++
-    else summary.invalid++
-    if (!row.isRemoved && row.isValid && row.warnings.length > 0) summary.warnings++
+    else if (!row.isValid) summary.invalid++
+    else if (row.isSkipped) summary.skipped++
+    else summary.valid++
+    if (!row.isRemoved && row.isValid && !row.isSkipped && row.warnings.length > 0)
+      summary.warnings++
   }
   return summary
 }
 
-/** The records that will be written: valid and not removed. */
+/** The records that will be written: valid, not skipped and not removed. */
 export function committable<K extends DatasetKind>(
   batch: ImportBatch,
   kind: K
 ): DatasetRecord[K][] {
   const rows = batch[kind] ?? []
-  return rows.flatMap(row => (row.isValid && !row.isRemoved && row.data ? [row.data] : []))
+  return rows.flatMap(row =>
+    row.isValid && !row.isSkipped && !row.isRemoved && row.data ? [row.data] : []
+  )
 }

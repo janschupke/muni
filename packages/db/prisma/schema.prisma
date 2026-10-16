@@ -1,7 +1,10 @@
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "esm"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  moduleFormat    = "esm"
+  /// Unique indexes skip archived rows (`WHERE archived_at IS NULL`), so an archived record never
+  /// blocks a new one with the same name, code or ID.
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -40,37 +43,47 @@ enum SessionStatus {
 
 model Department {
   id           String                        @id @default(cuid())
-  name         String                        @unique
+  name         String
   employees    Employee[]
   requirements CourseDepartmentRequirement[]
+  /// Archived records are hidden from every list and count; nothing is ever deleted.
+  archivedAt   DateTime?                     @map("archived_at")
+  archivedById String?                       @map("archived_by_id")
+  archivedBy   User?                         @relation("DepartmentArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
 
+  @@unique([name], map: "departments_name_key", where: { archivedAt: null })
   @@map("departments")
 }
 
 model Position {
   id           String                      @id @default(cuid())
-  name         String                      @unique
+  name         String
   employees    Employee[]
   requirements CoursePositionRequirement[]
+  /// Archived records are hidden from every list and count; nothing is ever deleted.
+  archivedAt   DateTime?                   @map("archived_at")
+  archivedById String?                     @map("archived_by_id")
+  archivedBy   User?                       @relation("PositionArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
 
+  @@unique([name], map: "positions_name_key", where: { archivedAt: null })
   @@map("positions")
 }
 
 model Employee {
   id           String              @id @default(cuid())
   /// Source-system ID (E0001). Imports upsert on it.
-  externalId   String              @unique @map("external_id")
+  externalId   String              @map("external_id")
   firstName    String              @map("first_name")
   lastName     String              @map("last_name")
-  email        String?             @unique
+  email        String?
   /// Rodné číslo. Sensitive: only ever leaves the server through the sanitisation policy.
   nationalId   String?             @map("national_id")
   departmentId String?             @map("department_id")
-  department   Department?         @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  department   Department?         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   positionId   String?             @map("position_id")
-  position     Position?           @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  position     Position?           @relation(fields: [positionId], references: [id], onDelete: Restrict)
   managerId    String?             @map("manager_id")
-  manager      Employee?           @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  manager      Employee?           @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: Restrict)
   reports      Employee[]          @relation("EmployeeManager")
   hiredOn      DateTime            @map("hired_on") @db.Date
   leftOn       DateTime?           @map("left_on") @db.Date
@@ -80,7 +93,13 @@ model Employee {
   assignments  SessionAssignment[]
   createdAt    DateTime            @default(now()) @map("created_at")
   updatedAt    DateTime            @updatedAt @map("updated_at")
+  /// Archived records are hidden from every list and count; nothing is ever deleted.
+  archivedAt   DateTime?           @map("archived_at")
+  archivedById String?             @map("archived_by_id")
+  archivedBy   User?               @relation("EmployeeArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
 
+  @@unique([externalId], map: "employees_external_id_key", where: { archivedAt: null })
+  @@unique([email], map: "employees_email_key", where: { archivedAt: null })
   @@index([departmentId])
   @@index([positionId])
   @@index([lastName, firstName])
@@ -89,7 +108,7 @@ model Employee {
 
 model Course {
   id                     String                        @id @default(cuid())
-  code                   String                        @unique
+  code                   String
   name                   String
   /// null = the course never expires.
   validityMonths         Int?                          @map("validity_months")
@@ -110,16 +129,21 @@ model Course {
   completions            CourseCompletion[]
   createdAt              DateTime                      @default(now()) @map("created_at")
   updatedAt              DateTime                      @updatedAt @map("updated_at")
+  /// Archived records are hidden from every list and count; nothing is ever deleted.
+  archivedAt             DateTime?                     @map("archived_at")
+  archivedById           String?                       @map("archived_by_id")
+  archivedBy             User?                         @relation("CourseArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
 
+  @@unique([code], map: "courses_code_key", where: { archivedAt: null })
   @@map("courses")
 }
 
 /// Everyone in the department must hold the course.
 model CourseDepartmentRequirement {
   courseId     String     @map("course_id")
-  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Restrict)
   departmentId String     @map("department_id")
-  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
 
   @@id([courseId, departmentId])
   @@index([departmentId])
@@ -129,9 +153,9 @@ model CourseDepartmentRequirement {
 /// Everyone in the position must hold the course.
 model CoursePositionRequirement {
   courseId   String   @map("course_id")
-  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
   positionId String   @map("position_id")
-  position   Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  position   Position @relation(fields: [positionId], references: [id], onDelete: Restrict)
 
   @@id([courseId, positionId])
   @@index([positionId])
@@ -141,7 +165,7 @@ model CoursePositionRequirement {
 /// A capability every room holding the course must have.
 model CourseCapability {
   courseId   String     @map("course_id")
-  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Restrict)
   capability Capability
 
   @@id([courseId, capability])
@@ -150,7 +174,7 @@ model CourseCapability {
 
 model Room {
   id           String           @id @default(cuid())
-  name         String           @unique
+  name         String
   kind         RoomKind
   /// Seats. null = no fixed limit, which an online room has and only it (CHECK in the SQL).
   capacity     Int?
@@ -159,13 +183,18 @@ model Room {
   sessions     CourseSession[]
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
+  /// Archived records are hidden from every list and count; nothing is ever deleted.
+  archivedAt   DateTime?        @map("archived_at")
+  archivedById String?          @map("archived_by_id")
+  archivedBy   User?            @relation("RoomArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
 
+  @@unique([name], map: "rooms_name_key", where: { archivedAt: null })
   @@map("rooms")
 }
 
 model RoomCapability {
   roomId     String     @map("room_id")
-  room       Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room       Room       @relation(fields: [roomId], references: [id], onDelete: Restrict)
   capability Capability
 
   @@id([roomId, capability])
@@ -175,30 +204,35 @@ model RoomCapability {
 /// Who delivers training. Imports and the completion form create one by name; its details
 /// are filled in the app.
 model Provider {
-  id          String             @id @default(cuid())
-  name        String             @unique
+  id           String             @id @default(cuid())
+  name         String
   /// IČO: 8 digits (CHECK in the migration SQL); the schema checks its checksum.
-  companyId   String?            @unique @map("company_id")
-  email       String?
-  phone       String?
-  website     String?
-  note        String?
-  completions CourseCompletion[]
-  createdAt   DateTime           @default(now()) @map("created_at")
-  updatedAt   DateTime           @updatedAt @map("updated_at")
+  companyId    String?            @map("company_id")
+  email        String?
+  phone        String?
+  website      String?
+  note         String?
+  completions  CourseCompletion[]
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  /// Archived records are hidden from every list and count; nothing is ever deleted.
+  archivedAt   DateTime?          @map("archived_at")
+  archivedById String?            @map("archived_by_id")
+  archivedBy   User?              @relation("ProviderArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
 
+  @@unique([name], map: "providers_name_key", where: { archivedAt: null })
+  @@unique([companyId], map: "providers_company_id_key", where: { archivedAt: null })
   @@map("providers")
 }
 
 model CourseSession {
   id              String              @id @default(cuid())
   /// Source-system ID (T001).
-  externalId      String              @unique @map("external_id")
+  externalId      String              @map("external_id")
   courseId        String              @map("course_id")
-  course          Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course          Course              @relation(fields: [courseId], references: [id], onDelete: Restrict)
   startsAt        DateTime            @map("starts_at") @db.Timestamptz(3)
   endsAt          DateTime            @map("ends_at") @db.Timestamptz(3)
-  /// Restrict: a room with sessions cannot be deleted.
   roomId          String              @map("room_id")
   room            Room                @relation(fields: [roomId], references: [id], onDelete: Restrict)
   /// CHECK (capacity >= 0) in the migration SQL; Prisma cannot model CHECK constraints.
@@ -211,7 +245,12 @@ model CourseSession {
   assignments     SessionAssignment[]
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
+  /// Archived records are hidden from every list and count; nothing is ever deleted.
+  archivedAt      DateTime?           @map("archived_at")
+  archivedById    String?             @map("archived_by_id")
+  archivedBy      User?               @relation("SessionArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
 
+  @@unique([externalId], map: "course_sessions_external_id_key", where: { archivedAt: null })
   @@index([startsAt])
   @@index([courseId, startsAt])
   @@index([roomId, startsAt])
@@ -219,23 +258,28 @@ model CourseSession {
 }
 
 model CourseCompletion {
-  id          String    @id @default(cuid())
+  id           String    @id @default(cuid())
   /// Source-system ID (Z000001). Records created in the app get an `A`-prefixed ID.
-  externalId  String    @unique @map("external_id")
-  employeeId  String    @map("employee_id")
-  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  courseId    String    @map("course_id")
-  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  completedOn DateTime  @map("completed_on") @db.Date
+  externalId   String    @map("external_id")
+  employeeId   String    @map("employee_id")
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  courseId     String    @map("course_id")
+  course       Course    @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  completedOn  DateTime  @map("completed_on") @db.Date
   /// null = never expires.
-  validUntil  DateTime? @map("valid_until") @db.Date
-  providerId  String?   @map("provider_id")
-  provider    Provider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
-  price       Decimal?  @db.Decimal(10, 2)
-  note        String?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  validUntil   DateTime? @map("valid_until") @db.Date
+  providerId   String?   @map("provider_id")
+  provider     Provider? @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  price        Decimal?  @db.Decimal(10, 2)
+  note         String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  /// Archived records are hidden from every list and count; nothing is ever deleted.
+  archivedAt   DateTime? @map("archived_at")
+  archivedById String?   @map("archived_by_id")
+  archivedBy   User?     @relation("CompletionArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
 
+  @@unique([externalId], map: "course_completions_external_id_key", where: { archivedAt: null })
   @@index([employeeId, courseId, completedOn])
   @@index([courseId])
   @@index([validUntil])
@@ -252,12 +296,10 @@ enum AssignmentSource {
 model SessionAssignment {
   id          String           @id @default(cuid())
   sessionId   String           @map("session_id")
-  session     CourseSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  /// Restrict: removing a person must not silently erase their booking history.
+  session     CourseSession    @relation(fields: [sessionId], references: [id], onDelete: Restrict)
   employeeId  String           @map("employee_id")
   employee    Employee         @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   source      AssignmentSource @default(MANUAL)
-  /// Restrict: a user who booked seats keeps their row (users are never deleted, only synced).
   createdById String           @map("created_by_id")
   createdBy   User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt   DateTime         @default(now()) @map("created_at")
@@ -281,7 +323,7 @@ enum UserRole {
 /// A signed-in person, mirrored from Clerk at each sign-in and at most every few minutes after.
 model User {
   id            String              @id @default(cuid())
-  clerkId       String              @unique @map("clerk_id")
+  clerkId       String              @map("clerk_id")
   email         String?
   name          String?
   role          UserRole            @default(VIEWER)
@@ -293,6 +335,21 @@ model User {
   createdAt     DateTime            @default(now()) @map("created_at")
   updatedAt     DateTime            @updatedAt @map("updated_at")
   assignments   SessionAssignment[]
+  /// An archived user cannot sign in. Users are never deleted.
+  archivedAt    DateTime?           @map("archived_at")
+  archivedById  String?             @map("archived_by_id")
+  archivedBy    User?               @relation("UserArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
+  archivedUsers User[]              @relation("UserArchivedBy")
 
+  archivedDepartments Department[]       @relation("DepartmentArchivedBy")
+  archivedPositions   Position[]         @relation("PositionArchivedBy")
+  archivedEmployees   Employee[]         @relation("EmployeeArchivedBy")
+  archivedCourses     Course[]           @relation("CourseArchivedBy")
+  archivedRooms       Room[]             @relation("RoomArchivedBy")
+  archivedProviders   Provider[]         @relation("ProviderArchivedBy")
+  archivedSessions    CourseSession[]    @relation("SessionArchivedBy")
+  archivedCompletions CourseCompletion[] @relation("CompletionArchivedBy")
+
+  @@unique([clerkId], map: "users_clerk_id_key", where: { archivedAt: null })
   @@map("users")
 }

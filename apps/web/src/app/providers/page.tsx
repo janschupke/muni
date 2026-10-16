@@ -1,13 +1,11 @@
 import { listProviders } from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
-import { Button } from '@muni/ui/button'
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
-import { Plus } from 'lucide-react'
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 
+import { ListActions } from '@/components/list-actions'
 import { ProvidersTable } from '@/features/providers/providers-table'
 import { requireReader } from '@/server/auth'
 
@@ -28,12 +26,7 @@ export default async function ProvidersPage() {
         description={t('description')}
         actions={
           canWrite(user.role) && (
-            <Button asChild variant="primary">
-              <Link href="/providers/new">
-                <Plus aria-hidden />
-                {t('new')}
-              </Link>
-            </Button>
+            <ListActions kind="provider" create={{ href: '/providers/new', label: t('new') }} />
           )
         }
       />

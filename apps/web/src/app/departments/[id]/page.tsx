@@ -3,14 +3,13 @@ import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem } from '@muni/ui/description-list'
 import { SplitLayout } from '@muni/ui/layout'
 import { PageHeader } from '@muni/ui/page-header'
-import { TextLink } from '@muni/ui/text-link'
 import { PLACEHOLDER } from '@muni/utils/format'
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { cache } from 'react'
 
+import { PersonLink } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
 import { GroupBreakdown } from '@/features/org/group-breakdown'
 import { GroupFacts } from '@/features/org/group-facts'
@@ -48,15 +47,7 @@ export default async function DepartmentPage({ params }: Props) {
             <CardBody className="flex flex-col gap-5">
               <GroupFacts group={department}>
                 <DescriptionItem label={t('detail.head')}>
-                  {department.head ? (
-                    <TextLink asChild>
-                      <Link href={`/employees/${department.head.externalId}`}>
-                        {department.head.name}
-                      </Link>
-                    </TextLink>
-                  ) : (
-                    PLACEHOLDER
-                  )}
+                  {department.head ? <PersonLink person={department.head} /> : PLACEHOLDER}
                 </DescriptionItem>
               </GroupFacts>
               <div>

@@ -1,14 +1,16 @@
 'use server'
 
 import { getDb } from '@muni/db/client'
+import { findArchivedKeys } from '@muni/db/reference'
 import { COMMIT_CHUNK_SIZE, commitChunk, CommitValidationError } from '@muni/db/writer'
-import { DATASET_KINDS, type DatasetKind } from '@muni/importer'
+import { type ArchivedKeys, DATASET_KINDS, type DatasetKind, NO_ARCHIVED } from '@muni/importer'
 import { revalidatePath } from 'next/cache'
+import * as z from 'zod'
 
 import { requireAdmin } from '@/server/auth'
 
 export type CommitChunkResult =
-  | { ok: true; created: number; updated: number }
+  | { ok: true; created: number; updated: number; skipped: number }
   | { ok: false; error: 'unauthorized' | 'invalid' | 'failed'; detail?: string }
 
 /**
@@ -46,4 +48,31 @@ export async function commitImportChunk(
     console.error(error)
     return { ok: false, error: 'failed' }
   }
+}
+
+const keys = z.array(z.string().max(500)).max(50_000)
+const candidatesSchema = z.object({
+  courses: keys,
+  employees: keys,
+  employeeEmails: keys,
+  departments: keys,
+  positions: keys,
+  providers: keys,
+  rooms: keys,
+  sessions: keys,
+  completions: keys,
+})
+
+/**
+ * Which of the batch's own keys only archived records hold, so the review can show those rows
+ * as skipped. Nothing else about archived records is sent back.
+ */
+export async function findArchived(candidates: ArchivedKeys): Promise<ArchivedKeys> {
+  try {
+    await requireAdmin()
+  } catch {
+    return NO_ARCHIVED
+  }
+  const parsed = candidatesSchema.safeParse(candidates)
+  return parsed.success ? findArchivedKeys(getDb(), parsed.data) : NO_ARCHIVED
 }

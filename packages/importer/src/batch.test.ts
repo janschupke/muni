@@ -9,8 +9,14 @@ import {
   setRemoved,
   summarize,
 } from './batch'
-import { EMPTY_REFERENCE, type ImportBatch, type ParsedRow, type ReferenceSnapshot } from './types'
-import { validateBatch } from './validate'
+import {
+  EMPTY_REFERENCE,
+  type ImportBatch,
+  NO_ARCHIVED,
+  type ParsedRow,
+  type ReferenceSnapshot,
+} from './types'
+import { archivedCandidates, validateBatch } from './validate'
 
 const ctx: ImportContext = { today: '2026-10-16' }
 const encode = (text: string) => new TextEncoder().encode(text)
@@ -215,6 +221,7 @@ describe('row operations', () => {
       total: 7,
       valid: 4,
       invalid: 3,
+      skipped: 0,
       warnings: 4,
       removed: 0,
     })
@@ -307,5 +314,101 @@ describe('rooms', () => {
     expect(codesOf(batch.rooms?.[3])).toEqual(['name:DUPLICATE_ID'])
     expect(codesOf(batch.sessions?.[0])).toEqual(['location:VALUE_NORMALIZED'])
     expect(batch.sessions?.[0]?.data?.location).toBe('Laboratoř 3')
+  })
+})
+
+describe('archived records', () => {
+  // The database archived these: active records hold none of the keys.
+  const archived: ReferenceSnapshot = {
+    ...reference,
+    archived: {
+      ...NO_ARCHIVED,
+      courses: ['ANGL'],
+      employees: ['E0002'],
+      employeeEmails: ['stary@vzorova.example'],
+      departments: ['Archiv'],
+      positions: ['Ředitel'],
+      providers: ['Bezpečná firma s.r.o.'],
+      rooms: ['Aula B'],
+      sessions: ['T003'],
+      completions: ['Z000006'],
+    },
+  }
+  const batch = validateBatch(
+    {
+      ...parsed(),
+      rooms: file('mistnosti.csv', ['nazev;kapacita', 'AULA B;20', 'Aula C;20'])
+        .rows as NonNullable<ImportBatch['rooms']>,
+    },
+    archived
+  )
+  const skippedCodes = (row: ParsedRow<unknown> | undefined) =>
+    row?.warnings.filter(w => w.code === 'ARCHIVED').map(w => `${w.field}:${w.params?.['value']}`)
+
+  it('skips a row whose own key only an archived record holds', () => {
+    const course = batch.courses?.find(r => r.base.data?.code === 'ANGL')
+    expect(course).toMatchObject({ isValid: true, isSkipped: true })
+    expect(skippedCodes(course)).toEqual(['code:ANGL'])
+    expect(skippedCodes(batch.employees?.[1])).toEqual(['externalId:E0002'])
+    expect(skippedCodes(batch.rooms?.[0])).toEqual(['name:AULA B'])
+    expect(batch.rooms?.[1]?.isSkipped).toBe(false)
+  })
+
+  it('skips a row that refers to an archived record', () => {
+    const course = (code: string) => batch.courses?.find(r => r.base.data?.code === code)
+    expect(skippedCodes(course('LAB-BEZ'))).toEqual(['requiredFor:Archiv'])
+    expect(skippedCodes(course('LEAD'))).toEqual(['requiredFor:Ředitel'])
+    // A session in an archived room, and an archived session.
+    expect(skippedCodes(batch.sessions?.[3])).toEqual(['externalId:T003', 'location:Aula B'])
+    // A completion by an archived provider; the archived course replaces COURSE_NOT_FOUND.
+    expect(skippedCodes(batch.completions?.[0])).toEqual(['provider:Bezpečná firma s.r.o.'])
+    expect(codesOf(batch.completions?.[5])).toContain('courseCode:ARCHIVED')
+    expect(codesOf(batch.completions?.[5])).not.toContain('courseCode:COURSE_NOT_FOUND')
+  })
+
+  it('leaves skipped rows out of the commit and counts them apart', () => {
+    expect(committable(batch, 'courses').map(c => c.code)).toEqual(['BOZP-Z'])
+    expect(summarize(batch.rooms ?? [])).toEqual({
+      total: 2,
+      valid: 1,
+      invalid: 0,
+      skipped: 1,
+      warnings: 0,
+      removed: 0,
+    })
+  })
+
+  it('does not let a skipped employee vouch for a manager or a completion', () => {
+    const withCompletion = validateBatch(
+      {
+        employees: parsed().employees ?? [],
+        completions: file('absolvovana.csv', [
+          'id_zaznamu;id_zamestnance;zamestnanec;kod_skoleni;datum_absolvovani;platnost_do;poskytovatel',
+          'Z000010;E0002;;BOZP-Z;2024-11-05;;',
+        ]).rows as NonNullable<ImportBatch['completions']>,
+      },
+      archived
+    )
+    expect(codesOf(withCompletion.completions?.[0])).toContain('employeeExternalId:ARCHIVED')
+  })
+})
+
+describe('archivedCandidates', () => {
+  it('collects every key the server must check, once', () => {
+    const keys = archivedCandidates({
+      ...parsed(),
+      rooms: file('mistnosti.csv', ['nazev;kapacita', 'Aula C;20']).rows as NonNullable<
+        ImportBatch['rooms']
+      >,
+    })
+    expect(keys.courses).toEqual(['BOZP-Z', 'LAB-BEZ', 'LEAD', 'ANGL', 'KYB3R', 'GDPR'])
+    expect(keys.employees).toEqual(['E0001', 'E0002', 'E0003', 'E9001', 'E0500'])
+    expect(keys.employeeEmails).toEqual(['nikdo@vzorova.example'])
+    expect(keys.departments).toEqual(['Laboratoře', 'laboratore', 'Archiv'])
+    expect(keys.positions).toEqual(['Laborantka', 'Ředitel'])
+    expect(keys.providers).toEqual(['Bezpečná firma s.r.o.', 'bezpecna firma s.r.o.'])
+    expect(keys.rooms).toEqual(['Aula C', 'Aula A', 'aula a', 'Aula B'])
+    expect(keys.sessions).toEqual(['T001', 'T002', 'T003'])
+    expect(keys.completions).toHaveLength(6)
   })
 })

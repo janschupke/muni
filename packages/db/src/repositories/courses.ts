@@ -8,6 +8,7 @@ import type { Capability, SessionStatus } from '@muni/domain/enums'
 import type { RoomRef } from '@muni/domain/rooms'
 import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 
+import { ACTIVE, type PersonRef, personSelect, toPersonRef } from './archive'
 import { audienceInclude, type RequirementView, requirementViews } from './audience'
 import {
   type ComplianceSnapshot,
@@ -47,6 +48,7 @@ export async function listCourses(options?: RepoOptions): Promise<CourseListItem
   const now = new Date()
   const [courses, compliance, departments] = await Promise.all([
     db.course.findMany({
+      where: ACTIVE,
       include: {
         ...audienceInclude,
         capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
@@ -55,12 +57,16 @@ export async function listCourses(options?: RepoOptions): Promise<CourseListItem
           include: sessionInclude,
           orderBy: { startsAt: 'asc' },
         },
-        _count: { select: { completions: true } },
+        _count: { select: { completions: { where: ACTIVE } } },
       },
       orderBy: { code: 'asc' },
     }),
     loadCompliance(options),
-    db.department.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+    db.department.findMany({
+      where: ACTIVE,
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
   ])
   const cellsByCourse = Map.groupBy(countedCells(compliance), c => c.courseId)
   return courses.map(course => {
@@ -107,14 +113,16 @@ export interface SessionListItem {
   externalId: string
   courseCode: string
   courseName: string
+  /** The course is archived (a past session of it): shown muted, not linked. */
+  courseArchived: boolean
   startsAt: string
   endsAt: string
   room: RoomRef
   capacity: number
   /** Seats booked without a name (from the export). */
   unnamedBookings: number
-  /** Named bookings (assignments), oldest first. */
-  assigned: { externalId: string; name: string }[]
+  /** Named bookings (assignments), oldest first; archived people anonymised. */
+  assigned: PersonRef[]
   /** Derived: unnamedBookings + assigned.length. */
   bookedCount: number
   pricePerPerson: number | null
@@ -125,8 +133,7 @@ export interface CourseDetail extends CourseListItem {
   sessions: SessionListItem[]
   recentCompletions: {
     externalId: string
-    employeeExternalId: string
-    employeeName: string
+    employee: PersonRef
     completedOn: IsoDate
     validUntil: IsoDate | null
   }[]
@@ -134,24 +141,29 @@ export interface CourseDetail extends CourseListItem {
 
 export async function getCourse(code: string, options?: RepoOptions): Promise<CourseDetail | null> {
   const db = dbOf(options)
-  const course = await db.course.findUnique({
-    where: { code },
+  const course = await db.course.findFirst({
+    where: { code, ...ACTIVE },
     include: {
       ...audienceInclude,
       capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
-      sessions: { orderBy: { startsAt: 'asc' }, include: sessionInclude },
+      sessions: { where: ACTIVE, orderBy: { startsAt: 'asc' }, include: sessionInclude },
       completions: {
+        where: ACTIVE,
         orderBy: { completedOn: 'desc' },
         take: 20,
-        include: { employee: { select: { externalId: true, firstName: true, lastName: true } } },
+        include: { employee: { select: personSelect } },
       },
-      _count: { select: { completions: true } },
+      _count: { select: { completions: { where: ACTIVE } } },
     },
   })
   if (!course) return null
   const [compliance, departments] = await Promise.all([
     loadCompliance(options),
-    db.department.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+    db.department.findMany({
+      where: ACTIVE,
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
   ])
   const cells = countedCells(compliance).filter(c => c.courseId === course.id)
   const counts = countStatuses(cells)
@@ -177,8 +189,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     sessions: course.sessions.map(toSessionItem),
     recentCompletions: course.completions.map(c => ({
       externalId: c.externalId,
-      employeeExternalId: c.employee.externalId,
-      employeeName: `${c.employee.lastName} ${c.employee.firstName}`,
+      employee: toPersonRef(c.employee),
       completedOn: isoDateFromUtc(c.completedOn),
       validUntil: c.validUntil ? isoDateFromUtc(c.validUntil) : null,
     })),
@@ -186,8 +197,8 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
 }
 
 export async function getCourseForEdit(code: string, options?: RepoOptions) {
-  const course = await dbOf(options).course.findUnique({
-    where: { code },
+  const course = await dbOf(options).course.findFirst({
+    where: { code, ...ACTIVE },
     select: {
       code: true,
       name: true,
@@ -203,6 +214,7 @@ export async function getCourseForEdit(code: string, options?: RepoOptions) {
 
 export async function listCourseOptions(options?: RepoOptions) {
   return dbOf(options).course.findMany({
+    where: ACTIVE,
     select: { code: true, name: true, validityMonths: true },
     orderBy: { code: 'asc' },
   })

@@ -1,21 +1,12 @@
 'use server'
 
-import { createRoom, deleteRoom, updateRoom } from '@muni/db/repositories'
+import { createRoom, updateRoom } from '@muni/db/repositories'
 import { roomSchema } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import {
-  type DeleteState,
-  fieldErrors,
-  formError,
-  type FormState,
-  list,
-  number,
-  text,
-} from '@/lib/form'
+import { fieldErrors, formError, type FormState, list, number, text } from '@/lib/form'
 import { requireAdmin } from '@/server/auth'
-import { deleteRecord } from '@/server/delete-record'
 
 const codeOf = (error: unknown) => (error as { code?: unknown } | null)?.code
 
@@ -47,9 +38,4 @@ export async function saveRoom(
   }
   revalidatePath('/', 'layout')
   redirect(`/rooms/${saved.id}`)
-}
-
-/** Deletes a room nobody uses; a room with sessions stays and says why. */
-export async function removeRoom(id: string, _state: DeleteState): Promise<DeleteState> {
-  return deleteRecord(() => deleteRoom(id), '/rooms')
 }

@@ -258,6 +258,7 @@ describe('regression baseline', () => {
       total: 10,
       valid: 10,
       invalid: 0,
+      skipped: 0,
       warnings: 2,
       removed: 0,
     })
@@ -265,6 +266,7 @@ describe('regression baseline', () => {
       total: 174,
       valid: 170,
       invalid: 4,
+      skipped: 0,
       warnings: 31,
       removed: 0,
     })
@@ -272,6 +274,7 @@ describe('regression baseline', () => {
       total: 34,
       valid: 32,
       invalid: 2,
+      skipped: 0,
       // Seven of the eight places get a room created from their first session (one first
       // session already carries another warning).
       warnings: 11,
@@ -281,6 +284,7 @@ describe('regression baseline', () => {
       total: 2866,
       valid: 2822,
       invalid: 44,
+      skipped: 0,
       warnings: 109,
       removed: 0,
     })

@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { PersonLink, personText } from '@/components/archived'
 import { rateTone } from '@/components/status-badges'
 
 import { MembersTable } from './members-table'
@@ -46,19 +47,13 @@ export function GroupsTable(
         ),
       }),
       kind === 'departments'
-        ? col.accessor(g => ('head' in g ? g.head?.name : undefined), {
+        ? col.accessor(g => ('head' in g && g.head ? personText(g.head) : undefined), {
             id: 'head',
             header: t('columns.head'),
             sortFn: 'text',
             cell: ({ row }) => {
               const head = 'head' in row.original ? row.original.head : null
-              return head ? (
-                <TextLink asChild>
-                  <Link href={`/employees/${head.externalId}`}>{head.name}</Link>
-                </TextLink>
-              ) : (
-                PLACEHOLDER
-              )
+              return head ? <PersonLink person={head} /> : PLACEHOLDER
             },
           })
         : col.accessor(g => ('departments' in g ? g.departments.map(d => d.name).join(', ') : ''), {

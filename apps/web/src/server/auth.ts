@@ -3,7 +3,7 @@ import 'server-only'
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { findUserByClerkId, upsertUserFromClerk, type UserRecord } from '@muni/db/repositories'
 import { canWrite, parseRole, type Role, roleMetadata } from '@muni/domain/enums'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { cache } from 'react'
 
 // Clerk signs people in and owns their role (`publicMetadata.role`: viewer, full or admin).
@@ -64,15 +64,20 @@ async function syncFromClerk(
   })
 }
 
-/** The signed-in user, or null for a visitor. Synced with Clerk at most once a request. */
+/**
+ * The signed-in user, or null for a visitor. Synced with Clerk at most once a request. A user
+ * an admin archived is no user here: null too (isAccountArchived says why).
+ */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const { userId, sessionId } = await auth()
   if (!userId) return null
   const row = await findUserByClerkId(userId)
+  if (row?.archived) return null
   const now = new Date()
   if (row && !isStale(row, sessionId, now)) return toSessionUser(row)
   try {
-    return toSessionUser(await syncFromClerk(userId, sessionId, now))
+    const synced = await syncFromClerk(userId, sessionId, now)
+    return synced.archived ? null : toSessionUser(synced)
   } catch (error) {
     // Without a stored role there is nothing safe to fall back on: show the error page.
     if (!row) throw error
@@ -81,12 +86,21 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   }
 })
 
+/** Signed in with Clerk, but archived here: no access to anything until an admin restores them. */
+export const isAccountArchived = cache(async (): Promise<boolean> => {
+  const { userId } = await auth()
+  if (!userId) return false
+  return (await findUserByClerkId(userId))?.archived === true
+})
+
 /** For data pages: signed-out visitors are sent to sign-in. */
 export async function requireReader(): Promise<SessionUser> {
   await auth.protect()
   const user = await getSessionUser()
-  if (!user) notFound()
-  return user
+  if (user) return user
+  // The home page tells an archived user so.
+  if (await isAccountArchived()) redirect('/')
+  notFound()
 }
 
 /** For edit, create and import pages: 404 for everyone but admins. */

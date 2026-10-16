@@ -1,12 +1,6 @@
 'use client'
 
-import {
-  COMMIT_ORDER,
-  committable,
-  type ImportBatch,
-  type ParsedRow,
-  summarize,
-} from '@muni/importer'
+import { COMMIT_ORDER, committable, type ImportBatch, summarize } from '@muni/importer'
 import { Alert } from '@muni/ui/alert'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
@@ -26,10 +20,10 @@ export function ConfirmStep({
   const { t } = useImportText()
   const kinds = COMMIT_ORDER.filter(kind => (batch[kind]?.length ?? 0) > 0)
   const total = kinds.reduce((sum, kind) => sum + committable(batch, kind).length, 0)
-  const skipped = kinds.reduce(
-    (sum, kind) => sum + summarize((batch[kind] ?? []) as ParsedRow<unknown>[]).invalid,
-    0
-  )
+  const skipped = kinds.reduce((sum, kind) => {
+    const summary = summarize(batch[kind] ?? [])
+    return sum + summary.invalid + summary.skipped
+  }, 0)
 
   return (
     <Card className="max-w-2xl">

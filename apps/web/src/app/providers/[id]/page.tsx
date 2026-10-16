@@ -1,6 +1,5 @@
 import { getProvider } from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
-import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
@@ -9,14 +8,13 @@ import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatDate, formatOptional } from '@muni/utils/format'
-import { Pencil } from 'lucide-react'
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { cache } from 'react'
 
 import { BackLink } from '@/components/back-link'
+import { RecordActions } from '@/components/record-actions'
 import {
   ProviderCompletionsTable,
   ProviderCoursesTable,
@@ -37,10 +35,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProviderPage({ params }: Props) {
   const user = await requireReader()
   const { id } = await params
-  const [provider, t, tc, locale] = await Promise.all([
+  const [provider, t, locale] = await Promise.all([
     loadProvider(id),
     getTranslations('providers'),
-    getTranslations('common'),
     getLocale(),
   ])
   if (!provider) notFound()
@@ -54,12 +51,13 @@ export default async function ProviderPage({ params }: Props) {
         title={provider.name}
         actions={
           canWrite(user.role) && (
-            <Button asChild>
-              <Link href={`/providers/${provider.id}/edit`}>
-                <Pencil aria-hidden />
-                {tc('edit')}
-              </Link>
-            </Button>
+            <RecordActions
+              kind="provider"
+              id={provider.id}
+              name={provider.name}
+              editHref={`/providers/${provider.id}/edit`}
+              then="/providers"
+            />
           )
         }
       />

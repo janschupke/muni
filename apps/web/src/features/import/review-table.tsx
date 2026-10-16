@@ -211,7 +211,7 @@ export function ReviewTable({
       }}
       className="text-xs"
       containerClassName="max-h-[70vh]"
-      rowClassName={r => (r.row.isRemoved ? 'opacity-50' : undefined)}
+      rowClassName={r => (r.row.isRemoved || r.row.isSkipped ? 'opacity-50' : undefined)}
       cellClassName={({ row }, columnId) => {
         if (columnId === LINE) {
           return row.errors.length > 0

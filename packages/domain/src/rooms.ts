@@ -46,6 +46,8 @@ export interface RoomRef {
   id: string
   name: string
   kind: RoomKind
+  /** Set where the room may be archived (a past session's): shown muted, not linked. */
+  archived?: boolean
 }
 
 export interface RoomFacts extends RoomRef {

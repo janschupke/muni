@@ -5,6 +5,7 @@ import {
   listEmployees,
   listPositions,
 } from '@muni/db/repositories'
+import { canWrite } from '@muni/domain/enums'
 import { COMPLIANCE_STATUSES, EMPLOYMENT_STATUSES } from '@muni/domain/enums'
 import { Alert } from '@muni/ui/alert'
 import { EmptyState } from '@muni/ui/empty-state'
@@ -17,6 +18,7 @@ import { getTranslations } from 'next-intl/server'
 
 import { EmployeeFilters } from '@/components/employee-filters'
 import { EmployeesTable } from '@/components/employees-table'
+import { ListActions } from '@/components/list-actions'
 import { oneOf, param, parseSort, type SearchParams, withParams } from '@/lib/search-params'
 import { requireReader } from '@/server/auth'
 
@@ -25,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function EmployeesPage({ searchParams }: { searchParams: SearchParams }) {
-  await requireReader()
+  const user = await requireReader()
   const params = await searchParams
   const filters = {
     q: param(params, 'q'),
@@ -54,7 +56,11 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Se
 
   return (
     <>
-      <PageHeader title={t('title')} description={t('description')} />
+      <PageHeader
+        title={t('title')}
+        description={t('description')}
+        actions={canWrite(user.role) && <ListActions kind="employee" />}
+      />
       {filters.manager && (
         <Alert tone="info" variant="inline" className="mb-3">
           {t('filters.manager', { name: managerName ?? filters.manager })}{' '}

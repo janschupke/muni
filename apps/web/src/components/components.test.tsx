@@ -341,6 +341,7 @@ describe('tables', () => {
         externalId: 'Z1',
         courseCode: 'GDPR',
         courseName: 'Ochrana osobních údajů',
+        courseArchived: false,
         completedOn: '2025-11-05',
         validUntil: null,
         provider: null,
@@ -351,21 +352,36 @@ describe('tables', () => {
         externalId: 'Z2',
         courseCode: 'BOZP-Z',
         courseName: 'BOZP – základní školení',
+        courseArchived: false,
         completedOn: '2024-09-01',
         validUntil: '2026-09-01',
-        provider: { id: 'prov_bezpecna', name: 'Bezpečná firma s.r.o.' },
+        provider: { id: 'prov_bezpecna', name: 'Bezpečná firma s.r.o.', archived: false },
+        price: null,
+      },
+      {
+        externalId: 'Z3',
+        courseCode: 'STARY',
+        courseName: 'Zrušený kurz',
+        courseArchived: true,
+        completedOn: '2023-01-01',
+        validUntil: null,
+        provider: { id: 'prov_old', name: 'Bývalý dodavatel', archived: true },
         price: null,
       },
     ]
     renderClient(<CompletionHistoryTable completions={completions} showNotes />)
     expect(screen.getByText('online')).toBeTruthy()
-    expect(screen.getByText('No expiry')).toBeTruthy()
+    expect(screen.getAllByText('No expiry')).toHaveLength(2)
     expect(screen.getByRole('link', { name: 'Bezpečná firma s.r.o.' }).getAttribute('href')).toBe(
       '/providers/prov_bezpecna'
     )
+    // Archived course and provider: named, muted, not linked.
+    expect(screen.getByText('Zrušený kurz').closest('a')).toBeNull()
+    expect(screen.getByText('Bývalý dodavatel').closest('a')).toBeNull()
+    expect(screen.getAllByText('(archived)', { exact: false })).toHaveLength(2)
     for (const header of ['Course', 'Completed', 'Valid until', 'Provider', 'Price'])
       await user.click(screen.getByRole('button', { name: header }))
-    expect(screen.getAllByRole('row')).toHaveLength(3)
+    expect(screen.getAllByRole('row')).toHaveLength(4)
   })
 
   it('sort sessions by date and place, and show only the essentials when compact', async () => {

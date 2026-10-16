@@ -2,7 +2,6 @@ import { getRoom } from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
 import { UTILISATION_DAYS } from '@muni/domain/rooms'
 import { BarRow } from '@muni/ui/bar-row'
-import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
@@ -12,7 +11,7 @@ import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent } from '@muni/utils/format'
-import { History, Pencil } from 'lucide-react'
+import { History } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -20,6 +19,7 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import { cache } from 'react'
 
 import { BackLink } from '@/components/back-link'
+import { RecordActions } from '@/components/record-actions'
 import { CapabilityList, RoomKindBadge } from '@/components/room-badges'
 import { SessionTable } from '@/components/session-table'
 import { RoomFitTable } from '@/features/rooms/room-fit-table'
@@ -39,12 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function RoomPage({ params }: Props) {
   const user = await requireReader()
   const { id } = await params
-  const [room, t, tc, locale] = await Promise.all([
-    loadRoom(id),
-    getTranslations('rooms'),
-    getTranslations('common'),
-    getLocale(),
-  ])
+  const [room, t, locale] = await Promise.all([loadRoom(id), getTranslations('rooms'), getLocale()])
   if (!room) notFound()
   const canEdit = canWrite(user.role)
   const seats = room.capacity === null ? t('unlimited') : formatInteger(room.capacity, locale)
@@ -57,12 +52,13 @@ export default async function RoomPage({ params }: Props) {
         description={<RoomKindBadge kind={room.kind} />}
         actions={
           canEdit && (
-            <Button asChild>
-              <Link href={`/rooms/${room.id}/edit`}>
-                <Pencil aria-hidden />
-                {tc('edit')}
-              </Link>
-            </Button>
+            <RecordActions
+              kind="room"
+              id={room.id}
+              name={room.name}
+              editHref={`/rooms/${room.id}/edit`}
+              then="/rooms"
+            />
           )
         }
       />
