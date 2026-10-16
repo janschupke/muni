@@ -26,6 +26,11 @@ export function checkbox(form: FormData, key: string): boolean {
   return form.get(key) === 'on'
 }
 
+/** Every value posted under one name (a checkbox group). */
+export function list(form: FormData, key: string): string[] {
+  return form.getAll(key).filter(v => typeof v === 'string')
+}
+
 const KNOWN = new Set([
   'invalid_type',
   'invalid_format',
@@ -53,6 +58,6 @@ export function fieldErrors(error: z.ZodError, input: Record<string, unknown>): 
   return { status: 'error', fieldErrors }
 }
 
-export function formError(key: 'not_found' | 'generic'): FormState {
+export function formError(key: 'not_found' | 'generic' | 'in_use'): FormState {
   return { status: 'error', fieldErrors: {}, formError: key }
 }

@@ -46,6 +46,29 @@ export {
   type Page,
 } from './employees'
 export { EMPLOYEE_SORT_KEYS, type EmployeeSortKey } from './employee-sort'
-export { listDepartments, listPositions, listProviders } from './lookups'
-export { createCompletion, updateCourse, updateEmployee, updateSession } from './mutations'
+export {
+  listDepartments,
+  listPositions,
+  listProviders,
+  listRoomOptions,
+  type RoomOption,
+} from './lookups'
+export {
+  createCompletion,
+  createRoom,
+  createSession,
+  deleteRoom,
+  updateCourse,
+  updateEmployee,
+  updateRoom,
+  updateSession,
+} from './mutations'
+export {
+  getRoom,
+  getRoomForEdit,
+  listRooms,
+  UTILISATION_DAYS,
+  type RoomDetail,
+  type RoomListItem,
+} from './rooms'
 export { getSession, listSessions, type SessionWindow } from './sessions'

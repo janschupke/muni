@@ -68,12 +68,11 @@ export function SessionTable({
         ...(compact
           ? []
           : [
-              col.accessor('location', {
+              col.accessor(s => s.room.name, {
+                id: 'location',
                 header: t('columns.location'),
                 sortFn: 'text',
-                cell: ({ row }) => (
-                  <RoomLink location={row.original.location} isOnline={row.original.isOnline} />
-                ),
+                cell: ({ row }) => <RoomLink room={row.original.room} />,
               }),
             ]),
         // Sorts by how full the session is; a session without places sorts last.

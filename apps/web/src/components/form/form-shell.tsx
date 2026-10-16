@@ -131,6 +131,45 @@ export function SelectField({
   )
 }
 
+/** Several checkboxes posting one name; the action reads them with `list(form, name)`. */
+export function CheckboxGroupField({
+  name,
+  label,
+  help,
+  options,
+  defaultValue,
+}: {
+  name: string
+  label: string
+  help?: string
+  options: readonly { value: string; label: string }[]
+  defaultValue: readonly string[]
+}) {
+  const error = useFieldError(name)
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="mb-1 text-sm font-medium text-fg">{label}</legend>
+      {help && <p className="-mt-1 text-xs text-fg-muted">{help}</p>}
+      <div className="grid gap-2 sm:grid-cols-2">
+        {options.map(o => (
+          <Checkbox
+            key={o.value}
+            name={name}
+            value={o.value}
+            label={o.label}
+            defaultChecked={defaultValue.includes(o.value)}
+          />
+        ))}
+      </div>
+      {error && (
+        <p role="alert" className="text-xs text-danger-fg">
+          {error}
+        </p>
+      )}
+    </fieldset>
+  )
+}
+
 export function CheckboxField({
   name,
   label,

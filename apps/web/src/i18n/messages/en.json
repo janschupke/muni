@@ -46,7 +46,8 @@
       "cs": "Čeština",
       "en": "English"
     },
-    "advisor": "Advisor"
+    "advisor": "Advisor",
+    "rooms": "Rooms"
   },
   "status": {
     "employment": {
@@ -70,7 +71,23 @@
       "POSITION": "Position: {target}"
     },
     "optional": "Optional",
-    "nothingRequired": "Nothing required"
+    "nothingRequired": "Nothing required",
+    "capability": {
+      "PROJECTOR": "Projector",
+      "COMPUTERS": "Computers",
+      "LAB_EQUIPMENT": "Lab equipment",
+      "VEHICLE": "Vehicle",
+      "PRACTICAL_AREA": "Practice area",
+      "VIDEO_CONFERENCE": "Video conferencing",
+      "WHEELCHAIR_ACCESS": "Wheelchair access"
+    },
+    "roomKind": {
+      "CLASSROOM": "Classroom",
+      "LAB": "Lab",
+      "ONLINE": "Online",
+      "EXTERNAL": "External",
+      "OUTDOOR": "Outdoor"
+    }
   },
   "dashboard": {
     "title": "Overview",
@@ -266,25 +283,32 @@
       "before_hired": "The leaving date cannot be before the hiring date.",
       "before_completed": "Validity cannot end before the completion date.",
       "not_found": "The record no longer exists.",
-      "generic": "Saving failed. Please try again."
+      "generic": "Saving failed. Please try again.",
+      "in_use": "The room still has sessions, so it cannot be deleted.",
+      "taken": "This name is already used."
     },
     "course": {
       "title": "Edit course {code}",
       "name": "Name",
       "validityMonths": "Valid for (months)",
-      "validityHelp": "Leave empty if the course never expires."
+      "validityHelp": "Leave empty if the course never expires.",
+      "sessionNeeds": "What a session needs",
+      "sessionNeedsHelp": "Used by the session planner to size sessions and pick rooms. Filled in from past sessions until set here.",
+      "sessionMinutes": "Session length (minutes)",
+      "groupSize": "Group size",
+      "onlineAllowed": "Can be held online",
+      "capabilities": "The room must have"
     },
     "session": {
       "date": "Date",
       "startTime": "Start",
       "endTime": "End",
-      "location": "Location",
-      "isOnline": "Online session",
       "capacity": "Capacity",
       "pricePerPerson": "Price per person (CZK)",
       "status": "Status",
       "unnamedBookings": "Other bookings (not named)",
-      "unnamedHelp": "{count, plural, =0 {Nobody is booked by name.} one {Plus # person booked by name.} other {Plus # people booked by name.}}"
+      "unnamedHelp": "{count, plural, =0 {Nobody is booked by name.} one {Plus # person booked by name.} other {Plus # people booked by name.}}",
+      "room": "Room"
     },
     "employee": {
       "title": "Edit {name}",
@@ -319,6 +343,7 @@
       "done": "Import"
     },
     "kinds": {
+      "rooms": "Rooms",
       "courses": "Courses",
       "employees": "Employees",
       "sessions": "Sessions",
@@ -406,7 +431,9 @@
       "employeeName": "Employee",
       "completedOn": "Completed",
       "validUntil": "Valid until",
-      "provider": "Provider"
+      "provider": "Provider",
+      "kind": "Kind",
+      "capabilities": "Equipment"
     },
     "issues": {
       "SUMMARY_ROW": "Totals row, not a record.",
@@ -450,7 +477,8 @@
       "DUPLICATE_SLOT": "Same course, time and place as {otherId}.",
       "OVERBOOKED": "{booked} booked for {capacity} places.",
       "ZERO_CAPACITY": "Capacity is 0.",
-      "FUTURE_COMPLETION": "Completion date {value} is in the future."
+      "FUTURE_COMPLETION": "Completion date {value} is in the future.",
+      "ROOM_DERIVED": "Room “{value}” is not listed; it is created from the sessions held there."
     }
   },
   "errors": {
@@ -597,6 +625,55 @@
         "NOT_REQUIRED": "the training is not required of this person",
         "NOT_NEEDED": "the training is already valid"
       }
+    }
+  },
+  "rooms": {
+    "title": "Rooms",
+    "description": "Where sessions are held, what each room offers, and how booked it is.",
+    "new": "New room",
+    "empty": "No rooms yet.",
+    "columns": {
+      "name": "Room",
+      "kind": "Kind",
+      "capacity": "Seats",
+      "capabilities": "Equipment",
+      "upcoming": "Upcoming sessions",
+      "utilisation": "Booked, next 30 days"
+    },
+    "unlimited": "No limit",
+    "noCapabilities": "No equipment listed",
+    "utilisationOf": "{share} of working hours",
+    "detail": {
+      "facts": "Room",
+      "kind": "Kind",
+      "capacity": "Seats",
+      "capabilities": "Equipment",
+      "note": "Note",
+      "utilisation": "Booked over the next 30 days",
+      "upcoming": "Upcoming sessions",
+      "noUpcoming": "Nothing is scheduled here.",
+      "past": "{count, plural, =0 {No past sessions} one {# past session} other {# past sessions}}",
+      "courses": "Courses",
+      "coursesDescription": "Whether a session of each course fits here, judged by what the course needs.",
+      "fits": "Fits",
+      "noCourses": "No course has its session needs set yet.",
+      "mismatch": {
+        "ONLINE_NOT_ALLOWED": "Not held online",
+        "TOO_SMALL": "Seats only {capacity}",
+        "MISSING_CAPABILITIES": "Missing {missing}"
+      }
+    },
+    "form": {
+      "newTitle": "New room",
+      "editTitle": "Edit {name}",
+      "name": "Name",
+      "kind": "Kind",
+      "capacity": "Seats",
+      "capacityHelp": "Leave empty when there is no fixed limit (online).",
+      "capabilities": "Equipment",
+      "note": "Note",
+      "delete": "Delete room",
+      "deleteHint": "A room can be deleted only while no session uses it."
     }
   }
 }

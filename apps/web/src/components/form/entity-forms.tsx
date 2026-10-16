@@ -1,12 +1,24 @@
 'use client'
 
-import { EMPLOYMENT_STATUSES, SESSION_STATUSES } from '@muni/domain/enums'
+import {
+  CAPABILITIES,
+  EMPLOYMENT_STATUSES,
+  SESSION_STATUSES,
+  type Capability,
+} from '@muni/domain/enums'
 import { FieldRow } from '@muni/ui/field'
 import { useTranslations } from 'next-intl'
 
 import type { FormState } from '@/lib/form'
 
-import { CheckboxField, FormShell, SelectField, TextAreaField, TextField } from './form-shell'
+import {
+  CheckboxField,
+  CheckboxGroupField,
+  FormShell,
+  SelectField,
+  TextAreaField,
+  TextField,
+} from './form-shell'
 
 type Action = (state: FormState, form: FormData) => Promise<FormState>
 
@@ -17,9 +29,17 @@ export function CourseForm({
 }: {
   action: Action
   cancelHref: string
-  defaults: { name: string; validityMonths: number | null }
+  defaults: {
+    name: string
+    validityMonths: number | null
+    sessionMinutes: number | null
+    groupSize: number | null
+    onlineAllowed: boolean
+    capabilities: readonly Capability[]
+  }
 }) {
   const t = useTranslations('forms.course')
+  const tc = useTranslations('status.capability')
   return (
     <FormShell action={action} cancelHref={cancelHref}>
       <TextField name="name" label={t('name')} required defaultValue={defaults.name} />
@@ -31,6 +51,38 @@ export function CourseForm({
         defaultValue={defaults.validityMonths ?? ''}
         className="max-w-48"
       />
+      <fieldset className="flex flex-col gap-4 border-t border-border-muted pt-4">
+        <legend className="sr-only">{t('sessionNeeds')}</legend>
+        <div aria-hidden>
+          <p className="text-sm font-semibold text-fg">{t('sessionNeeds')}</p>
+          <p className="text-xs text-fg-muted">{t('sessionNeedsHelp')}</p>
+        </div>
+        <FieldRow columns={2}>
+          <TextField
+            name="sessionMinutes"
+            label={t('sessionMinutes')}
+            inputMode="numeric"
+            defaultValue={defaults.sessionMinutes ?? ''}
+          />
+          <TextField
+            name="groupSize"
+            label={t('groupSize')}
+            inputMode="numeric"
+            defaultValue={defaults.groupSize ?? ''}
+          />
+        </FieldRow>
+        <CheckboxField
+          name="onlineAllowed"
+          label={t('onlineAllowed')}
+          defaultChecked={defaults.onlineAllowed}
+        />
+        <CheckboxGroupField
+          name="capabilities"
+          label={t('capabilities')}
+          options={CAPABILITIES.map(c => ({ value: c, label: tc(c) }))}
+          defaultValue={defaults.capabilities}
+        />
+      </fieldset>
     </FormShell>
   )
 }
@@ -39,15 +91,16 @@ export function SessionForm({
   action,
   cancelHref,
   defaults,
+  rooms,
 }: {
   action: Action
   cancelHref: string
+  rooms: readonly { id: string; name: string }[]
   defaults: {
     date: string
     startTime: string
     endTime: string
-    location: string
-    isOnline: boolean
+    roomId: string
     capacity: number
     unnamedBookings: number
     /** Named bookings, shown next to the unnamed ones (managed as assignments). */
@@ -83,8 +136,13 @@ export function SessionForm({
           defaultValue={defaults.endTime}
         />
       </FieldRow>
-      <TextField name="location" label={t('location')} required defaultValue={defaults.location} />
-      <CheckboxField name="isOnline" label={t('isOnline')} defaultChecked={defaults.isOnline} />
+      <SelectField
+        name="roomId"
+        label={t('room')}
+        required
+        defaultValue={defaults.roomId}
+        options={rooms.map(r => ({ value: r.id, label: r.name }))}
+      />
       <FieldRow columns={3}>
         <TextField
           name="capacity"

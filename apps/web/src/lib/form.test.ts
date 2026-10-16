@@ -1,7 +1,7 @@
 import { courseEditSchema, sessionEditSchema } from '@muni/domain/schemas'
 import { describe, expect, it } from 'vitest'
 
-import { fieldErrors, number, text } from './form'
+import { fieldErrors, list, number, text } from './form'
 
 const form = (entries: Record<string, string>) => {
   const data = new FormData()
@@ -17,8 +17,24 @@ describe('form helpers', () => {
     expect(number(data, 'c')).toBe('abc')
   })
 
+  it('reads every value of a checkbox group', () => {
+    const data = new FormData()
+    data.append('capabilities', 'PROJECTOR')
+    data.append('capabilities', 'COMPUTERS')
+    data.append('capabilities', new Blob(['x']))
+    expect(list(data, 'capabilities')).toEqual(['PROJECTOR', 'COMPUTERS'])
+    expect(list(data, 'nothing')).toEqual([])
+  })
+
   it('maps zod issues to translation keys', () => {
-    const input = { name: null, validityMonths: 'x' }
+    const input = {
+      name: null,
+      validityMonths: 'x',
+      sessionMinutes: null,
+      groupSize: null,
+      onlineAllowed: false,
+      capabilities: [],
+    }
     const result = courseEditSchema.safeParse(input)
     expect(result.success).toBe(false)
     if (!result.success) {
@@ -34,8 +50,7 @@ describe('form helpers', () => {
       date: '2026-10-28',
       startTime: '12:00',
       endTime: '09:00',
-      location: 'Aula A',
-      isOnline: false,
+      roomId: 'room_aula_a',
       capacity: 10,
       unnamedBookings: 0,
       pricePerPerson: null,

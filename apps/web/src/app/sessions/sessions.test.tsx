@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { getAdvisorInput, getSession, listSessions } from '@muni/db/repositories'
+import { getAdvisorInput, getSession, listRoomOptions, listSessions } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { expectNoAxeViolations } from '@/test/axe'
 import { removeAssignmentAction } from '@/server/actions/assignments'
 import { getViewer, requirePageUser } from '@/server/auth'
-import { advisorInput, session } from '@/test/fixtures'
+import { advisorInput, AULA_A, ONLINE, session } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
@@ -18,6 +18,7 @@ import SessionsPage, { generateMetadata as listMetadata } from './page'
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
+  listRoomOptions: vi.fn(),
   getAdvisorInput: vi.fn(),
   getSession: vi.fn(),
   listSessions: vi.fn(),
@@ -34,8 +35,7 @@ const online = session({
   externalId: 'T020',
   courseCode: 'GDPR',
   courseName: 'Ochrana osobních údajů',
-  location: 'Online',
-  isOnline: true,
+  room: ONLINE,
   capacity: 100,
   unnamedBookings: 12,
   assigned: [],
@@ -59,19 +59,23 @@ beforeEach(() => {
   ])
   vi.mocked(getSession).mockResolvedValue(session())
   vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
+  vi.mocked(listRoomOptions).mockResolvedValue([
+    { ...AULA_A, capacity: 40 },
+    { ...ONLINE, capacity: null },
+  ])
 })
 
 describe('session list', () => {
   const search = (query: Record<string, string>) => ({ searchParams: params(query) })
 
-  it('lists upcoming sessions, linking the date to the session and the place to its sessions', async () => {
+  it('lists upcoming sessions, linking the date to the session and the place to its room', async () => {
     expect(await listMetadata(search({}))).toEqual({ title: 'Sessions' })
     await renderServer(SessionsPage(search({})))
-    expect(listSessions).toHaveBeenCalledWith({ window: 'upcoming', location: undefined })
+    expect(listSessions).toHaveBeenCalledWith({ window: 'upcoming', room: undefined })
     expect(screen.getByRole('link', { name: 'Upcoming' }).getAttribute('aria-current')).toBe('page')
     const row = screen.getByRole('row', { name: /T020/ })
     expect(within(row).getByRole('link', { name: 'Online' }).getAttribute('href')).toBe(
-      '/sessions?location=Online'
+      '/rooms/room_online'
     )
     expect(within(row).getByLabelText('Online')).toBeTruthy()
     expect(
@@ -84,15 +88,15 @@ describe('session list', () => {
     expect(within(screen.getByRole('row', { name: /T016/ })).getByText('Full')).toBeTruthy()
   })
 
-  it('filters by location and keeps it across the upcoming/past tabs', async () => {
-    expect(await listMetadata(search({ location: 'Aula A' }))).toEqual({
+  it('filters by room and keeps it across the upcoming/past tabs', async () => {
+    expect(await listMetadata(search({ room: 'room_aula_a' }))).toEqual({
       title: 'Sessions at Aula A',
     })
-    await renderServer(SessionsPage(search({ when: 'past', location: 'Aula A' })))
-    expect(listSessions).toHaveBeenCalledWith({ window: 'past', location: 'Aula A' })
+    await renderServer(SessionsPage(search({ when: 'past', room: 'room_aula_a' })))
+    expect(listSessions).toHaveBeenCalledWith({ window: 'past', room: 'room_aula_a' })
     expect(screen.getByRole('heading', { level: 1, name: 'Sessions at Aula A' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Upcoming' }).getAttribute('href')).toBe(
-      '/sessions?location=Aula+A'
+      '/sessions?room=room_aula_a'
     )
     expect(screen.getByRole('link', { name: 'Past' }).getAttribute('aria-current')).toBe('page')
     expect(screen.getByRole('link', { name: 'All locations' }).getAttribute('href')).toBe(
@@ -116,6 +120,12 @@ describe('session list', () => {
     expect(screen.getByRole('link', { name: 'Černá Marie' }).getAttribute('href')).toBe(
       '/employees/E0153'
     )
+  })
+
+  it('ignores a room that does not exist', async () => {
+    expect(await listMetadata(search({ room: 'gone' }))).toEqual({ title: 'Sessions' })
+    await renderServer(SessionsPage(search({ room: 'gone' })))
+    expect(listSessions).toHaveBeenCalledWith({ window: 'upcoming', room: undefined })
   })
 
   it('says when there is nothing to show', async () => {
@@ -148,7 +158,7 @@ describe('session detail', () => {
       '/courses/BOZP-Z'
     )
     expect(screen.getByRole('link', { name: 'Aula A' }).getAttribute('href')).toBe(
-      '/sessions?location=Aula%20A'
+      '/rooms/room_aula_a'
     )
     expect(screen.getByRole('meter', { name: 'Seats' }).getAttribute('aria-valuenow')).toBe('30')
     expect(screen.getByText('Full')).toBeTruthy()
@@ -187,7 +197,7 @@ describe('session edit', () => {
     await renderServer(EditSessionPage(props))
     expect(requirePageUser).toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 1, name: 'Edit session T016' })).toBeTruthy()
-    expect(screen.getByRole('textbox', { name: /Location/ })).toHaveProperty('value', 'Aula A')
+    expect(screen.getByRole('combobox', { name: /Room/ }).textContent).toContain('Aula A')
     expect(screen.getByRole('link', { name: 'Černá Marie' })).toBeTruthy()
     await expectNoAxeViolations()
   })

@@ -8,6 +8,8 @@ import {
   employeeEditSchema,
   employeeSchema,
   requirementScopeSchema,
+  roomSchema,
+  sessionCreateSchema,
   sessionEditSchema,
   sessionSchema,
 } from './schemas'
@@ -102,13 +104,33 @@ describe('records', () => {
 
 describe('edit forms', () => {
   it('edit only what the form owns', () => {
-    expect(courseEditSchema.parse({ name: 'BOZP', validityMonths: 24, code: 'X' })).toEqual({
-      name: 'BOZP',
-      validityMonths: 24,
-    })
-    const { externalId: _id, courseCode: _code, bookedCount: _booked, ...edit } = session
+    const needs = { sessionMinutes: 180, groupSize: 30, onlineAllowed: false, capabilities: [] }
+    expect(
+      courseEditSchema.parse({ name: 'BOZP', validityMonths: 24, code: 'X', ...needs })
+    ).toEqual({ name: 'BOZP', validityMonths: 24, ...needs })
+    expect(
+      issues(
+        courseEditSchema.safeParse({
+          name: 'BOZP',
+          validityMonths: 24,
+          ...needs,
+          sessionMinutes: 5,
+        })
+      )
+    ).toHaveLength(1)
+    const {
+      externalId: _id,
+      courseCode: _code,
+      bookedCount: _booked,
+      location: _location,
+      isOnline: _online,
+      ...edit
+    } = { ...session, roomId: 'room_aula_a' }
     expect(sessionEditSchema.parse({ ...edit, unnamedBookings: 3 })).not.toHaveProperty(
       'bookedCount'
+    )
+    expect(sessionEditSchema.safeParse({ ...edit, roomId: '', unnamedBookings: 3 }).success).toBe(
+      false
     )
     expect(issues(sessionEditSchema.safeParse({ ...edit, unnamedBookings: -1 }))).toHaveLength(1)
     expect(
@@ -128,5 +150,38 @@ describe('edit forms', () => {
       issues(completionCreateSchema.safeParse({ ...create, validUntil: '2020-01-01' }))
     ).toEqual(['validUntil: before_completed'])
     expect(completionCreateSchema.safeParse({ ...create, validUntil: null }).success).toBe(true)
+  })
+})
+
+describe('rooms and new sessions', () => {
+  it('take a kind, an optional capacity and known capabilities', () => {
+    const room = {
+      name: ' Laboratoř 3 ',
+      kind: 'LAB',
+      capacity: 20,
+      capabilities: ['LAB_EQUIPMENT', 'PROJECTOR'],
+      note: null,
+    }
+    expect(roomSchema.parse(room).name).toBe('Laboratoř 3')
+    expect(roomSchema.safeParse({ ...room, capacity: null, kind: 'ONLINE' }).success).toBe(true)
+    expect(roomSchema.safeParse({ ...room, kind: 'GARAGE' }).success).toBe(false)
+    expect(roomSchema.safeParse({ ...room, capabilities: ['TELEPORT'] }).success).toBe(false)
+  })
+
+  it('create a session for a course in a room, ending after it starts', () => {
+    const create = {
+      courseCode: 'BOZP-Z',
+      date: '2026-11-18',
+      startTime: '08:00',
+      endTime: '11:00',
+      roomId: 'room_aula_a',
+      capacity: 30,
+      pricePerPerson: null,
+      status: 'PLANNED',
+    }
+    expect(sessionCreateSchema.parse(create).roomId).toBe('room_aula_a')
+    expect(issues(sessionCreateSchema.safeParse({ ...create, endTime: '07:00' }))).toEqual([
+      'endTime: before_start',
+    ])
   })
 })

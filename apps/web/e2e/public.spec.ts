@@ -212,17 +212,15 @@ test.describe('public register (signed out)', () => {
     await expect(page.getByText('Sign in to save bookings.')).toBeVisible()
     await expect(page.getByRole('button', { name: /^Save|^Book/ })).toHaveCount(0)
 
-    // A room opens the sessions held there.
+    // A room opens its page, which lists the sessions held there.
     const table = page.getByRole('table', { name: 'Action required' })
-    const room = table.locator('a[href^="/sessions?location="]').first()
-    const location = (await room.textContent()) ?? ''
+    const room = table.locator('a[href^="/rooms/"]').first()
+    const name = (await room.textContent()) ?? ''
     await room.click()
-    await expect(
-      page.getByRole('heading', { level: 1, name: `Sessions at ${location}` })
-    ).toBeVisible()
-    const rooms = page.locator('tbody a[href^="/sessions?location="]')
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
+    const rooms = page.locator('tbody a[href^="/rooms/"]')
     await expect(rooms.first()).toBeVisible()
-    for (const link of await rooms.all()) await expect(link).toHaveText(location)
+    for (const link of await rooms.all()) await expect(link).toHaveText(name)
 
     // A date opens the session, whose back link returns to the advisor view.
     await page.goBack()

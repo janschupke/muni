@@ -1,15 +1,13 @@
 import { complianceRate, countStatuses, type ComplianceCounts } from '@muni/domain/compliance'
-import type { RequirementScope, SessionStatus } from '@muni/domain/enums'
+import type { SessionStatus } from '@muni/domain/enums'
+import type { RoomRef } from '@muni/domain/rooms'
 import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
+import { audienceInclude, requirementViews, type RequirementView } from './audience'
 import { dbOf, loadCompliance, type RepoOptions } from './context'
 import { sessionInclude, toSessionItem } from './sessions'
 
-export interface RequirementView {
-  scope: RequirementScope
-  /** Department or position name; null for ALL. */
-  target: string | null
-}
+export type { RequirementView } from './audience'
 
 export interface CourseListItem {
   code: string
@@ -22,38 +20,13 @@ export interface CourseListItem {
   rate: number
 }
 
-const requirementInclude = {
-  requirements: {
-    select: {
-      scope: true,
-      department: { select: { name: true } },
-      position: { select: { name: true } },
-    },
-  },
-} as const
-
-function toRequirementViews(
-  requirements: {
-    scope: RequirementScope
-    department: { name: string } | null
-    position: { name: string } | null
-  }[]
-): RequirementView[] {
-  return requirements
-    .map(r => ({ scope: r.scope, target: r.department?.name ?? r.position?.name ?? null }))
-    .sort(
-      (a, b) =>
-        a.scope.localeCompare(b.scope) || (a.target ?? '').localeCompare(b.target ?? '', 'cs')
-    )
-}
-
 export async function listCourses(options?: RepoOptions): Promise<CourseListItem[]> {
   const db = dbOf(options)
   const now = new Date()
   const [courses, compliance] = await Promise.all([
     db.course.findMany({
       include: {
-        ...requirementInclude,
+        ...audienceInclude,
         _count: {
           select: {
             completions: true,
@@ -72,7 +45,7 @@ export async function listCourses(options?: RepoOptions): Promise<CourseListItem
       code: course.code,
       name: course.name,
       validityMonths: course.validityMonths,
-      requirements: toRequirementViews(course.requirements),
+      requirements: requirementViews(course),
       completionCount: course._count.completions,
       upcomingSessions: course._count.sessions,
       counts,
@@ -87,8 +60,7 @@ export interface SessionListItem {
   courseName: string
   startsAt: string
   endsAt: string
-  location: string
-  isOnline: boolean
+  room: RoomRef
   capacity: number
   /** Seats booked without a name (from the export). */
   unnamedBookings: number
@@ -116,7 +88,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
   const course = await db.course.findUnique({
     where: { code },
     include: {
-      ...requirementInclude,
+      ...audienceInclude,
       sessions: { orderBy: { startsAt: 'asc' }, include: sessionInclude },
       completions: {
         orderBy: { completedOn: 'desc' },
@@ -134,7 +106,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     code: course.code,
     name: course.name,
     validityMonths: course.validityMonths,
-    requirements: toRequirementViews(course.requirements),
+    requirements: requirementViews(course),
     completionCount: course._count.completions,
     upcomingSessions: course.sessions.filter(
       s => s.startsAt.getTime() >= now && s.status === 'PLANNED'
@@ -153,10 +125,19 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
 }
 
 export async function getCourseForEdit(code: string, options?: RepoOptions) {
-  return dbOf(options).course.findUnique({
+  const course = await dbOf(options).course.findUnique({
     where: { code },
-    select: { code: true, name: true, validityMonths: true },
+    select: {
+      code: true,
+      name: true,
+      validityMonths: true,
+      sessionMinutes: true,
+      groupSize: true,
+      onlineAllowed: true,
+      capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
+    },
   })
+  return course && { ...course, capabilities: course.capabilities.map(c => c.capability) }
 }
 
 export async function listCourseOptions(options?: RepoOptions) {

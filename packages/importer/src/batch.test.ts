@@ -60,6 +60,7 @@ function parsed(): ImportBatch {
 const reference: ReferenceSnapshot = {
   ...EMPTY_REFERENCE,
   courses: [{ code: 'GDPR', validityMonths: 24 }],
+  rooms: ['Aula A'],
   employees: [
     { externalId: 'E0500', email: 'eva.simkova@vzorova.example', fullName: 'Šimková Eva' },
   ],
@@ -138,8 +139,17 @@ describe('validateBatch', () => {
 
   it('checks sessions against the catalog and each other', () => {
     expect(codesOf(row('sessions', 'T001', 1))).toEqual(['externalId:DUPLICATE_ID'])
-    expect(codesOf(row('sessions', 'T002'))).toEqual(['date:DUPLICATE_SLOT'])
-    expect(codesOf(row('sessions', 'T003'))).toEqual(['courseCode:COURSE_NOT_FOUND'])
+    // "aula a" is the room the database knows as "Aula A".
+    expect(codesOf(row('sessions', 'T002'))).toEqual([
+      'date:DUPLICATE_SLOT',
+      'location:VALUE_NORMALIZED',
+    ])
+    expect(row('sessions', 'T002').data).toMatchObject({ location: 'Aula A' })
+    // A room nobody listed is created from its sessions.
+    expect(codesOf(row('sessions', 'T003'))).toEqual([
+      'courseCode:COURSE_NOT_FOUND',
+      'location:ROOM_DERIVED',
+    ])
   })
 
   it('checks completions against people, courses and the validity rule', () => {
@@ -206,5 +216,62 @@ describe('row operations', () => {
       warnings: 4,
       removed: 0,
     })
+  })
+})
+
+describe('rooms', () => {
+  const ROOMS = [
+    'nazev;typ;kapacita;vybaveni',
+    'Laboratoř 3;laboratoř;20;Laboratorní vybavení, projektor',
+    'Online;;0;videokonference',
+    'Učebna 1;;40;',
+    'laborator 3;LAB;10;',
+    'Garáž;hangár;5;',
+    'Dvůr;venkovní;8;teleport',
+  ]
+
+  it('reads kinds, seats and equipment, Czech labels included', () => {
+    const rooms = file('mistnosti.csv', ROOMS)
+    expect(rooms.kind).toBe('rooms')
+    expect(rooms.rows.map(r => r.base.data)).toEqual([
+      {
+        name: 'Laboratoř 3',
+        kind: 'LAB',
+        capacity: 20,
+        capabilities: ['LAB_EQUIPMENT', 'PROJECTOR'],
+        note: null,
+      },
+      // No kind given: online by its name; no fixed seat count.
+      {
+        name: 'Online',
+        kind: 'ONLINE',
+        capacity: null,
+        capabilities: ['VIDEO_CONFERENCE'],
+        note: null,
+      },
+      { name: 'Učebna 1', kind: 'CLASSROOM', capacity: 40, capabilities: [], note: null },
+      { name: 'laborator 3', kind: 'LAB', capacity: 10, capabilities: [], note: null },
+      null,
+      null,
+    ])
+    expect(codesOf(rooms.rows[4])).toEqual(['kind:INVALID_VALUE'])
+    expect(codesOf(rooms.rows[5])).toEqual(['capabilities:INVALID_VALUE'])
+  })
+
+  it('rejects a second room of the same name, and lets sessions use the listed rooms', () => {
+    const batch = validateBatch(
+      {
+        rooms: file('mistnosti.csv', ROOMS).rows as ImportBatch['rooms'],
+        courses: file('katalog.csv', COURSES).rows as ImportBatch['courses'],
+        sessions: file('terminy.csv', [
+          'id_terminu;kod_skoleni;datum;cas;misto;kapacita',
+          'T100;LAB-BEZ;2026-11-04;08:00-11:00;LABORATOŘ 3;12',
+        ]).rows as ImportBatch['sessions'],
+      },
+      EMPTY_REFERENCE
+    )
+    expect(codesOf(batch.rooms?.[3])).toEqual(['name:DUPLICATE_ID'])
+    expect(codesOf(batch.sessions?.[0])).toEqual(['location:VALUE_NORMALIZED'])
+    expect(batch.sessions?.[0]?.data?.location).toBe('Laboratoř 3')
   })
 })

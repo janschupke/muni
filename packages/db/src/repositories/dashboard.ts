@@ -1,5 +1,6 @@
 import { complianceRate, countStatuses, type ComplianceCounts } from '@muni/domain/compliance'
 
+import { mandatoryCourse } from './audience'
 import { dbOf, loadCompliance, type RepoOptions } from './context'
 import { compareNames } from './employee-sort'
 import type { EmployeeListRequirement } from './employees'
@@ -90,7 +91,7 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
     loadCompliance(options),
     db.department.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
     db.course.findMany({
-      where: { requirements: { some: {} } },
+      where: mandatoryCourse,
       select: { id: true, code: true, name: true },
       orderBy: { code: 'asc' },
     }),

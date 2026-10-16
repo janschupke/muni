@@ -1,6 +1,12 @@
 import * as z from 'zod'
 
-import { EMPLOYMENT_STATUSES, REQUIREMENT_SCOPES, SESSION_STATUSES } from './enums'
+import {
+  CAPABILITIES,
+  EMPLOYMENT_STATUSES,
+  REQUIREMENT_SCOPES,
+  ROOM_KINDS,
+  SESSION_STATUSES,
+} from './enums'
 
 // Normalised records. The importer produces them; the server re-validates them on commit;
 // the edit forms use the same shapes. Validation failures surface as zod issue codes,
@@ -40,6 +46,19 @@ export const courseSchema = z.object({
 })
 export type CourseInput = z.infer<typeof courseSchema>
 
+const capabilities = z.array(z.enum(CAPABILITIES)).max(CAPABILITIES.length)
+/** Seats; null = no fixed limit (an online room). */
+const roomCapacity = z.int().min(0).max(10_000).nullable()
+
+export const roomSchema = z.object({
+  name: trimmed(200),
+  kind: z.enum(ROOM_KINDS),
+  capacity: roomCapacity,
+  capabilities,
+  note: optionalText(2000),
+})
+export type RoomInput = z.infer<typeof roomSchema>
+
 export const employeeSchema = z
   .object({
     externalId: externalIdSchema,
@@ -64,18 +83,27 @@ export const employeeSchema = z
   })
 export type EmployeeInput = z.infer<typeof employeeSchema>
 
-const sessionBase = z.object({
-  externalId: externalIdSchema,
-  courseCode: courseCodeSchema,
+const sessionTimes = {
   date: isoDate,
   startTime: time,
   endTime: time,
-  location: trimmed(200),
-  isOnline: z.boolean(),
   capacity: z.int().min(0).max(10_000),
-  bookedCount: z.int().min(0).max(10_000),
   pricePerPerson: money,
   status: z.enum(SESSION_STATUSES),
+}
+
+/**
+ * An imported session names its room (`location`, the export's "místo"); the writer
+ * resolves it to a room, creating one when the batch has no such room (`isOnline` then
+ * decides its kind).
+ */
+const sessionBase = z.object({
+  externalId: externalIdSchema,
+  courseCode: courseCodeSchema,
+  ...sessionTimes,
+  location: trimmed(200),
+  isOnline: z.boolean(),
+  bookedCount: z.int().min(0).max(10_000),
 })
 const endAfterStart = (s: { startTime: string; endTime: string }) => s.endTime > s.startTime
 const endAfterStartIssue = { path: ['endTime'], error: 'before_start' }
@@ -102,18 +130,34 @@ export type CompletionInput = z.infer<typeof completionSchema>
 
 // ---- Edit forms -------------------------------------------------------------------------
 
-export const courseEditSchema = courseSchema.pick({ name: true, validityMonths: true })
+export const courseEditSchema = courseSchema.pick({ name: true, validityMonths: true }).extend({
+  /** What one session needs: the planner's input. */
+  sessionMinutes: z.int().min(15).max(1440).nullable(),
+  groupSize: z.int().min(1).max(10_000).nullable(),
+  onlineAllowed: z.boolean(),
+  capabilities,
+})
 export type CourseEdit = z.infer<typeof courseEditSchema>
+
+const roomId = z.string().trim().min(1).max(64)
 
 /**
  * Editing a session sets its anonymous seats; named bookings are assignment rows and are
  * managed separately, so the form never overwrites them.
  */
-export const sessionEditSchema = sessionBase
-  .omit({ externalId: true, courseCode: true, bookedCount: true })
-  .extend({ unnamedBookings: z.int().min(0).max(10_000) })
+export const sessionEditSchema = z
+  .object({ ...sessionTimes, roomId, unnamedBookings: z.int().min(0).max(10_000) })
   .refine(endAfterStart, endAfterStartIssue)
 export type SessionEdit = z.infer<typeof sessionEditSchema>
+
+/** A new session (from the planner or the course page); it starts with no bookings. */
+export const sessionCreateSchema = z
+  .object({ courseCode: courseCodeSchema, ...sessionTimes, roomId })
+  .refine(endAfterStart, endAfterStartIssue)
+export type SessionCreate = z.infer<typeof sessionCreateSchema>
+
+/** The room form edits every field the import sets. */
+export type RoomEdit = RoomInput
 
 export const employeeEditSchema = z
   .object({

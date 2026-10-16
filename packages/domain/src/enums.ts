@@ -9,6 +9,21 @@ export type RequirementScope = (typeof REQUIREMENT_SCOPES)[number]
 export const SESSION_STATUSES = ['PLANNED', 'CANCELLED'] as const
 export type SessionStatus = (typeof SESSION_STATUSES)[number]
 
+export const ROOM_KINDS = ['CLASSROOM', 'LAB', 'ONLINE', 'EXTERNAL', 'OUTDOOR'] as const
+export type RoomKind = (typeof ROOM_KINDS)[number]
+
+/** What a room offers, and what a course needs from one. */
+export const CAPABILITIES = [
+  'PROJECTOR',
+  'COMPUTERS',
+  'LAB_EQUIPMENT',
+  'VEHICLE',
+  'PRACTICAL_AREA',
+  'VIDEO_CONFERENCE',
+  'WHEELCHAIR_ACCESS',
+] as const
+export type Capability = (typeof CAPABILITIES)[number]
+
 export const COMPLIANCE_STATUSES = ['VALID', 'EXPIRING', 'EXPIRED', 'MISSING'] as const
 export type ComplianceStatus = (typeof COMPLIANCE_STATUSES)[number]
 

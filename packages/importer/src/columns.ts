@@ -10,6 +10,13 @@ export interface ColumnSchema {
 }
 
 export const COLUMNS = {
+  rooms: [
+    { key: 'name', csvHeaders: ['nazev', 'mistnost', 'misto', 'name', 'room'], required: true },
+    { key: 'kind', csvHeaders: ['typ', 'druh', 'kind', 'type'] },
+    { key: 'capacity', csvHeaders: ['kapacita', 'capacity'] },
+    { key: 'capabilities', csvHeaders: ['vybaveni', 'capabilities', 'equipment'] },
+    { key: 'note', csvHeaders: ['poznamka', 'note'] },
+  ],
   courses: [
     { key: 'code', csvHeaders: ['kod', 'kod_skoleni', 'code'], required: true },
     { key: 'name', csvHeaders: ['nazev', 'name', 'title'], required: true },

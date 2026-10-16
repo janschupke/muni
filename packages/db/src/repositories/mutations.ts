@@ -2,10 +2,14 @@ import {
   completionCreateSchema,
   courseEditSchema,
   employeeEditSchema,
+  roomSchema,
+  sessionCreateSchema,
   sessionEditSchema,
   type CompletionCreate,
   type CourseEdit,
   type EmployeeEdit,
+  type RoomEdit,
+  type SessionCreate,
   type SessionEdit,
 } from '@muni/domain/schemas'
 import { isoDateToUtc, zonedTimeToUtc } from '@muni/utils/dates'
@@ -18,10 +22,23 @@ import { dbOf, type RepoOptions } from './context'
 
 export async function updateCourse(code: string, input: CourseEdit, options?: RepoOptions) {
   const data = courseEditSchema.parse(input)
-  return dbOf(options).course.update({
-    where: { code },
-    data: { name: data.name, validityMonths: data.validityMonths },
-    select: { code: true },
+  return dbOf(options).$transaction(async tx => {
+    const course = await tx.course.update({
+      where: { code },
+      data: {
+        name: data.name,
+        validityMonths: data.validityMonths,
+        sessionMinutes: data.sessionMinutes,
+        groupSize: data.groupSize,
+        onlineAllowed: data.onlineAllowed,
+      },
+      select: { id: true, code: true },
+    })
+    await tx.courseCapability.deleteMany({ where: { courseId: course.id } })
+    await tx.courseCapability.createMany({
+      data: data.capabilities.map(capability => ({ courseId: course.id, capability })),
+    })
+    return { code: course.code }
   })
 }
 
@@ -32,8 +49,7 @@ export async function updateSession(externalId: string, input: SessionEdit, opti
     data: {
       startsAt: zonedTimeToUtc(data.date, data.startTime),
       endsAt: zonedTimeToUtc(data.date, data.endTime),
-      location: data.location,
-      isOnline: data.isOnline,
+      room: { connect: { id: data.roomId } },
       capacity: data.capacity,
       unnamedBookings: data.unnamedBookings,
       pricePerPerson: data.pricePerPerson,
@@ -41,6 +57,74 @@ export async function updateSession(externalId: string, input: SessionEdit, opti
     },
     select: { externalId: true, course: { select: { code: true } } },
   })
+}
+
+/**
+ * Schedules a new session with no bookings. Its ID continues the export's numbering
+ * (T034 → T035); a transaction-scoped advisory lock makes concurrent creates take turns.
+ */
+export async function createSession(input: SessionCreate, options?: RepoOptions) {
+  const data = sessionCreateSchema.parse(input)
+  return dbOf(options).$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('course_sessions.external_id'))`
+    const ids = await tx.courseSession.findMany({
+      where: { externalId: { startsWith: 'T' } },
+      select: { externalId: true },
+    })
+    const next = Math.max(0, ...ids.map(s => Number(s.externalId.slice(1)) || 0)) + 1
+    return tx.courseSession.create({
+      data: {
+        externalId: `T${String(next).padStart(3, '0')}`,
+        course: { connect: { code: data.courseCode } },
+        room: { connect: { id: data.roomId } },
+        startsAt: zonedTimeToUtc(data.date, data.startTime),
+        endsAt: zonedTimeToUtc(data.date, data.endTime),
+        capacity: data.capacity,
+        pricePerPerson: data.pricePerPerson,
+        status: data.status,
+      },
+      select: { externalId: true, course: { select: { code: true } } },
+    })
+  })
+}
+
+async function writeRoom(
+  options: RepoOptions | undefined,
+  id: string | null,
+  input: RoomEdit
+): Promise<{ id: string }> {
+  const data = roomSchema.parse(input)
+  return dbOf(options).$transaction(async tx => {
+    const fields = {
+      name: data.name,
+      kind: data.kind,
+      capacity: data.capacity,
+      note: cleanFreeText(data.note),
+    }
+    const room = id
+      ? await tx.room.update({ where: { id }, data: fields, select: { id: true } })
+      : await tx.room.create({ data: fields, select: { id: true } })
+    await tx.roomCapability.deleteMany({ where: { roomId: room.id } })
+    await tx.roomCapability.createMany({
+      data: data.capabilities.map(capability => ({ roomId: room.id, capability })),
+    })
+    return room
+  })
+}
+
+export const createRoom = (input: RoomEdit, options?: RepoOptions) =>
+  writeRoom(options, null, input)
+
+export const updateRoom = (id: string, input: RoomEdit, options?: RepoOptions) =>
+  writeRoom(options, id, input)
+
+/** Deletes a room nobody uses; a room with sessions (past ones too) is kept. */
+export async function deleteRoom(id: string, options?: RepoOptions): Promise<'DELETED' | 'IN_USE'> {
+  const db = dbOf(options)
+  const used = await db.courseSession.count({ where: { roomId: id } })
+  if (used > 0) return 'IN_USE'
+  await db.room.delete({ where: { id } })
+  return 'DELETED'
 }
 
 async function nameId(

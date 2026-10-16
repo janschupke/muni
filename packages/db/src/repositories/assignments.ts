@@ -1,9 +1,12 @@
 import { forecastEnd } from '@muni/domain/advisor'
 import { appliesTo, bestCompletion } from '@muni/domain/compliance'
+import type { RoomRef } from '@muni/domain/rooms'
 import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
 import type { Prisma } from '../generated/prisma/client'
+import { audienceSelect, rulesOf } from './audience'
 import { complianceOptions, dbOf, type RepoOptions } from './context'
+import { roomRefSelect } from './sessions'
 
 type Tx = Prisma.TransactionClient
 
@@ -122,11 +125,11 @@ async function applyOne(
   if (clash) return 'CONFLICT'
 
   if (request.source === 'ADVISOR') {
-    const requirements = await tx.courseRequirement.findMany({
-      where: { courseId: session.course_id },
-      select: { courseId: true, scope: true, departmentId: true, positionId: true },
+    const course = await tx.course.findUniqueOrThrow({
+      where: { id: session.course_id },
+      select: { id: true, ...audienceSelect },
     })
-    if (!requirements.some(r => appliesTo(r, employee))) return 'NOT_REQUIRED'
+    if (!rulesOf(course).some(r => appliesTo(r, employee))) return 'NOT_REQUIRED'
     const completions = await tx.courseCompletion.findMany({
       where: { employeeId: employee.id, courseId: session.course_id },
       select: { employeeId: true, courseId: true, completedOn: true, validUntil: true },
@@ -223,7 +226,7 @@ export interface EmployeeBooking {
   courseName: string
   startsAt: string
   endsAt: string
-  location: string
+  room: RoomRef
   source: 'ADVISOR' | 'MANUAL'
 }
 
@@ -244,7 +247,7 @@ export async function listEmployeeBookings(
           externalId: true,
           startsAt: true,
           endsAt: true,
-          location: true,
+          room: { select: roomRefSelect },
           course: { select: { code: true, name: true } },
         },
       },
@@ -257,7 +260,7 @@ export async function listEmployeeBookings(
     courseName: r.session.course.name,
     startsAt: r.session.startsAt.toISOString(),
     endsAt: r.session.endsAt.toISOString(),
-    location: r.session.location,
+    room: r.session.room,
     source: r.source,
   }))
 }

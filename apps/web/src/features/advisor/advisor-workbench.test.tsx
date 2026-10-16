@@ -38,7 +38,7 @@ const session = (
   externalId: id,
   courseCode: 'BOZP-Z',
   courseName: 'BOZP – základní školení',
-  location: 'Aula A',
+  room: { id: 'room_aula_a', name: 'Aula A', kind: 'CLASSROOM' as const },
   startsAt: `${date}T07:00:00.000Z`,
   endsAt: `${date}T10:00:00.000Z`,
   capacity: 1,
@@ -150,7 +150,7 @@ describe('AdvisorWorkbench', () => {
     expect(hrefOf('Adámek Petr', adamek)).toBe('/employees/E0001')
     expect(hrefOf('BOZP – základní školení', adamek)).toBe('/courses/BOZP-Z')
     expect(hrefOf(/Nov 20, 2026/, adamek)).toBe('/sessions/T018')
-    expect(hrefOf('Aula A', adamek)).toBe('/sessions?location=Aula%20A')
+    expect(hrefOf('Aula A', adamek)).toBe('/rooms/room_aula_a')
     expect(within(adamek).getByText('Without it until Nov 20, 2026')).toBeTruthy()
 
     const bila = rowOf('Bílá Jana')

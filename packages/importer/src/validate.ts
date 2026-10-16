@@ -2,6 +2,7 @@ import type {
   CompletionInput,
   CourseInput,
   EmployeeInput,
+  RoomInput,
   SessionInput,
 } from '@muni/domain/schemas'
 import { addMonths } from '@muni/utils/dates'
@@ -206,8 +207,31 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
     }
   })
 
+  // ---- rooms ------------------------------------------------------------------------------
+  const roomRows = batch.rooms ?? []
+  const firstRoom = firstRowByKey(roomRows, d => fold(d.name))
+  out.rooms = roomRows.map(row => {
+    const extra: Extra = []
+    if (!usable(row)) return finalize(row, null, extra)
+    const owner = duplicateOf(row, firstRoom, fold(row.base.data.name))
+    if (owner) extra.push(issue('name', 'DUPLICATE_ID', 'error', { firstRow: owner.rowNumber }))
+    return finalize<RoomInput>(row, row.base.data, extra)
+  })
+  const roomNames = out.rooms.flatMap(r =>
+    r.isValid && !r.isRemoved && r.data ? [r.data.name] : []
+  )
+
   // ---- sessions ---------------------------------------------------------------------------
   const sessionRows = batch.sessions ?? []
+  // A session's place resolves to a room in this batch or the database (spelling variants
+  // join); otherwise the room is created from the sessions held there.
+  const knownRooms = new Canonicalizer(roomNames, reference.rooms)
+  const rooms = new Canonicalizer(
+    sessionRows.filter(usable).map(r => r.base.data.location),
+    [...reference.rooms, ...roomNames]
+  )
+  // The first session held in an unknown room says it will be created; the rest just use it.
+  const firstInRoom = firstRowByKey(sessionRows, d => rooms.keyOf(d.location))
   const firstSession = firstRowByKey(sessionRows, d => d.externalId)
   const firstSlot = firstRowByKey(
     sessionRows,
@@ -233,7 +257,16 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
         issue('date', 'DUPLICATE_SLOT', 'warning', { otherId: slotTwin.base.data.externalId })
       )
     }
-    return finalize<SessionInput>(row, data, extra)
+    const location = rooms.canonical(data.location)
+    if (!knownRooms.has(data.location)) {
+      if (firstInRoom.get(rooms.keyOf(data.location)) === row)
+        extra.push(issue('location', 'ROOM_DERIVED', 'warning', { value: location }))
+    } else if (location !== data.location) {
+      extra.push(
+        issue('location', 'VALUE_NORMALIZED', 'warning', { raw: data.location, value: location })
+      )
+    }
+    return finalize<SessionInput>(row, { ...data, location }, extra)
   })
 
   // ---- completions ------------------------------------------------------------------------

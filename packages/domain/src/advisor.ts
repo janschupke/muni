@@ -1,5 +1,7 @@
 import { addDays, addMonths, diffInDays, toZonedParts, type IsoDate } from '@muni/utils/dates'
 
+import type { RoomRef } from './rooms'
+
 /*
  * The advisor: what is non-compliant now, what becomes non-compliant month by month, what is
  * already being remedied (a named booking), and who should go to which session for the rest.
@@ -38,7 +40,7 @@ export interface AdvisorSession {
   externalId: string
   courseCode: string
   courseName: string
-  location: string
+  room: RoomRef
   startsAt: string
   endsAt: string
   capacity: number

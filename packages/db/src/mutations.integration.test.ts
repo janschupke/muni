@@ -8,11 +8,15 @@ import { createDb, getDb } from './client'
 import {
   applyAssignments,
   createCompletion,
+  createRoom,
+  createSession,
+  deleteRoom,
   getAdvisorInput,
   getCourse,
   getCourseForEdit,
   getEmployee,
   getEmployeeForEdit,
+  getRoom,
   getSession,
   listEmployees,
   listCourseOptions,
@@ -20,11 +24,14 @@ import {
   listEmployeeBookings,
   listPositions,
   listProviders,
+  listRoomOptions,
+  listRooms,
   listSessions,
   moveSeats,
   removeAssignment,
   updateCourse,
   updateEmployee,
+  updateRoom,
 } from './repositories'
 import { complianceOptions, dbOf } from './repositories/context'
 import { seedFromDirectory } from './seed'
@@ -44,12 +51,23 @@ const CREATED = {
   department: 'Nové oddělení',
   provider: 'Školicí centrum Vzor',
   position: 'Zkušební pozice',
+  room: 'Zkušební místnost',
+  importedRoom: 'Posluchárna 9',
+  derivedRoom: 'Venkovní hřiště',
 } as const
+const CREATED_ROOMS = [CREATED.room, CREATED.importedRoom, CREATED.derivedRoom]
 
 const restore = async () => {
   await db.sessionAssignment.deleteMany()
   await db.courseCompletion.deleteMany({ where: { externalId: { startsWith: 'A' } } })
+  await db.courseSession.deleteMany({ where: { room: { name: { in: CREATED_ROOMS } } } })
   await db.course.deleteMany({ where: { code: { startsWith: 'TEST-' } } })
+  await db.room.deleteMany({ where: { name: { in: CREATED_ROOMS } } })
+  // An import never overwrites what a session needs; clear it so the seed derives it afresh.
+  await db.courseCapability.deleteMany()
+  await db.course.updateMany({
+    data: { sessionMinutes: null, groupSize: null, onlineAllowed: false },
+  })
   await seedFromDirectory(db, DATA_DIR, asOf)
   await db.department.deleteMany({ where: { name: CREATED.department } })
   await db.provider.deleteMany({ where: { name: CREATED.provider } })
@@ -80,6 +98,10 @@ describe('lookups and edit loaders', () => {
       code: 'BOZP-Z',
       name: 'BOZP – základní školení',
       validityMonths: 24,
+      sessionMinutes: 180,
+      groupSize: 30,
+      onlineAllowed: false,
+      capabilities: [],
     })
     expect(await getCourseForEdit('NOPE', options)).toBeNull()
     expect((await listCourseOptions(options)).map(c => c.code)).toContain('LAB-BEZ')
@@ -103,12 +125,38 @@ describe('lookups and edit loaders', () => {
 })
 
 describe('edits', () => {
-  it('renames a course and changes its validity', async () => {
-    await updateCourse('ANGL', { name: 'Angličtina pro pokročilé', validityMonths: 12 }, options)
-    expect(await getCourseForEdit('ANGL', options)).toMatchObject({
+  it('renames a course and sets what its sessions need', async () => {
+    const needs = {
+      sessionMinutes: 90,
+      groupSize: 12,
+      onlineAllowed: true,
+      capabilities: ['PROJECTOR', 'VIDEO_CONFERENCE'] as const,
+    }
+    await updateCourse(
+      'ANGL',
+      {
+        name: 'Angličtina pro pokročilé',
+        validityMonths: 12,
+        ...needs,
+        capabilities: [...needs.capabilities],
+      },
+      options
+    )
+    expect(await getCourseForEdit('ANGL', options)).toEqual({
+      code: 'ANGL',
       name: 'Angličtina pro pokročilé',
       validityMonths: 12,
+      ...needs,
+      capabilities: ['PROJECTOR', 'VIDEO_CONFERENCE'],
     })
+    // Setting it again replaces the list.
+    await updateCourse(
+      'ANGL',
+      { name: 'Angličtina pro pokročilé', validityMonths: 12, ...needs, capabilities: [] },
+      options
+    )
+    expect((await getCourseForEdit('ANGL', options))?.capabilities).toEqual([])
+    expect(await getCourseForEdit('NOPE', options)).toBeNull()
   })
 
   it('edits a person, creating a new department and clearing the position', async () => {
@@ -212,7 +260,7 @@ describe('bookings the main suite does not reach', () => {
   })
 
   it('refuses an advisor booking for a training the person is not required to hold', async () => {
-    const lead = await db.courseRequirement.findFirstOrThrow({
+    const lead = await db.coursePositionRequirement.findFirstOrThrow({
       where: { course: { code: 'LEAD' } },
       select: { positionId: true },
     })
@@ -286,6 +334,150 @@ describe('sessions', () => {
     expect(await getSession('T999', options)).toBeNull()
     // T029 has no price in the export.
     expect((await getSession('T029', options))?.pricePerPerson).toBeNull()
+  })
+})
+
+describe('rooms', () => {
+  const room = {
+    name: CREATED.room,
+    kind: 'LAB' as const,
+    capacity: 16,
+    capabilities: ['LAB_EQUIPMENT' as const],
+    note: null,
+  }
+
+  it('creates, edits and lists a room, and deletes it only while nothing is held there', async () => {
+    const { id } = await createRoom(room, options)
+    // LAB-BEZ needs lab equipment and a projector; this room has the first only (for now).
+    await updateCourse(
+      'LAB-BEZ',
+      {
+        name: 'Bezpečná práce v laboratoři',
+        validityMonths: 12,
+        sessionMinutes: 240,
+        groupSize: 16,
+        onlineAllowed: false,
+        capabilities: ['LAB_EQUIPMENT', 'PROJECTOR'],
+      },
+      options
+    )
+    expect(
+      (await getRoom(id, { ...options, now }))?.courses.find(c => c.code === 'LAB-BEZ')?.mismatch
+    ).toEqual({ kind: 'MISSING_CAPABILITIES', missing: ['PROJECTOR'] })
+    await updateRoom(
+      id,
+      { ...room, capacity: 18, capabilities: ['LAB_EQUIPMENT', 'PROJECTOR'], note: ' 2. patro ' },
+      options
+    )
+    const saved = await db.room.findUniqueOrThrow({
+      where: { id },
+      include: { capabilities: { orderBy: { capability: 'asc' } } },
+    })
+    expect([saved.capacity, saved.note, saved.capabilities.map(c => c.capability)]).toEqual([
+      18,
+      '2. patro',
+      // In the enum's order.
+      ['PROJECTOR', 'LAB_EQUIPMENT'],
+    ])
+    expect(
+      (await getRoom(id, { ...options, now }))?.courses.find(c => c.code === 'LAB-BEZ')?.mismatch
+    ).toBeNull()
+    expect((await listRooms({ ...options, now })).find(r => r.id === id)?.capabilities).toEqual([
+      'PROJECTOR',
+      'LAB_EQUIPMENT',
+    ])
+    const rooms = await listRoomOptions(options)
+    expect(rooms.find(r => r.id === id)).toEqual({
+      id,
+      name: CREATED.room,
+      kind: 'LAB',
+      capacity: 18,
+    })
+    expect(rooms.map(r => r.name)).toEqual(rooms.map(r => r.name).toSorted())
+
+    const session = await createSession(
+      {
+        courseCode: 'LAB-BEZ',
+        date: '2027-03-03',
+        startTime: '09:00',
+        endTime: '13:00',
+        roomId: id,
+        capacity: 16,
+        pricePerPerson: 1500,
+        status: 'PLANNED',
+      },
+      options
+    )
+    // The export's numbering continues (the seed ends at T034).
+    expect(session).toEqual({ externalId: 'T035', course: { code: 'LAB-BEZ' } })
+    expect(await getSession('T035', options)).toMatchObject({
+      startsAt: '2027-03-03T08:00:00.000Z',
+      room: { id, name: CREATED.room, kind: 'LAB' },
+      bookedCount: 0,
+    })
+    expect(await deleteRoom(id, options)).toBe('IN_USE')
+    await db.courseSession.delete({ where: { externalId: 'T035' } })
+    expect(await deleteRoom(id, options)).toBe('DELETED')
+    expect(await db.room.count({ where: { id } })).toBe(0)
+  })
+
+  it('imports rooms and creates the ones only sessions name', async () => {
+    expect(
+      await commitChunk(db, 'rooms', [
+        {
+          name: CREATED.importedRoom,
+          kind: 'CLASSROOM',
+          capacity: 60,
+          capabilities: ['PROJECTOR', 'WHEELCHAIR_ACCESS'],
+          note: null,
+        },
+      ])
+    ).toEqual({ created: 1, updated: 0 })
+    expect(
+      await commitChunk(db, 'rooms', [
+        {
+          name: CREATED.importedRoom,
+          kind: 'CLASSROOM',
+          capacity: 80,
+          capabilities: [],
+          note: null,
+        },
+      ])
+    ).toEqual({ created: 0, updated: 1 })
+    const imported = await db.room.findUniqueOrThrow({
+      where: { name: CREATED.importedRoom },
+      include: { capabilities: true },
+    })
+    expect([imported.capacity, imported.capabilities]).toEqual([80, []])
+
+    const session = (externalId: string, capacity: number) => ({
+      externalId,
+      courseCode: 'POZ-OCH',
+      date: '2027-04-07',
+      startTime: '10:00',
+      endTime: '12:00',
+      location: CREATED.derivedRoom,
+      isOnline: false,
+      capacity,
+      bookedCount: 0,
+      pricePerPerson: null,
+      status: 'PLANNED',
+    })
+    // POZ-OCH's needs were never set by hand: they follow its sessions, the new ones included.
+    await db.course.update({ where: { code: 'POZ-OCH' }, data: { sessionMinutes: null } })
+    await commitChunk(db, 'sessions', [session('T901', 25), session('T902', 35)])
+    expect(
+      await db.course.findUniqueOrThrow({
+        where: { code: 'POZ-OCH' },
+        select: { sessionMinutes: true, groupSize: true, onlineAllowed: true },
+      })
+    ).toEqual({ sessionMinutes: 120, groupSize: 35, onlineAllowed: false })
+    expect(
+      await db.room.findUniqueOrThrow({
+        where: { name: CREATED.derivedRoom },
+        select: { kind: true, capacity: true },
+      })
+    ).toEqual({ kind: 'CLASSROOM', capacity: 35 })
   })
 })
 

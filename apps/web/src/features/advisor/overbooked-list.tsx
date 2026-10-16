@@ -47,7 +47,7 @@ export function OverbookedList({
               <>
                 <SessionDateLink session={o.session} />
                 {' · '}
-                <RoomLink location={o.session.location} />
+                <RoomLink room={o.session.room} />
               </>
             }
           />
@@ -70,7 +70,7 @@ export function OverbookedList({
                     <span>
                       {t('moveTo', { count: m.count })} <SessionDateLink session={m.to} />
                       {' · '}
-                      <RoomLink location={m.to.location} />
+                      <RoomLink room={m.to.room} />
                     </span>
                   </ItemListRow>
                 ))}

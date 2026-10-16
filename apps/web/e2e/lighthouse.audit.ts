@@ -5,7 +5,7 @@ import { chromium, expect, test, type Browser } from '@playwright/test'
 import lighthouse from 'lighthouse'
 import desktopConfig from 'lighthouse/core/config/desktop-config.js'
 
-import { PUBLIC_PAGES } from './support/pages'
+import { pathOf, PUBLIC_PAGES } from './support/pages'
 
 // Minimum category scores (0–1). Accessibility must be perfect; performance is measured on
 // the desktop preset against a local production build.
@@ -27,8 +27,10 @@ test.afterAll(async () => {
   await writeFile(path.join(REPORTS, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`)
 })
 
-for (const { name, path: route } of PUBLIC_PAGES.filter(p => !('status' in p))) {
+for (const entry of PUBLIC_PAGES.filter(p => p.status === undefined)) {
+  const { name } = entry
   test(`${name} page`, async ({ baseURL }) => {
+    const route = await pathOf(entry, async url => (await fetch(`${String(baseURL)}${url}`)).text())
     const result = await lighthouse(
       `${String(baseURL)}${route}`,
       { port: DEBUG_PORT, output: 'html', logLevel: 'error', locale: 'en' },

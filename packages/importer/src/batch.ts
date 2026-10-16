@@ -5,6 +5,7 @@ import { detectDelimiter, isBlankRecord, isCommentRecord, parseCsv } from './csv
 import { mapCompletion } from './datasets/completions'
 import { mapCourse } from './datasets/courses'
 import { mapEmployee } from './datasets/employees'
+import { mapRoom } from './datasets/rooms'
 import { mapSession } from './datasets/sessions'
 import { decode } from './decode'
 import { RowBuilder } from './fields'
@@ -31,6 +32,7 @@ type Mapper<K extends DatasetKind> = (
 ) => RowMapResult<DatasetRecord[K]>
 
 const MAPPERS: { [K in DatasetKind]: Mapper<K> } = {
+  rooms: b => mapRoom(b),
   courses: b => mapCourse(b),
   employees: mapEmployee,
   sessions: b => mapSession(b),

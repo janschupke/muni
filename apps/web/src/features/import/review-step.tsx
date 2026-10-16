@@ -13,6 +13,7 @@ import {
   ArrowRight,
   BookOpen,
   CalendarDays,
+  DoorOpen,
   GraduationCap,
   Users,
   type LucideIcon,
@@ -24,6 +25,7 @@ import { ReviewTable, type IndexedRow } from './review-table'
 import { useImportText } from './use-issue-text'
 
 const KIND_ICON: Record<DatasetKind, LucideIcon> = {
+  rooms: DoorOpen,
   courses: BookOpen,
   employees: Users,
   sessions: CalendarDays,

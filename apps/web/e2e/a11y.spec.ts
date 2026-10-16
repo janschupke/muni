@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
-import { PUBLIC_PAGES } from './support/pages'
+import { pathOf, PUBLIC_PAGES } from './support/pages'
 
 // WCAG 2.2 A/AA plus axe's best practices; any violation fails.
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']
@@ -18,6 +18,9 @@ async function expectNoViolations(page: Page, label: string, within?: string) {
   expect(summary, label).toEqual([])
 }
 
+// Contrast is judged on the settled page: with motion reduced, the page fade-in is instant.
+test.use({ reducedMotion: 'reduce' })
+
 for (const theme of ['light', 'dark'] as const) {
   test.describe(`accessibility, ${theme} theme`, () => {
     test.beforeEach(async ({ page }) => {
@@ -29,8 +32,9 @@ for (const theme of ['light', 'dark'] as const) {
       }, theme)
     })
 
-    for (const { name, path } of PUBLIC_PAGES) {
-      test(`${name} page`, async ({ page }) => {
+    for (const entry of PUBLIC_PAGES) {
+      test(`${entry.name} page`, async ({ page, request }) => {
+        const path = await pathOf(entry, async url => (await request.get(url)).text())
         await page.goto(path)
         await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
         await expectNoViolations(page, path)

@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { expectNoAxeViolations } from '@/test/axe'
 import { getViewer, requirePageUser } from '@/server/auth'
-import { counts, courseDetail, courseRow, matrix } from '@/test/fixtures'
+import { counts, courseDetail, courseForEdit, courseRow, matrix } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
@@ -54,11 +54,7 @@ beforeEach(() => {
     }),
   ])
   vi.mocked(getCourse).mockResolvedValue(courseDetail())
-  vi.mocked(getCourseForEdit).mockResolvedValue({
-    code: 'BOZP-Z',
-    name: 'BOZP – základní školení',
-    validityMonths: 24,
-  })
+  vi.mocked(getCourseForEdit).mockResolvedValue(courseForEdit())
   vi.mocked(getComplianceMatrix).mockResolvedValue(matrix())
   vi.mocked(loadReferenceSnapshot).mockResolvedValue(EMPTY_REFERENCE)
 })

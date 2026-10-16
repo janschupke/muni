@@ -8,15 +8,22 @@ import type {
   EmployeeListItem,
   EmployeeListRequirement,
   Page,
+  RoomDetail,
+  RoomListItem,
   SessionListItem,
 } from '@muni/db/repositories'
+import type { getCourseForEdit } from '@muni/db/repositories'
 import type { AdvisorInput } from '@muni/domain/advisor'
+import type { RoomRef } from '@muni/domain/rooms'
 import type { ComplianceCounts } from '@muni/domain/compliance'
 
 // Typed builders for repository results, shaped like the seeded register (asOf 2026-10-16).
 // Each takes overrides, so a test states only what it is about.
 
 const AS_OF = '2026-10-16'
+
+export const AULA_A: RoomRef = { id: 'room_aula_a', name: 'Aula A', kind: 'CLASSROOM' }
+export const ONLINE: RoomRef = { id: 'room_online', name: 'Online', kind: 'ONLINE' }
 
 export const counts = (c: Partial<ComplianceCounts> = {}): ComplianceCounts => {
   const base = { VALID: 6, EXPIRING: 1, EXPIRED: 1, MISSING: 2, ...c }
@@ -29,8 +36,7 @@ export const session = (over: Partial<SessionListItem> = {}): SessionListItem =>
   courseName: 'BOZP – základní školení',
   startsAt: '2026-11-04T07:00:00.000Z',
   endsAt: '2026-11-04T10:00:00.000Z',
-  location: 'Aula A',
-  isOnline: false,
+  room: AULA_A,
   capacity: 30,
   unnamedBookings: 29,
   assigned: [{ externalId: 'E0153', name: 'Černá Marie' }],
@@ -140,7 +146,7 @@ export const booking = (over: Partial<EmployeeBooking> = {}): EmployeeBooking =>
   courseName: 'BOZP – základní školení',
   startsAt: '2027-02-03T07:00:00.000Z',
   endsAt: '2027-02-03T10:00:00.000Z',
-  location: 'Aula A',
+  room: AULA_A,
   source: 'ADVISOR',
   ...over,
 })
@@ -149,7 +155,7 @@ export const courseRow = (over: Partial<CourseListItem> = {}): CourseListItem =>
   code: 'BOZP-Z',
   name: 'BOZP – základní školení',
   validityMonths: 24,
-  requirements: [{ scope: 'ALL', target: null }],
+  requirements: [{ scope: 'ALL', target: null, targetId: null }],
   completionCount: 412,
   upcomingSessions: 2,
   counts: counts(),
@@ -160,9 +166,9 @@ export const courseRow = (over: Partial<CourseListItem> = {}): CourseListItem =>
 export const courseDetail = (over: Partial<CourseDetail> = {}): CourseDetail => ({
   ...courseRow(),
   requirements: [
-    { scope: 'ALL', target: null },
-    { scope: 'DEPARTMENT', target: 'Laboratoře' },
-    { scope: 'POSITION', target: 'Vedoucí oddělení' },
+    { scope: 'ALL', target: null, targetId: null },
+    { scope: 'DEPARTMENT', target: 'Laboratoře', targetId: 'dep_lab' },
+    { scope: 'POSITION', target: 'Vedoucí oddělení', targetId: 'pos_head' },
   ],
   sessions: [session(), session({ externalId: 'T017', status: 'CANCELLED', assigned: [] })],
   recentCompletions: [
@@ -330,7 +336,7 @@ export const advisorInput = (over: Partial<AdvisorInput> = {}): AdvisorInput => 
       externalId: 'T016',
       courseCode: 'BOZP-Z',
       courseName: 'BOZP – základní školení',
-      location: 'Aula A',
+      room: AULA_A,
       startsAt: '2026-11-04T07:00:00.000Z',
       endsAt: '2026-11-04T10:00:00.000Z',
       capacity: 30,
@@ -343,7 +349,7 @@ export const advisorInput = (over: Partial<AdvisorInput> = {}): AdvisorInput => 
       externalId: 'T018',
       courseCode: 'BOZP-Z',
       courseName: 'BOZP – základní školení',
-      location: 'Aula A',
+      room: AULA_A,
       startsAt: '2027-02-03T07:00:00.000Z',
       endsAt: '2027-02-03T10:00:00.000Z',
       capacity: 30,
@@ -351,6 +357,57 @@ export const advisorInput = (over: Partial<AdvisorInput> = {}): AdvisorInput => 
       assigned: [],
       pricePerPerson: 450,
       status: 'PLANNED',
+    },
+  ],
+  ...over,
+})
+
+/** What the course edit loader returns for BOZP-Z. */
+export const courseForEdit = (over: Partial<CourseForEdit> = {}): CourseForEdit => ({
+  code: 'BOZP-Z',
+  name: 'BOZP – základní školení',
+  validityMonths: 24,
+  sessionMinutes: 180,
+  groupSize: 30,
+  onlineAllowed: false,
+  capabilities: [],
+  ...over,
+})
+type CourseForEdit = NonNullable<Awaited<ReturnType<typeof getCourseForEdit>>>
+
+export const roomRow = (over: Partial<RoomListItem> = {}): RoomListItem => ({
+  ...AULA_A,
+  capacity: 40,
+  capabilities: ['PROJECTOR', 'WHEELCHAIR_ACCESS'],
+  upcomingSessions: 3,
+  utilisation: 0.25,
+  ...over,
+})
+
+export const roomDetail = (over: Partial<RoomDetail> = {}): RoomDetail => ({
+  ...roomRow(),
+  note: 'Přízemí, vchod B',
+  upcoming: [session()],
+  pastCount: 4,
+  courses: [
+    { code: 'BOZP-Z', name: 'BOZP – základní školení', groupSize: 30, mismatch: null },
+    {
+      code: 'LAB-BEZ',
+      name: 'Bezpečná práce v laboratoři',
+      groupSize: 20,
+      mismatch: { kind: 'MISSING_CAPABILITIES', missing: ['LAB_EQUIPMENT'] },
+    },
+    {
+      code: 'GDPR',
+      name: 'Ochrana osobních údajů',
+      groupSize: 100,
+      mismatch: { kind: 'TOO_SMALL', capacity: 40 },
+    },
+    {
+      code: 'KYBER',
+      name: 'Kybernetická bezpečnost',
+      groupSize: 30,
+      mismatch: { kind: 'ONLINE_NOT_ALLOWED' },
     },
   ],
   ...over,

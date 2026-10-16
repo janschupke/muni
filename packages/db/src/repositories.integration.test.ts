@@ -16,7 +16,10 @@ import {
   getEmployee,
   listCourses,
   listEmployees,
+  getRoom,
+  getRoomForEdit,
   getSession,
+  listRooms,
   listSessions,
   moveSeats,
   removeAssignment,
@@ -45,6 +48,68 @@ describe('seed', () => {
     expect(await db.courseSession.count()).toBe(32)
     expect(await importedCompletions()).toBe(2822)
     expect(await db.department.count()).toBe(9)
+    // No rooms file in data/: one room per place the sessions are held, sized by the
+    // largest session there; "Online" is online.
+    const rooms = await db.room.findMany({ orderBy: { name: 'asc' } })
+    expect(rooms.map(r => [r.name, r.kind, r.capacity])).toEqual([
+      ['Aula A', 'CLASSROOM', 40],
+      ['Autoškola Vzor', 'CLASSROOM', 12],
+      ['Dvůr – sklad', 'CLASSROOM', 8],
+      ['Laboratoř 3', 'CLASSROOM', 20],
+      ['Online', 'ONLINE', 100],
+      ['Seminární místnost', 'CLASSROOM', 12],
+      ['Učebna 1', 'CLASSROOM', 40],
+      ['Učebna 2', 'CLASSROOM', 15],
+    ])
+    // Who must hold what, in the split tables.
+    const audience = await db.course.findMany({
+      orderBy: { code: 'asc' },
+      select: {
+        code: true,
+        requiredForAll: true,
+        departmentRequirements: { select: { department: { select: { name: true } } } },
+        positionRequirements: { select: { position: { select: { name: true } } } },
+      },
+    })
+    expect(
+      audience.map(c => [
+        c.code,
+        c.requiredForAll,
+        c.departmentRequirements.map(r => r.department.name).sort(),
+        c.positionRequirements.map(r => r.position.name),
+      ])
+    ).toEqual([
+      ['ANGL', false, [], []],
+      ['BOZP-Z', true, [], []],
+      ['GDPR', true, [], []],
+      ['KYBER', true, [], []],
+      ['LAB-BEZ', false, ['Laboratoře'], []],
+      ['LEAD', false, [], ['Vedoucí']],
+      ['POZ-OCH', true, [], []],
+      ['PRV-POM', false, ['Knihovna', 'Laboratoře', 'Správa budov'], []],
+      ['RIDIC', false, [], ['Řidič']],
+      ['ZDVIH', false, [], ['Technik údržby']],
+    ])
+  })
+
+  it('derives what a session needs from the sessions held, for courses nobody configured', async () => {
+    const needs = await db.course.findMany({
+      orderBy: { code: 'asc' },
+      select: { code: true, sessionMinutes: true, groupSize: true, onlineAllowed: true },
+    })
+    expect(needs.find(c => c.code === 'GDPR')).toEqual({
+      code: 'GDPR',
+      sessionMinutes: 120,
+      groupSize: 100,
+      onlineAllowed: true,
+    })
+    expect(needs.find(c => c.code === 'BOZP-Z')).toMatchObject({
+      sessionMinutes: 180,
+      groupSize: 30,
+      onlineAllowed: false,
+    })
+    // No sessions, nothing to derive from.
+    expect(needs.find(c => c.code === 'ANGL')).toMatchObject({ sessionMinutes: null })
   })
 
   it('is idempotent', async () => {
@@ -269,8 +334,7 @@ describe('sessions', () => {
         date: '2026-10-28',
         startTime: '10:00',
         endTime: '12:00',
-        location: 'Aula B',
-        isOnline: false,
+        roomId: (await db.room.findUniqueOrThrow({ where: { name: 'Učebna 1' } })).id,
         capacity: 40,
         unnamedBookings: 3,
         pricePerPerson: 800,
@@ -281,15 +345,61 @@ describe('sessions', () => {
     const sessions = await listSessions({ window: 'upcoming', course: 'KYBER' }, options)
     expect(sessions.find(s => s.externalId === 'T002')).toMatchObject({
       startsAt: '2026-10-28T09:00:00.000Z',
-      location: 'Aula B',
+      room: { name: 'Učebna 1', kind: 'CLASSROOM' },
       bookedCount: 3,
     })
   })
 
   it('lists the sessions held in one room', async () => {
-    const sessions = await listSessions({ window: 'upcoming', location: 'Učebna 2' }, options)
+    const room = await db.room.findUniqueOrThrow({ where: { name: 'Učebna 2' } })
+    const sessions = await listSessions({ window: 'upcoming', room: room.id }, options)
     expect(sessions.length).toBeGreaterThan(0)
-    expect(sessions.every(s => s.location === 'Učebna 2')).toBe(true)
+    expect(sessions.every(s => s.room.id === room.id && s.room.name === 'Učebna 2')).toBe(true)
+  })
+})
+
+describe('rooms', () => {
+  const now = new Date('2026-10-16T12:00:00Z')
+  const roomId = async (name: string) => (await db.room.findUniqueOrThrow({ where: { name } })).id
+
+  it('lists every room with its upcoming sessions and how booked the next 30 days are', async () => {
+    const rooms = await listRooms({ ...options, now })
+    expect(rooms.map(r => r.name)).toEqual([
+      'Aula A',
+      'Autoškola Vzor',
+      'Dvůr – sklad',
+      'Laboratoř 3',
+      'Online',
+      'Seminární místnost',
+      'Učebna 1',
+      'Učebna 2',
+    ])
+    const aula = rooms.find(r => r.name === 'Aula A')
+    expect(aula?.upcomingSessions).toBeGreaterThan(0)
+    expect(aula?.utilisation).toBeGreaterThan(0)
+    expect(aula?.utilisation).toBeLessThan(1)
+    // Online rooms have no working hours to fill.
+    expect(rooms.find(r => r.name === 'Online')?.utilisation).toBeNull()
+  })
+
+  it('shows a room with its sessions and the courses it can hold', async () => {
+    const id = await roomId('Učebna 2')
+    const room = await getRoom(id, { ...options, now })
+    expect(room).toMatchObject({ name: 'Učebna 2', kind: 'CLASSROOM', capacity: 15 })
+    expect(room?.upcoming.length).toBeGreaterThan(0)
+    expect(room?.upcoming.every(s => s.room.id === id)).toBe(true)
+    const course = (code: string) => room?.courses.find(c => c.code === code)
+    expect(course('PRV-POM')?.mismatch).toBeNull()
+    expect(course('BOZP-Z')?.mismatch).toEqual({ kind: 'TOO_SMALL', capacity: 15 })
+
+    const online = await getRoom(await roomId('Online'), { ...options, now })
+    expect(online?.courses.find(c => c.code === 'GDPR')?.mismatch).toBeNull()
+    expect(online?.courses.find(c => c.code === 'BOZP-Z')?.mismatch).toEqual({
+      kind: 'ONLINE_NOT_ALLOWED',
+    })
+    expect(await getRoom('nope', options)).toBeNull()
+    expect(await getRoomForEdit(id, options)).toMatchObject({ name: 'Učebna 2', capabilities: [] })
+    expect(await getRoomForEdit('nope', options)).toBeNull()
   })
 })
 
@@ -521,16 +631,18 @@ async function handComputed(externalId: string): Promise<Record<string, string>>
     where: { externalId },
     include: { completions: { include: { course: true } } },
   })
-  const requirements = await db.courseRequirement.findMany({ include: { course: true } })
+  const courses = await db.course.findMany({
+    include: { departmentRequirements: true, positionRequirements: true },
+  })
   const required = new Set(
-    requirements
+    courses
       .filter(
-        r =>
-          r.scope === 'ALL' ||
-          (r.scope === 'DEPARTMENT' && r.departmentId === employee.departmentId) ||
-          (r.scope === 'POSITION' && r.positionId === employee.positionId)
+        c =>
+          c.requiredForAll ||
+          c.departmentRequirements.some(r => r.departmentId === employee.departmentId) ||
+          c.positionRequirements.some(r => r.positionId === employee.positionId)
       )
-      .map(r => r.course.code)
+      .map(c => c.code)
   )
   const out: Record<string, string> = {}
   for (const code of required) {

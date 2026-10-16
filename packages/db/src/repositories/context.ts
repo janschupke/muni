@@ -8,6 +8,7 @@ import { loadPolicy, type SanitizePolicy } from '@muni/domain/sanitize'
 import { isoDateFromUtc, todayIn } from '@muni/utils/dates'
 
 import { getDb, type Db } from '../client'
+import { audienceSelect, mandatoryCourse, rulesOf } from './audience'
 
 let policy: SanitizePolicy | undefined
 
@@ -51,9 +52,7 @@ export async function loadCompliance(options?: RepoOptions): Promise<ComplianceS
       where: { status: { not: 'TERMINATED' } },
       select: { id: true, departmentId: true, positionId: true, status: true },
     }),
-    db.courseRequirement.findMany({
-      select: { courseId: true, scope: true, departmentId: true, positionId: true },
-    }),
+    db.course.findMany({ where: mandatoryCourse, select: { id: true, ...audienceSelect } }),
     db.courseCompletion.findMany({
       where: { employee: { status: { not: 'TERMINATED' } } },
       select: { employeeId: true, courseId: true, completedOn: true, validUntil: true },
@@ -62,7 +61,7 @@ export async function loadCompliance(options?: RepoOptions): Promise<ComplianceS
   const complianceOpts = complianceOptions(options?.asOf)
   const cells = computeCompliance(
     employees,
-    requirements,
+    requirements.flatMap(rulesOf),
     completions.map(c => ({
       employeeId: c.employeeId,
       courseId: c.courseId,

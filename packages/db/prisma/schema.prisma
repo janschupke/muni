@@ -14,10 +14,23 @@ enum EmploymentStatus {
   TERMINATED
 }
 
-enum RequirementScope {
-  ALL
-  DEPARTMENT
-  POSITION
+enum RoomKind {
+  CLASSROOM
+  LAB
+  ONLINE
+  EXTERNAL
+  OUTDOOR
+}
+
+/// What a room offers, and what a course needs from one.
+enum Capability {
+  PROJECTOR
+  COMPUTERS
+  LAB_EQUIPMENT
+  VEHICLE
+  PRACTICAL_AREA
+  VIDEO_CONFERENCE
+  WHEELCHAIR_ACCESS
 }
 
 enum SessionStatus {
@@ -26,47 +39,47 @@ enum SessionStatus {
 }
 
 model Department {
-  id           String              @id @default(cuid())
-  name         String              @unique
+  id           String                        @id @default(cuid())
+  name         String                        @unique
   employees    Employee[]
-  requirements CourseRequirement[]
+  requirements CourseDepartmentRequirement[]
 
   @@map("departments")
 }
 
 model Position {
-  id           String              @id @default(cuid())
-  name         String              @unique
+  id           String                      @id @default(cuid())
+  name         String                      @unique
   employees    Employee[]
-  requirements CourseRequirement[]
+  requirements CoursePositionRequirement[]
 
   @@map("positions")
 }
 
 model Employee {
-  id           String             @id @default(cuid())
+  id           String              @id @default(cuid())
   /// Source-system ID (E0001). Imports upsert on it.
-  externalId   String             @unique @map("external_id")
-  firstName    String             @map("first_name")
-  lastName     String             @map("last_name")
-  email        String?            @unique
+  externalId   String              @unique @map("external_id")
+  firstName    String              @map("first_name")
+  lastName     String              @map("last_name")
+  email        String?             @unique
   /// Rodné číslo. Sensitive: only ever leaves the server through the sanitisation policy.
-  nationalId   String?            @map("national_id")
-  departmentId String?            @map("department_id")
-  department   Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  positionId   String?            @map("position_id")
-  position     Position?          @relation(fields: [positionId], references: [id], onDelete: SetNull)
-  managerId    String?            @map("manager_id")
-  manager      Employee?          @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
-  reports      Employee[]         @relation("EmployeeManager")
-  hiredOn      DateTime           @map("hired_on") @db.Date
-  leftOn       DateTime?          @map("left_on") @db.Date
+  nationalId   String?             @map("national_id")
+  departmentId String?             @map("department_id")
+  department   Department?         @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  positionId   String?             @map("position_id")
+  position     Position?           @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  managerId    String?             @map("manager_id")
+  manager      Employee?           @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports      Employee[]          @relation("EmployeeManager")
+  hiredOn      DateTime            @map("hired_on") @db.Date
+  leftOn       DateTime?           @map("left_on") @db.Date
   status       EmploymentStatus
   note         String?
   completions  CourseCompletion[]
   assignments  SessionAssignment[]
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @updatedAt @map("updated_at")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
 
   @@index([departmentId])
   @@index([positionId])
@@ -75,33 +88,85 @@ model Employee {
 }
 
 model Course {
-  id             String              @id @default(cuid())
-  code           String              @unique
-  name           String
+  id                     String                        @id @default(cuid())
+  code                   String                        @unique
+  name                   String
   /// null = the course never expires.
-  validityMonths Int?                @map("validity_months")
-  requirements   CourseRequirement[]
-  sessions       CourseSession[]
-  completions    CourseCompletion[]
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
+  validityMonths         Int?                          @map("validity_months")
+  /// Everyone must hold it. Otherwise the department and position rows say who must;
+  /// no rows at all = an optional course.
+  requiredForAll         Boolean                       @default(false) @map("required_for_all")
+  departmentRequirements CourseDepartmentRequirement[]
+  positionRequirements   CoursePositionRequirement[]
+  /// What one session needs (the planner's input). null = not set yet.
+  sessionMinutes         Int?                          @map("session_minutes")
+  groupSize              Int?                          @map("group_size")
+  onlineAllowed          Boolean                       @default(false) @map("online_allowed")
+  capabilities           CourseCapability[]
+  sessions               CourseSession[]
+  completions            CourseCompletion[]
+  createdAt              DateTime                      @default(now()) @map("created_at")
+  updatedAt              DateTime                      @updatedAt @map("updated_at")
 
   @@map("courses")
 }
 
-/// Who must hold a course. No rows = optional course.
-model CourseRequirement {
-  id           String           @id @default(cuid())
-  courseId     String           @map("course_id")
-  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  scope        RequirementScope
-  departmentId String?          @map("department_id")
-  department   Department?      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  positionId   String?          @map("position_id")
-  position     Position?        @relation(fields: [positionId], references: [id], onDelete: Cascade)
+/// Everyone in the department must hold the course.
+model CourseDepartmentRequirement {
+  courseId     String     @map("course_id")
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  departmentId String     @map("department_id")
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
 
-  @@unique([courseId, scope, departmentId, positionId])
-  @@map("course_requirements")
+  @@id([courseId, departmentId])
+  @@index([departmentId])
+  @@map("course_department_requirements")
+}
+
+/// Everyone in the position must hold the course.
+model CoursePositionRequirement {
+  courseId   String   @map("course_id")
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  positionId String   @map("position_id")
+  position   Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, positionId])
+  @@index([positionId])
+  @@map("course_position_requirements")
+}
+
+/// A capability every room holding the course must have.
+model CourseCapability {
+  courseId   String     @map("course_id")
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  capability Capability
+
+  @@id([courseId, capability])
+  @@map("course_capabilities")
+}
+
+model Room {
+  id           String           @id @default(cuid())
+  name         String           @unique
+  kind         RoomKind
+  /// Seats. null = no fixed limit (e.g. an online room). CHECK (capacity >= 0) in the SQL.
+  capacity     Int?
+  note         String?
+  capabilities RoomCapability[]
+  sessions     CourseSession[]
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  @@map("rooms")
+}
+
+model RoomCapability {
+  roomId     String     @map("room_id")
+  room       Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  capability Capability
+
+  @@id([roomId, capability])
+  @@map("room_capabilities")
 }
 
 model Provider {
@@ -113,15 +178,16 @@ model Provider {
 }
 
 model CourseSession {
-  id             String        @id @default(cuid())
+  id              String              @id @default(cuid())
   /// Source-system ID (T001).
-  externalId     String        @unique @map("external_id")
-  courseId       String        @map("course_id")
-  course         Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  startsAt       DateTime      @map("starts_at") @db.Timestamptz(3)
-  endsAt         DateTime      @map("ends_at") @db.Timestamptz(3)
-  location       String
-  isOnline       Boolean       @default(false) @map("is_online")
+  externalId      String              @unique @map("external_id")
+  courseId        String              @map("course_id")
+  course          Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  startsAt        DateTime            @map("starts_at") @db.Timestamptz(3)
+  endsAt          DateTime            @map("ends_at") @db.Timestamptz(3)
+  /// Restrict: a room with sessions cannot be deleted.
+  roomId          String              @map("room_id")
+  room            Room                @relation(fields: [roomId], references: [id], onDelete: Restrict)
   /// CHECK (capacity >= 0) in the migration SQL; Prisma cannot model CHECK constraints.
   capacity        Int
   /// Seats booked without a name (from the source export). The booked total is derived:
@@ -135,6 +201,7 @@ model CourseSession {
 
   @@index([startsAt])
   @@index([courseId, startsAt])
+  @@index([roomId, startsAt])
   @@map("course_sessions")
 }
 

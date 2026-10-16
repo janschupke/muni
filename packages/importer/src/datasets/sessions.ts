@@ -5,6 +5,7 @@ import { fold } from '@muni/utils/text'
 
 import type { RowBuilder } from '../fields'
 import type { RowMapResult } from '../types'
+import { kindOfName } from './rooms'
 
 const STATUS_BY_FOLD: Record<string, SessionStatus> = {
   planovano: 'PLANNED',
@@ -13,8 +14,6 @@ const STATUS_BY_FOLD: Record<string, SessionStatus> = {
   cancelled: 'CANCELLED',
   canceled: 'CANCELLED',
 }
-
-const ONLINE_LOCATIONS = new Set(['online', 'on-line', 'webinar', 'e-learning'])
 
 function status(b: RowBuilder): SessionStatus | null {
   const raw = b.cell('status')
@@ -50,7 +49,7 @@ export function mapSession(b: RowBuilder): RowMapResult<SessionInput> {
     startTime: time?.start ?? null,
     endTime: time?.end ?? null,
     location,
-    isOnline: location !== null && ONLINE_LOCATIONS.has(fold(location)),
+    isOnline: location !== null && kindOfName(location) === 'ONLINE',
     capacity,
     bookedCount,
     pricePerPerson: b.price('price'),

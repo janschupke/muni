@@ -151,7 +151,7 @@ export default async function EmployeePage({ params }: Props) {
                                 }}
                               />
                               {' · '}
-                              <RoomLink location={b.location} />
+                              <RoomLink room={b.room} />
                             </>
                           }
                         />

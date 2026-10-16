@@ -1,6 +1,7 @@
 import { forecastEnd, type AdvisorInput, type AdvisorNeed } from '@muni/domain/advisor'
 
 import { dbOf, loadCompliance, type RepoOptions } from './context'
+import { roomRefSelect } from './sessions'
 
 /**
  * Everything the advisor needs, as plain data: every training that is non-compliant now or
@@ -37,7 +38,7 @@ export async function getAdvisorInput(
         unnamedBookings: true,
         pricePerPerson: true,
         status: true,
-        location: true,
+        room: { select: roomRefSelect },
         course: { select: { code: true, name: true } },
         assignments: { select: { employee: { select: { externalId: true } } } },
       },
@@ -76,7 +77,7 @@ export async function getAdvisorInput(
       externalId: s.externalId,
       courseCode: s.course.code,
       courseName: s.course.name,
-      location: s.location,
+      room: s.room,
       startsAt: s.startsAt.toISOString(),
       endsAt: s.endsAt.toISOString(),
       capacity: s.capacity,

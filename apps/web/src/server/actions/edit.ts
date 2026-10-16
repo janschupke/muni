@@ -17,7 +17,7 @@ import { addMonths } from '@muni/utils/dates'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { checkbox, fieldErrors, formError, number, text, type FormState } from '@/lib/form'
+import { checkbox, fieldErrors, formError, list, number, text, type FormState } from '@/lib/form'
 import { requireUser } from '@/server/auth'
 
 /** Prisma "record not found" (P2025) vs. anything else. */
@@ -37,6 +37,10 @@ export async function saveCourse(
   const input = {
     name: text(form, 'name'),
     validityMonths: number(form, 'validityMonths'),
+    sessionMinutes: number(form, 'sessionMinutes'),
+    groupSize: number(form, 'groupSize'),
+    onlineAllowed: checkbox(form, 'onlineAllowed'),
+    capabilities: list(form, 'capabilities'),
   }
   const parsed = courseEditSchema.safeParse(input)
   if (!parsed.success) return fieldErrors(parsed.error, input)
@@ -59,8 +63,7 @@ export async function saveSession(
     date: text(form, 'date'),
     startTime: text(form, 'startTime'),
     endTime: text(form, 'endTime'),
-    location: text(form, 'location'),
-    isOnline: checkbox(form, 'isOnline'),
+    roomId: text(form, 'roomId'),
     capacity: number(form, 'capacity'),
     unnamedBookings: number(form, 'unnamedBookings') ?? 0,
     pricePerPerson: number(form, 'pricePerPerson'),

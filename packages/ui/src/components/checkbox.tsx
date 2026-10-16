@@ -5,12 +5,13 @@ import { Checkbox as CheckboxPrimitive } from 'radix-ui'
 import { useId, type ReactNode } from 'react'
 
 /**
- * A labelled checkbox (Radix). Inside a form it posts `name=on` when checked, like a native
- * checkbox, and nothing when unchecked.
+ * A labelled checkbox (Radix). Inside a form it posts `name=value` (`on` by default) when
+ * checked, like a native checkbox, and nothing when unchecked.
  */
 export function Checkbox({
   label,
   name,
+  value,
   defaultChecked,
   checked,
   onCheckedChange,
@@ -18,6 +19,8 @@ export function Checkbox({
 }: {
   label: ReactNode
   name?: string
+  /** Posted when checked (default `on`); a group posts one value per checked box. */
+  value?: string
   defaultChecked?: boolean
   checked?: boolean
   onCheckedChange?: (checked: boolean) => void
@@ -29,6 +32,7 @@ export function Checkbox({
       <CheckboxPrimitive.Root
         id={id}
         name={name}
+        value={value}
         defaultChecked={defaultChecked}
         checked={checked}
         onCheckedChange={state => onCheckedChange?.(state === true)}

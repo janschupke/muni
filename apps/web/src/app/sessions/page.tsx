@@ -1,4 +1,4 @@
-import { listSessions } from '@muni/db/repositories'
+import { listRoomOptions, listSessions } from '@muni/db/repositories'
 import { EmptyState } from '@muni/ui/empty-state'
 import { LinkTab, LinkTabs } from '@muni/ui/nav'
 import { PageHeader } from '@muni/ui/page-header'
@@ -14,9 +14,15 @@ import { getViewer } from '@/server/auth'
 
 type Props = { searchParams: SearchParams }
 
+/** The room the list is filtered to, by its id in `?room=`. */
+async function roomOf(params: Awaited<SearchParams>) {
+  const id = param(params, 'room')
+  return id ? ((await listRoomOptions()).find(r => r.id === id) ?? null) : null
+}
+
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
-  const [t, location] = [await getTranslations('sessions'), param(await searchParams, 'location')]
-  return { title: location ? t('titleAt', { location }) : t('title') }
+  const [t, room] = await Promise.all([getTranslations('sessions'), roomOf(await searchParams)])
+  return { title: room ? t('titleAt', { location: room.name }) : t('title') }
 }
 
 const WINDOWS = ['upcoming', 'past'] as const
@@ -24,22 +30,26 @@ const WINDOWS = ['upcoming', 'past'] as const
 export default async function SessionsPage({ searchParams }: Props) {
   const params = await searchParams
   const window = param(params, 'when') === 'past' ? 'past' : 'upcoming'
-  const location = param(params, 'location')
+  const room = await roomOf(params)
   const [sessions, viewer, t] = await Promise.all([
-    listSessions({ window, location }),
+    listSessions({ window, room: room?.id }),
     getViewer(),
     getTranslations('sessions'),
   ])
   const href = (changes: Record<string, string | undefined>) =>
-    withParams('/sessions', { when: window === 'past' ? 'past' : undefined, location }, changes)
+    withParams(
+      '/sessions',
+      { when: window === 'past' ? 'past' : undefined, room: room?.id },
+      changes
+    )
   return (
     <>
       <PageHeader
-        title={location ? t('titleAt', { location }) : t('title')}
+        title={room ? t('titleAt', { location: room.name }) : t('title')}
         description={
-          location ? (
+          room ? (
             <TextLink asChild>
-              <Link href={href({ location: undefined })}>{t('allLocations')}</Link>
+              <Link href={href({ room: undefined })}>{t('allLocations')}</Link>
             </TextLink>
           ) : (
             t('description')

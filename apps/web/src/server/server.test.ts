@@ -2,7 +2,10 @@ import { auth } from '@clerk/nextjs/server'
 import {
   applyAssignments,
   createCompletion,
+  createRoom,
+  deleteRoom,
   getCourseForEdit,
+  updateRoom,
   moveSeats,
   removeAssignment,
   updateCourse,
@@ -22,6 +25,7 @@ import {
   requestHeaders,
   responseCookies,
 } from '@/test/next'
+import { courseForEdit } from '@/test/fixtures'
 
 import {
   applyAssignmentsAction,
@@ -29,6 +33,7 @@ import {
   removeAssignmentAction,
 } from './actions/assignments'
 import { recordCompletion, saveCourse, saveEmployee, saveSession } from './actions/edit'
+import { removeRoom, saveRoom } from './actions/rooms'
 import { setLocale } from './actions/locale'
 import { getViewer, requirePageUser, requireUser } from './auth'
 
@@ -45,6 +50,9 @@ vi.mock('@clerk/nextjs/server', () => ({
 vi.mock('@muni/db/repositories', () => ({
   applyAssignments: vi.fn(),
   createCompletion: vi.fn(),
+  createRoom: vi.fn(),
+  deleteRoom: vi.fn(),
+  updateRoom: vi.fn(),
   getCourseForEdit: vi.fn(),
   moveSeats: vi.fn(),
   removeAssignment: vi.fn(),
@@ -110,7 +118,14 @@ describe('edit actions', () => {
     expect(
       await redirectOf(saveCourse('BOZP-Z', idle, form({ name: 'BOZP', validityMonths: '24' })))
     ).toBe('/courses/BOZP-Z')
-    expect(updateCourse).toHaveBeenCalledWith('BOZP-Z', { name: 'BOZP', validityMonths: 24 })
+    expect(updateCourse).toHaveBeenCalledWith('BOZP-Z', {
+      name: 'BOZP',
+      validityMonths: 24,
+      sessionMinutes: null,
+      groupSize: null,
+      onlineAllowed: false,
+      capabilities: [],
+    })
     expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
   })
 
@@ -146,8 +161,7 @@ describe('edit actions', () => {
     date: '2026-11-04',
     startTime: '08:00',
     endTime: '11:00',
-    location: 'Aula A',
-    isOnline: 'on',
+    roomId: 'room_aula_a',
     capacity: '30',
     pricePerPerson: '450,50',
     status: 'PLANNED',
@@ -158,7 +172,7 @@ describe('edit actions', () => {
     expect(await redirectOf(saveSession('T016', idle, form(sessionForm)))).toBe('/courses/BOZP-Z')
     expect(updateSession).toHaveBeenCalledWith(
       'T016',
-      expect.objectContaining({ isOnline: true, unnamedBookings: 0, pricePerPerson: 450.5 })
+      expect.objectContaining({ roomId: 'room_aula_a', unnamedBookings: 0, pricePerPerson: 450.5 })
     )
     expect(
       await saveSession('T016', idle, form({ ...sessionForm, endTime: '07:00' }))
@@ -197,11 +211,7 @@ describe('edit actions', () => {
   const completionForm = { courseCode: 'BOZP-Z', completedOn: '2026-10-01' }
 
   it('derive the validity from the course, on the server', async () => {
-    vi.mocked(getCourseForEdit).mockResolvedValue({
-      code: 'BOZP-Z',
-      name: 'BOZP',
-      validityMonths: 24,
-    })
+    vi.mocked(getCourseForEdit).mockResolvedValue(courseForEdit())
     expect(await redirectOf(recordCompletion('E0153', idle, form(completionForm)))).toBe(
       '/employees/E0153'
     )
@@ -217,11 +227,9 @@ describe('edit actions', () => {
       'E0153',
       expect.objectContaining({ validUntil: '2027-01-01' })
     )
-    vi.mocked(getCourseForEdit).mockResolvedValue({
-      code: 'LEAD',
-      name: 'LEAD',
-      validityMonths: null,
-    })
+    vi.mocked(getCourseForEdit).mockResolvedValue(
+      courseForEdit({ code: 'LEAD', name: 'LEAD', validityMonths: null })
+    )
     await redirectOf(
       recordCompletion('E0153', idle, form({ ...completionForm, courseCode: 'LEAD' }))
     )
@@ -240,11 +248,7 @@ describe('edit actions', () => {
     expect(
       await recordCompletion('E0153', idle, form({ ...completionForm, validUntil: '2020-01-01' }))
     ).toMatchObject({ fieldErrors: { validUntil: 'before_completed' } })
-    vi.mocked(getCourseForEdit).mockResolvedValue({
-      code: 'BOZP-Z',
-      name: 'BOZP',
-      validityMonths: 24,
-    })
+    vi.mocked(getCourseForEdit).mockResolvedValue(courseForEdit())
     vi.mocked(createCompletion).mockRejectedValueOnce({ code: 'P2025' })
     expect(await recordCompletion('E9999', idle, form(completionForm))).toMatchObject({
       formError: 'not_found',
@@ -378,5 +382,69 @@ describe('proxy', () => {
     const response = (passThrough as () => Response)()
     expect(response.headers.get('x-middleware-next')).toBe('1')
     expect(config.matcher).toHaveLength(2)
+  })
+})
+
+describe('room actions', () => {
+  const roomForm = {
+    name: 'Laboratoř 4',
+    kind: 'LAB',
+    capacity: '16',
+    note: '',
+  }
+  const withEquipment = () => {
+    const data = form(roomForm)
+    data.append('capabilities', 'LAB_EQUIPMENT')
+    data.append('capabilities', 'PROJECTOR')
+    return data
+  }
+
+  it('create a room or save one, then show it', async () => {
+    vi.mocked(createRoom).mockResolvedValue({ id: 'room_new' })
+    expect(await redirectOf(saveRoom(null, idle, withEquipment()))).toBe('/rooms/room_new')
+    expect(createRoom).toHaveBeenCalledWith({
+      name: 'Laboratoř 4',
+      kind: 'LAB',
+      capacity: 16,
+      capabilities: ['LAB_EQUIPMENT', 'PROJECTOR'],
+      note: null,
+    })
+    vi.mocked(updateRoom).mockResolvedValue({ id: 'room_lab' })
+    expect(await redirectOf(saveRoom('room_lab', idle, form(roomForm)))).toBe('/rooms/room_lab')
+    expect(updateRoom).toHaveBeenCalledWith(
+      'room_lab',
+      expect.objectContaining({ capabilities: [] })
+    )
+    expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
+  })
+
+  it('name what is wrong: a missing name, a name in use, a room that is gone', async () => {
+    expect(await saveRoom(null, idle, form({ ...roomForm, name: '' }))).toMatchObject({
+      fieldErrors: { name: 'required' },
+    })
+    vi.mocked(createRoom).mockRejectedValueOnce({ code: 'P2002' })
+    expect(await saveRoom(null, idle, form(roomForm))).toEqual({
+      status: 'error',
+      fieldErrors: { name: 'taken' },
+    })
+    vi.mocked(updateRoom).mockRejectedValueOnce({ code: 'P2025' })
+    expect(await saveRoom('gone', idle, form(roomForm))).toMatchObject({ formError: 'not_found' })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(updateRoom).mockRejectedValueOnce(new Error('down'))
+    expect(await saveRoom('room_lab', idle, form(roomForm))).toMatchObject({ formError: 'generic' })
+  })
+
+  it('delete a room only while nothing is held there', async () => {
+    vi.mocked(deleteRoom).mockResolvedValueOnce('IN_USE')
+    expect(await removeRoom('room_aula_a', idle)).toMatchObject({ formError: 'in_use' })
+    vi.mocked(deleteRoom).mockResolvedValueOnce('DELETED')
+    expect(await redirectOf(removeRoom('room_new', idle))).toBe('/rooms')
+    vi.mocked(deleteRoom).mockRejectedValueOnce({ code: 'P2025' })
+    expect(await removeRoom('gone', idle)).toMatchObject({ formError: 'not_found' })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(deleteRoom).mockRejectedValueOnce(new Error('down'))
+    expect(await removeRoom('room_new', idle)).toMatchObject({ formError: 'generic' })
+    signedIn(null)
+    await expect(removeRoom('room_new', idle)).rejects.toMatchObject({ name: 'UnauthorizedError' })
   })
 })

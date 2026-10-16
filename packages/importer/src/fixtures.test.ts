@@ -165,6 +165,10 @@ describe('sessions', () => {
       isValid: true,
       warnings: [{ code: 'DUPLICATE_SLOT' }],
     })
+    // No rooms file: each place becomes a room, announced on its first session.
+    expect(byId(batch.sessions, 'T001').warnings).toMatchObject([
+      { code: 'ROOM_DERIVED', params: { value: 'Aula A' } },
+    ])
     expect(byId(batch.sessions, 'T016').warnings).toMatchObject([{ code: 'OVERBOOKED' }])
     expect(byId(batch.sessions, 'T026').warnings).toMatchObject([{ code: 'ZERO_CAPACITY' }])
   })
@@ -268,7 +272,9 @@ describe('regression baseline', () => {
       total: 34,
       valid: 32,
       invalid: 2,
-      warnings: 4,
+      // Seven of the eight places get a room created from their first session (one first
+      // session already carries another warning).
+      warnings: 11,
       removed: 0,
     })
     expect(summarize(batch.completions ?? [])).toEqual({

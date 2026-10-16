@@ -29,4 +29,4 @@ export {
 export { validateBatch } from './validate'
 
 /** Commit order: each dataset may reference the ones before it. */
-export const COMMIT_ORDER = ['courses', 'employees', 'sessions', 'completions'] as const
+export const COMMIT_ORDER = ['rooms', 'courses', 'employees', 'sessions', 'completions'] as const

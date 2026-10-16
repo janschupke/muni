@@ -84,7 +84,7 @@ function RemediationCell({ item }: { item: PlanItem }) {
           {item.booked === null && `${t('columns.proposal')}: `}
           <SessionDateLink session={session} />
           {' · '}
-          <RoomLink location={session.location} />
+          <RoomLink room={session.room} />
         </span>
       ) : (
         item.proposal?.kind === 'NONE' && (

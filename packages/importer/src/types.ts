@@ -2,15 +2,17 @@ import type {
   CompletionInput,
   CourseInput,
   EmployeeInput,
+  RoomInput,
   SessionInput,
 } from '@muni/domain/schemas'
 
 import type { IssueCode } from './issues'
 
-export const DATASET_KINDS = ['courses', 'employees', 'sessions', 'completions'] as const
+export const DATASET_KINDS = ['rooms', 'courses', 'employees', 'sessions', 'completions'] as const
 export type DatasetKind = (typeof DATASET_KINDS)[number]
 
 export interface DatasetRecord {
+  rooms: RoomInput
   courses: CourseInput
   employees: EmployeeInput
   sessions: SessionInput
@@ -84,6 +86,7 @@ export interface ReferenceSnapshot {
   departments: string[]
   positions: string[]
   providers: string[]
+  rooms: string[]
 }
 
 export const EMPTY_REFERENCE: ReferenceSnapshot = {
@@ -92,6 +95,7 @@ export const EMPTY_REFERENCE: ReferenceSnapshot = {
   departments: [],
   positions: [],
   providers: [],
+  rooms: [],
 }
 
 export interface ValidationSummary {

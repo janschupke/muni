@@ -2,10 +2,12 @@ import {
   completionSchema,
   courseSchema,
   employeeSchema,
+  roomSchema,
   sessionSchema,
   type CompletionInput,
   type CourseInput,
   type EmployeeInput,
+  type RoomInput,
   type SessionInput,
 } from '@muni/domain/schemas'
 import type { DatasetKind, DatasetRecord } from '@muni/importer'
@@ -31,6 +33,7 @@ export interface CommitResult {
  * with the domain schema and its free text re-sanitised before anything is written.
  */
 const SCHEMAS = {
+  rooms: roomSchema,
   courses: courseSchema,
   employees: employeeSchema,
   sessions: sessionSchema,
@@ -89,6 +92,35 @@ async function partition<T>(
   return { fresh, existing }
 }
 
+async function writeRooms(tx: Tx, records: RoomInput[]): Promise<CommitResult> {
+  let created = 0
+  let updated = 0
+  for (const record of records) {
+    const data = {
+      kind: record.kind,
+      capacity: record.capacity,
+      note: cleanFreeText(record.note),
+    }
+    const existing = await tx.room.findUnique({
+      where: { name: record.name },
+      select: { id: true },
+    })
+    const room = await tx.room.upsert({
+      where: { name: record.name },
+      create: { name: record.name, ...data },
+      update: data,
+      select: { id: true },
+    })
+    if (existing) updated++
+    else created++
+    await tx.roomCapability.deleteMany({ where: { roomId: room.id } })
+    await tx.roomCapability.createMany({
+      data: record.capabilities.map(capability => ({ roomId: room.id, capability })),
+    })
+  }
+  return { created, updated }
+}
+
 async function writeCourses(tx: Tx, records: CourseInput[]): Promise<CommitResult> {
   const departments = await upsertNames(
     tx,
@@ -109,22 +141,38 @@ async function writeCourses(tx: Tx, records: CourseInput[]): Promise<CommitResul
       where: { code: record.code },
       select: { id: true },
     })
+    // The catalog says who must hold the course; what a session needs is set in the app
+    // (or derived from sessions) and never touched by an import.
+    const audience = {
+      name: record.name,
+      validityMonths: record.validityMonths,
+      requiredForAll: record.requirements.some(q => q.scope === 'ALL'),
+    }
     const course = await tx.course.upsert({
       where: { code: record.code },
-      create: { code: record.code, name: record.name, validityMonths: record.validityMonths },
-      update: { name: record.name, validityMonths: record.validityMonths },
+      create: { code: record.code, ...audience },
+      update: audience,
       select: { id: true },
     })
     if (existing) updated++
     else created++
-    await tx.courseRequirement.deleteMany({ where: { courseId: course.id } })
-    await tx.courseRequirement.createMany({
-      data: record.requirements.map(q => ({
-        courseId: course.id,
-        scope: q.scope,
-        departmentId: q.scope === 'DEPARTMENT' ? (departments.get(q.department) ?? null) : null,
-        positionId: q.scope === 'POSITION' ? (positions.get(q.position) ?? null) : null,
-      })),
+    await tx.courseDepartmentRequirement.deleteMany({ where: { courseId: course.id } })
+    await tx.courseDepartmentRequirement.createMany({
+      data: record.requirements.flatMap(q =>
+        q.scope === 'DEPARTMENT'
+          ? [{ courseId: course.id, departmentId: lookup(departments, q.department, 'department') }]
+          : []
+      ),
+      skipDuplicates: true,
+    })
+    await tx.coursePositionRequirement.deleteMany({ where: { courseId: course.id } })
+    await tx.coursePositionRequirement.createMany({
+      data: record.requirements.flatMap(q =>
+        q.scope === 'POSITION'
+          ? [{ courseId: course.id, positionId: lookup(positions, q.position, 'position') }]
+          : []
+      ),
+      skipDuplicates: true,
     })
   }
   return { created, updated }
@@ -210,11 +258,79 @@ function lookup<T>(map: Map<string, T>, key: string, what: string): T {
   return value
 }
 
+/**
+ * The room of each session, by name. A place no rooms file listed becomes a room: online by
+ * its name, otherwise a classroom, seating the largest session held there in this chunk.
+ */
+async function resolveRooms(tx: Tx, records: SessionInput[]): Promise<Map<string, string>> {
+  const names = [...new Set(records.map(r => r.location))]
+  const existing = await tx.room.findMany({
+    where: { name: { in: names } },
+    select: { id: true, name: true },
+  })
+  const ids = new Map(existing.map(r => [r.name, r.id]))
+  for (const name of names) {
+    if (ids.has(name)) continue
+    const held = records.filter(r => r.location === name)
+    const room = await tx.room.create({
+      data: {
+        name,
+        kind: held.some(r => r.isOnline) ? 'ONLINE' : 'CLASSROOM',
+        capacity: Math.max(...held.map(r => r.capacity)),
+      },
+      select: { id: true },
+    })
+    ids.set(name, room.id)
+  }
+  return ids
+}
+
+/**
+ * Fills in what a session of each course needs from the sessions held so far, for courses
+ * where nobody has set it: the usual length, the median group size, online if ever held
+ * online. A course already configured is left alone.
+ */
+async function deriveSessionNeeds(tx: Tx, courseIdList: string[]): Promise<void> {
+  const courses = await tx.course.findMany({
+    where: { id: { in: courseIdList }, sessionMinutes: null },
+    select: {
+      id: true,
+      sessions: {
+        where: { status: 'PLANNED', capacity: { gt: 0 } },
+        select: { startsAt: true, endsAt: true, capacity: true, room: { select: { kind: true } } },
+      },
+    },
+  })
+  for (const course of courses) {
+    if (course.sessions.length === 0) continue
+    const minutes = course.sessions.map(s =>
+      Math.round((s.endsAt.getTime() - s.startsAt.getTime()) / 60_000)
+    )
+    const sizes = course.sessions.map(s => s.capacity).sort((a, b) => a - b)
+    await tx.course.update({
+      where: { id: course.id },
+      data: {
+        sessionMinutes: mostCommon(minutes),
+        groupSize: sizes[Math.floor((sizes.length - 1) / 2)] ?? null,
+        onlineAllowed: course.sessions.some(s => s.room.kind === 'ONLINE'),
+      },
+    })
+  }
+}
+
+/** The most frequent value; the smallest one on a tie. */
+function mostCommon(values: number[]): number {
+  const counts = new Map<number, number>()
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1)
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 0
+}
+
 async function writeSessions(tx: Tx, records: SessionInput[]): Promise<CommitResult> {
   const courses = await courseIds(
     tx,
     records.map(r => r.courseCode)
   )
+  const rooms = await resolveRooms(tx, records)
   // The export's booked count is the session's total. Named bookings (assignments) are part of
   // it, so only the remainder is stored as unnamed seats; a total below the named count keeps
   // the named bookings and stores no unnamed ones.
@@ -222,8 +338,7 @@ async function writeSessions(tx: Tx, records: SessionInput[]): Promise<CommitRes
     courseId: lookup(courses, r.courseCode, 'course'),
     startsAt: zonedTimeToUtc(r.date, r.startTime),
     endsAt: zonedTimeToUtc(r.date, r.endTime),
-    location: r.location,
-    isOnline: r.isOnline,
+    roomId: lookup(rooms, r.location, 'room'),
     capacity: r.capacity,
     unnamedBookings: Math.max(0, r.bookedCount - assigned),
     pricePerPerson: r.pricePerPerson,
@@ -252,6 +367,7 @@ async function writeSessions(tx: Tx, records: SessionInput[]): Promise<CommitRes
       where: { id },
       data: toData(record, assignedBySession.get(id) ?? 0),
     })
+  await deriveSessionNeeds(tx, [...courses.values()])
   return { created: fresh.length, updated: existing.length }
 }
 
@@ -317,6 +433,8 @@ export async function commitChunk(
   const records = revalidate(kind, untrusted)
   return db.$transaction(async tx => {
     switch (kind) {
+      case 'rooms':
+        return writeRooms(tx, records as RoomInput[])
       case 'courses':
         return writeCourses(tx, records as CourseInput[])
       case 'employees': {

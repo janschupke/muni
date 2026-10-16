@@ -5,7 +5,7 @@ import * as z from 'zod'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { fieldErrors, type FormState } from '@/lib/form'
-import { session } from '@/test/fixtures'
+import { ONLINE, session } from '@/test/fixtures'
 import { route, router } from '@/test/next'
 import { renderClient } from '@/test/render'
 
@@ -42,10 +42,31 @@ describe('forms', () => {
       <CourseForm
         action={action}
         cancelHref="/courses/BOZP-Z"
-        defaults={{ name: 'BOZP', validityMonths: null }}
+        defaults={{
+          name: 'BOZP',
+          validityMonths: null,
+          sessionMinutes: 180,
+          groupSize: null,
+          onlineAllowed: true,
+          capabilities: ['PROJECTOR'],
+        }}
       />
     )
     expect(screen.getByRole('textbox', { name: 'Valid for (months)' })).toHaveProperty('value', '')
+    // What a session of the course needs: online allowed, one capability ticked.
+    expect(
+      screen.getByRole('checkbox', { name: 'Can be held online' }).getAttribute('aria-checked')
+    ).toBe('true')
+    expect(screen.getByRole('checkbox', { name: 'Projector' }).getAttribute('aria-checked')).toBe(
+      'true'
+    )
+    expect(screen.getByRole('checkbox', { name: 'Computers' }).getAttribute('aria-checked')).toBe(
+      'false'
+    )
+    expect(screen.getByRole('textbox', { name: 'Session length (minutes)' })).toHaveProperty(
+      'value',
+      '180'
+    )
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByRole('button', { name: 'Saving…' })).toHaveProperty('disabled', true)
     act(() => {
@@ -83,12 +104,15 @@ describe('forms', () => {
         <SessionForm
           action={action}
           cancelHref="/courses/BOZP-Z"
+          rooms={[
+            { id: 'room_aula_a', name: 'Aula A' },
+            { id: 'room_online', name: 'Online' },
+          ]}
           defaults={{
             date: '2026-11-04',
             startTime: '08:00',
             endTime: '11:00',
-            location: 'Aula A',
-            isOnline: true,
+            roomId: 'room_online',
             capacity: 30,
             unnamedBookings: 29,
             assignedCount: 1,
@@ -107,9 +131,7 @@ describe('forms', () => {
     )
     expect(screen.getByRole('textbox', { name: 'Email' })).toHaveProperty('value', '')
     expect(screen.getByLabelText('Left')).toHaveProperty('value', '')
-    expect(
-      screen.getByRole('checkbox', { name: 'Online session' }).getAttribute('aria-checked')
-    ).toBe('true')
+    expect(screen.getByRole('combobox', { name: /Room/ }).textContent).toContain('Online')
     expect(screen.getByText('Plus 1 person booked by name.')).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'Price per person (CZK)' })).toHaveProperty(
       'value',
@@ -349,7 +371,7 @@ describe('tables', () => {
       <SessionTable
         sessions={[
           session(),
-          session({ externalId: 'T020', location: 'Online', capacity: 0, bookedCount: 0 }),
+          session({ externalId: 'T020', room: ONLINE, capacity: 0, bookedCount: 0 }),
         ]}
         canEdit={false}
       />

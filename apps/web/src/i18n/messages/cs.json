@@ -46,7 +46,8 @@
       "cs": "Čeština",
       "en": "English"
     },
-    "advisor": "Poradce"
+    "advisor": "Poradce",
+    "rooms": "Místnosti"
   },
   "status": {
     "employment": {
@@ -70,7 +71,23 @@
       "POSITION": "Pozice: {target}"
     },
     "optional": "Nepovinné",
-    "nothingRequired": "Nic povinného"
+    "nothingRequired": "Nic povinného",
+    "capability": {
+      "PROJECTOR": "Projektor",
+      "COMPUTERS": "Počítače",
+      "LAB_EQUIPMENT": "Laboratorní vybavení",
+      "VEHICLE": "Vozidlo",
+      "PRACTICAL_AREA": "Cvičná plocha",
+      "VIDEO_CONFERENCE": "Videokonference",
+      "WHEELCHAIR_ACCESS": "Bezbariérový přístup"
+    },
+    "roomKind": {
+      "CLASSROOM": "Učebna",
+      "LAB": "Laboratoř",
+      "ONLINE": "Online",
+      "EXTERNAL": "Externí",
+      "OUTDOOR": "Venkovní"
+    }
   },
   "dashboard": {
     "title": "Přehled",
@@ -266,25 +283,32 @@
       "before_hired": "Datum ukončení nemůže být před nástupem.",
       "before_completed": "Platnost nemůže skončit před datem absolvování.",
       "not_found": "Záznam už neexistuje.",
-      "generic": "Uložení se nepovedlo. Zkuste to znovu."
+      "generic": "Uložení se nepovedlo. Zkuste to znovu.",
+      "in_use": "Místnost má termíny, proto ji nelze smazat.",
+      "taken": "Tento název už se používá."
     },
     "course": {
       "title": "Upravit kurz {code}",
       "name": "Název",
       "validityMonths": "Platnost (měsíce)",
-      "validityHelp": "Nechte prázdné, pokud kurz nevyprší."
+      "validityHelp": "Nechte prázdné, pokud kurz nevyprší.",
+      "sessionNeeds": "Co potřebuje termín",
+      "sessionNeedsHelp": "Plánovač termínů podle toho určuje velikost termínů a vybírá místnosti. Dokud to zde nenastavíte, odvozuje se z dosavadních termínů.",
+      "sessionMinutes": "Délka termínu (minuty)",
+      "groupSize": "Velikost skupiny",
+      "onlineAllowed": "Lze konat online",
+      "capabilities": "Místnost musí mít"
     },
     "session": {
       "date": "Datum",
       "startTime": "Začátek",
       "endTime": "Konec",
-      "location": "Místo",
-      "isOnline": "Online termín",
       "capacity": "Kapacita",
       "pricePerPerson": "Cena za osobu (Kč)",
       "status": "Stav",
       "unnamedBookings": "Další obsazená místa (bez jména)",
-      "unnamedHelp": "{count, plural, =0 {Nikdo není přihlášen jménem.} one {A # osoba přihlášená jménem.} few {A # osoby přihlášené jménem.} other {A # osob přihlášených jménem.}}"
+      "unnamedHelp": "{count, plural, =0 {Nikdo není přihlášen jménem.} one {A # osoba přihlášená jménem.} few {A # osoby přihlášené jménem.} other {A # osob přihlášených jménem.}}",
+      "room": "Místnost"
     },
     "employee": {
       "title": "Upravit: {name}",
@@ -319,6 +343,7 @@
       "done": "Import"
     },
     "kinds": {
+      "rooms": "Místnosti",
       "courses": "Kurzy",
       "employees": "Zaměstnanci",
       "sessions": "Termíny",
@@ -406,7 +431,9 @@
       "employeeName": "Zaměstnanec",
       "completedOn": "Absolvováno",
       "validUntil": "Platí do",
-      "provider": "Poskytovatel"
+      "provider": "Poskytovatel",
+      "kind": "Typ",
+      "capabilities": "Vybavení"
     },
     "issues": {
       "SUMMARY_ROW": "Součtový řádek, nejde o záznam.",
@@ -450,7 +477,8 @@
       "DUPLICATE_SLOT": "Stejný kurz, čas a místo jako {otherId}.",
       "OVERBOOKED": "Obsazeno {booked} míst z {capacity}.",
       "ZERO_CAPACITY": "Kapacita je 0.",
-      "FUTURE_COMPLETION": "Datum absolvování {value} je v budoucnosti."
+      "FUTURE_COMPLETION": "Datum absolvování {value} je v budoucnosti.",
+      "ROOM_DERIVED": "Místnost „{value}“ není v seznamu; vytvoří se podle termínů, které se v ní konají."
     }
   },
   "errors": {
@@ -597,6 +625,55 @@
         "NOT_REQUIRED": "školení pro tuto osobu není povinné",
         "NOT_NEEDED": "školení je už platné"
       }
+    }
+  },
+  "rooms": {
+    "title": "Místnosti",
+    "description": "Kde se termíny konají, co která místnost nabízí a jak je obsazená.",
+    "new": "Nová místnost",
+    "empty": "Zatím žádné místnosti.",
+    "columns": {
+      "name": "Místnost",
+      "kind": "Typ",
+      "capacity": "Místa",
+      "capabilities": "Vybavení",
+      "upcoming": "Nadcházející termíny",
+      "utilisation": "Obsazenost, příštích 30 dní"
+    },
+    "unlimited": "Bez omezení",
+    "noCapabilities": "Bez uvedeného vybavení",
+    "utilisationOf": "{share} pracovní doby",
+    "detail": {
+      "facts": "Místnost",
+      "kind": "Typ",
+      "capacity": "Místa",
+      "capabilities": "Vybavení",
+      "note": "Poznámka",
+      "utilisation": "Obsazenost v příštích 30 dnech",
+      "upcoming": "Nadcházející termíny",
+      "noUpcoming": "Nic tu není naplánováno.",
+      "past": "{count, plural, =0 {Žádné proběhlé termíny} one {# proběhlý termín} few {# proběhlé termíny} other {# proběhlých termínů}}",
+      "courses": "Kurzy",
+      "coursesDescription": "Zda se sem vejde termín každého kurzu podle toho, co kurz potřebuje.",
+      "fits": "Vyhovuje",
+      "noCourses": "Žádný kurz zatím nemá nastavené, co termín potřebuje.",
+      "mismatch": {
+        "ONLINE_NOT_ALLOWED": "Nekoná se online",
+        "TOO_SMALL": "Jen {capacity} míst",
+        "MISSING_CAPABILITIES": "Chybí {missing}"
+      }
+    },
+    "form": {
+      "newTitle": "Nová místnost",
+      "editTitle": "Upravit {name}",
+      "name": "Název",
+      "kind": "Typ",
+      "capacity": "Místa",
+      "capacityHelp": "Nechte prázdné, pokud počet míst není omezený (online).",
+      "capabilities": "Vybavení",
+      "note": "Poznámka",
+      "delete": "Smazat místnost",
+      "deleteHint": "Místnost lze smazat, jen dokud ji nepoužívá žádný termín."
     }
   }
 }

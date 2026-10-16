@@ -81,7 +81,7 @@ export default async function SessionPage({ params }: Props) {
                   {formatTimeRange(session.startsAt, session.endsAt, locale)}
                 </DescriptionItem>
                 <DescriptionItem label={t('detail.location')}>
-                  <RoomLink location={session.location} isOnline={session.isOnline} />
+                  <RoomLink room={session.room} />
                 </DescriptionItem>
                 <DescriptionItem label={t('detail.status')}>
                   <SessionStatusBadge status={session.status} />

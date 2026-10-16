@@ -1,11 +1,17 @@
+import type { RoomRef } from '@muni/domain/rooms'
+
 import type { SessionListItem } from './courses'
 import { dbOf, type RepoOptions } from './context'
+
+/** Select this to read a session's room as a `RoomRef`. */
+export const roomRefSelect = { id: true, name: true, kind: true } as const
 
 export type SessionWindow = 'upcoming' | 'past'
 
 /** What every session read selects: the course and the named bookings. */
 export const sessionInclude = {
   course: { select: { code: true, name: true } },
+  room: { select: roomRefSelect },
   assignments: {
     select: { employee: { select: { externalId: true, firstName: true, lastName: true } } },
     orderBy: { createdAt: 'asc' },
@@ -16,8 +22,7 @@ type SessionRow = {
   externalId: string
   startsAt: Date
   endsAt: Date
-  location: string
-  isOnline: boolean
+  room: RoomRef
   capacity: number
   unnamedBookings: number
   pricePerPerson: { toString(): string } | null
@@ -34,8 +39,7 @@ export function toSessionItem(s: SessionRow): SessionListItem {
     courseName: s.course.name,
     startsAt: s.startsAt.toISOString(),
     endsAt: s.endsAt.toISOString(),
-    location: s.location,
-    isOnline: s.isOnline,
+    room: s.room,
     capacity: s.capacity,
     unnamedBookings: s.unnamedBookings,
     assigned: s.assignments.map(a => ({
@@ -52,9 +56,9 @@ export async function listSessions(
   {
     window = 'upcoming',
     course,
-    location,
+    room,
     limit,
-  }: { window?: SessionWindow; course?: string; location?: string; limit?: number } = {},
+  }: { window?: SessionWindow; course?: string; room?: string; limit?: number } = {},
   options?: RepoOptions
 ): Promise<SessionListItem[]> {
   const now = new Date()
@@ -62,7 +66,7 @@ export async function listSessions(
     where: {
       ...(window === 'upcoming' ? { endsAt: { gte: now } } : { endsAt: { lt: now } }),
       ...(course && { course: { code: course } }),
-      ...(location && { location }),
+      ...(room && { roomId: room }),
     },
     include: sessionInclude,
     orderBy: { startsAt: window === 'upcoming' ? 'asc' : 'desc' },

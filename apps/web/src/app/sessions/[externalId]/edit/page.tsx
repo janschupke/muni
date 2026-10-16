@@ -1,4 +1,4 @@
-import { getSession } from '@muni/db/repositories'
+import { getSession, listRoomOptions } from '@muni/db/repositories'
 import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { PageHeader } from '@muni/ui/page-header'
@@ -22,7 +22,11 @@ export default async function EditSessionPage({
 }) {
   await requirePageUser()
   const { externalId } = await params
-  const [session, t] = await Promise.all([getSession(externalId), getTranslations('sessions')])
+  const [session, rooms, t] = await Promise.all([
+    getSession(externalId),
+    listRoomOptions(),
+    getTranslations('sessions'),
+  ])
   if (!session) notFound()
   const start = toZonedParts(session.startsAt)
   const end = toZonedParts(session.endsAt)
@@ -40,12 +44,12 @@ export default async function EditSessionPage({
       <SessionForm
         action={saveSession.bind(null, externalId)}
         cancelHref={`/courses/${session.courseCode}`}
+        rooms={rooms}
         defaults={{
           date: start.date,
           startTime: start.time,
           endTime: end.time,
-          location: session.location,
-          isOnline: session.isOnline,
+          roomId: session.room.id,
           capacity: session.capacity,
           unnamedBookings: session.unnamedBookings,
           assignedCount: session.assigned.length,

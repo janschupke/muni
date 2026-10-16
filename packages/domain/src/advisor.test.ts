@@ -19,7 +19,7 @@ function session(courseCode: string, date: string, extra: Partial<AdvisorSession
     externalId: id,
     courseCode,
     courseName: `Course ${courseCode}`,
-    location: 'Aula A',
+    room: { id: 'room_aula_a', name: 'Aula A', kind: 'CLASSROOM' },
     // 09:00–12:00 Prague (UTC+2 until 25 Oct, +1 after) — the exact hour only matters for clashes.
     startsAt: `${date}T07:00:00.000Z`,
     endsAt: `${date}T10:00:00.000Z`,

@@ -10,7 +10,8 @@
     "./schemas": "./src/schemas.ts",
     "./compliance": "./src/compliance.ts",
     "./sanitize": "./src/sanitize/policy.ts",
-    "./sessions": "./src/sessions.ts"
+    "./sessions": "./src/sessions.ts",
+    "./rooms": "./src/rooms.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

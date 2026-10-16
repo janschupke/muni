@@ -5,6 +5,7 @@ import { ThemeToggle } from '@muni/ui/theme/theme-toggle'
 import {
   BookOpen,
   CalendarDays,
+  DoorOpen,
   GraduationCap,
   Grid3x3,
   LayoutDashboard,
@@ -29,6 +30,7 @@ export async function AppHeader({ viewer }: { viewer: Viewer }) {
     { href: '/employees', label: t('nav.employees'), Icon: Users },
     { href: '/courses', label: t('nav.courses'), Icon: BookOpen },
     { href: '/sessions', label: t('nav.sessions'), Icon: CalendarDays },
+    { href: '/rooms', label: t('nav.rooms'), Icon: DoorOpen },
     { href: '/compliance', label: t('nav.compliance'), Icon: Grid3x3 },
     { href: '/advisor', label: t('nav.advisor'), Icon: Lightbulb },
     ...(viewer === 'authenticated'

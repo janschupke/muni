@@ -1,5 +1,6 @@
 'use client'
 
+import type { RoomRef } from '@muni/domain/rooms'
 import type { PlanItem } from '@muni/domain/advisor'
 import { createDataColumns } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
@@ -77,12 +78,12 @@ export function usePlanColumns(asOf: string) {
 export function SessionCell({
   session,
 }: {
-  session: { externalId: string; startsAt: string; endsAt: string; location: string }
+  session: { externalId: string; startsAt: string; endsAt: string; room: RoomRef }
 }) {
   return (
     <CellStack
       title={<SessionDateLink session={session} emphasis />}
-      meta={<RoomLink location={session.location} />}
+      meta={<RoomLink room={session.room} />}
     />
   )
 }
