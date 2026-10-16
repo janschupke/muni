@@ -14,7 +14,7 @@ import { cache } from 'react'
 import { BackLink } from '@/components/back-link'
 import { GroupBreakdown } from '@/features/org/group-breakdown'
 import { GroupFacts } from '@/features/org/group-facts'
-import { GroupMain } from '@/features/org/group-main'
+import { GroupCourses, GroupPeople } from '@/features/org/group-sections'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -64,8 +64,9 @@ export default async function DepartmentPage({ params }: Props) {
             </CardBody>
           </Card>
         }
-        main={<GroupMain kind="departments" group={department} />}
+        main={<GroupCourses kind="departments" group={department} />}
       />
+      <GroupPeople kind="departments" group={department} />
     </>
   )
 }

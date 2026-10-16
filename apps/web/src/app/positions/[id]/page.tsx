@@ -10,7 +10,7 @@ import { cache } from 'react'
 import { BackLink } from '@/components/back-link'
 import { GroupBreakdown } from '@/features/org/group-breakdown'
 import { GroupFacts } from '@/features/org/group-facts'
-import { GroupMain } from '@/features/org/group-main'
+import { GroupCourses, GroupPeople } from '@/features/org/group-sections'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -50,8 +50,9 @@ export default async function PositionPage({ params }: Props) {
             </CardBody>
           </Card>
         }
-        main={<GroupMain kind="positions" group={position} />}
+        main={<GroupCourses kind="positions" group={position} />}
       />
+      <GroupPeople kind="positions" group={position} />
     </>
   )
 }

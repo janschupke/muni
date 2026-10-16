@@ -10,20 +10,13 @@ import { EmployeesTable } from '@/components/employees-table'
 
 import { CourseComplianceTable } from './course-compliance-table'
 
-/**
- * The body of a department's or position's page: its mandatory courses with why and how
- * much they are held, then its people, with the way to the same people in the full list.
- */
-export function GroupMain({
-  kind,
-  group,
-}: {
-  kind: 'departments' | 'positions'
-  group: DepartmentDetail | PositionDetail
-}) {
+type Kind = 'departments' | 'positions'
+type Group = DepartmentDetail | PositionDetail
+
+/** A department's or position's mandatory courses, with why and how much they are held. */
+export function GroupCourses({ kind, group }: { kind: Kind; group: Group }) {
   const t = useTranslations('org.detail')
   const tk = useTranslations(`${kind}.detail`)
-  const filter = kind === 'departments' ? 'department' : 'position'
   return (
     <>
       <SectionHeading className="mt-0" description={t('coursesDescription')}>
@@ -34,7 +27,23 @@ export function GroupMain({
       ) : (
         <CourseComplianceTable courses={group.courses} />
       )}
-      <SectionHeading>{t('people')}</SectionHeading>
+    </>
+  )
+}
+
+/**
+ * A department's or position's people, full width below the facts and courses, with the way
+ * to the same people in the full list.
+ */
+export function GroupPeople({ kind, group }: { kind: Kind; group: Group }) {
+  const t = useTranslations('org.detail')
+  const tk = useTranslations(`${kind}.detail`)
+  const filter = kind === 'departments' ? 'department' : 'position'
+  return (
+    <>
+      <SectionHeading description={t('peopleDescription', { count: group.members.length })}>
+        {t('people')}
+      </SectionHeading>
       <EmployeesTable items={group.members} />
       <p className="mt-3 text-sm">
         <TextLink asChild>

@@ -151,6 +151,9 @@ columns, and each cell into a dialog listing its people, most urgent first. The 
 and position lists open each row to its people's records: position or department,
 employment, the share held, and every training that needs attention with its booking.
 
+A detail page has its facts card beside the main section (`SplitLayout`). Long tables follow it
+at full width: the people of a department or position, a course's sessions and completions.
+
 Motion is centralised in `packages/ui/src/styles/tokens.css`: three durations, the easings,
 the named animations (`animate-fade-in`, `animate-pop-in`, …), and the default for every
 `transition-*` utility. `prefers-reduced-motion: reduce` turns all of it off in one rule.

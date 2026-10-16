@@ -25,6 +25,20 @@ import PositionsPage, { generateMetadata as positionsMetadata } from '../positio
 import DepartmentPage, { generateMetadata as departmentMetadata } from './[id]/page'
 import DepartmentsPage, { generateMetadata as departmentsMetadata } from './page'
 
+/**
+ * The people list is full width: it sits outside the grid that holds the facts card and the
+ * courses (the closest element containing both headings).
+ */
+function expectPeopleBelowTheSplit(facts: string) {
+  const card = screen.getByRole('heading', { name: facts })
+  const courses = screen.getByRole('heading', { name: 'Mandatory courses' })
+  let split = card.parentElement
+  while (split && !split.contains(courses)) split = split.parentElement
+  const people = screen.getByRole('heading', { name: 'People' })
+  expect(split?.contains(people)).toBe(false)
+  expect(courses.compareDocumentPosition(people) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+}
+
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
   getDepartment: vi.fn(),
@@ -137,6 +151,8 @@ describe('departments', () => {
     expect(
       screen.getByRole('link', { name: 'Open in the employee list' }).getAttribute('href')
     ).toBe('/employees?department=Laborato%C5%99e')
+    expect(screen.getByText(/people who have not left, most urgent first/)).toBeTruthy()
+    expectPeopleBelowTheSplit('Department')
     await expectNoAxeViolations()
   })
 
@@ -195,6 +211,7 @@ describe('positions', () => {
       screen.getByRole('link', { name: 'Open in the employee list' }).getAttribute('href')
     ).toBe('/employees?position=Laborant')
     expect(screen.getAllByRole('link', { name: 'Laboratoře' }).length).toBeGreaterThan(0)
+    expectPeopleBelowTheSplit('Position')
     await expectNoAxeViolations()
   })
 

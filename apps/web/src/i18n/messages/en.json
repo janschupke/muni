@@ -773,7 +773,8 @@
       "onLeave": "On parental leave",
       "courses": "Mandatory courses",
       "coursesDescription": "Share held per course, active people only.",
-      "people": "People"
+      "people": "People",
+      "peopleDescription": "{count, plural, =0 {Nobody works here yet.} one {# person who has not left, most urgent first.} other {# people who have not left, most urgent first.}}"
     },
     "courseColumns": {
       "course": "Course",

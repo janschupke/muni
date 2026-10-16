@@ -773,7 +773,8 @@
       "onLeave": "Na rodičovské",
       "courses": "Povinné kurzy",
       "coursesDescription": "Podíl splněných školení po kurzech, jen aktivní zaměstnanci.",
-      "people": "Lidé"
+      "people": "Lidé",
+      "peopleDescription": "{count, plural, =0 {Zatím tu nikdo nepracuje.} one {# člověk, který neodešel, nejnaléhavější první.} few {# lidé, kteří neodešli, nejnaléhavější první.} other {# lidí, kteří neodešli, nejnaléhavější první.}}"
     },
     "courseColumns": {
       "course": "Kurz",
