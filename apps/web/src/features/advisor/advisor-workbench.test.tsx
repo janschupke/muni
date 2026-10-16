@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import {
-  DEFAULT_ADVISOR_SETTINGS,
+  planAssignments,
   type AdvisorInput,
+  type AdvisorNeed,
   type AdvisorSession,
 } from '@muni/domain/advisor'
 import { TooltipProvider } from '@muni/ui/tooltip'
@@ -24,7 +25,7 @@ vi.mock('@/server/actions/assignments', () => ({
 }))
 
 beforeAll(() => {
-  // jsdom lacks what Radix Slider and Select reach for.
+  // jsdom lacks what Radix (popper, scrolling) reaches for.
   globalThis.ResizeObserver = class {
     observe() {
       return undefined
@@ -68,47 +69,52 @@ const session = (
   ...extra,
 })
 
+const need = (
+  externalId: string,
+  name: string,
+  status: AdvisorNeed['status'],
+  validUntil: string | null
+): AdvisorNeed => ({
+  employee: { externalId, name, department: 'Laboratoře', status: 'ACTIVE' },
+  course: { code: 'BOZP-Z', name: 'BOZP – základní školení' },
+  status,
+  validUntil,
+})
+
 const INPUT: AdvisorInput = {
   asOf: '2026-10-16',
-  expiringWithinDays: 30,
   needs: [
-    {
-      employee: {
-        externalId: 'E0001',
-        name: 'Adámek Petr',
-        department: 'Laboratoře',
-        status: 'ACTIVE',
-      },
-      course: { code: 'BOZP-Z', name: 'BOZP – základní školení' },
-      status: 'EXPIRED',
-      validUntil: '2026-09-01',
-    },
-    {
-      employee: {
-        externalId: 'E0002',
-        name: 'Bílá Jana',
-        department: 'Knihovna',
-        status: 'ACTIVE',
-      },
-      course: { code: 'BOZP-Z', name: 'BOZP – základní školení' },
-      status: 'MISSING',
-      validUntil: null,
-    },
+    need('E0001', 'Adámek Petr', 'EXPIRED', '2026-09-01'),
+    need('E0002', 'Bílá Jana', 'MISSING', null),
+    // Valid through 30 Nov, booked on 10 Dec: nine days without it.
+    need('E0003', 'Cibulka Ota', 'VALID', '2026-11-30'),
   ],
   sessions: [
+    // One over capacity: its extra unnamed seat moves to T018, leaving one seat there.
     session('T016', '2026-11-04', { capacity: 2, unnamedBookings: 3 }),
     session('T018', '2026-11-20', { capacity: 2 }),
+    session('T019', '2026-12-10', { capacity: 1, assigned: ['E0003'] }),
   ],
-  activeCounts: { VALID: 8, EXPIRING: 0, EXPIRED: 1, MISSING: 1, total: 10 },
 }
+const PLAN = planAssignments(INPUT)
 
-function renderWorkbench(canApply: boolean) {
+function renderWorkbench({
+  view = 'breakdown',
+  bucket = 'now',
+  canApply = false,
+}: {
+  view?: 'breakdown' | 'action' | 'planned' | 'overbooked'
+  bucket?: string
+  canApply?: boolean
+} = {}) {
   return render(
     <NextIntlClientProvider locale="en" messages={en} timeZone="Europe/Prague">
       <TooltipProvider>
         <AdvisorWorkbench
-          input={INPUT}
-          initialSettings={DEFAULT_ADVISOR_SETTINGS}
+          plan={PLAN}
+          asOf={INPUT.asOf}
+          view={view}
+          bucket={bucket}
           canApply={canApply}
         />
       </TooltipProvider>
@@ -116,69 +122,92 @@ function renderWorkbench(canApply: boolean) {
   )
 }
 
-const planRows = () =>
-  within(screen.getByRole('tabpanel'))
-    .getAllByRole('row')
-    .slice(1)
-    .map(r => r.textContent)
+const hrefOf = (name: string | RegExp, scope: HTMLElement = document.body) =>
+  within(scope).getByRole('link', { name }).getAttribute('href')
+
+const rowOf = (name: string) => {
+  const row = screen.getByText(name).closest('tr')
+  if (!row) throw new Error(`no row for ${name}`)
+  return row
+}
 
 describe('AdvisorWorkbench', () => {
-  it('plans the most urgent person into the one free seat, and explains why', async () => {
-    const user = userEvent.setup()
-    renderWorkbench(false)
-    // T016's excess seat moves to T018 first, leaving one seat there for the plan.
-    expect(planRows()).toHaveLength(1)
-    expect(planRows()[0]).toContain('Adámek Petr')
-    await user.click(screen.getByRole('button', { name: 'Why: Adámek Petr' }))
-    const terms = screen.getByRole('table', { name: 'Score, term by term' })
-    expect(within(terms).getByText('Priority: expired')).toBeTruthy()
-    expect(within(terms).getByText('+100')).toBeTruthy()
+  it('breaks non-compliance down by month, each month linking to its trainings', () => {
+    renderWorkbench()
+    const nowLinks = screen.getAllByRole('link', { name: /^Non-compliant now/ })
+    expect(nowLinks.map(a => a.getAttribute('href'))).toEqual(['/advisor', '/advisor'])
+    expect(hrefOf(/^December 2026/)).toBe('/advisor?bucket=2026-12')
+    expect(
+      screen.getByRole('img', {
+        name: /^Non-compliant now: Planned in time 0, Planned, with a gap 0, Action required 2/,
+      })
+    ).toBeTruthy()
+
+    const table = screen.getByRole('table', { name: 'Non-compliant now: 2 trainings' })
+    expect(within(table).getAllByRole('row')).toHaveLength(3)
+    expect(screen.getByText(/is non-compliant today/)).toBeTruthy()
+    const adamek = rowOf('Adámek Petr')
+    expect(within(adamek).getByText('Action required')).toBeTruthy()
+    expect(within(adamek).getByText('Sep 2, 2026 – open')).toBeTruthy()
+    expect(hrefOf(/Nov 20, 2026/, adamek)).toBe('/sessions/T018')
+    expect(within(rowOf('Bílá Jana')).getByText('Every session is full')).toBeTruthy()
   })
 
-  it('re-plans live when a weight moves, and keeps the settings in the URL', async () => {
-    const user = userEvent.setup()
-    renderWorkbench(false)
-    const slider = screen.getByRole('slider', { name: 'Never completed' })
-    slider.focus()
-    await user.keyboard('{End}')
-    expect(slider.getAttribute('aria-valuenow')).toBe('200')
-    expect(planRows()[0]).toContain('Bílá Jana')
-    expect(window.location.search).toBe('?weightMissing=200')
-
-    await user.click(screen.getByRole('button', { name: 'Defaults' }))
-    expect(planRows()[0]).toContain('Adámek Petr')
-    expect(window.location.search).toBe('')
+  it('shows a booking after the lapse as planned with a gap, and the gap in days', () => {
+    renderWorkbench({ bucket: '2026-12' })
+    expect(screen.getByText(/lapses in December 2026/)).toBeTruthy()
+    const row = rowOf('Cibulka Ota')
+    expect(within(row).getByText('Planned, with a gap')).toBeTruthy()
+    expect(within(row).getByText('Dec 1, 2026 – Dec 10, 2026')).toBeTruthy()
+    expect(within(row).getByText('9 days')).toBeTruthy()
   })
 
-  it('lets visitors explore but not save', () => {
-    renderWorkbench(false)
-    expect(screen.getByText(/Sign in to save bookings/)).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /^Save/ })).toBeNull()
+  it('lists what needs action with the proposed session, and links to everything named', () => {
+    renderWorkbench({ view: 'action' })
+    const adamek = rowOf('Adámek Petr')
+    expect(hrefOf('Adámek Petr', adamek)).toBe('/employees/E0001')
+    expect(hrefOf('BOZP – základní školení', adamek)).toBe('/courses/BOZP-Z')
+    expect(hrefOf(/Nov 20, 2026/, adamek)).toBe('/sessions/T018')
+    expect(hrefOf('Aula A', adamek)).toBe('/sessions?location=Aula%20A')
+    expect(within(adamek).getByText('Without it until Nov 20, 2026')).toBeTruthy()
+
+    const bila = rowOf('Bílá Jana')
+    expect(within(bila).getByText('Every session is full')).toBeTruthy()
+    expect(hrefOf('Schedule a session', bila)).toBe('/courses/BOZP-Z')
   })
 
-  it('saves a suggestion as an advisor booking with its score', async () => {
+  it('lets visitors look but not save', () => {
+    renderWorkbench({ view: 'action' })
+    expect(screen.getByText('Sign in to save bookings.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^Save|^Book/ })).toBeNull()
+  })
+
+  it('saves a proposal as an advisor booking', async () => {
     const user = userEvent.setup()
-    renderWorkbench(true)
+    renderWorkbench({ view: 'action', canApply: true })
     await user.click(
-      screen.getByRole('button', { name: 'Save the booking of Adámek Petr on T018' })
+      screen.getByRole('button', {
+        name: 'Book Adámek Petr on BOZP – základní školení, Nov 20, 2026',
+      })
     )
     expect(applyAssignmentsAction).toHaveBeenCalledWith([
-      expect.objectContaining({
-        sessionExternalId: 'T018',
-        employeeExternalId: 'E0001',
-        source: 'ADVISOR',
-        score: expect.any(Number) as number,
-      }),
+      { sessionExternalId: 'T018', employeeExternalId: 'E0001', source: 'ADVISOR' },
     ])
     expect(await screen.findByText('1 booking saved.')).toBeTruthy()
   })
 
-  it('shows overbooked sessions and what is left over', async () => {
-    const user = userEvent.setup()
-    renderWorkbench(true)
-    await user.click(screen.getByRole('tab', { name: /Overbooked/ }))
-    const panel = screen.getByRole('tabpanel')
-    expect(within(panel).getByText('3 of 2 · 1 over')).toBeTruthy()
-    expect(within(panel).getByText(/Move 1 seat to T018/)).toBeTruthy()
+  it('links every view and count to its own URL', () => {
+    renderWorkbench()
+    const tabs = screen.getByRole('navigation', { name: 'Advisor views' })
+    expect(hrefOf(/^Action required/, tabs)).toBe('/advisor?view=action')
+    expect(hrefOf(/^Remediation planned/, tabs)).toBe('/advisor?view=planned')
+    expect(hrefOf(/^Lapsing in the next 6 months/)).toBe('/advisor?bucket=2026-12')
+  })
+
+  it('shows overbooked sessions and where their seats go', () => {
+    renderWorkbench({ view: 'overbooked' })
+    expect(screen.getByText('3 of 2 · 1 over')).toBeTruthy()
+    const move = screen.getByText(/Move 1 seat to/)
+    expect(hrefOf(/Nov 20, 2026/, move)).toBe('/sessions/T018')
   })
 })

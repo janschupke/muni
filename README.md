@@ -81,54 +81,49 @@ Motion is centralised in `packages/ui/src/styles/tokens.css`: three durations, t
 the named animations (`animate-fade-in`, `animate-pop-in`, …), and the default for every
 `transition-*` utility. `prefers-reduced-motion: reduce` turns all of it off in one rule.
 
+Every session has a public page (`/sessions/T016`) with its seats and who is booked by name,
+and every location links to the sessions held there (`/sessions?location=Aula A`).
+
 Back links ("← Employees") name the page the visitor actually came from, filters included,
 from a per-tab history in `sessionStorage`; forms are skipped, and a page opened directly
 links to its parent list.
 
 ## Advisor
 
-`/advisor` shows overbooked sessions and everyone with an expired, missing or soon-expiring
-mandatory training, and plans who should attend which upcoming session. Visitors can explore
-and tune the plan; signed-in users can save it (as `ADVISOR` bookings, score kept for audit)
-and move anonymous seats out of overbooked sessions.
+`/advisor` shows every required training that is **non-compliant now** (expired or never
+completed) or **lapses within the next 6 months**, what is being done about each, and which
+session would cover the rest. Visitors can read it; signed-in users can save the proposals (as
+`ADVISOR` bookings) and move unnamed seats out of overbooked sessions.
 
-The plan is `planAssignments` in `packages/domain/src/advisor.ts`: a pure, deterministic
-greedy algorithm that runs in the browser, so every change to the calculator re-plans
-instantly. It is meant to be explainable rather than optimal:
+- **Breakdown** (the default view): one bar per bucket, "non-compliant now" and then each month
+  in which trainings lapse, split into **planned in time** (a named booking that ends before the
+  training lapses), **planned with a gap** (the booking ends after it lapses, or it has already
+  lapsed) and **action required** (nothing booked). Selecting a bucket lists its trainings with
+  the **non-compliance window**: from the day the training lapses (`validUntil + 1`) until the
+  booked session ends, or open when nothing is booked.
+- **Action required**: the unbooked trainings in queue order, each with the proposed session and
+  the gap it would leave, or the reason there is none and what to do.
+- **Remediation planned** and **Overbooked**: the booked trainings with their windows, and the
+  sessions over capacity with the seat moves that fix them.
 
-1. **Overbooking first.** Each overbooked session moves its excess anonymous seats to the
-   earliest sessions of the same course with room. Named bookings never move. The seats
-   these moves use are not offered to the plan.
-2. **Priority per open training:** the status weight (expired 100, never completed 80,
-   expiring 50 by default), plus the urgency ramp × days closer to expiry for expiring ones.
-   Trainings already covered by a booking are left out.
-3. **Most urgent first.** Ties go to the more urgent status, then the sooner expiry, then
-   department and name (Czech collation), then ID. Input order never matters.
-4. **Best session for each.** Every session of the course that is planned, within the
-   look-ahead, under the fill limit, not clashing with the person's other sessions, and under
-   the per-person limit gets a score: priority − waiting cost × days until it −
-   late-after-expiry penalty (if it starts after the training expires) + fill preference ×
-   how full it would be. The highest score wins; ties go to the earlier session.
-5. **Explained.** Each suggestion carries the terms of its score (they always add up to it),
-   shown when a plan row is opened. Needs that stay open carry a reason (`NO_SESSION`,
-   `OUTSIDE_HORIZON`, `NO_SEATS`, `CONFLICT`, `LIMIT`), and courses short of seats are listed.
+The plan is `planAssignments` in `packages/domain/src/advisor.ts`, one fixed and deterministic
+rule with no settings. The page prints the same rule:
 
-| Setting                                     | Default           | Range                     |
-| ------------------------------------------- | ----------------- | ------------------------- |
-| Expired / never completed / expiring weight | 100 / 80 / 50     | 0–200                     |
-| Urgency ramp                                | 1 per day         | 0–5                       |
-| Waiting cost                                | 0.5 per day       | 0–3                       |
-| Late after expiry                           | 40                | 0–200                     |
-| Fill preference                             | +10               | −20 (spread) … +20 (pack) |
-| Plan up to                                  | 100 % of capacity | 50–100 %                  |
-| Look ahead                                  | 120 days          | 14–365                    |
-| Per person                                  | 2 sessions        | 1–5                       |
-| Include expiring / parental leave           | yes / no          |                           |
+1. People on parental leave are left out.
+2. A named booking on an upcoming session of the course is a planned remediation.
+3. Overbooked sessions first: their unnamed seats move to other sessions of the same course with
+   room (named bookings never move), and those seats are not offered again.
+4. Everything else is queued: expired (longest expired first), never completed, then by the day
+   it lapses; ties go by name (Czech collation), employee ID and course code.
+5. Each takes a session with a free seat that does not overlap the person's other bookings: the
+   earliest one if the training has lapsed; otherwise the last one that ends before it lapses
+   (retrain just in time), or the earliest one if none does.
+6. Otherwise the reason is reported: `NO_SESSION`, `NO_SEATS` or `CONFLICT`. Courses short of
+   sessions are listed.
 
-Settings live in the URL (only those that differ from the defaults), so a tuned plan can be
-shared. The projected compliance, seat use, overbooking, open needs and cost are shown
-before and after the plan. Saving re-checks every pair on the server; the browser's plan is
-never trusted.
+Saving re-checks every pair on the server (seats under a row lock, clashes, the requirement,
+and that the training has lapsed or lapses within the forecast); the browser's plan is never
+trusted.
 
 ## Importing
 

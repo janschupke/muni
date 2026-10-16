@@ -8,9 +8,12 @@ import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { Meter } from '@muni/ui/meter'
-import { formatTimeRange } from '@muni/utils/format'
+import { TextLink } from '@muni/ui/text-link'
 import { ArrowRightLeft } from 'lucide-react'
-import { useLocale, useTranslations } from 'next-intl'
+import Link from 'next/link'
+import { useTranslations } from 'next-intl'
+
+import { RoomLink, SessionDateLink } from '@/components/session-links'
 
 /** Sessions over capacity, with the seat moves that bring them back under it. */
 export function OverbookedList({
@@ -24,15 +27,24 @@ export function OverbookedList({
   pending: boolean
 }) {
   const t = useTranslations('advisor.overbooked')
-  const locale = useLocale()
   if (overbooked.length === 0) return <EmptyState title={t('none')} />
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {overbooked.map(o => (
         <Card key={o.session.externalId}>
           <CardHeader
-            title={`${o.session.courseName} · ${o.session.externalId}`}
-            description={`${formatTimeRange(o.session.startsAt, o.session.endsAt, locale)} · ${o.session.location}`}
+            title={
+              <TextLink asChild>
+                <Link href={`/courses/${o.session.courseCode}`}>{o.session.courseName}</Link>
+              </TextLink>
+            }
+            description={
+              <>
+                <SessionDateLink session={o.session} />
+                {' · '}
+                <RoomLink location={o.session.location} />
+              </>
+            }
           />
           <CardBody className="flex flex-col gap-3 text-sm">
             <BarRow
@@ -51,11 +63,9 @@ export function OverbookedList({
                 {o.moves.map(m => (
                   <ItemListRow key={m.to.externalId}>
                     <span>
-                      {t('move', {
-                        count: m.count,
-                        session: m.to.externalId,
-                        date: formatTimeRange(m.to.startsAt, m.to.endsAt, locale),
-                      })}
+                      {t('moveTo', { count: m.count })} <SessionDateLink session={m.to} />
+                      {' · '}
+                      <RoomLink location={m.to.location} />
                     </span>
                   </ItemListRow>
                 ))}

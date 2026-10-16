@@ -177,8 +177,6 @@ model SessionAssignment {
   employeeId String           @map("employee_id")
   employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   source     AssignmentSource @default(MANUAL)
-  /// Advisor score when the assignment was applied (audit); null for manual bookings.
-  score      Decimal?         @db.Decimal(8, 2)
   /// Clerk user id. Clerk owns users, so there is no user table to reference.
   createdBy  String           @map("created_by")
   createdAt  DateTime         @default(now()) @map("created_at")

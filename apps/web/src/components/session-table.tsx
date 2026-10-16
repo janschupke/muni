@@ -7,12 +7,13 @@ import { BarRow } from '@muni/ui/bar-row'
 import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
-import { formatCurrency, formatOptional, formatTimeRange } from '@muni/utils/format'
-import { Pencil, Wifi } from 'lucide-react'
+import { formatCurrency, formatOptional } from '@muni/utils/format'
+import { Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { RoomLink, SessionDateLink } from './session-links'
 import { OccupancyBadge, SessionStatusBadge } from './status-badges'
 
 const col = createDataColumns<SessionListItem>()
@@ -62,7 +63,7 @@ export function SessionTable({
           header: t('columns.date'),
           sortFn: 'basic',
           meta: { nowrap: true },
-          cell: ({ row }) => formatTimeRange(row.original.startsAt, row.original.endsAt, locale),
+          cell: ({ row }) => <SessionDateLink session={row.original} />,
         }),
         ...(compact
           ? []
@@ -71,12 +72,7 @@ export function SessionTable({
                 header: t('columns.location'),
                 sortFn: 'text',
                 cell: ({ row }) => (
-                  <span className="inline-flex items-center gap-1.5">
-                    {row.original.isOnline && (
-                      <Wifi aria-label={tc('online')} className="size-3.5 text-fg-muted" />
-                    )}
-                    {row.original.location}
-                  </span>
+                  <RoomLink location={row.original.location} isOnline={row.original.isOnline} />
                 ),
               }),
             ]),

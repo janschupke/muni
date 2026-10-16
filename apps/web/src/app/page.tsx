@@ -1,5 +1,5 @@
 import { getAdvisorInput, getDashboard } from '@muni/db/repositories'
-import { DEFAULT_ADVISOR_SETTINGS, planAssignments } from '@muni/domain/advisor'
+import { planAssignments } from '@muni/domain/advisor'
 import { Alert } from '@muni/ui/alert'
 import { BarRow } from '@muni/ui/bar-row'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
@@ -25,8 +25,10 @@ export default async function DashboardPage() {
     getViewer(),
   ])
   const held = data.counts.VALID + data.counts.EXPIRING
-  const plan = planAssignments(advisorInput, DEFAULT_ADVISOR_SETTINGS)
-  const { overbookedBefore: overbooked, openBefore: open } = plan.metrics
+  const plan = planAssignments(advisorInput)
+  const now = plan.totals.now
+  const action = plan.breakdown[0]?.counts.ACTION_REQUIRED ?? 0
+  const overbooked = plan.overbooked.length
   const count = (n: number) => formatInteger(n, locale)
   const employees = (compliance?: string) =>
     `/employees?status=ACTIVE${compliance ? `&compliance=${compliance}` : ''}`
@@ -38,9 +40,9 @@ export default async function DashboardPage() {
         description={t('description', { date: formatDate(data.asOf, locale) })}
       />
 
-      {(overbooked > 0 || open > 0) && (
-        <Alert tone={overbooked > 0 ? 'warning' : 'info'} className="mb-4">
-          {t('advisor.summary', { overbooked, open })}{' '}
+      {(now > 0 || overbooked > 0) && (
+        <Alert tone={action > 0 || overbooked > 0 ? 'warning' : 'info'} className="mb-4">
+          {t('advisor.summary', { now, action, overbooked })}{' '}
           <TextLink asChild emphasis className="text-inherit underline">
             <Link href="/advisor">{t('advisor.open')}</Link>
           </TextLink>

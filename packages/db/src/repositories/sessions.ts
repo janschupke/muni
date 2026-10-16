@@ -52,8 +52,9 @@ export async function listSessions(
   {
     window = 'upcoming',
     course,
+    location,
     limit,
-  }: { window?: SessionWindow; course?: string; limit?: number } = {},
+  }: { window?: SessionWindow; course?: string; location?: string; limit?: number } = {},
   options?: RepoOptions
 ): Promise<SessionListItem[]> {
   const now = new Date()
@@ -61,6 +62,7 @@ export async function listSessions(
     where: {
       ...(window === 'upcoming' ? { endsAt: { gte: now } } : { endsAt: { lt: now } }),
       ...(course && { course: { code: course } }),
+      ...(location && { location }),
     },
     include: sessionInclude,
     orderBy: { startsAt: window === 'upcoming' ? 'asc' : 'desc' },

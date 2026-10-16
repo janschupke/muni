@@ -1,11 +1,12 @@
 import { getAdvisorInput } from '@muni/db/repositories'
-import { advisorSettingsSchema } from '@muni/domain/advisor'
+import { FORECAST_MONTHS, NOW, planAssignments } from '@muni/domain/advisor'
 import { PageHeader } from '@muni/ui/page-header'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { AdvisorWorkbench } from '@/features/advisor/advisor-workbench'
-import { param, type SearchParams } from '@/lib/search-params'
+import { ADVISOR_VIEWS } from '@/features/advisor/labels'
+import { oneOf, param, type SearchParams } from '@/lib/search-params'
 import { getViewer } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,21 +15,27 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function AdvisorPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams
-  // The calculator's settings live in the URL so a plan can be shared; anything odd is clamped.
-  const settings = advisorSettingsSchema.parse(
-    Object.fromEntries(Object.keys(params).map(key => [key, param(params, key)]))
-  )
   const [input, viewer, t] = await Promise.all([
     getAdvisorInput(),
     getViewer(),
     getTranslations('advisor'),
   ])
+  // One fixed rule and the current data: the same plan for every visitor, so it is computed here.
+  const plan = planAssignments(input)
+  const view = oneOf(param(params, 'view'), ADVISOR_VIEWS) ?? 'breakdown'
+  const bucket =
+    oneOf(
+      param(params, 'bucket'),
+      plan.breakdown.map(r => r.bucket)
+    ) ?? NOW
   return (
     <>
-      <PageHeader title={t('title')} description={t('description')} />
+      <PageHeader title={t('title')} description={t('description', { months: FORECAST_MONTHS })} />
       <AdvisorWorkbench
-        input={input}
-        initialSettings={settings}
+        plan={plan}
+        asOf={input.asOf}
+        view={view}
+        bucket={bucket}
         canApply={viewer === 'authenticated'}
       />
     </>

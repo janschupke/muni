@@ -6,6 +6,7 @@ import {
   formatDateTime,
   formatDecimal,
   formatInteger,
+  formatMonth,
   formatOptional,
   formatPercent,
   formatRelativeDays,
@@ -29,6 +30,11 @@ describe('dates and times', () => {
     expect(plain(formatDateTime('2026-10-14T07:00:00Z', 'en'))).toBe('Oct 14, 2026, 9:00 AM')
     expect(plain(formatTime('2026-12-16T12:00:00Z', 'cs'))).toBe('13:00')
     expect(plain(formatTime('2026-12-16T12:00:00Z', 'en'))).toBe('1:00 PM')
+  })
+
+  it('names a month', () => {
+    expect(formatMonth('2026-11', 'en')).toBe('November 2026')
+    expect(formatMonth('2027-01', 'cs')).toBe('leden 2027')
   })
 
   it('collapses a same-day range to one date', () => {

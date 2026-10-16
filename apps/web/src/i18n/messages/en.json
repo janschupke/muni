@@ -94,7 +94,7 @@
       "empty": "No sessions are scheduled."
     },
     "advisor": {
-      "summary": "{overbooked, plural, =0 {No session is overbooked} one {# session is overbooked} other {# sessions are overbooked}} and {open, plural, one {# training needs} other {# trainings need}} action.",
+      "summary": "{now, plural, one {# training is} other {# trainings are}} non-compliant now, {action} of them with nothing booked; {overbooked, plural, =0 {no session is overbooked} one {# session is overbooked} other {# sessions are overbooked}}.",
       "open": "Open the advisor"
     }
   },
@@ -205,6 +205,17 @@
       "named": "{count, plural, =0 {Booked by name} one {Booked by name (#)} other {Booked by name (#)}}",
       "noneNamed": "Nobody is booked by name yet; the advisor can suggest people.",
       "remove": "Cancel the booking of {name}"
+    },
+    "titleAt": "Sessions at {location}",
+    "allLocations": "All locations",
+    "detail": {
+      "title": "Session",
+      "course": "Course",
+      "when": "Date and time",
+      "location": "Location",
+      "status": "Status",
+      "price": "Price per person",
+      "seats": "Seats"
     }
   },
   "compliance": {
@@ -437,158 +448,111 @@
   },
   "advisor": {
     "title": "Advisor",
-    "description": "Who should attend which session: overbooked sessions, people with missing or expired training, and a plan you can tune and save.",
-    "settings": {
-      "title": "Calculator",
-      "description": "Every number below feeds the ranking. Changes apply instantly.",
-      "reset": "Defaults",
-      "groups": {
-        "urgency": "Who goes first",
-        "choice": "Which session",
-        "limits": "Limits",
-        "scope": "Include"
-      },
-      "fields": {
-        "weightExpired": {
-          "label": "Expired training",
-          "help": "Base priority for a training that has expired."
-        },
-        "weightMissing": {
-          "label": "Never completed",
-          "help": "Base priority for a required training never taken."
-        },
-        "weightExpiring": {
-          "label": "Expiring soon",
-          "help": "Base priority for a training about to expire."
-        },
-        "expiringRamp": {
-          "label": "Urgency ramp",
-          "help": "Extra priority for each day an expiring training is closer to its date."
-        },
-        "waitPenalty": {
-          "label": "Waiting cost",
-          "help": "Points lost for each day until the session; favours sooner dates."
-        },
-        "lateAfterExpiryPenalty": {
-          "label": "Late after expiry",
-          "help": "Points lost when the session is after the training expires."
-        },
-        "fillPreference": {
-          "label": "Fill preference",
-          "help": "Positive fills sessions that are already busy; negative spreads people out."
-        },
-        "maxFill": {
-          "label": "Plan up to",
-          "help": "Seats kept free in every session, as a share of capacity."
-        },
-        "horizonDays": {
-          "label": "Look ahead",
-          "help": "Sessions further out are not used."
-        },
-        "maxPerEmployee": {
-          "label": "Per person",
-          "help": "Most sessions one person is planned into."
-        },
-        "includeExpiring": "Trainings expiring soon",
-        "includeParentalLeave": "People on parental leave"
-      },
-      "units": {
-        "perDay": "{value} / day",
-        "percent": "{value} %",
-        "days": "{count, plural, one {# day} other {# days}}",
-        "sessions": "{count, plural, one {# session} other {# sessions}}",
-        "points": "{value} pts"
-      }
-    },
-    "formula": {
-      "title": "How suggestions are ranked",
-      "priority": "Each open training gets a priority: expired {expired}, never completed {missing}, expiring {expiring} plus {ramp} per day closer to expiry (within {window} days).",
-      "order": "People are served in priority order; ties go to the more urgent status, then the sooner expiry, then department and name.",
-      "score": "Each gets the best-scoring session with a free seat: priority − {wait} per day of waiting − {late} if it starts after the training expires + {fill} × how full the session would be.",
-      "limits": "Sessions are planned up to {maxFill} % of capacity, within {horizon} days, at most {perPerson} per person, never at overlapping times.",
-      "overbooking": "Overbooked sessions first move their unnamed seats to other sessions of the same course; those seats are not offered to the plan.",
-      "note": "Same data and settings always give the same plan. Open a row in the plan to see its score term by term."
-    },
+    "description": "What is non-compliant now and what lapses over the next {months} months, what is already booked, and which sessions would cover the rest.",
     "kpi": {
-      "compliance": "Compliance after",
-      "utilisation": "Seats filled after",
-      "overbooked": "Overbooked after",
-      "open": "Still open",
-      "cost": "Plan cost",
-      "from": "from {value}",
-      "fromCovered": "from {value}; {covered} already booked",
-      "costHint": "{count, plural, one {# booking} other {# bookings}}"
+      "now": "Non-compliant now",
+      "upcoming": "Lapsing in the next {months} months",
+      "split": "{planned} remediation planned · {action} action required",
+      "action": "Action required",
+      "actionHint": "A session is proposed for {proposed}",
+      "overbooked": "Overbooked sessions",
+      "overbookedHint": "{count, plural, =0 {No session has more bookings than seats} other {More bookings than seats}}"
     },
-    "tabs": {
-      "plan": "Plan",
-      "overbooked": "Overbooked",
-      "unresolved": "Unresolved"
+    "views": {
+      "label": "Advisor views",
+      "breakdown": "Breakdown",
+      "action": "Action required",
+      "planned": "Remediation planned",
+      "overbooked": "Overbooked"
     },
-    "plan": {
-      "applyAll": "Save all {count, plural, one {# booking} other {# bookings}}",
-      "signInToApply": "Sign in to save bookings. Visitors can explore the plan and change the calculator.",
-      "worker": "Person",
-      "course": "Training",
-      "expiry": "Valid until",
-      "session": "Session",
-      "fillAfter": "Seats after",
-      "score": "Score",
-      "apply": "Save",
-      "applyOne": "Save the booking of {name} on {session}",
-      "pagination": "Plan pages",
+    "remediation": {
+      "PLANNED": "Planned in time",
+      "PLANNED_LATE": "Planned, with a gap",
+      "ACTION_REQUIRED": "Action required"
+    },
+    "breakdown": {
+      "title": "Non-compliance by month",
+      "description": "Trainings that are non-compliant now, then those lapsing in each month, by what is being done about them. Select a row to list its trainings.",
+      "now": "Non-compliant now",
+      "trainings": "{count, plural, one {# training} other {# trainings}}",
+      "counts": "{planned} planned in time · {late} with a gap · {action} action required",
+      "rowsNow": "Each row is one person's training that is non-compliant today, and what is being done about it.",
+      "rowsMonth": "Each row is one person's training that lapses in {month}, and what is being done about it.",
+      "empty": "Nothing lapses in this month."
+    },
+    "columns": {
+      "rank": "Order",
+      "person": "Person",
+      "training": "Training",
+      "lapses": "Lapses",
+      "remediation": "Remediation",
+      "window": "Without the training",
+      "proposal": "Proposed session",
+      "booked": "Booked session"
+    },
+    "lapses": {
+      "never": "Never completed"
+    },
+    "window": {
+      "none": "No gap",
+      "open": "{from} – open",
+      "never": "Never held",
+      "nothingBooked": "nothing booked",
+      "range": "{from} – {until}",
+      "neverUntil": "Never held, until {until}",
+      "days": "{count, plural, =0 {same day} one {# day} other {# days}}"
+    },
+    "action": {
+      "rows": "Each row is one training a person needs that nobody has booked yet, most overdue first, with the session the advisor proposes for it.",
+      "fill": "{booked} of {capacity} seats booked",
+      "inTime": "Ends before the training lapses",
+      "gap": "{days, plural, =0 {Ends the day it lapses} one {Starts after it lapses: # day without it} other {Starts after it lapses: # days without it}}",
+      "coveredOn": "Without it until {until}",
+      "saveAll": "Save {count, plural, one {# proposed booking} other {all # proposed bookings}} · {cost}",
+      "signIn": "Sign in to save bookings.",
+      "save": "Save",
+      "saveOne": "Book {name} on {session}",
+      "reasons": {
+        "NO_SESSION": "No session scheduled",
+        "NO_SEATS": "Every session is full",
+        "CONFLICT": "Clashes with their other bookings"
+      },
+      "todo": {
+        "schedule": "Schedule a session",
+        "bookings": "See their bookings"
+      },
+      "shortfallTitle": "Schedule more sessions",
+      "shortfall": "{course}: {people, plural, one {# person} other {# people}} with no session to join.",
+      "empty": "Every training in scope has a booking."
+    },
+    "planned": {
+      "rows": "Each row is one training that is non-compliant or lapsing and already has a named booking. A booking that ends after the lapse leaves a gap.",
+      "remove": "Cancel the booking of {name} on {session}",
+      "empty": "Nothing is booked yet.",
+      "cancel": "Cancel booking"
+    },
+    "table": {
+      "pagination": "Pages",
       "previous": "Previous",
       "next": "Next",
-      "page": "Page {page} of {pageCount}",
-      "why": "Why: {name}",
-      "whyHeader": "Score details"
+      "page": "Page {page} of {pageCount}"
     },
-    "terms": {
-      "caption": "Score, term by term",
-      "term": "Term",
-      "points": "Points",
-      "total": "Score",
-      "names": {
-        "urgency": "Priority: {status, select, EXPIRED {expired} MISSING {never completed} other {expiring}}",
-        "expiryRamp": "Closer to expiry",
-        "wait": "Waiting {days, plural, one {# day} other {# days}}",
-        "lateAfterExpiry": "Starts after the training expires",
-        "fill": "Fill preference"
-      }
+    "rules": {
+      "title": "How the advisor decides",
+      "scope": "In scope: every required training that is expired or never completed (non-compliant now), or that lapses within {months} months. People on parental leave are left out.",
+      "remedied": "A named booking on an upcoming session of the course is a planned remediation. If the session ends after the training lapses, the days in between are a gap.",
+      "overbooking": "Overbooked sessions come first: their unnamed seats move to other sessions of the same course that have room, and those seats are not offered again.",
+      "order": "Everything else needs action, served in this order: expired (longest expired first), never completed, then by the day it lapses; ties go by name.",
+      "choice": "Each takes a session with a free seat that does not clash with the person's other bookings: the earliest one if the training has lapsed; otherwise the last one that ends before it lapses, or the earliest one if none does.",
+      "unplaced": "When no session can take it, the reason is shown: nothing scheduled, every session full, or a clash."
     },
     "overbooked": {
       "none": "No session is overbooked.",
       "booked": "Booked",
       "over": "{booked} of {capacity} · {excess} over",
-      "move": "Move {count, plural, one {# seat} other {# seats}} to {session} ({date})",
+      "moveTo": "Move {count, plural, one {# seat} other {# seats}} to",
       "remaining": "{count, plural, one {# seat stays} other {# seats stay}} over capacity: there is no room in other sessions of this course, or the bookings are named. Schedule another session or cancel bookings.",
       "apply": "Move {count, plural, one {# seat} other {# seats}}"
-    },
-    "unresolved": {
-      "worker": "Person",
-      "course": "Training",
-      "status": "Status",
-      "reason": "Why not",
-      "reasons": {
-        "NO_SESSION": "No session scheduled",
-        "OUTSIDE_HORIZON": "No session within {days} days",
-        "NO_SEATS": "Sessions are full",
-        "CONFLICT": "Clashes with another booking",
-        "LIMIT": "Per-person limit reached"
-      },
-      "none": "Every open training has a place in the plan.",
-      "shortfallTitle": "Schedule more sessions",
-      "shortfall": "{course}: {people, plural, one {# person} other {# people}} without a seat within {days} days.",
-      "pagination": "Unresolved pages",
-      "previous": "Previous",
-      "next": "Next",
-      "page": "Page {page} of {pageCount}"
-    },
-    "demand": {
-      "title": "Demand and seats",
-      "description": "Who needs each training, and whether the seats on offer cover them.",
-      "people": "{count, plural, one {# person} other {# people}}",
-      "coverage": "{course}: people needing it against free seats",
-      "seats": "{seats, plural, one {# free seat} other {# free seats}} · {placed} planned"
     },
     "outcome": {
       "error": "Saving failed. Nothing was changed; try again.",

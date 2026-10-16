@@ -3,7 +3,8 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { createDb } from './client'
-import { DEFAULT_ADVISOR_SETTINGS, planAssignments } from '@muni/domain/advisor'
+import { forecastEnd, planAssignments } from '@muni/domain/advisor'
+import { addDays } from '@muni/utils/dates'
 
 import {
   applyAssignments,
@@ -256,6 +257,12 @@ describe('sessions', () => {
       bookedCount: 3,
     })
   })
+
+  it('lists the sessions held in one room', async () => {
+    const sessions = await listSessions({ window: 'upcoming', location: 'Učebna 2' }, options)
+    expect(sessions.length).toBeGreaterThan(0)
+    expect(sessions.every(s => s.location === 'Učebna 2')).toBe(true)
+  })
 })
 
 describe('assignments', () => {
@@ -276,16 +283,53 @@ describe('assignments', () => {
   beforeAll(reset)
   afterAll(reset)
 
-  it('feeds the advisor every open need and the upcoming sessions', async () => {
+  it('feeds the advisor what is non-compliant now and what lapses within the forecast', async () => {
     const input = await getAdvisorInput(opts)
     const cells = (await getDashboard(options)).counts
-    expect(input.activeCounts).toEqual(cells)
+    const active = input.needs.filter(n => n.employee.status === 'ACTIVE')
+    const count = (status: string) => active.filter(n => n.status === status).length
+    expect([count('EXPIRED'), count('MISSING'), count('EXPIRING')]).toEqual([
+      cells.EXPIRED,
+      cells.MISSING,
+      cells.EXPIRING,
+    ])
+    const end = forecastEnd(asOf)
+    const valid = input.needs.filter(n => n.status === 'VALID')
+    expect(valid.length).toBeGreaterThan(0)
+    expect(valid.every(n => n.validUntil !== null && n.validUntil < end)).toBe(true)
     expect(input.needs.every(n => n.employee.name.length > 0)).toBe(true)
-    expect(input.sessions.map(s => s.externalId)).toContain('T016')
-    const plan = planAssignments(input, DEFAULT_ADVISOR_SETTINGS)
+
+    const plan = planAssignments(input)
     expect(plan.overbooked.map(o => o.session.externalId).sort()).toEqual(['T016', 'T030'])
-    expect(plan.suggestions.length).toBeGreaterThan(0)
-    expect(plan.metrics.complianceAfter).toBeGreaterThan(plan.metrics.complianceBefore)
+    expect(plan.totals.proposed).toBeGreaterThan(0)
+    // "No session" exactly for the courses with nothing planned ahead.
+    const scheduled = new Set(
+      input.sessions.filter(s => s.status === 'PLANNED').map(s => s.courseCode)
+    )
+    const queued = plan.items.filter(i => i.proposal !== null)
+    expect(queued.length).toBeGreaterThan(0)
+    for (const item of queued)
+      expect(
+        item.proposal?.kind === 'NONE' && item.proposal.reason === 'NO_SESSION',
+        item.need.course.code
+      ).toBe(!scheduled.has(item.need.course.code))
+  })
+
+  it('shows a booking after the lapse as planned late, with its window', async () => {
+    const input = await getAdvisorInput(opts)
+    const need = input.needs.find(n => n.course.code === 'BOZP-Z' && n.status === 'EXPIRED')
+    if (!need?.validUntil) throw new Error('fixture: nobody has an expired BOZP-Z')
+    await applyAssignments([manual('T018', need.employee.externalId)], 'user_test', opts)
+    const item = planAssignments(await getAdvisorInput(opts)).items.find(
+      i =>
+        i.need.employee.externalId === need.employee.externalId && i.need.course.code === 'BOZP-Z'
+    )
+    expect(item?.booked?.externalId).toBe('T018')
+    expect(item).toMatchObject({
+      remediation: 'PLANNED_LATE',
+      window: { from: addDays(need.validUntil, 1), until: '2027-02-03' },
+    })
+    await removeAssignment('T018', need.employee.externalId, options)
   })
 
   it('applies a suggestion: the booked total follows, and a repeat is refused', async () => {
@@ -296,7 +340,6 @@ describe('assignments', () => {
       sessionExternalId: 'T018',
       employeeExternalId: need.employee.externalId,
       source: 'ADVISOR',
-      score: 42.5,
     }
     const before = await booked('T018')
     expect(await applyAssignments([request], 'user_test', opts)).toEqual([{ request, ok: true }])
@@ -308,7 +351,7 @@ describe('assignments', () => {
       where: { session: { externalId: 'T018' } },
     })
     expect(row).toMatchObject({ source: 'ADVISOR', createdBy: 'user_test' })
-    expect(Number(row.score)).toBe(42.5)
+    expect(row).not.toHaveProperty('score')
 
     const [again] = await applyAssignments([request], 'user_test', opts)
     expect(again).toMatchObject({ ok: false, reason: 'ALREADY_ASSIGNED' })

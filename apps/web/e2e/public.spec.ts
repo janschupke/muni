@@ -156,27 +156,56 @@ test.describe('public register (signed out)', () => {
     ).toHaveAttribute('href', '/courses/BOZP-Z')
   })
 
-  test('the advisor plans, explains and shows overbooking, read-only for visitors', async ({
+  test('the advisor breaks non-compliance down and links what it names, read-only for visitors', async ({
     page,
   }) => {
     await setLocale(page, 'en')
     await page.goto('/advisor')
     await expect(page.getByRole('heading', { level: 1, name: 'Advisor' })).toBeVisible()
-    await expect(page.getByText(/Sign in to save bookings/)).toBeVisible()
-    await expect(page.getByRole('button', { name: /^Save/ })).toHaveCount(0)
+    await expect(
+      page.getByRole('heading', { name: /^Non-compliant now: \d+ trainings$/ })
+    ).toBeVisible()
 
-    const firstRow = () => page.getByRole('tabpanel').locator('tbody tr').first()
-    await firstRow().getByRole('button', { name: /^Why:/ }).click()
-    await expect(page.getByRole('table', { name: 'Score, term by term' })).toBeVisible()
+    // A month in the chart selects its trainings.
+    await page.getByRole('link', { name: /^November 2026/ }).click()
+    await expect(page).toHaveURL(/\/advisor\?bucket=2026-11$/)
+    await expect(
+      page.getByRole('heading', { name: /^November 2026: \d+ trainings?$/ })
+    ).toBeVisible()
 
-    const slider = page.getByRole('slider', { name: 'Never completed' })
-    await slider.focus()
-    await page.keyboard.press('End')
-    await expect(page).toHaveURL(/weightMissing=200/)
+    // A count opens its view; visitors see the proposals but cannot save them.
+    await page
+      .getByRole('link', { name: /^Action required/ })
+      .first()
+      .click()
+    await expect(page).toHaveURL(/view=action/)
+    await expect(page.getByText('Sign in to save bookings.')).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Save|^Book/ })).toHaveCount(0)
 
-    await page.getByRole('tab', { name: /Overbooked/ }).click()
+    // A room opens the sessions held there.
+    const table = page.getByRole('table', { name: 'Action required' })
+    const room = table.locator('a[href^="/sessions?location="]').first()
+    const location = (await room.textContent()) ?? ''
+    await room.click()
+    await expect(
+      page.getByRole('heading', { level: 1, name: `Sessions at ${location}` })
+    ).toBeVisible()
+    const rooms = page.locator('tbody a[href^="/sessions?location="]')
+    await expect(rooms.first()).toBeVisible()
+    for (const link of await rooms.all()) await expect(link).toHaveText(location)
+
+    // A date opens the session, whose back link returns to the advisor view.
+    await page.goBack()
+    await table.locator('a[href^="/sessions/T"]').first().click()
+    await expect(page).toHaveURL(/\/sessions\/T\d+$/)
+    await expect(page.getByRole('link', { name: 'Back to Advisor' })).toHaveAttribute(
+      'href',
+      '/advisor?view=action'
+    )
+
+    await page.goto('/advisor?view=overbooked')
     for (const id of ['T016', 'T030'])
-      await expect(page.getByRole('tabpanel').getByText(new RegExp(id)).first()).toBeVisible()
+      await expect(page.locator(`a[href="/sessions/${id}"]`).first()).toBeVisible()
   })
 
   test('footer, and tab strips without a scrollbar', async ({ page }) => {

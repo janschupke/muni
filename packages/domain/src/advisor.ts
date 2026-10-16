@@ -1,18 +1,24 @@
-import { diffInDays, toZonedParts, type IsoDate } from '@muni/utils/dates'
-import * as z from 'zod'
-
-import type { ComplianceCounts } from './compliance'
+import { addDays, addMonths, diffInDays, toZonedParts, type IsoDate } from '@muni/utils/dates'
 
 /*
- * The advisor: who should go to which upcoming session.
+ * The advisor: what is non-compliant now, what becomes non-compliant month by month, what is
+ * already being remedied (a named booking), and who should go to which session for the rest.
  *
- * A deliberately simple, explainable greedy plan. Every open need gets a priority from its
- * status; needs are served most urgent first, each taking the best-scoring session that still
- * has room. Every score is a sum of named terms, and the terms are returned with it, so the UI
- * can show exactly why a suggestion was made. Same input, same plan: input order never matters.
+ * One fixed rule, no weights: the most overdue training is served first and takes the earliest
+ * session that can take it (or, for one that has not lapsed yet, the last session that still
+ * ends in time). Same input, same plan: input order never matters.
  */
 
-export type NeedStatus = 'EXPIRED' | 'MISSING' | 'EXPIRING'
+/** Months covered by the forecast, the current one included. */
+export const FORECAST_MONTHS = 6
+
+/** Last day the forecast covers: the end of the sixth month, counting the current one. */
+export function forecastEnd(asOf: IsoDate): IsoDate {
+  const firstOfLast = `${addMonths(asOf, FORECAST_MONTHS - 1).slice(0, 7)}-01`
+  return addDays(addMonths(firstOfLast, 1), -1)
+}
+
+export type NeedStatus = 'EXPIRED' | 'MISSING' | 'EXPIRING' | 'VALID'
 
 export interface AdvisorNeed {
   employee: {
@@ -22,8 +28,9 @@ export interface AdvisorNeed {
     status: 'ACTIVE' | 'PARENTAL_LEAVE'
   }
   course: { code: string; name: string }
+  /** EXPIRED and MISSING are non-compliant now; EXPIRING and VALID lapse within the forecast. */
   status: NeedStatus
-  /** Current training's expiry (EXPIRED, EXPIRING); null when it was never completed. */
+  /** Last valid day of the current training; null when it was never completed. */
   validUntil: IsoDate | null
 }
 
@@ -44,108 +51,55 @@ export interface AdvisorSession {
 
 export interface AdvisorInput {
   asOf: IsoDate
-  expiringWithinDays: number
+  /** Non-compliant now, or lapsing before `forecastEnd(asOf)`. */
   needs: AdvisorNeed[]
   /** Upcoming sessions (any status; cancelled ones are ignored). */
   sessions: AdvisorSession[]
-  /** Compliance counts over active employees, the base of the projected rate. */
-  activeCounts: ComplianceCounts
 }
 
-// ---------------------------------------------------------------------------------------------
-// Settings
+/** `now`, or the month (`2026-11`) in which the training lapses. */
+export type Bucket = string
+export const NOW: Bucket = 'now'
 
-const bounded = (min: number, max: number, fallback: number, step = 1) =>
-  z.coerce
-    .number()
-    .catch(fallback)
-    // toFixed drops binary noise (0.3 stepped from 0.27 would be 0.30000000000000004).
-    .transform(v => Number(Math.min(max, Math.max(min, Math.round(v / step) * step)).toFixed(4)))
-    .default(fallback)
+export type Remediation = 'PLANNED' | 'PLANNED_LATE' | 'ACTION_REQUIRED'
+export const REMEDIATIONS: Remediation[] = ['PLANNED', 'PLANNED_LATE', 'ACTION_REQUIRED']
 
-const flag = (fallback: boolean) =>
-  z
-    .union([z.boolean(), z.enum(['1', '0', 'true', 'false'])])
-    .transform(v => v === true || v === '1' || v === 'true')
-    .catch(fallback)
-    .default(fallback)
-
-/** Every adjustable number, with its bounds. The UI reads the bounds from here too. */
-export const ADVISOR_LIMITS = {
-  weightExpired: { min: 0, max: 200, step: 5, default: 100 },
-  weightMissing: { min: 0, max: 200, step: 5, default: 80 },
-  weightExpiring: { min: 0, max: 200, step: 5, default: 50 },
-  expiringRamp: { min: 0, max: 5, step: 0.5, default: 1 },
-  waitPenalty: { min: 0, max: 3, step: 0.1, default: 0.5 },
-  lateAfterExpiryPenalty: { min: 0, max: 200, step: 5, default: 40 },
-  fillPreference: { min: -20, max: 20, step: 1, default: 10 },
-  maxFill: { min: 50, max: 100, step: 5, default: 100 },
-  horizonDays: { min: 14, max: 365, step: 7, default: 120 },
-  maxPerEmployee: { min: 1, max: 5, step: 1, default: 2 },
-} as const
-
-export type AdvisorNumberSetting = keyof typeof ADVISOR_LIMITS
-
-const numberField = (key: AdvisorNumberSetting) => {
-  const l = ADVISOR_LIMITS[key]
-  return bounded(l.min, l.max, l.default, l.step)
+/**
+ * When the person is without the training. `from` is null when they never held it; `until` is
+ * the day the remedying session ends, null while nothing is booked (the window is open).
+ * `days` is set only when both ends are known.
+ */
+export interface NonComplianceWindow {
+  from: IsoDate | null
+  until: IsoDate | null
+  days: number | null
 }
 
-/** Parses (and clamps) settings from anything: a URL query, a form, a partial object. */
-export const advisorSettingsSchema = z.object({
-  weightExpired: numberField('weightExpired'),
-  weightMissing: numberField('weightMissing'),
-  weightExpiring: numberField('weightExpiring'),
-  expiringRamp: numberField('expiringRamp'),
-  waitPenalty: numberField('waitPenalty'),
-  lateAfterExpiryPenalty: numberField('lateAfterExpiryPenalty'),
-  fillPreference: numberField('fillPreference'),
-  maxFill: numberField('maxFill'),
-  horizonDays: numberField('horizonDays'),
-  maxPerEmployee: numberField('maxPerEmployee'),
-  includeExpiring: flag(true),
-  includeParentalLeave: flag(false),
-})
-export type AdvisorSettings = z.output<typeof advisorSettingsSchema>
+export type UnplacedReason = 'NO_SESSION' | 'NO_SEATS' | 'CONFLICT'
 
-export const DEFAULT_ADVISOR_SETTINGS: AdvisorSettings = advisorSettingsSchema.parse({})
+export type Proposal =
+  | {
+      kind: 'SESSION'
+      /** Position in the queue, from 1. */
+      rank: number
+      session: AdvisorSession
+      /** The window this session would leave; null when it ends before the training lapses. */
+      window: NonComplianceWindow | null
+    }
+  | { kind: 'NONE'; rank: number; reason: UnplacedReason }
 
-/** Only the values that differ from the defaults, as strings (for a shareable URL). */
-export function settingsToQuery(settings: AdvisorSettings): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const key of Object.keys(DEFAULT_ADVISOR_SETTINGS) as (keyof AdvisorSettings)[]) {
-    const value = settings[key]
-    if (value !== DEFAULT_ADVISOR_SETTINGS[key])
-      out[key] = typeof value === 'boolean' ? (value ? '1' : '0') : String(value)
-  }
-  return out
-}
-
-// ---------------------------------------------------------------------------------------------
-// Plan
-
-export type ScoreTermKey = 'urgency' | 'expiryRamp' | 'wait' | 'lateAfterExpiry' | 'fill'
-export interface ScoreTerm {
-  key: ScoreTermKey
-  value: number
-}
-
-export interface Suggestion {
+export interface PlanItem {
   need: AdvisorNeed
-  session: AdvisorSession
-  /** Days from `asOf` to the session (Prague calendar days). */
-  daysUntil: number
-  /** Booked seats including this one, against capacity. */
-  bookedAfter: number
-  score: number
-  /** Always sum to `score`. */
-  terms: ScoreTerm[]
-}
-
-export type UnresolvedReason = 'NO_SESSION' | 'OUTSIDE_HORIZON' | 'NO_SEATS' | 'CONFLICT' | 'LIMIT'
-export interface Unresolved {
-  need: AdvisorNeed
-  reason: UnresolvedReason
+  bucket: Bucket
+  /** First day without the training; null when it was never held. */
+  lapses: IsoDate | null
+  /** The person's named booking on an upcoming session of the course (the earliest). */
+  booked: AdvisorSession | null
+  remediation: Remediation
+  /** Null when the booking ends before the training lapses: no window at all. */
+  window: NonComplianceWindow | null
+  /** For ACTION_REQUIRED only: the session the advisor proposes, or why there is none. */
+  proposal: Proposal | null
 }
 
 export interface SeatMove {
@@ -161,89 +115,78 @@ export interface OverbookedSession {
   remaining: number
 }
 
-export interface PlanMetrics {
-  complianceBefore: number
-  complianceAfter: number
-  utilisationBefore: number
-  utilisationAfter: number
-  overbookedBefore: number
-  overbookedAfter: number
-  openBefore: number
-  openAfter: number
-  cost: number
+export interface BreakdownRow {
+  bucket: Bucket
+  counts: Record<Remediation, number>
+  total: number
 }
 
 export interface AdvisorPlan {
-  suggestions: Suggestion[]
-  unresolved: Unresolved[]
-  /** Needs already met by a named booking on an upcoming session of the course. */
-  covered: AdvisorNeed[]
+  /** Every training in scope: the queue first (in order), then the remedied ones. */
+  items: PlanItem[]
+  /** `now`, then each forecast month; months with nothing lapsing are kept. */
+  breakdown: BreakdownRow[]
   overbooked: OverbookedSession[]
-  /** Per course: people the plan could not place, worst first (drives "add a session"). */
+  /** Per course: trainings with no session to propose (drives "schedule another session"). */
   shortfall: { courseCode: string; courseName: string; people: number }[]
-  /** Per course with open needs: who needs it (by status) against the seats on offer. */
-  demand: CourseDemand[]
-  metrics: PlanMetrics
+  totals: {
+    now: number
+    upcoming: number
+    planned: number
+    actionRequired: number
+    proposed: number
+  }
+  /** Price of every proposed booking. */
+  cost: number
 }
 
-export interface CourseDemand {
-  courseCode: string
-  courseName: string
-  needs: Record<NeedStatus, number>
-  /** Seats left (under maxFill, within the horizon) before the plan, after overbooking moves. */
-  freeSeats: number
-  placed: number
-}
-
-const STATUS_RANK: Record<NeedStatus, number> = { EXPIRED: 0, MISSING: 1, EXPIRING: 2 }
 const collator = new Intl.Collator('cs', { sensitivity: 'base', numeric: true })
 
-const sessionDay = (s: AdvisorSession) => toZonedParts(s.startsAt).date
+const startDay = (s: AdvisorSession) => toZonedParts(s.startsAt).date
+const endDay = (s: AdvisorSession) => toZonedParts(s.endsAt).date
 const overlaps = (a: AdvisorSession, b: AdvisorSession) =>
   Date.parse(a.startsAt) < Date.parse(b.endsAt) && Date.parse(b.startsAt) < Date.parse(a.endsAt)
 const byStart = (a: AdvisorSession, b: AdvisorSession) =>
   Date.parse(a.startsAt) - Date.parse(b.startsAt) || a.externalId.localeCompare(b.externalId)
 
-function daysLeft(need: AdvisorNeed, asOf: IsoDate): number | null {
-  return need.validUntil === null ? null : diffInDays(asOf, need.validUntil)
+const isNonCompliant = (need: AdvisorNeed) => need.status === 'EXPIRED' || need.status === 'MISSING'
+const lapsesOn = (need: AdvisorNeed) =>
+  need.validUntil === null ? null : addDays(need.validUntil, 1)
+
+/** The window a session leaves for a need; null when it ends before the training lapses. */
+function windowFor(need: AdvisorNeed, session: AdvisorSession | null): NonComplianceWindow | null {
+  const from = lapsesOn(need)
+  if (session === null) return { from, until: null, days: null }
+  const until = endDay(session)
+  if (from !== null && until < from) return null
+  return { from, until, days: from === null ? null : diffInDays(from, until) }
 }
 
-/** Base urgency of a need, as named terms. */
-export function needPriority(
-  need: AdvisorNeed,
-  settings: AdvisorSettings,
-  input: Pick<AdvisorInput, 'asOf' | 'expiringWithinDays'>
-): ScoreTerm[] {
-  const weight = {
-    EXPIRED: settings.weightExpired,
-    MISSING: settings.weightMissing,
-    EXPIRING: settings.weightExpiring,
-  }[need.status]
-  const terms: ScoreTerm[] = [{ key: 'urgency', value: weight }]
-  if (need.status === 'EXPIRING') {
-    const left = Math.max(0, daysLeft(need, input.asOf) ?? input.expiringWithinDays)
-    terms.push({
-      key: 'expiryRamp',
-      value: settings.expiringRamp * Math.max(0, input.expiringWithinDays - left),
-    })
-  }
-  return terms
+/** Queue order: expired (earliest expiry first), never completed, then by lapse date. */
+function compareQueue(a: AdvisorNeed, b: AdvisorNeed): number {
+  const group = (n: AdvisorNeed) => (n.status === 'EXPIRED' ? 0 : n.status === 'MISSING' ? 1 : 2)
+  return (
+    group(a) - group(b) ||
+    (a.validUntil ?? '').localeCompare(b.validUntil ?? '') ||
+    collator.compare(a.employee.name, b.employee.name) ||
+    a.employee.externalId.localeCompare(b.employee.externalId) ||
+    a.course.code.localeCompare(b.course.code)
+  )
 }
 
-const sum = (terms: ScoreTerm[]) => terms.reduce((total, t) => total + t.value, 0)
-
-export function planAssignments(input: AdvisorInput, settings: AdvisorSettings): AdvisorPlan {
+export function planAssignments(input: AdvisorInput): AdvisorPlan {
   const { asOf } = input
+  const end = forecastEnd(asOf)
   const upcoming = input.sessions
-    .filter(s => s.status === 'PLANNED' && sessionDay(s) >= asOf)
+    .filter(s => s.status === 'PLANNED' && startDay(s) >= asOf)
     .toSorted(byStart)
   const booked = new Map(upcoming.map(s => [s.externalId, s.unnamedBookings + s.assigned.length]))
-  const seatLimit = (s: AdvisorSession) => Math.floor((s.capacity * settings.maxFill) / 100)
+  const seatsTaken = (s: AdvisorSession) => booked.get(s.externalId) ?? 0
 
-  // 1. Overbooking first: moving anonymous seats out frees capacity the plan must not reuse.
+  // 1. Overbooking first: moving anonymous seats out takes room the plan must not reuse.
   const overbooked: OverbookedSession[] = []
   for (const source of upcoming) {
-    const before = booked.get(source.externalId) ?? 0
+    const before = seatsTaken(source)
     const excess = before - source.capacity
     if (excess <= 0) continue
     let movable = Math.min(excess, source.unnamedBookings)
@@ -251,170 +194,123 @@ export function planAssignments(input: AdvisorInput, settings: AdvisorSettings):
     for (const target of upcoming) {
       if (movable === 0) break
       if (target === source || target.courseCode !== source.courseCode) continue
-      const room = seatLimit(target) - (booked.get(target.externalId) ?? 0)
+      const room = target.capacity - seatsTaken(target)
       if (room <= 0) continue
       const count = Math.min(room, movable)
       moves.push({ to: target, count })
-      booked.set(target.externalId, (booked.get(target.externalId) ?? 0) + count)
-      booked.set(source.externalId, (booked.get(source.externalId) ?? 0) - count)
+      booked.set(target.externalId, seatsTaken(target) + count)
+      booked.set(source.externalId, seatsTaken(source) - count)
       movable -= count
     }
     const moved = moves.reduce((n, m) => n + m.count, 0)
     overbooked.push({ session: source, booked: before, excess, moves, remaining: excess - moved })
   }
 
-  const freeSeatsBefore = new Map<string, number>()
-  for (const s of upcoming) {
-    if (diffInDays(asOf, sessionDay(s)) > settings.horizonDays) continue
-    const free = Math.max(0, seatLimit(s) - (booked.get(s.externalId) ?? 0))
-    freeSeatsBefore.set(s.courseCode, (freeSeatsBefore.get(s.courseCode) ?? 0) + free)
-  }
-
-  // 2. Which needs are in play.
-  const covered: AdvisorNeed[] = []
-  const considered: AdvisorNeed[] = []
+  // 2. What is in scope, and what is already remedied by a named booking.
+  const remedied: PlanItem[] = []
+  const queue: AdvisorNeed[] = []
   for (const need of input.needs) {
-    if (need.status === 'EXPIRING' && !settings.includeExpiring) continue
-    if (need.employee.status === 'PARENTAL_LEAVE' && !settings.includeParentalLeave) continue
+    if (need.employee.status === 'PARENTAL_LEAVE') continue
+    const lapses = lapsesOn(need)
+    if (!isNonCompliant(need) && (lapses === null || lapses > end)) continue
     const booking = upcoming.find(
       s => s.courseCode === need.course.code && s.assigned.includes(need.employee.externalId)
     )
-    if (booking) covered.push(need)
-    else considered.push(need)
+    if (!booking) {
+      queue.push(need)
+      continue
+    }
+    const window = windowFor(need, booking)
+    remedied.push({
+      need,
+      bucket: bucketOf(need),
+      lapses,
+      booked: booking,
+      remediation: window === null ? 'PLANNED' : 'PLANNED_LATE',
+      window,
+      proposal: null,
+    })
   }
 
-  // 3. Most urgent first, with a total, deterministic tie-break.
-  const priority = new Map(considered.map(n => [n, needPriority(n, settings, input)]))
-  const ordered = considered.toSorted((a, b) => {
-    const pa = sum(priority.get(a) ?? [])
-    const pb = sum(priority.get(b) ?? [])
-    return (
-      pb - pa ||
-      STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
-      (daysLeft(a, asOf) ?? Infinity) - (daysLeft(b, asOf) ?? Infinity) ||
-      compareNullable(a.employee.department, b.employee.department) ||
-      collator.compare(a.employee.name, b.employee.name) ||
-      a.employee.externalId.localeCompare(b.employee.externalId) ||
-      a.course.code.localeCompare(b.course.code)
-    )
-  })
-
-  // Each person's sessions so far (named bookings, then planned ones), for clash checks.
+  // 3. The queue, most overdue first; each takes a session or says why it cannot.
   const busy = new Map<string, AdvisorSession[]>()
   for (const s of upcoming) for (const id of s.assigned) busy.set(id, [...(busy.get(id) ?? []), s])
-  const plannedCount = new Map<string, number>()
 
-  const suggestions: Suggestion[] = []
-  const unresolved: Unresolved[] = []
-  for (const need of ordered) {
+  const queued: PlanItem[] = queue.toSorted(compareQueue).map((need, index) => {
+    const rank = index + 1
     const person = need.employee.externalId
+    const item = (proposal: Proposal): PlanItem => ({
+      need,
+      bucket: bucketOf(need),
+      lapses: lapsesOn(need),
+      booked: null,
+      remediation: 'ACTION_REQUIRED',
+      window: windowFor(need, null),
+      proposal,
+    })
+
     const ofCourse = upcoming.filter(s => s.courseCode === need.course.code)
-    const inHorizon = ofCourse.filter(s => diffInDays(asOf, sessionDay(s)) <= settings.horizonDays)
-    if (inHorizon.length === 0) {
-      unresolved.push({ need, reason: ofCourse.length === 0 ? 'NO_SESSION' : 'OUTSIDE_HORIZON' })
-      continue
-    }
-    if ((plannedCount.get(person) ?? 0) >= settings.maxPerEmployee) {
-      unresolved.push({ need, reason: 'LIMIT' })
-      continue
-    }
-    const withSeats = inHorizon.filter(s => (booked.get(s.externalId) ?? 0) < seatLimit(s))
-    if (withSeats.length === 0) {
-      unresolved.push({ need, reason: 'NO_SEATS' })
-      continue
-    }
+    if (ofCourse.length === 0) return item({ kind: 'NONE', rank, reason: 'NO_SESSION' })
+    const withSeats = ofCourse.filter(s => seatsTaken(s) < s.capacity)
+    if (withSeats.length === 0) return item({ kind: 'NONE', rank, reason: 'NO_SEATS' })
     const free = withSeats.filter(s => !(busy.get(person) ?? []).some(b => overlaps(b, s)))
-    if (free.length === 0) {
-      unresolved.push({ need, reason: 'CONFLICT' })
-      continue
-    }
+    const [earliest] = free
+    if (earliest === undefined) return item({ kind: 'NONE', rank, reason: 'CONFLICT' })
 
-    let best: Suggestion | null = null
-    for (const session of free) {
-      const daysUntil = diffInDays(asOf, sessionDay(session))
-      const bookedAfter = (booked.get(session.externalId) ?? 0) + 1
-      const terms: ScoreTerm[] = [
-        ...(priority.get(need) ?? []),
-        { key: 'wait', value: -settings.waitPenalty * daysUntil },
-      ]
-      if (
-        need.status === 'EXPIRING' &&
-        need.validUntil !== null &&
-        sessionDay(session) > need.validUntil
-      )
-        terms.push({ key: 'lateAfterExpiry', value: -settings.lateAfterExpiryPenalty })
-      if (session.capacity > 0)
-        terms.push({
-          key: 'fill',
-          value: settings.fillPreference * (bookedAfter / session.capacity),
-        })
-      const candidate: Suggestion = {
-        need,
-        session,
-        daysUntil,
-        bookedAfter,
-        score: sum(terms),
-        terms,
-      }
-      // Strictly better only: sessions are in start order, so ties keep the earlier one.
-      if (best === null || candidate.score > best.score + 1e-9) best = candidate
-    }
-    if (best === null) continue
-    suggestions.push(best)
-    booked.set(best.session.externalId, best.bookedAfter)
-    busy.set(person, [...(busy.get(person) ?? []), best.session])
-    plannedCount.set(person, (plannedCount.get(person) ?? 0) + 1)
-  }
+    // Lapsed: as soon as possible. Not yet: the last session that still ends in time.
+    const inTime = isNonCompliant(need)
+      ? []
+      : free.filter(s => need.validUntil !== null && endDay(s) <= need.validUntil)
+    const session = inTime.at(-1) ?? earliest
+    booked.set(session.externalId, seatsTaken(session) + 1)
+    busy.set(person, [...(busy.get(person) ?? []), session])
+    return item({ kind: 'SESSION', rank, session, window: windowFor(need, session) })
+  })
 
+  const items = [...queued, ...remedied.toSorted((a, b) => compareQueue(a.need, b.need))]
   return {
-    suggestions,
-    unresolved,
-    covered,
+    items,
+    breakdown: breakdownOf(items, asOf),
     overbooked,
-    shortfall: shortfallByCourse(unresolved),
-    demand: demandByCourse(considered, suggestions, freeSeatsBefore),
-    metrics: metrics(input, upcoming, booked, overbooked, considered, suggestions, unresolved),
+    shortfall: shortfallOf(queued),
+    totals: {
+      now: items.filter(i => i.bucket === NOW).length,
+      upcoming: items.filter(i => i.bucket !== NOW).length,
+      planned: remedied.length,
+      actionRequired: queued.length,
+      proposed: queued.filter(i => i.proposal?.kind === 'SESSION').length,
+    },
+    cost: queued.reduce(
+      (n, i) => n + (i.proposal?.kind === 'SESSION' ? (i.proposal.session.pricePerPerson ?? 0) : 0),
+      0
+    ),
   }
 }
 
-function compareNullable(a: string | null, b: string | null): number {
-  if (a === b) return 0
-  if (a === null) return 1
-  if (b === null) return -1
-  return collator.compare(a, b)
+function bucketOf(need: AdvisorNeed): Bucket {
+  const lapses = lapsesOn(need)
+  return isNonCompliant(need) || lapses === null ? NOW : lapses.slice(0, 7)
 }
 
-function demandByCourse(
-  considered: AdvisorNeed[],
-  suggestions: Suggestion[],
-  freeSeats: Map<string, number>
-): CourseDemand[] {
-  const byCourse = new Map<string, CourseDemand>()
-  for (const need of considered) {
-    const entry = byCourse.get(need.course.code) ?? {
-      courseCode: need.course.code,
-      courseName: need.course.name,
-      needs: { EXPIRED: 0, MISSING: 0, EXPIRING: 0 },
-      freeSeats: freeSeats.get(need.course.code) ?? 0,
-      placed: 0,
-    }
-    entry.needs[need.status] += 1
-    byCourse.set(need.course.code, entry)
-  }
-  for (const s of suggestions) {
-    const entry = byCourse.get(s.need.course.code)
-    if (entry) entry.placed += 1
-  }
-  const total = (d: CourseDemand) => d.needs.EXPIRED + d.needs.MISSING + d.needs.EXPIRING
-  return [...byCourse.values()].sort(
-    (a, b) => total(b) - total(a) || a.courseCode.localeCompare(b.courseCode)
+/** The forecast's months, `2026-10` … `2027-03`. */
+export function forecastMonths(asOf: IsoDate): Bucket[] {
+  return Array.from({ length: FORECAST_MONTHS }, (_, i) =>
+    addMonths(`${asOf.slice(0, 7)}-01`, i).slice(0, 7)
   )
 }
 
-function shortfallByCourse(unresolved: Unresolved[]): AdvisorPlan['shortfall'] {
+function breakdownOf(items: PlanItem[], asOf: IsoDate): BreakdownRow[] {
+  return [NOW, ...forecastMonths(asOf)].map(bucket => {
+    const counts: Record<Remediation, number> = { PLANNED: 0, PLANNED_LATE: 0, ACTION_REQUIRED: 0 }
+    for (const item of items) if (item.bucket === bucket) counts[item.remediation] += 1
+    return { bucket, counts, total: counts.PLANNED + counts.PLANNED_LATE + counts.ACTION_REQUIRED }
+  })
+}
+
+function shortfallOf(queued: PlanItem[]): AdvisorPlan['shortfall'] {
   const byCourse = new Map<string, { courseCode: string; courseName: string; people: number }>()
-  for (const { need, reason } of unresolved) {
-    if (reason === 'CONFLICT' || reason === 'LIMIT') continue
+  for (const { need, proposal } of queued) {
+    if (proposal?.kind !== 'NONE' || proposal.reason === 'CONFLICT') continue
     const entry = byCourse.get(need.course.code) ?? {
       courseCode: need.course.code,
       courseName: need.course.name,
@@ -426,38 +322,4 @@ function shortfallByCourse(unresolved: Unresolved[]): AdvisorPlan['shortfall'] {
   return [...byCourse.values()].sort(
     (a, b) => b.people - a.people || a.courseCode.localeCompare(b.courseCode)
   )
-}
-
-function metrics(
-  input: AdvisorInput,
-  upcoming: AdvisorSession[],
-  bookedAfter: Map<string, number>,
-  overbooked: OverbookedSession[],
-  considered: AdvisorNeed[],
-  suggestions: Suggestion[],
-  unresolved: Unresolved[]
-): PlanMetrics {
-  const { activeCounts } = input
-  const heldBefore = activeCounts.VALID + activeCounts.EXPIRING
-  // Training an expired or missing person makes the pair held; expiring ones already count.
-  const gained = suggestions.filter(
-    s => s.need.employee.status === 'ACTIVE' && s.need.status !== 'EXPIRING'
-  ).length
-  const rate = (held: number) => (activeCounts.total === 0 ? 1 : held / activeCounts.total)
-
-  const capacity = upcoming.reduce((n, s) => n + s.capacity, 0)
-  const filled = (seats: (s: AdvisorSession) => number) =>
-    capacity === 0 ? 0 : upcoming.reduce((n, s) => n + Math.min(seats(s), s.capacity), 0) / capacity
-
-  return {
-    complianceBefore: rate(heldBefore),
-    complianceAfter: rate(heldBefore + gained),
-    utilisationBefore: filled(s => s.unnamedBookings + s.assigned.length),
-    utilisationAfter: filled(s => bookedAfter.get(s.externalId) ?? 0),
-    overbookedBefore: overbooked.length,
-    overbookedAfter: overbooked.filter(o => o.remaining > 0).length,
-    openBefore: considered.length,
-    openAfter: unresolved.length,
-    cost: suggestions.reduce((n, s) => n + (s.session.pricePerPerson ?? 0), 0),
-  }
 }

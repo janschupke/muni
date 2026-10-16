@@ -9,13 +9,7 @@ import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import { CellStack } from '@muni/ui/table'
-import {
-  formatDate,
-  formatOptional,
-  formatPercent,
-  formatTimeRange,
-  PLACEHOLDER,
-} from '@muni/utils/format'
+import { formatDate, formatOptional, formatPercent, PLACEHOLDER } from '@muni/utils/format'
 import { Pencil, Plus } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
@@ -26,6 +20,7 @@ import { cache } from 'react'
 import { BackLink } from '@/components/back-link'
 import { CompletionHistoryTable } from '@/components/completion-tables'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
+import { RoomLink, SessionDateLink } from '@/components/session-links'
 import { ComplianceBadge, EmploymentBadge } from '@/components/status-badges'
 import { getViewer } from '@/server/auth'
 
@@ -141,7 +136,19 @@ export default async function EmployeePage({ params }: Props) {
                               <Link href={`/courses/${b.courseCode}`}>{b.courseName}</Link>
                             </TextLink>
                           }
-                          meta={`${formatTimeRange(b.startsAt, b.endsAt, locale)} · ${b.location}`}
+                          meta={
+                            <>
+                              <SessionDateLink
+                                session={{
+                                  externalId: b.sessionExternalId,
+                                  startsAt: b.startsAt,
+                                  endsAt: b.endsAt,
+                                }}
+                              />
+                              {' · '}
+                              <RoomLink location={b.location} />
+                            </>
+                          }
                         />
                         {canEdit && (
                           <RemoveBookingButton

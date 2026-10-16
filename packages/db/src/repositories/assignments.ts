@@ -1,4 +1,5 @@
-import { appliesTo, bestCompletion, statusOf } from '@muni/domain/compliance'
+import { forecastEnd } from '@muni/domain/advisor'
+import { appliesTo, bestCompletion } from '@muni/domain/compliance'
 import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
 import type { Prisma } from '../generated/prisma/client'
@@ -23,9 +24,8 @@ export type AssignmentFailure = (typeof ASSIGNMENT_FAILURES)[number]
 export interface AssignmentRequest {
   sessionExternalId: string
   employeeExternalId: string
-  /** ADVISOR requests are re-checked against the person's current compliance. */
+  /** ADVISOR requests are re-checked: required, and lapsed or lapsing within the forecast. */
   source: 'ADVISOR' | 'MANUAL'
-  score?: number | null
 }
 
 export type AssignmentOutcome =
@@ -140,7 +140,9 @@ async function applyOne(
       })),
       opts.asOf
     )
-    if (statusOf(best, opts) === 'VALID') return 'NOT_NEEDED'
+    // Valid beyond the advisor's forecast (or for good): nothing to remedy yet.
+    if (best !== null && (best.validUntil === null || best.validUntil >= forecastEnd(opts.asOf)))
+      return 'NOT_NEEDED'
   }
 
   await tx.sessionAssignment.create({
@@ -148,7 +150,6 @@ async function applyOne(
       sessionId: session.id,
       employeeId: employee.id,
       source: request.source,
-      score: request.score ?? null,
       createdBy: userId,
     },
   })

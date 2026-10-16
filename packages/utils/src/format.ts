@@ -38,6 +38,13 @@ export function formatDate(date: IsoDate, locale: string): string {
     .toLocaleString(DATE)
 }
 
+/** A calendar month, `2026-11` → "November 2026" / "listopad 2026". */
+export function formatMonth(month: string, locale: string): string {
+  return DateTime.fromJSDate(isoDateToUtc(`${month}-01`), { zone: 'utc' })
+    .setLocale(locale)
+    .toLocaleString({ month: 'long', year: 'numeric' })
+}
+
 export function formatDateTime(
   instant: Date | string,
   locale: string,

@@ -19,7 +19,6 @@ const applyInput = z
       sessionExternalId: externalId,
       employeeExternalId: externalId,
       source: z.enum(['ADVISOR', 'MANUAL']),
-      score: z.number().min(-100_000).max(100_000).nullable().optional(),
     })
   )
   .min(1)

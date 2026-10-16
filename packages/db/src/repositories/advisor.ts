@@ -1,12 +1,11 @@
-import type { AdvisorInput, AdvisorNeed } from '@muni/domain/advisor'
-import { countStatuses } from '@muni/domain/compliance'
+import { forecastEnd, type AdvisorInput, type AdvisorNeed } from '@muni/domain/advisor'
 
 import { dbOf, loadCompliance, type RepoOptions } from './context'
 
 /**
- * Everything the advisor needs, as plain data: open needs (with names, for the plan table),
- * upcoming sessions with their named bookings, and the active compliance counts. The plan
- * itself is computed by `planAssignments` (in the browser, so the calculator is live).
+ * Everything the advisor needs, as plain data: every training that is non-compliant now or
+ * lapses within the forecast (with names, for the tables), and the upcoming sessions with
+ * their named bookings. The plan itself is `planAssignments`, a pure function of this.
  * Names and departments are already public on the employee list; nothing sensitive is read.
  */
 export async function getAdvisorInput(
@@ -49,8 +48,11 @@ export async function getAdvisorInput(
   const employeeById = new Map(employees.map(e => [e.id, e]))
   const courseById = new Map(courses.map(c => [c.id, c]))
   const needs: AdvisorNeed[] = []
+  const end = forecastEnd(compliance.options.asOf)
   for (const cell of compliance.cells) {
-    if (cell.status === 'VALID') continue
+    // A valid training is in scope only if it lapses (the day after validUntil) by the end.
+    const validUntil = cell.basis?.validUntil ?? null
+    if (cell.status === 'VALID' && (validUntil === null || validUntil >= end)) continue
     const employee = employeeById.get(cell.employeeId)
     const course = courseById.get(cell.courseId)
     if (!employee || !course || employee.status === 'TERMINATED') continue
@@ -63,14 +65,12 @@ export async function getAdvisorInput(
       },
       course: { code: course.code, name: course.name },
       status: cell.status,
-      validUntil: cell.basis?.validUntil ?? null,
+      validUntil,
     })
   }
 
-  const active = new Set(employees.filter(e => e.status === 'ACTIVE').map(e => e.id))
   return {
     asOf: compliance.options.asOf,
-    expiringWithinDays: compliance.options.expiringWithinDays,
     needs,
     sessions: sessions.map(s => ({
       externalId: s.externalId,
@@ -85,6 +85,5 @@ export async function getAdvisorInput(
       pricePerPerson: s.pricePerPerson === null ? null : Number(s.pricePerPerson),
       status: s.status,
     })),
-    activeCounts: countStatuses(compliance.cells.filter(c => active.has(c.employeeId))),
   }
 }

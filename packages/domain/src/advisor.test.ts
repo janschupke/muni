@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  advisorSettingsSchema,
-  DEFAULT_ADVISOR_SETTINGS,
+  forecastEnd,
+  forecastMonths,
   planAssignments,
-  settingsToQuery,
   type AdvisorInput,
   type AdvisorNeed,
+  type AdvisorPlan,
   type AdvisorSession,
-  type AdvisorSettings,
 } from './advisor'
 
 const AS_OF = '2026-10-16'
@@ -37,13 +36,13 @@ function need(
   employee: string,
   courseCode: string,
   status: AdvisorNeed['status'],
-  extra: { validUntil?: string | null; department?: string | null; leave?: boolean } = {}
+  extra: { validUntil?: string | null; name?: string; leave?: boolean } = {}
 ): AdvisorNeed {
   return {
     employee: {
       externalId: employee,
-      name: `Person ${employee}`,
-      department: extra.department ?? 'Laboratoře',
+      name: extra.name ?? `Person ${employee}`,
+      department: 'Laboratoře',
       status: extra.leave ? 'PARENTAL_LEAVE' : 'ACTIVE',
     },
     course: { code: courseCode, name: `Course ${courseCode}` },
@@ -57,233 +56,250 @@ function need(
   }
 }
 
-function input(needs: AdvisorNeed[], sessions: AdvisorSession[]): AdvisorInput {
-  return {
-    asOf: AS_OF,
-    expiringWithinDays: 30,
-    needs,
-    sessions,
-    activeCounts: { VALID: 90, EXPIRING: 0, EXPIRED: 5, MISSING: 5, total: 100 },
-  }
+const plan = (needs: AdvisorNeed[], sessions: AdvisorSession[]) =>
+  planAssignments({ asOf: AS_OF, needs, sessions } satisfies AdvisorInput)
+
+const itemOf = (p: AdvisorPlan, employee: string, course = 'BOZP') => {
+  const item = p.items.find(
+    i => i.need.employee.externalId === employee && i.need.course.code === course
+  )
+  if (!item) throw new Error(`no item for ${employee}/${course}`)
+  return item
 }
 
-const plan = (i: AdvisorInput, settings: Partial<AdvisorSettings> = {}) =>
-  planAssignments(i, { ...DEFAULT_ADVISOR_SETTINGS, ...settings })
+/** "E1→T001" for each proposed session, in queue order. */
+const proposed = (p: AdvisorPlan) =>
+  p.items.flatMap(i =>
+    i.proposal?.kind === 'SESSION'
+      ? [`${i.need.employee.externalId}→${i.proposal.session.externalId}`]
+      : []
+  )
 
-const pairs = (p: ReturnType<typeof plan>) =>
-  p.suggestions.map(s => `${s.need.employee.externalId}→${s.session.externalId}`)
+describe('scope and buckets', () => {
+  it('forecasts six months, the current one included', () => {
+    expect(forecastEnd(AS_OF)).toBe('2027-03-31')
+    expect(forecastMonths(AS_OF)).toEqual([
+      '2026-10',
+      '2026-11',
+      '2026-12',
+      '2027-01',
+      '2027-02',
+      '2027-03',
+    ])
+  })
 
-/** A deterministic shuffle (no Math.random in tests). */
-function shuffled<T>(items: T[], seed: number): T[] {
-  const out = [...items]
-  let state = seed
-  for (let i = out.length - 1; i > 0; i--) {
-    state = (state * 1_103_515_245 + 12_345) % 2 ** 31
-    const j = state % (i + 1)
-    ;[out[i], out[j]] = [out[j] as T, out[i] as T]
-  }
-  return out
-}
-
-describe('priority and order', () => {
-  it('serves expired, then missing, then expiring needs with the default weights', () => {
-    const s = session('BOZP', '2026-11-02', { capacity: 2 })
+  it('puts lapsed trainings in "now" and the rest in the month they lapse', () => {
     const p = plan(
-      input(
-        [
-          need('E3', 'BOZP', 'EXPIRING', { validUntil: '2026-11-10' }),
-          need('E2', 'BOZP', 'MISSING'),
-          need('E1', 'BOZP', 'EXPIRED'),
-        ],
-        [s]
-      )
+      [
+        need('E1', 'BOZP', 'EXPIRED'),
+        need('E2', 'BOZP', 'MISSING'),
+        // Valid through 31 Oct: the first day without it is 1 Nov.
+        need('E3', 'BOZP', 'EXPIRING', { validUntil: '2026-10-31' }),
+        need('E4', 'BOZP', 'VALID', { validUntil: '2027-03-30' }),
+        need('E5', 'BOZP', 'VALID', { validUntil: '2027-03-31' }), // lapses in April: out
+        need('E6', 'BOZP', 'EXPIRED', { leave: true }), // parental leave: out
+      ],
+      []
     )
-    expect(pairs(p)).toEqual([`E1→${s.externalId}`, `E2→${s.externalId}`])
-    expect(p.unresolved).toEqual([expect.objectContaining({ reason: 'NO_SEATS' })])
-    expect(p.unresolved[0]?.need.employee.externalId).toBe('E3')
+    expect(p.items.map(i => [i.need.employee.externalId, i.bucket, i.lapses])).toEqual([
+      ['E1', 'now', '2026-10-02'],
+      ['E2', 'now', null],
+      ['E3', '2026-11', '2026-11-01'],
+      ['E4', '2027-03', '2027-03-31'],
+    ])
   })
 
-  it('lets the weights reorder the queue', () => {
-    const s = session('BOZP', '2026-11-02', { capacity: 1 })
-    const needs = [need('E1', 'BOZP', 'EXPIRED'), need('E2', 'BOZP', 'MISSING')]
-    expect(pairs(plan(input(needs, [s])))[0]).toMatch(/^E1/)
-    expect(pairs(plan(input(needs, [s]), { weightMissing: 150 }))[0]).toMatch(/^E2/)
+  it('keeps empty months in the breakdown, and its counts add up to the items', () => {
+    const p = plan(
+      [
+        need('E1', 'BOZP', 'EXPIRED'),
+        need('E2', 'BOZP', 'EXPIRING', { validUntil: '2026-11-10' }),
+        need('E3', 'BOZP', 'VALID', { validUntil: '2026-12-31' }),
+      ],
+      [session('BOZP', '2026-12-10', { assigned: ['E3'] })]
+    )
+    expect(p.breakdown.map(r => r.bucket)).toEqual(['now', ...forecastMonths(AS_OF)])
+    expect(p.breakdown.find(r => r.bucket === '2026-11')?.counts).toEqual({
+      PLANNED: 0,
+      PLANNED_LATE: 0,
+      ACTION_REQUIRED: 1,
+    })
+    expect(p.breakdown.find(r => r.bucket === '2027-01')?.counts.PLANNED).toBe(1)
+    expect(p.breakdown.find(r => r.bucket === '2027-02')?.total).toBe(0)
+    expect(p.breakdown.reduce((n, r) => n + r.total, 0)).toBe(p.items.length)
+    expect(p.totals).toEqual({ now: 1, upcoming: 2, planned: 1, actionRequired: 2, proposed: 2 })
+  })
+})
+
+describe('remediation and the non-compliance window', () => {
+  it('a booking that ends before the lapse leaves no window', () => {
+    const s = session('BOZP', '2026-12-10', { assigned: ['E1'] })
+    const item = itemOf(
+      plan([need('E1', 'BOZP', 'VALID', { validUntil: '2026-12-31' })], [s]),
+      'E1'
+    )
+    expect(item).toMatchObject({ remediation: 'PLANNED', window: null, proposal: null })
+    expect(item.booked?.externalId).toBe(s.externalId)
   })
 
-  it('raises an expiring need as its expiry approaches (the ramp)', () => {
-    const s = session('BOZP', '2026-11-02', { capacity: 1 })
-    const soon = need('E1', 'BOZP', 'EXPIRING', { validUntil: '2026-10-20' }) // 4 days left
-    const later = need('E2', 'BOZP', 'EXPIRING', { validUntil: '2026-11-14' }) // 29 days left
-    const p = plan(input([later, soon], [s]))
-    expect(pairs(p)).toEqual([`E1→${s.externalId}`])
-    expect(p.suggestions[0]?.terms).toContainEqual({ key: 'expiryRamp', value: 26 })
+  it('a booking after the lapse is planned late, with the gap in days', () => {
+    const s = session('BOZP', '2026-12-10', { assigned: ['E1'] })
+    const item = itemOf(
+      plan([need('E1', 'BOZP', 'VALID', { validUntil: '2026-11-30' })], [s]),
+      'E1'
+    )
+    expect(item.remediation).toBe('PLANNED_LATE')
+    expect(item.window).toEqual({ from: '2026-12-01', until: '2026-12-10', days: 9 })
+  })
+
+  it('a lapsed training that is booked counts the window from the lapse', () => {
+    const s = session('BOZP', '2026-11-04', { assigned: ['E1', 'E2'] })
+    const p = plan([need('E1', 'BOZP', 'EXPIRED'), need('E2', 'BOZP', 'MISSING')], [s])
+    expect(itemOf(p, 'E1').window).toEqual({ from: '2026-10-02', until: '2026-11-04', days: 33 })
+    // Never held: the start is unknown, so only the end is given.
+    expect(itemOf(p, 'E2')).toMatchObject({
+      remediation: 'PLANNED_LATE',
+      window: { from: null, until: '2026-11-04', days: null },
+    })
+  })
+
+  it('without a booking, action is required and the window is open', () => {
+    const cancelled = session('BOZP', '2026-11-04', { assigned: ['E1'], status: 'CANCELLED' })
+    const item = itemOf(plan([need('E1', 'BOZP', 'EXPIRED')], [cancelled]), 'E1')
+    expect(item).toMatchObject({
+      remediation: 'ACTION_REQUIRED',
+      booked: null,
+      window: { from: '2026-10-02', until: null, days: null },
+    })
+  })
+})
+
+describe('the queue', () => {
+  const needs = [
+    need('E5', 'BOZP', 'VALID', { validUntil: '2027-01-15' }),
+    need('E4', 'BOZP', 'EXPIRING', { validUntil: '2026-10-20' }),
+    need('E3', 'BOZP', 'MISSING', { name: 'Adámek Petr' }),
+    need('E6', 'BOZP', 'MISSING', { name: 'Čermák Jan' }),
+    need('E2', 'BOZP', 'EXPIRED', { validUntil: '2026-09-01' }),
+    need('E1', 'BOZP', 'EXPIRED', { validUntil: '2026-06-01' }),
+  ]
+  const sessions = [session('BOZP', '2026-11-04', { capacity: 20 })]
+
+  it('serves the longest expired first, then never completed, then the soonest to lapse', () => {
+    const p = plan(needs, sessions)
+    expect(p.items.map(i => [i.need.employee.externalId, i.proposal?.rank])).toEqual([
+      ['E1', 1],
+      ['E2', 2],
+      ['E3', 3],
+      ['E6', 4],
+      ['E4', 5],
+      ['E5', 6],
+    ])
   })
 
   it('gives the same plan whatever order the input arrives in', () => {
-    const sessions = [
-      session('BOZP', '2026-11-02', { capacity: 3 }),
-      session('BOZP', '2026-12-02', { capacity: 3 }),
-      session('GDPR', '2026-11-05', { capacity: 2 }),
-    ]
-    const needs = [
-      ...['E1', 'E2', 'E3', 'E4', 'E5'].map(e => need(e, 'BOZP', 'MISSING')),
-      need('E6', 'BOZP', 'EXPIRED', { department: null }),
-      need('E1', 'GDPR', 'EXPIRED'),
-      need('E2', 'GDPR', 'EXPIRING', { validUntil: '2026-10-30' }),
-      need('E7', 'GDPR', 'MISSING'),
-    ]
-    const reference = pairs(plan(input(needs, sessions)))
-    for (const seed of [1, 2, 3, 4, 5])
-      expect(pairs(plan(input(shuffled(needs, seed), shuffled(sessions, seed + 9))))).toEqual(
-        reference
-      )
+    const reference = plan(needs, sessions)
+    for (const order of [
+      needs.toReversed(),
+      [needs[2], needs[0], needs[5], needs[1], needs[4], needs[3]],
+    ])
+      expect(
+        plan(
+          order.filter(n => n !== undefined),
+          sessions
+        )
+      ).toEqual(reference)
+  })
+
+  it('leaves remedied trainings out of the queue', () => {
+    const p = plan(
+      [need('E1', 'BOZP', 'EXPIRED'), need('E2', 'BOZP', 'EXPIRED')],
+      [session('BOZP', '2026-11-04', { assigned: ['E1'] })]
+    )
+    expect(itemOf(p, 'E1').proposal).toBeNull()
+    expect(itemOf(p, 'E2').proposal).toMatchObject({ kind: 'SESSION', rank: 1 })
   })
 })
 
 describe('session choice', () => {
-  it('prefers the sooner session, by the wait penalty', () => {
-    const early = session('BOZP', '2026-10-26')
-    const late = session('BOZP', '2027-01-26')
-    const p = plan(input([need('E1', 'BOZP', 'MISSING')], [late, early]), { fillPreference: 0 })
-    expect(p.suggestions[0]?.session.externalId).toBe(early.externalId)
+  it('sends a lapsed training to the earliest session', () => {
+    const later = session('BOZP', '2026-12-10')
+    const soon = session('BOZP', '2026-11-04')
+    expect(proposed(plan([need('E1', 'BOZP', 'EXPIRED')], [later, soon]))).toEqual([
+      `E1→${soon.externalId}`,
+    ])
   })
 
-  it('avoids a session after the training expires, by the late penalty', () => {
-    const afterExpiry = session('BOZP', '2026-11-05') // expiry is 11-01
-    const before = session('BOZP', '2026-10-30', { unnamedBookings: 9 })
-    const n = need('E1', 'BOZP', 'EXPIRING', { validUntil: '2026-11-01' })
-    // With the penalty off, the emptier later session wins on fill preference (negative = spread).
-    expect(
-      plan(input([n], [afterExpiry, before]), {
-        lateAfterExpiryPenalty: 0,
-        fillPreference: -20,
-        waitPenalty: 0,
-      }).suggestions[0]?.session.externalId
-    ).toBe(afterExpiry.externalId)
-    const p = plan(input([n], [afterExpiry, before]), { fillPreference: -20, waitPenalty: 0 })
-    expect(p.suggestions[0]?.session.externalId).toBe(before.externalId)
-  })
-
-  it('packs or spreads by the fill preference', () => {
-    const busy = session('BOZP', '2026-11-02', { unnamedBookings: 8 })
-    const empty = session('BOZP', '2026-11-02', {
-      unnamedBookings: 0,
-      startsAt: '2026-11-02T12:00:00.000Z',
-      endsAt: '2026-11-02T14:00:00.000Z',
-    })
-    const n = [need('E1', 'BOZP', 'MISSING')]
-    expect(
-      plan(input(n, [busy, empty]), { fillPreference: 20 }).suggestions[0]?.session.externalId
-    ).toBe(busy.externalId)
-    expect(
-      plan(input(n, [busy, empty]), { fillPreference: -20 }).suggestions[0]?.session.externalId
-    ).toBe(empty.externalId)
-  })
-
-  it('explains every score: the terms add up to it', () => {
-    const sessions = [
-      session('BOZP', '2026-10-30'),
-      session('BOZP', '2026-12-30', { unnamedBookings: 4 }),
-    ]
-    const needs = [
-      need('E1', 'BOZP', 'EXPIRING', { validUntil: '2026-11-20' }),
-      need('E2', 'BOZP', 'EXPIRED'),
-      need('E3', 'BOZP', 'MISSING'),
-    ]
-    for (const s of plan(input(needs, sessions)).suggestions) {
-      expect(s.terms.reduce((n, t) => n + t.value, 0)).toBeCloseTo(s.score, 9)
-      expect(s.terms[0]?.key).toBe('urgency')
-    }
-  })
-})
-
-describe('hard limits', () => {
-  it('never books past capacity × maxFill, and never into an overbooked session', () => {
-    const sessions = [
-      session('BOZP', '2026-11-02', { capacity: 10, unnamedBookings: 6 }),
-      session('BOZP', '2026-11-09', { capacity: 4, unnamedBookings: 5, assigned: [] }), // overbooked, nothing movable fits
-    ]
-    const needs = Array.from({ length: 20 }, (_, i) =>
-      need(`E${String(i + 10)}`, 'BOZP', 'MISSING')
-    )
-    for (const maxFill of [100, 80, 50]) {
-      const p = plan(input(needs, sessions), { maxFill })
-      const perSession = Map.groupBy(p.suggestions, s => s.session.externalId)
-      for (const s of sessions) {
-        const added = perSession.get(s.externalId)?.length ?? 0
-        const limit = Math.floor((s.capacity * maxFill) / 100)
-        const before = s.unnamedBookings
-        expect(before + added <= Math.max(limit, before)).toBe(true)
-        if (before >= limit) expect(added).toBe(0)
-      }
-    }
-  })
-
-  it('never plans one person into overlapping sessions', () => {
-    const a = session('BOZP', '2026-11-02')
-    const b = session('GDPR', '2026-11-02') // same hours
-    const c = session('GDPR', '2026-11-03')
-    const p = plan(input([need('E1', 'BOZP', 'EXPIRED'), need('E1', 'GDPR', 'EXPIRED')], [a, b, c]))
-    expect(pairs(p)).toEqual([`E1→${a.externalId}`, `E1→${c.externalId}`])
-  })
-
-  it('reports a clash when the only session overlaps a booking', () => {
-    const booked = session('BOZP', '2026-11-02', { assigned: ['E1'] })
-    const clash = session('GDPR', '2026-11-02')
-    const p = plan(input([need('E1', 'GDPR', 'EXPIRED')], [booked, clash]))
-    expect(p.unresolved).toEqual([expect.objectContaining({ reason: 'CONFLICT' })])
-  })
-
-  it('caps the sessions planned per person', () => {
-    const sessions = ['A', 'B', 'C'].map((c, i) => session(c, `2026-11-0${String(i + 2)}`))
-    const needs = ['A', 'B', 'C'].map(c => need('E1', c, 'MISSING'))
-    const p = plan(input(needs, sessions), { maxPerEmployee: 2 })
-    expect(p.suggestions).toHaveLength(2)
-    expect(p.unresolved).toEqual([expect.objectContaining({ reason: 'LIMIT' })])
-  })
-})
-
-describe('what is in play', () => {
-  it('names the reason a need stays open', () => {
-    const far = session('FAR', '2027-09-01')
-    const cancelled = session('GONE', '2026-11-02', { status: 'CANCELLED' })
-    const full = session('FULL', '2026-11-02', { capacity: 0 })
+  it('retrains a lapsing training in the last session that still ends in time', () => {
+    const early = session('BOZP', '2026-11-05')
+    const inTime = session('BOZP', '2026-12-10')
+    const late = session('BOZP', '2027-01-20')
     const p = plan(
-      input(
-        [
-          need('E1', 'FAR', 'MISSING'),
-          need('E2', 'GONE', 'MISSING'),
-          need('E3', 'FULL', 'MISSING'),
-          need('E4', 'NONE', 'MISSING'),
-        ],
-        [far, cancelled, full]
-      )
+      [need('E1', 'BOZP', 'VALID', { validUntil: '2026-12-31' })],
+      [late, early, inTime]
     )
-    const reasons = Object.fromEntries(p.unresolved.map(u => [u.need.course.code, u.reason]))
-    expect(reasons).toEqual({
-      FAR: 'OUTSIDE_HORIZON',
-      GONE: 'NO_SESSION',
-      FULL: 'NO_SEATS',
-      NONE: 'NO_SESSION',
+    expect(proposed(p)).toEqual([`E1→${inTime.externalId}`])
+    expect(itemOf(p, 'E1').proposal).toMatchObject({ window: null })
+  })
+
+  it('takes the earliest late session when none ends in time, and shows the gap', () => {
+    const first = session('BOZP', '2026-11-20')
+    const second = session('BOZP', '2026-12-10')
+    const p = plan([need('E1', 'BOZP', 'EXPIRING', { validUntil: '2026-11-01' })], [second, first])
+    expect(proposed(p)).toEqual([`E1→${first.externalId}`])
+    expect(itemOf(p, 'E1').proposal).toMatchObject({
+      window: { from: '2026-11-02', until: '2026-11-20', days: 18 },
     })
-    expect(p.shortfall.map(s => s.courseCode)).toEqual(['FAR', 'FULL', 'GONE', 'NONE'])
   })
 
-  it('treats a named booking as covering the need', () => {
-    const s = session('BOZP', '2026-11-02', { assigned: ['E1'] })
-    const p = plan(input([need('E1', 'BOZP', 'EXPIRED'), need('E2', 'BOZP', 'EXPIRED')], [s]))
-    expect(p.covered.map(n => n.employee.externalId)).toEqual(['E1'])
-    expect(pairs(p)).toEqual([`E2→${s.externalId}`])
+  it('never fills a session past capacity', () => {
+    const one = session('BOZP', '2026-11-04', { capacity: 2, unnamedBookings: 1 })
+    const p = plan(
+      [need('E1', 'BOZP', 'EXPIRED'), need('E2', 'BOZP', 'EXPIRED', { validUntil: '2026-10-05' })],
+      [one]
+    )
+    expect(proposed(p)).toEqual([`E1→${one.externalId}`])
+    expect(itemOf(p, 'E2').proposal).toMatchObject({ kind: 'NONE', reason: 'NO_SEATS' })
   })
 
-  it('leaves out expiring needs and parental leave unless asked', () => {
-    const s = session('BOZP', '2026-11-02')
-    const needs = [
-      need('E1', 'BOZP', 'EXPIRING', { validUntil: '2026-11-01' }),
-      need('E2', 'BOZP', 'MISSING', { leave: true }),
-    ]
-    expect(plan(input(needs, [s]), { includeExpiring: false }).suggestions).toHaveLength(0)
-    expect(plan(input(needs, [s]), { includeParentalLeave: true }).suggestions).toHaveLength(2)
+  it('never proposes overlapping sessions for one person', () => {
+    const bozp = session('BOZP', '2026-11-04')
+    const gdpr = session('GDPR', '2026-11-04')
+    const gdprLater = session('GDPR', '2026-11-11')
+    const p = plan(
+      [need('E1', 'BOZP', 'EXPIRED'), need('E1', 'GDPR', 'EXPIRED')],
+      [bozp, gdpr, gdprLater]
+    )
+    expect(proposed(p)).toEqual([`E1→${bozp.externalId}`, `E1→${gdprLater.externalId}`])
+  })
+
+  it('names the reason when no session can be proposed', () => {
+    const full = session('PRV', '2026-11-04', { capacity: 1, unnamedBookings: 1 })
+    const clash = session('GDPR', '2026-11-04')
+    const busy = session('KYBER', '2026-11-04', { assigned: ['E3'] })
+    const p = plan(
+      [need('E1', 'ANGL', 'MISSING'), need('E2', 'PRV', 'MISSING'), need('E3', 'GDPR', 'MISSING')],
+      [full, clash, busy]
+    )
+    expect(itemOf(p, 'E1', 'ANGL').proposal).toMatchObject({ reason: 'NO_SESSION' })
+    expect(itemOf(p, 'E2', 'PRV').proposal).toMatchObject({ reason: 'NO_SEATS' })
+    expect(itemOf(p, 'E3', 'GDPR').proposal).toMatchObject({ reason: 'CONFLICT' })
+    // Clashes are personal; only missing sessions or seats call for another session.
+    expect(p.shortfall.map(s => [s.courseCode, s.people])).toEqual([
+      ['ANGL', 1],
+      ['PRV', 1],
+    ])
+  })
+
+  it('prices the proposals', () => {
+    const p = plan(
+      [need('E1', 'BOZP', 'EXPIRED'), need('E2', 'GDPR', 'MISSING')],
+      [
+        session('BOZP', '2026-11-04', { pricePerPerson: 450 }),
+        session('GDPR', '2026-11-12', { pricePerPerson: null }),
+      ]
+    )
+    expect(p.cost).toBe(450)
   })
 })
 
@@ -293,7 +309,7 @@ describe('overbooking', () => {
     const soon = session('BOZP', '2026-11-09', { capacity: 10, unnamedBookings: 9 })
     const later = session('BOZP', '2026-12-09', { capacity: 10 })
     const other = session('GDPR', '2026-11-05')
-    const p = plan(input([], [later, other, over, soon]))
+    const p = plan([], [later, other, over, soon])
     expect(p.overbooked).toHaveLength(1)
     const [o] = p.overbooked
     expect(o).toMatchObject({ excess: 3, remaining: 0 })
@@ -301,7 +317,6 @@ describe('overbooking', () => {
       [soon.externalId, 1],
       [later.externalId, 2],
     ])
-    expect(p.metrics).toMatchObject({ overbookedBefore: 1, overbookedAfter: 0 })
   })
 
   it('cannot move named bookings, and says how many seats stay over', () => {
@@ -311,110 +326,16 @@ describe('overbooking', () => {
       assigned: ['E1', 'E2'],
     })
     const room = session('BOZP', '2026-11-09')
-    const p = plan(input([], [over, room]))
+    const p = plan([], [over, room])
     expect(p.overbooked[0]).toMatchObject({ excess: 1, moves: [], remaining: 1 })
   })
 
   it('does not hand the moved seats to the plan', () => {
     const over = session('BOZP', '2026-11-02', { capacity: 2, unnamedBookings: 4 })
     const room = session('BOZP', '2026-11-09', { capacity: 3 })
-    const p = plan(
-      input([need('E1', 'BOZP', 'MISSING'), need('E2', 'BOZP', 'MISSING')], [over, room])
-    )
+    const p = plan([need('E1', 'BOZP', 'MISSING'), need('E2', 'BOZP', 'MISSING')], [over, room])
     expect(p.overbooked[0]?.moves[0]?.count).toBe(2)
-    expect(pairs(p)).toEqual([`E1→${room.externalId}`])
-    expect(p.unresolved).toEqual([expect.objectContaining({ reason: 'NO_SEATS' })])
-  })
-})
-
-describe('demand', () => {
-  it("sets each course's open needs against its free seats", () => {
-    const sessions = [
-      session('BOZP', '2026-11-02', { capacity: 3, unnamedBookings: 1 }),
-      session('BOZP', '2027-09-02', { capacity: 50 }), // beyond the horizon: not on offer
-    ]
-    const p = plan(
-      input(
-        [
-          need('E1', 'BOZP', 'EXPIRED'),
-          need('E2', 'BOZP', 'MISSING'),
-          need('E3', 'BOZP', 'MISSING'),
-          need('E4', 'GDPR', 'EXPIRED'),
-        ],
-        sessions
-      )
-    )
-    expect(p.demand).toEqual([
-      {
-        courseCode: 'BOZP',
-        courseName: 'Course BOZP',
-        needs: { EXPIRED: 1, MISSING: 2, EXPIRING: 0 },
-        freeSeats: 2,
-        placed: 2,
-      },
-      {
-        courseCode: 'GDPR',
-        courseName: 'Course GDPR',
-        needs: { EXPIRED: 1, MISSING: 0, EXPIRING: 0 },
-        freeSeats: 0,
-        placed: 0,
-      },
-    ])
-  })
-})
-
-describe('metrics', () => {
-  it('projects compliance, utilisation and cost', () => {
-    const s = session('BOZP', '2026-11-02', {
-      capacity: 4,
-      unnamedBookings: 1,
-      pricePerPerson: 450,
-    })
-    const p = plan(
-      input(
-        [
-          need('E1', 'BOZP', 'EXPIRED'),
-          need('E2', 'BOZP', 'EXPIRING', { validUntil: '2026-11-10' }),
-        ],
-        [s]
-      )
-    )
-    expect(p.metrics).toMatchObject({
-      complianceBefore: 0.9,
-      complianceAfter: 0.91, // only the expired pair becomes held; expiring was already held
-      utilisationBefore: 0.25,
-      utilisationAfter: 0.75,
-      openBefore: 2,
-      openAfter: 0,
-      cost: 900,
-    })
-  })
-})
-
-describe('settings', () => {
-  it('fills defaults and clamps anything out of range', () => {
-    expect(advisorSettingsSchema.parse({})).toEqual(DEFAULT_ADVISOR_SETTINGS)
-    expect(
-      advisorSettingsSchema.parse({
-        weightExpired: '999',
-        maxFill: '10',
-        fillPreference: 'x',
-        includeExpiring: '0',
-        waitPenalty: '0.27',
-      })
-    ).toMatchObject({
-      weightExpired: 200,
-      maxFill: 50,
-      fillPreference: 10,
-      includeExpiring: false,
-      waitPenalty: 0.3,
-    })
-  })
-
-  it('round-trips through a URL query that only carries changes', () => {
-    const changed = { ...DEFAULT_ADVISOR_SETTINGS, weightMissing: 120, includeParentalLeave: true }
-    const query = settingsToQuery(changed)
-    expect(query).toEqual({ weightMissing: '120', includeParentalLeave: '1' })
-    expect(advisorSettingsSchema.parse(query)).toEqual(changed)
+    expect(proposed(p)).toEqual([`E1→${room.externalId}`])
+    expect(itemOf(p, 'E2').proposal).toMatchObject({ reason: 'NO_SEATS' })
   })
 })

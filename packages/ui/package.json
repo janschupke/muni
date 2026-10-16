@@ -30,7 +30,6 @@
     "./section-heading": "./src/components/section-heading.tsx",
     "./segmented-control": "./src/components/segmented-control.tsx",
     "./select": "./src/components/select.tsx",
-    "./slider": "./src/components/slider.tsx",
     "./stat-card": "./src/components/stat-card.tsx",
     "./step-indicator": "./src/components/step-indicator.tsx",
     "./table": "./src/components/table.tsx",
