@@ -301,7 +301,7 @@ Prisma models directly.
 
 | Command                 | What it does                                                          |
 | ----------------------- | --------------------------------------------------------------------- |
-| `pnpm check`            | format check, lint, typecheck, knip, coverage, build (needs `db:up`)  |
+| `pnpm check`            | every gate below except e2e and Lighthouse (needs `db:up`)            |
 | `pnpm test`             | unit tests in every package                                           |
 | `pnpm coverage`         | tests with coverage in every package; fails below 90 %                |
 | `pnpm test:integration` | repositories and seed against the test database (port 5439)           |
@@ -327,6 +327,44 @@ Only tests, test helpers and the generated Prisma client are left out. `@muni/db
 over its unit and integration tests together, against the test database, so `pnpm coverage`
 needs `pnpm db:up`. In the web app, pages and server actions are unit-tested too: the tests
 render async server components with mocked repositories (`apps/web/src/test/`).
+
+## Checks
+
+`pnpm check` runs these in order; CI (`.github/workflows/check.yml`) runs the same steps
+against a Postgres 17 service.
+
+| Gate      | Command             | What fails it                                                           |
+| --------- | ------------------- | ----------------------------------------------------------------------- |
+| Format    | `pnpm format:check` | anything Prettier would change                                          |
+| Lint      | `pnpm lint`         | any ESLint error or warning, in every package and the root config files |
+| Types     | `pnpm typecheck`    | any tsc error, in every package and the root config files               |
+| Dead code | `pnpm knip`         | unused files, exports or dependencies                                   |
+| Schema    | `pnpm check:schema` | an invalid or unformatted `schema.prisma`                               |
+| Drift     | `pnpm check:drift`  | migrations that do not produce `schema.prisma` (test database)          |
+| Tests     | `pnpm coverage`     | a failing test, or coverage under 90 %                                  |
+| Build     | `pnpm build`        | a failing `next build`                                                  |
+
+What the gates enforce:
+
+- **TypeScript** (`tsconfig.base.json`):
+  - `strict`, `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`: a forwarded optional prop is typed `?: T | undefined`.
+  - `noPropertyAccessFromIndexSignature`: a record's keys are read with brackets.
+  - Every environment variable is declared in `env.d.ts`, so a misspelled name is a type error.
+- **ESLint** (`eslint.preset.js`):
+  - typescript-eslint's `strictTypeChecked` and `stylisticTypeChecked`;
+  - React hooks; JSX accessibility (`eslint-plugin-jsx-a11y-x`, the ESLint 10 fork);
+  - Next's rules; Vitest rules on tests (no `.only` or `.skip`, valid `expect`) and Playwright rules on e2e;
+  - imports sorted in four groups: node builtins, packages, `@/`, then relative files;
+  - a `title` attribute is banned in favour of `Tooltip`;
+  - an unused `eslint-disable` is an error.
+- **Messages** (`apps/web/src/i18n/messages-parity.test.ts`):
+  - both locales have the same keys;
+  - every message parses as ICU, with the same arguments and tags in Czech and English;
+  - keys looked up with a runtime value match their enum exactly;
+  - a key no source names fails.
+- **Git hooks**: `pnpm install` installs lefthook (`lefthook.yml`). A commit runs Prettier and each package's ESLint on the staged files only; everything else stays in `pnpm check` and CI.
+
+Playwright e2e and Lighthouse are not in `pnpm check` or CI: they need browsers, a production build and the seeded test database. Run them locally before a release (see Commands).
 
 ## Deployment (Vercel + Supabase)
 
