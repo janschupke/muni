@@ -29,7 +29,7 @@ import {
   sessionProblem,
   text,
 } from '@/lib/form'
-import { requireUser } from '@/server/auth'
+import { requireAdmin } from '@/server/auth'
 
 /** Prisma "record not found" (P2025) vs. anything else. */
 function failure(error: unknown): FormState {
@@ -44,7 +44,7 @@ export async function saveCourse(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireUser()
+  await requireAdmin()
   const input = {
     name: text(form, 'name'),
     validityMonths: number(form, 'validityMonths'),
@@ -69,7 +69,7 @@ export async function saveSession(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireUser()
+  await requireAdmin()
   const input = {
     date: text(form, 'date'),
     startTime: text(form, 'startTime'),
@@ -98,7 +98,7 @@ export async function saveEmployee(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireUser()
+  await requireAdmin()
   const input = {
     firstName: text(form, 'firstName'),
     lastName: text(form, 'lastName'),
@@ -126,7 +126,7 @@ export async function recordCompletion(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireUser()
+  await requireAdmin()
   const input = {
     courseCode: text(form, 'courseCode'),
     completedOn: text(form, 'completedOn'),

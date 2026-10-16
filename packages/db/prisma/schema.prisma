@@ -250,18 +250,49 @@ enum AssignmentSource {
 
 /// A named booking: this person attends this session. Counts toward the session's seats.
 model SessionAssignment {
-  id         String           @id @default(cuid())
-  sessionId  String           @map("session_id")
-  session    CourseSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id          String           @id @default(cuid())
+  sessionId   String           @map("session_id")
+  session     CourseSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   /// Restrict: removing a person must not silently erase their booking history.
-  employeeId String           @map("employee_id")
-  employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  source     AssignmentSource @default(MANUAL)
-  /// Clerk user id. Clerk owns users, so there is no user table to reference.
-  createdBy  String           @map("created_by")
-  createdAt  DateTime         @default(now()) @map("created_at")
+  employeeId  String           @map("employee_id")
+  employee    Employee         @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  source      AssignmentSource @default(MANUAL)
+  /// Restrict: a user who booked seats keeps their row (users are never deleted, only synced).
+  createdById String           @map("created_by_id")
+  createdBy   User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime         @default(now()) @map("created_at")
 
   @@unique([sessionId, employeeId])
   @@index([employeeId])
+  @@index([createdById])
   @@map("session_assignments")
+}
+
+/// Mirrors Clerk `publicMetadata.role` (lowercase there). Clerk is the source of truth.
+enum UserRole {
+  /// Every new sign-up: reads everything, personal data redacted.
+  VIEWER
+  /// Reads whole records.
+  FULL
+  /// Also edits, books seats and imports.
+  ADMIN
+}
+
+/// A signed-in person, mirrored from Clerk at each sign-in and at most every few minutes after.
+model User {
+  id            String              @id @default(cuid())
+  clerkId       String              @unique @map("clerk_id")
+  email         String?
+  name          String?
+  role          UserRole            @default(VIEWER)
+  /// The Clerk session last synced: a different one means a new sign-in.
+  lastSessionId String?             @map("last_session_id")
+  lastSignInAt  DateTime?           @map("last_sign_in_at")
+  /// When the row was last read from Clerk.
+  syncedAt      DateTime            @map("synced_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  assignments   SessionAssignment[]
+
+  @@map("users")
 }

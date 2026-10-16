@@ -8,6 +8,7 @@ import {
   COMPLIANCE_STATUSES,
   EMPLOYMENT_STATUSES,
   REQUIREMENT_SCOPES,
+  ROLES,
   ROOM_KINDS,
   SESSION_STATUSES,
 } from '@muni/domain/enums'
@@ -63,6 +64,8 @@ const FAMILIES: Record<string, readonly string[]> = {
   'status.employment': EMPLOYMENT_STATUSES,
   'status.compliance': COMPLIANCE_STATUSES,
   'status.scope': REQUIREMENT_SCOPES,
+  'status.role': ROLES,
+  'footer.access': ['VISITOR', ...ROLES],
   'advisor.remediation': REMEDIATIONS,
   'advisor.outcome.reasons': ASSIGNMENT_FAILURES,
   'import.issues': ISSUE_CODES,
@@ -87,6 +90,8 @@ const OPEN_FAMILIES = [
   'import.upload.errors',
   'errors.entity',
   'forms.errors',
+  'landing.features',
+  'landing.access',
 ]
 
 /** Every string literal in the app's (non-test) source. */

@@ -10,7 +10,7 @@ import {
 import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 
-import { requireUser } from '@/server/auth'
+import { requireAdmin } from '@/server/auth'
 
 const externalId = z.string().trim().min(1).max(32)
 const applyInput = z
@@ -35,9 +35,9 @@ export interface ApplyResult {
  * session row: seats, status, clashes and, for advisor pairs, whether the training is still due.
  */
 export async function applyAssignmentsAction(input: unknown): Promise<ApplyResult> {
-  const userId = await requireUser()
+  const user = await requireAdmin()
   const requests = applyInput.parse(input)
-  const outcomes = await applyAssignments(requests, userId)
+  const outcomes = await applyAssignments(requests, user.id)
   revalidatePath('/', 'layout')
   return {
     applied: outcomes.filter(o => o.ok).length,
@@ -56,7 +56,7 @@ export async function applyAssignmentsAction(input: unknown): Promise<ApplyResul
 }
 
 export async function removeAssignmentAction(input: unknown): Promise<boolean> {
-  await requireUser()
+  await requireAdmin()
   const { sessionExternalId, employeeExternalId } = z
     .object({ sessionExternalId: externalId, employeeExternalId: externalId })
     .parse(input)
@@ -68,7 +68,7 @@ export async function removeAssignmentAction(input: unknown): Promise<boolean> {
 export async function moveSeatsAction(
   input: unknown
 ): Promise<{ ok: true } | { ok: false; reason: MoveFailure }> {
-  await requireUser()
+  await requireAdmin()
   const { from, to, count } = z
     .object({ from: externalId, to: externalId, count: z.int().min(1).max(10_000) })
     .parse(input)

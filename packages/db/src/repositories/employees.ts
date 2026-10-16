@@ -5,7 +5,7 @@ import {
   countStatuses,
   worstStatus,
 } from '@muni/domain/compliance'
-import type { ComplianceStatus, EmploymentStatus, Viewer } from '@muni/domain/enums'
+import type { ComplianceStatus, EmploymentStatus, Role } from '@muni/domain/enums'
 import { sanitizeRecord } from '@muni/domain/sanitize'
 import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
@@ -222,10 +222,10 @@ export interface EmployeeDetail {
   completions: EmployeeCompletionRow[]
 }
 
-/** One employee as the given viewer may see them. Sensitive fields go through the policy. */
+/** One employee as the given role may see them. Sensitive fields go through the policy. */
 export async function getEmployee(
   externalId: string,
-  viewer: Viewer,
+  role: Role,
   options?: RepoOptions
 ): Promise<EmployeeDetail | null> {
   const db = dbOf(options)
@@ -282,7 +282,7 @@ export async function getEmployee(
     policy,
     'employee',
     { email: employee.email, nationalId: employee.nationalId, note: employee.note },
-    viewer
+    role
   )
 
   return {
@@ -332,13 +332,13 @@ export async function getEmployee(
           price: toAmount(c.price),
           note: c.note,
         },
-        viewer
+        role
       )
     ),
   }
 }
 
-/** Raw values for the edit form. Only call after the viewer is known to be signed in. */
+/** Raw values for the edit form. Only call once the user is known to be an admin. */
 export async function getEmployeeForEdit(externalId: string, options?: RepoOptions) {
   const employee = await dbOf(options).employee.findUnique({
     where: { externalId },

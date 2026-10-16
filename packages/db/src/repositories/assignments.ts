@@ -153,7 +153,7 @@ async function applyOne(
       sessionId: session.id,
       employeeId: employee.id,
       source: request.source,
-      createdBy: userId,
+      createdById: userId,
     },
   })
   return null

@@ -11,12 +11,16 @@ import { BackLink } from '@/components/back-link'
 import { GroupBreakdown } from '@/features/org/group-breakdown'
 import { GroupFacts } from '@/features/org/group-facts'
 import { GroupCourses, GroupPeople } from '@/features/org/group-sections'
+import { requireReader } from '@/server/auth'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
-const loadPosition = cache((id: string) => getPosition(id))
+const loadPosition = cache(async (id: string) => {
+  await requireReader()
+  return getPosition(id)
+})
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params

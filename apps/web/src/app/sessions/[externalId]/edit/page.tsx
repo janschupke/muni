@@ -13,14 +13,14 @@ import { BackLink } from '@/components/back-link'
 import { SessionForm } from '@/components/form/entity-forms'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { saveSession } from '@/server/actions/edit'
-import { requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
 
 export default async function EditSessionPage({
   params,
 }: {
   params: Promise<{ externalId: string }>
 }) {
-  await requirePageUser()
+  await requireAdminPage()
   const { externalId } = await params
   const [session, rooms, t] = await Promise.all([
     getSession(externalId),

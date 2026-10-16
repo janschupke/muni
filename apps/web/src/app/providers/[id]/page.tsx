@@ -1,4 +1,5 @@
 import { getProvider } from '@muni/db/repositories'
+import { canWrite } from '@muni/domain/enums'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
@@ -20,13 +21,13 @@ import {
   ProviderCompletionsTable,
   ProviderCoursesTable,
 } from '@/features/providers/provider-tables'
-import { getViewer } from '@/server/auth'
+import { requireReader } from '@/server/auth'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
-const loadProvider = cache(async (id: string) => getProvider(id, await getViewer()))
+const loadProvider = cache(async (id: string) => getProvider(id, (await requireReader()).role))
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
@@ -34,10 +35,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProviderPage({ params }: Props) {
+  const user = await requireReader()
   const { id } = await params
-  const [provider, viewer, t, tc, locale] = await Promise.all([
+  const [provider, t, tc, locale] = await Promise.all([
     loadProvider(id),
-    getViewer(),
     getTranslations('providers'),
     getTranslations('common'),
     getLocale(),
@@ -52,7 +53,7 @@ export default async function ProviderPage({ params }: Props) {
         eyebrow={<BackLink fallback={{ href: '/providers', label: t('title') }} />}
         title={provider.name}
         actions={
-          viewer === 'authenticated' && (
+          canWrite(user.role) && (
             <Button asChild>
               <Link href={`/providers/${provider.id}/edit`}>
                 <Pencil aria-hidden />

@@ -1,4 +1,5 @@
 import { listRoomOptions, listSessions } from '@muni/db/repositories'
+import { canWrite } from '@muni/domain/enums'
 import { EmptyState } from '@muni/ui/empty-state'
 import { LinkTab, LinkTabs } from '@muni/ui/nav'
 import { PageHeader } from '@muni/ui/page-header'
@@ -10,7 +11,7 @@ import { getTranslations } from 'next-intl/server'
 
 import { SessionTable } from '@/components/session-table'
 import { param, type SearchParams, withParams } from '@/lib/search-params'
-import { getViewer } from '@/server/auth'
+import { requireReader } from '@/server/auth'
 
 interface Props {
   searchParams: SearchParams
@@ -30,12 +31,12 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 const WINDOWS = ['upcoming', 'past'] as const
 
 export default async function SessionsPage({ searchParams }: Props) {
+  const user = await requireReader()
   const params = await searchParams
   const window = param(params, 'when') === 'past' ? 'past' : 'upcoming'
   const room = await roomOf(params)
-  const [sessions, viewer, t] = await Promise.all([
+  const [sessions, t] = await Promise.all([
     listSessions({ window, room: room?.id }),
-    getViewer(),
     getTranslations('sessions'),
   ])
   const href = (changes: Record<string, string | undefined>) =>
@@ -71,7 +72,7 @@ export default async function SessionsPage({ searchParams }: Props) {
       {sessions.length === 0 ? (
         <EmptyState title={t('empty')} />
       ) : (
-        <SessionTable sessions={sessions} canEdit={viewer === 'authenticated'} />
+        <SessionTable sessions={sessions} canEdit={canWrite(user.role)} />
       )}
     </>
   )

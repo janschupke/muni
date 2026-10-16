@@ -6,14 +6,14 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { ImportWizard } from '@/features/import/import-wizard'
-import { requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('import'))('title') }
 }
 
 export default async function ImportPage() {
-  await requirePageUser()
+  await requireAdminPage()
   const [reference, t] = await Promise.all([
     loadReferenceSnapshot(getDb()),
     getTranslations('import'),

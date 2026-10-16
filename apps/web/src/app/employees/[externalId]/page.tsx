@@ -1,4 +1,6 @@
-import { getEmployee, listEmployeeBookings } from '@muni/db/repositories'
+import { getEmployee, getPolicy, listEmployeeBookings } from '@muni/db/repositories'
+import { canWrite } from '@muni/domain/enums'
+import { isVisible } from '@muni/domain/sanitize'
 import { BarRow } from '@muni/ui/bar-row'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
@@ -26,14 +28,16 @@ import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RoomLink, SessionDateLink } from '@/components/session-links'
 import { ComplianceBadge, EmploymentBadge, rateTone } from '@/components/status-badges'
 import { TeamCard } from '@/components/team-card'
-import { getViewer } from '@/server/auth'
+import { requireReader } from '@/server/auth'
 
 interface Props {
   params: Promise<{ externalId: string }>
 }
 
 // One fetch per request for both the title and the page.
-const loadEmployee = cache(async (externalId: string) => getEmployee(externalId, await getViewer()))
+const loadEmployee = cache(async (externalId: string) =>
+  getEmployee(externalId, (await requireReader()).role)
+)
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { externalId } = await params
@@ -43,7 +47,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function EmployeePage({ params }: Props) {
   const { externalId } = await params
-  const viewer = await getViewer()
+  const user = await requireReader()
   const [employee, bookings, t, te, tc, tCommon, locale] = await Promise.all([
     loadEmployee(externalId),
     listEmployeeBookings(externalId),
@@ -54,7 +58,7 @@ export default async function EmployeePage({ params }: Props) {
     getLocale(),
   ])
   if (!employee) notFound()
-  const canEdit = viewer === 'authenticated'
+  const canEdit = canWrite(user.role)
   const date = (value: string | null) => formatOptional(value, v => formatDate(v, locale))
   const held = employee.requirements.filter(
     r => r.status === 'VALID' || r.status === 'EXPIRING'
@@ -242,7 +246,10 @@ export default async function EmployeePage({ params }: Props) {
       {employee.completions.length === 0 ? (
         <EmptyState title={t('noHistory')} />
       ) : (
-        <CompletionHistoryTable completions={employee.completions} showNotes={canEdit} />
+        <CompletionHistoryTable
+          completions={employee.completions}
+          showNotes={isVisible(getPolicy(), 'completion.note', user.role)}
+        />
       )}
     </>
   )

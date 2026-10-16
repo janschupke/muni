@@ -4,6 +4,7 @@ import { forecastEnd, planAssignments } from '@muni/domain/advisor'
 import { addDays } from '@muni/utils/dates'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { createDb } from './client'
 import {
   applyAssignments,
@@ -140,10 +141,10 @@ describe('seed', () => {
 })
 
 describe('sanitisation', () => {
-  it('never exposes the national ID or notes to anonymous viewers', async () => {
+  it('never exposes the national ID or notes to viewers', async () => {
     const page = await listEmployees({ pageSize: 100 }, options)
     for (const item of page.items.slice(0, 20)) {
-      const detail = await getEmployee(item.externalId, 'anonymous', options)
+      const detail = await getEmployee(item.externalId, 'VIEWER', options)
       const json = JSON.stringify(detail)
       expect(detail).not.toHaveProperty('nationalId')
       expect(detail).not.toHaveProperty('note')
@@ -156,14 +157,16 @@ describe('sanitisation', () => {
     }
   })
 
-  it('masks the national ID for signed-in viewers', async () => {
-    const detail = await getEmployee('E0001', 'authenticated', options)
-    expect(detail?.nationalId).toBe('•••••••0359')
+  it('shows the full record to the full role', async () => {
+    const detail = await getEmployee('E0001', 'FULL', options)
+    expect(detail?.nationalId).toMatch(/^\d{6}\/\d{3,4}$/)
+    expect(detail?.nationalId).toMatch(/0359$/)
     expect(detail?.email).toBe('tereza.urbanova@vzorova.example')
+    expect(await getEmployee('E0001', 'ADMIN', options)).toEqual(detail)
   })
 
-  it('masks the email for anonymous viewers', async () => {
-    const detail = await getEmployee('E0001', 'anonymous', options)
+  it('masks the email for viewers', async () => {
+    const detail = await getEmployee('E0001', 'VIEWER', options)
     expect(detail?.email).toBe('t••••••••••••••@vzorova.example')
   })
 })
@@ -171,7 +174,7 @@ describe('sanitisation', () => {
 describe('compliance', () => {
   it('matches a hand-computed employee', async () => {
     // E0131 (Vacková Hana): requirement statuses computed by hand from data/ as of 2026-10-16.
-    const detail = await getEmployee('E0131', 'anonymous', options)
+    const detail = await getEmployee('E0131', 'VIEWER', options)
     const expected = await handComputed('E0131')
     expect(
       Object.fromEntries(detail?.requirements.map(r => [r.courseCode, r.status]) ?? [])
@@ -220,7 +223,7 @@ describe('compliance', () => {
   })
 
   it('reflects a newly recorded completion', async () => {
-    const before = await getEmployee('E0131', 'authenticated', options)
+    const before = await getEmployee('E0131', 'FULL', options)
     const missing = before?.requirements.find(r => r.status === 'MISSING' || r.status === 'EXPIRED')
     if (!missing) return
     await createCompletion(
@@ -235,7 +238,7 @@ describe('compliance', () => {
       },
       options
     )
-    const after = await getEmployee('E0131', 'authenticated', options)
+    const after = await getEmployee('E0131', 'FULL', options)
     expect(after?.requirements.find(r => r.courseCode === missing.courseCode)?.status).toBe('VALID')
   })
 })
@@ -469,7 +472,7 @@ describe('departments and positions', () => {
   })
 
   it('show a manager’s team, and filter the list by manager, department and position', async () => {
-    const manager = await getEmployee('E0001', 'anonymous', options)
+    const manager = await getEmployee('E0001', 'VIEWER', options)
     expect(manager?.reports.map(r => r.externalId)).toContain('E0002')
     expect(await getPersonName('E0001', options)).toBe(
       manager && `${manager.lastName} ${manager.firstName}`
@@ -588,8 +591,14 @@ describe('assignments', () => {
     await db.sessionAssignment.deleteMany()
     await seedFromDirectory(db, DATA_DIR, asOf)
   }
-  beforeAll(reset)
-  afterAll(reset)
+  beforeAll(async () => {
+    await reset()
+    await createTestUser(db)
+  })
+  afterAll(async () => {
+    await reset()
+    await deleteTestUser(db)
+  })
 
   it('feeds the advisor what is non-compliant now and what lapses within the forecast', async () => {
     const input = await getAdvisorInput(opts)
@@ -627,7 +636,7 @@ describe('assignments', () => {
     const input = await getAdvisorInput(opts)
     const need = input.needs.find(n => n.course.code === 'BOZP-Z' && n.status === 'EXPIRED')
     if (!need?.validUntil) throw new Error('fixture: nobody has an expired BOZP-Z')
-    await applyAssignments([manual('T018', need.employee.externalId)], 'user_test', opts)
+    await applyAssignments([manual('T018', need.employee.externalId)], TEST_USER, opts)
     const item = planAssignments(await getAdvisorInput(opts)).items.find(
       i =>
         i.need.employee.externalId === need.employee.externalId && i.need.course.code === 'BOZP-Z'
@@ -646,7 +655,7 @@ describe('assignments', () => {
       n => n.course.code === 'BOZP-Z' && n.status === 'EXPIRED' && n.employee.status === 'ACTIVE'
     )
     if (!need) throw new Error('fixture: no active employee has an expired BOZP-Z')
-    await applyAssignments([manual('T018', need.employee.externalId)], 'user_test', opts)
+    await applyAssignments([manual('T018', need.employee.externalId)], TEST_USER, opts)
     const booked = { sessionExternalId: 'T018', startsAt: '2027-02-03T07:00:00.000Z' }
 
     const matrix = await getComplianceMatrix(options)
@@ -675,7 +684,7 @@ describe('assignments', () => {
       source: 'ADVISOR',
     }
     const before = await booked('T018')
-    expect(await applyAssignments([request], 'user_test', opts)).toEqual([{ request, ok: true }])
+    expect(await applyAssignments([request], TEST_USER, opts)).toEqual([{ request, ok: true }])
     expect(await booked('T018')).toBe((before ?? 0) + 1)
     expect((await getSession('T018', options))?.assigned.map(a => a.externalId)).toEqual([
       need.employee.externalId,
@@ -683,10 +692,10 @@ describe('assignments', () => {
     const row = await db.sessionAssignment.findFirstOrThrow({
       where: { session: { externalId: 'T018' } },
     })
-    expect(row).toMatchObject({ source: 'ADVISOR', createdBy: 'user_test' })
+    expect(row).toMatchObject({ source: 'ADVISOR', createdById: TEST_USER })
     expect(row).not.toHaveProperty('score')
 
-    const [again] = await applyAssignments([request], 'user_test', opts)
+    const [again] = await applyAssignments([request], TEST_USER, opts)
     expect(again).toMatchObject({ ok: false, reason: 'ALREADY_ASSIGNED' })
 
     expect(await removeAssignment('T018', need.employee.externalId, options)).toBe(true)
@@ -704,7 +713,7 @@ describe('assignments', () => {
     })
     const [outcome] = await applyAssignments(
       [{ sessionExternalId: 'T018', employeeExternalId: holder.externalId, source: 'ADVISOR' }],
-      'user_test',
+      TEST_USER,
       opts
     )
     expect(outcome).toMatchObject({ ok: false, reason: 'NOT_NEEDED' })
@@ -724,8 +733,8 @@ describe('assignments', () => {
     if (!a || !b) throw new Error('fixture: two active employees')
     const results = (
       await Promise.all([
-        applyAssignments([manual('T013', a.externalId)], 'user_a', opts),
-        applyAssignments([manual('T013', b.externalId)], 'user_b', opts),
+        applyAssignments([manual('T013', a.externalId)], TEST_USER, opts),
+        applyAssignments([manual('T013', b.externalId)], TEST_USER, opts),
       ])
     ).flat()
     expect(results.filter(r => r.ok)).toHaveLength(1)
@@ -743,14 +752,14 @@ describe('assignments', () => {
     // T003 and T009 are the same KYBER slot (a known duplicate in the export).
     const [first, clash] = await applyAssignments(
       [manual('T003', person.externalId), manual('T009', person.externalId)],
-      'user_test',
+      TEST_USER,
       opts
     )
     expect(first?.ok).toBe(true)
     expect(clash).toMatchObject({ ok: false, reason: 'CONFLICT' })
     const [past, cancelled] = await applyAssignments(
       [manual('T001', person.externalId), manual('T017', person.externalId)],
-      'user_test',
+      TEST_USER,
       opts
     )
     expect(past).toMatchObject({ ok: false, reason: 'PAST' })

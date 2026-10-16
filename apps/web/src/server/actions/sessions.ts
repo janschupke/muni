@@ -1,6 +1,7 @@
 'use server'
 
 import { createSession, type SessionProblem, type SessionWrite } from '@muni/db/repositories'
+import { canWrite } from '@muni/domain/enums'
 import { type SessionCreate, sessionCreateSchema } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -14,7 +15,7 @@ import {
   sessionProblem,
   text,
 } from '@/lib/form'
-import { getViewer, requireUser } from '@/server/auth'
+import { getSessionUser, requireAdmin } from '@/server/auth'
 
 export type CreateOutcome =
   | { ok: true; externalId: string }
@@ -25,8 +26,10 @@ export type CreateOutcome =
  * Every way it can fail comes back as a reason the planner shows next to the offer.
  */
 export async function createOfferedSession(input: SessionCreate): Promise<CreateOutcome> {
-  // Signed out meanwhile (an expired session): say so, rather than throwing into the page.
-  if ((await getViewer()) !== 'authenticated') return { ok: false, reason: 'unauthorized' }
+  // Signed out meanwhile (an expired session) or no longer an admin: say so, rather than
+  // throwing into the page.
+  const user = await getSessionUser()
+  if (!user || !canWrite(user.role)) return { ok: false, reason: 'unauthorized' }
   const parsed = sessionCreateSchema.safeParse(input)
   if (!parsed.success) return { ok: false, reason: 'invalid' }
   try {
@@ -46,7 +49,7 @@ export async function saveNewSession(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireUser()
+  await requireAdmin()
   const input = {
     courseCode,
     date: text(form, 'date'),

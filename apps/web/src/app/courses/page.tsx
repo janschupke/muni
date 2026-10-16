@@ -6,12 +6,14 @@ import { getTranslations } from 'next-intl/server'
 
 import { ComplianceLegend } from '@/components/compliance-breakdown'
 import { CoursesTable } from '@/components/courses-table'
+import { requireReader } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('courses'))('title') }
 }
 
 export default async function CoursesPage() {
+  await requireReader()
   const [courses, t] = await Promise.all([listCourses(), getTranslations('courses')])
   return (
     <>

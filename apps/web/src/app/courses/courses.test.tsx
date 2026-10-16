@@ -12,7 +12,8 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { getViewer, requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
+import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { counts, courseDetail, courseForEdit, courseRow, matrix } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
@@ -43,8 +44,7 @@ vi.mock('@/server/actions/sessions', () => ({ saveNewSession: vi.fn() }))
 vi.mock('@/features/import/actions', () => ({ commitImportChunk: vi.fn() }))
 
 beforeEach(() => {
-  vi.mocked(getViewer).mockResolvedValue('anonymous')
-  vi.mocked(requirePageUser).mockResolvedValue('user_1')
+  signInAs('VIEWER')
   vi.mocked(listCourses).mockResolvedValue([
     courseRow(),
     courseRow({
@@ -164,8 +164,8 @@ describe('course detail', () => {
     expect(screen.queryByRole('link', { name: /Edit session/ })).toBeNull()
   })
 
-  it('lets signed-in users edit the course and its sessions', async () => {
-    vi.mocked(getViewer).mockResolvedValue('authenticated')
+  it('lets admins edit the course and its sessions', async () => {
+    signInAs('ADMIN')
     await renderServer(CoursePage(props))
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '/courses/BOZP-Z/edit'
@@ -191,9 +191,9 @@ describe('course detail', () => {
     expect(screen.getByText('No completions yet.')).toBeTruthy()
   })
 
-  it('edits the name and validity, for signed-in users only', async () => {
+  it('edits the name and validity, for admins only', async () => {
     await renderServer(EditCoursePage(props))
-    expect(requirePageUser).toHaveBeenCalled()
+    expect(requireAdminPage).toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 1, name: 'Edit course BOZP-Z' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'Name' })).toHaveProperty(
       'value',
@@ -208,14 +208,14 @@ describe('course detail', () => {
 describe('new session', () => {
   const props = { params: params({ code: 'BOZP-Z' }) }
 
-  it('opens from the course for signed-in users, set to the course’s length and group', async () => {
-    vi.mocked(getViewer).mockResolvedValue('authenticated')
+  it('opens from the course for admins, set to the course’s length and group', async () => {
+    signInAs('ADMIN')
     await renderServer(CoursePage(props))
     expect(screen.getByRole('link', { name: 'New session' }).getAttribute('href')).toBe(
       '/courses/BOZP-Z/sessions/new'
     )
     await renderServer(NewSessionPage(props))
-    expect(requirePageUser).toHaveBeenCalled()
+    expect(requireAdminPage).toHaveBeenCalled()
     expect(
       screen.getByRole('heading', { level: 1, name: 'New session of BOZP – základní školení' })
     ).toBeTruthy()
@@ -265,10 +265,10 @@ describe('compliance matrix', () => {
 })
 
 describe('import page', () => {
-  it('requires a signed-in user and starts the wizard against what exists', async () => {
+  it('requires an admin and starts the wizard against what exists', async () => {
     expect(await importMetadata()).toEqual({ title: 'Import' })
     await renderServer(ImportPage())
-    expect(requirePageUser).toHaveBeenCalled()
+    expect(requireAdminPage).toHaveBeenCalled()
     expect(loadReferenceSnapshot).toHaveBeenCalledWith(getDb())
     expect(screen.getByRole('heading', { level: 1, name: 'Import' })).toBeTruthy()
     await expectNoAxeViolations()

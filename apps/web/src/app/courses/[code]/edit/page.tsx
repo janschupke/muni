@@ -6,10 +6,10 @@ import { getTranslations } from 'next-intl/server'
 import { BackLink } from '@/components/back-link'
 import { CourseForm } from '@/components/form/entity-forms'
 import { saveCourse } from '@/server/actions/edit'
-import { requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
 
 export default async function EditCoursePage({ params }: { params: Promise<{ code: string }> }) {
-  await requirePageUser()
+  await requireAdminPage()
   const { code } = await params
   const [course, t] = await Promise.all([getCourseForEdit(code), getTranslations('forms.course')])
   if (!course) notFound()

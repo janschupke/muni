@@ -9,6 +9,8 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { requireReader } from '@/server/auth'
+import { signInAs, signOut } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import {
   counts,
@@ -58,7 +60,10 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   listPositionSummaries: vi.fn(),
 }))
 
+vi.mock('@/server/auth')
+
 beforeEach(() => {
+  signInAs('VIEWER')
   vi.mocked(listDepartmentSummaries).mockResolvedValue([
     departmentSummary(),
     departmentSummary({
@@ -239,5 +244,20 @@ describe('positions', () => {
     vi.mocked(getPosition).mockResolvedValue(null)
     expect(await positionMetadata({ params: params({ id: 'gone' }) })).toEqual({ title: 'gone' })
     await expect(PositionPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
+  })
+})
+
+describe('access', () => {
+  it('keeps visitors out before any data is read', async () => {
+    signOut()
+    const props = { params: params({ id: 'dep_lab' }) }
+    await expect(DepartmentsPage()).rejects.toThrow('redirect to sign-in')
+    await expect(DepartmentPage(props)).rejects.toThrow('redirect to sign-in')
+    await expect(departmentMetadata(props)).rejects.toThrow('redirect to sign-in')
+    await expect(PositionsPage()).rejects.toThrow('redirect to sign-in')
+    await expect(PositionPage(props)).rejects.toThrow('redirect to sign-in')
+    expect(requireReader).toHaveBeenCalledTimes(5)
+    for (const read of [listDepartmentSummaries, getDepartment, listPositionSummaries, getPosition])
+      expect(read).not.toHaveBeenCalled()
   })
 })

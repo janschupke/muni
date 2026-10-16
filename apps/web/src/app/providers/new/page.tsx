@@ -5,14 +5,14 @@ import { getTranslations } from 'next-intl/server'
 import { BackLink } from '@/components/back-link'
 import { ProviderForm } from '@/features/providers/provider-form'
 import { saveProvider } from '@/server/actions/providers'
-import { requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('providers.form'))('newTitle') }
 }
 
 export default async function NewProviderPage() {
-  await requirePageUser()
+  await requireAdminPage()
   const t = await getTranslations('providers')
   return (
     <>

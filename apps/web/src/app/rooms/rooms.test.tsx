@@ -5,7 +5,8 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { removeRoom } from '@/server/actions/rooms'
-import { getViewer, requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
+import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { ONLINE, roomDetail, roomRow } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
@@ -30,8 +31,7 @@ vi.mock('@/server/actions/rooms', () => ({
 }))
 
 beforeEach(() => {
-  vi.mocked(getViewer).mockResolvedValue('anonymous')
-  vi.mocked(requirePageUser).mockResolvedValue('user_1')
+  signInAs('VIEWER')
   vi.mocked(listRooms).mockResolvedValue([
     roomRow(),
     roomRow({
@@ -75,8 +75,8 @@ describe('room list', () => {
     expect(screen.getAllByRole('row')).toHaveLength(3)
   })
 
-  it('lets signed-in users add a room, and says when there are none', async () => {
-    vi.mocked(getViewer).mockResolvedValue('authenticated')
+  it('lets admins add a room, and says when there are none', async () => {
+    signInAs('ADMIN')
     vi.mocked(listRooms).mockResolvedValue([])
     await renderServer(RoomsPage())
     expect(screen.getByRole('link', { name: 'New room' }).getAttribute('href')).toBe('/rooms/new')
@@ -94,7 +94,7 @@ describe('room detail', () => {
     await expect(RoomPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
   })
 
-  it('shows its equipment, its sessions and which courses fit, read-only for visitors', async () => {
+  it('shows its equipment, its sessions and which courses fit, read-only for viewers', async () => {
     await renderServer(RoomPage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'Aula A' })).toBeTruthy()
     expect(screen.getByText('Wheelchair access')).toBeTruthy()
@@ -141,7 +141,7 @@ describe('room detail', () => {
   })
 
   it('says when nothing is scheduled, nothing came before and no course is set up', async () => {
-    vi.mocked(getViewer).mockResolvedValue('authenticated')
+    signInAs('ADMIN')
     vi.mocked(getRoom).mockResolvedValue(
       roomDetail({
         ...ONLINE,
@@ -189,10 +189,10 @@ describe('room fit online', () => {
 })
 
 describe('room forms', () => {
-  it('add a room, for signed-in users only', async () => {
+  it('add a room, for admins only', async () => {
     expect(await newMetadata()).toEqual({ title: 'New room' })
     await renderServer(NewRoomPage())
-    expect(requirePageUser).toHaveBeenCalled()
+    expect(requireAdminPage).toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 1, name: 'New room' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /Name/ })).toHaveProperty('value', '')
     await expectNoAxeViolations()

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { type DeleteState, refused } from '@/lib/form'
-import { requireUser } from '@/server/auth'
+import { requireAdmin } from '@/server/auth'
 
 /**
  * The body of a delete action: deletes the record and shows the list, or says why it stays
@@ -14,7 +14,7 @@ export async function deleteRecord(
   remove: () => Promise<'DELETED' | 'IN_USE'>,
   listHref: string
 ): Promise<DeleteState> {
-  await requireUser()
+  await requireAdmin()
   try {
     if ((await remove()) === 'IN_USE') return refused('in_use')
   } catch (error) {

@@ -14,7 +14,7 @@ import {
   number,
   text,
 } from '@/lib/form'
-import { requireUser } from '@/server/auth'
+import { requireAdmin } from '@/server/auth'
 import { deleteRecord } from '@/server/delete-record'
 
 const codeOf = (error: unknown) => (error as { code?: unknown } | null)?.code
@@ -25,7 +25,7 @@ export async function saveRoom(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireUser()
+  await requireAdmin()
   const input = {
     name: text(form, 'name'),
     kind: text(form, 'kind'),

@@ -1,5 +1,6 @@
 import { getAdvisorInput, getDashboard } from '@muni/db/repositories'
 import { planAssignments } from '@muni/domain/advisor'
+import { canWrite } from '@muni/domain/enums'
 import { Alert } from '@muni/ui/alert'
 import { BarRow } from '@muni/ui/bar-row'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
@@ -16,15 +17,18 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import { ComplianceBar, ComplianceLegend } from '@/components/compliance-breakdown'
 import { SessionTable } from '@/components/session-table'
 import { rateTone } from '@/components/status-badges'
-import { getViewer } from '@/server/auth'
+import { Landing } from '@/features/landing/landing'
+import { getSessionUser } from '@/server/auth'
 
-export default async function DashboardPage() {
-  const [data, advisorInput, t, locale, viewer] = await Promise.all([
+/** Visitors get the introduction; signed-in users the dashboard. */
+export default async function HomePage() {
+  const user = await getSessionUser()
+  if (!user) return <Landing />
+  const [data, advisorInput, t, locale] = await Promise.all([
     getDashboard(),
     getAdvisorInput(),
     getTranslations('dashboard'),
     getLocale(),
-    getViewer(),
   ])
   const held = data.counts.VALID + data.counts.EXPIRING
   const plan = planAssignments(advisorInput)
@@ -129,11 +133,7 @@ export default async function DashboardPage() {
           {data.upcomingSessions.length === 0 ? (
             <EmptyState title={t('upcoming.empty')} />
           ) : (
-            <SessionTable
-              sessions={data.upcomingSessions}
-              canEdit={viewer === 'authenticated'}
-              compact
-            />
+            <SessionTable sessions={data.upcomingSessions} canEdit={canWrite(user.role)} compact />
           )}
         </div>
       </div>

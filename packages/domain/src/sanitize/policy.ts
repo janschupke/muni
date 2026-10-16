@@ -1,6 +1,6 @@
 import * as z from 'zod'
 
-import type { Viewer } from '../enums'
+import { type Role, ROLES } from '../enums'
 import { defaultPolicy } from './sanitize.config'
 
 /** Every sensitive field, as `<entity>.<field>`. Adding a field here forces a policy entry. */
@@ -29,7 +29,8 @@ const ruleSchema = z.discriminatedUnion('mode', [
 ])
 export type FieldRule = z.infer<typeof ruleSchema>
 
-const fieldPolicySchema = z.object({ anonymous: ruleSchema, authenticated: ruleSchema })
+/** One rule per role. */
+const fieldPolicySchema = z.object({ VIEWER: ruleSchema, FULL: ruleSchema, ADMIN: ruleSchema })
 export type FieldPolicy = z.infer<typeof fieldPolicySchema>
 
 const ALL_FIELDS = Object.entries(SENSITIVE_FIELDS).flatMap(([entity, fields]) =>
@@ -51,7 +52,13 @@ const NUMERIC_FIELDS = new Set<SensitiveField>(['completion.price'])
 const overrideSchema = z
   .record(
     z.string(),
-    z.object({ anonymous: ruleSchema.optional(), authenticated: ruleSchema.optional() }).strict()
+    z
+      .object({
+        VIEWER: ruleSchema.optional(),
+        FULL: ruleSchema.optional(),
+        ADMIN: ruleSchema.optional(),
+      })
+      .strict()
   )
   .superRefine((value, ctx) => {
     for (const key of Object.keys(value)) {
@@ -67,7 +74,7 @@ export class SanitizePolicyError extends Error {
 
 /**
  * Builds the effective policy: the default config with an optional JSON override merged
- * per field and per audience. Throws on unknown fields, unknown modes or masking a number,
+ * per field and per role. Throws on unknown fields, unknown modes or masking a number,
  * so a bad override fails at boot rather than leaking data.
  */
 export function loadPolicy(overrideJson?: string | null): SanitizePolicy {
@@ -87,15 +94,16 @@ export function loadPolicy(overrideJson?: string | null): SanitizePolicy {
     for (const [field, rules] of Object.entries(parsed.data)) {
       const key = field as SensitiveField
       merged[key] = {
-        anonymous: rules.anonymous ?? merged[key].anonymous,
-        authenticated: rules.authenticated ?? merged[key].authenticated,
+        VIEWER: rules.VIEWER ?? merged[key].VIEWER,
+        FULL: rules.FULL ?? merged[key].FULL,
+        ADMIN: rules.ADMIN ?? merged[key].ADMIN,
       }
     }
   }
 
   const final = policySchema.parse(merged)
   for (const field of NUMERIC_FIELDS) {
-    for (const rule of [final[field].anonymous, final[field].authenticated]) {
+    for (const rule of ROLES.map(role => final[field][role])) {
       if (rule.mode === 'mask' || rule.mode === 'maskEmail') {
         throw new SanitizePolicyError(`${field} is numeric and can only be "show" or "omit"`)
       }
@@ -146,7 +154,7 @@ export type Sanitized<T, K extends keyof T> = Omit<T, K> & { [P in K]?: T[P] }
 export function sanitizeRecord<
   E extends SensitiveEntity,
   T extends Record<SensitiveFieldOf<E>, Sanitizable>,
->(policy: SanitizePolicy, entity: E, record: T, viewer: Viewer): Sanitized<T, SensitiveFieldOf<E>> {
+>(policy: SanitizePolicy, entity: E, record: T, role: Role): Sanitized<T, SensitiveFieldOf<E>> {
   const sensitive = new Set<string>(SENSITIVE_FIELDS[entity])
   const out: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(record)) {
@@ -154,9 +162,14 @@ export function sanitizeRecord<
       out[key] = value
       continue
     }
-    const rule = policy[`${entity}.${key}` as SensitiveField][viewer]
+    const rule = policy[`${entity}.${key}` as SensitiveField][role]
     const next = applyRule(rule, value as Sanitizable)
     if (next !== undefined) out[key] = next
   }
   return out as Sanitized<T, SensitiveFieldOf<E>>
+}
+
+/** Whether a role sees the field at all (shown or masked), so the UI can drop its column. */
+export function isVisible(policy: SanitizePolicy, field: SensitiveField, role: Role): boolean {
+  return policy[field][role].mode !== 'omit'
 }

@@ -1,5 +1,6 @@
 import { getAdvisorInput, getPlannerInput } from '@muni/db/repositories'
 import { planAssignments } from '@muni/domain/advisor'
+import { canWrite } from '@muni/domain/enums'
 import { planSessions } from '@muni/domain/planner'
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
@@ -7,17 +8,17 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { type PlannerGroup, PlannerView } from '@/features/planner/planner-view'
-import { getViewer } from '@/server/auth'
+import { requireReader } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('planner'))('title') }
 }
 
 export default async function PlannerPage() {
-  const [advisor, planner, viewer, t] = await Promise.all([
+  const user = await requireReader()
+  const [advisor, planner, t] = await Promise.all([
     getAdvisorInput(),
     getPlannerInput(),
-    getViewer(),
     getTranslations('planner'),
   ])
   const offers = planSessions({
@@ -38,7 +39,7 @@ export default async function PlannerPage() {
       {groups.length === 0 ? (
         <EmptyState title={t('empty')} />
       ) : (
-        <PlannerView groups={groups} canCreate={viewer === 'authenticated'} />
+        <PlannerView groups={groups} canCreate={canWrite(user.role)} />
       )}
       <p className="mt-8 max-w-3xl text-xs text-fg-muted">{t('rule')}</p>
     </>

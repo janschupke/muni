@@ -7,10 +7,10 @@ import { BackLink } from '@/components/back-link'
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button'
 import { ProviderForm } from '@/features/providers/provider-form'
 import { removeProvider, saveProvider } from '@/server/actions/providers'
-import { requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
 
 export default async function EditProviderPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePageUser()
+  await requireAdminPage()
   const { id } = await params
   const [provider, t] = await Promise.all([
     getProviderForEdit(id),

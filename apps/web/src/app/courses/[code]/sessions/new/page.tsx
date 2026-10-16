@@ -8,10 +8,10 @@ import { getTranslations } from 'next-intl/server'
 import { BackLink } from '@/components/back-link'
 import { SessionForm } from '@/components/form/entity-forms'
 import { saveNewSession } from '@/server/actions/sessions'
-import { requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
 
 export default async function NewSessionPage({ params }: { params: Promise<{ code: string }> }) {
-  await requirePageUser()
+  await requireAdminPage()
   const { code } = await params
   const [course, rooms, t] = await Promise.all([
     getCourseForEdit(code),

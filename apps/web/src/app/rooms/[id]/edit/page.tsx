@@ -7,10 +7,10 @@ import { BackLink } from '@/components/back-link'
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button'
 import { RoomForm } from '@/features/rooms/room-form'
 import { removeRoom, saveRoom } from '@/server/actions/rooms'
-import { requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
 
 export default async function EditRoomPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePageUser()
+  await requireAdminPage()
   const { id } = await params
   const [room, t] = await Promise.all([getRoomForEdit(id), getTranslations('rooms.form')])
   if (!room) notFound()

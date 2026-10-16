@@ -1,7 +1,8 @@
 # muni — training register
 
 A register of mandatory staff training: who holds which course, what expires, what is
-scheduled. Anyone can read it; signed-in users can edit records and import CSV exports.
+scheduled. Signed-in users read it, with personal data redacted unless their role allows it;
+admins edit records and import CSV exports. Visitors see an introduction and nothing else.
 
 Stack: pnpm workspaces + Turborepo, Next.js 16 (App Router, Vercel), Postgres (Docker locally,
 Supabase in production), Prisma 7 with migrations, Clerk, next-intl (cs/en), Tailwind CSS 4.
@@ -19,10 +20,36 @@ pnpm db:seed          # import ./data through the same importer the UI uses
 pnpm dev              # http://localhost:3060
 ```
 
-Without Clerk keys the site is the public read-only register: no sign-in, and the edit and
-import routes return 404. To enable editing, put development keys from the Clerk dashboard
-(or `npx clerk@latest init`) into `.env`. Every signed-in user can edit and import; there are
-no roles, so restrict sign-ups in the Clerk dashboard (allowlist or restricted mode).
+Clerk keys are required: put development keys from the Clerk dashboard into `.env`
+(`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`). Without them every request fails.
+
+## Access
+
+Clerk signs people in (`/sign-in`) and up (`/sign-up`); sign-ups must be enabled in the Clerk
+dashboard. The role lives in Clerk, in the user's **public metadata**: `{"role": "viewer"}`,
+`"full"` or `"admin"`.
+
+| Who      | Sees                                                        | How they get it                  |
+| -------- | ----------------------------------------------------------- | -------------------------------- |
+| Visitor  | the introduction on `/`, sign-in and sign-up; nothing else  | not signed in                    |
+| `viewer` | every page, read-only, personal data redacted on the server | every new account, automatically |
+| `full`   | every page, read-only, whole records                        | set in Clerk by an administrator |
+| `admin`  | everything, plus editing, bookings, import and `/users`     | set in Clerk by an administrator |
+
+The `users` table mirrors Clerk (`apps/web/src/server/auth.ts`). On each new sign-in (a new
+Clerk session), and at most every five minutes after, the app reads the user from Clerk: a
+missing or unknown role is written back as `viewer` (and `Full` as `full`), and the row is
+updated with the role, email, name and last sign-in. If Clerk cannot be reached, the stored
+role is used. Bookings record the user who made them.
+
+To change a role: Clerk dashboard → Users → the user → Metadata → Public, set `role`. It
+applies at the user's next sign-in, or within five minutes. `/users` lists everyone and their
+role for admins.
+
+Enforcement is on the server, in three layers: `proxy.ts` sends visitors to sign-in on every
+path except `/`, `/sign-in` and `/sign-up`; every page calls `requireReader()` (or
+`requireAdminPage()`, a 404 for non-admins) before reading data; every server action calls
+`requireAdmin()`.
 
 ## Layout
 
@@ -43,8 +70,8 @@ Internal packages ship TypeScript source (`exports` point at `src/`); Next compi
 ## Data model
 
 `Department`, `Position`, `Employee` (with a manager self-relation), `Course`,
-`CourseSession`, `CourseCompletion`, `Provider` (a name plus IČO and contact details) and
-`Room`, all normalised:
+`CourseSession`, `CourseCompletion`, `Provider` (a name plus IČO and contact details),
+`Room` and `User` (mirrored from Clerk, see Access), all normalised:
 
 - **Who must hold a course:** `Course.requiredForAll`, plus one link table per audience
   (`course_department_requirements`, `course_position_requirements`). No flag and no links
@@ -81,8 +108,8 @@ never overwrite them. Date-only values are Postgres `date` columns;
 session times are `timestamptz` converted from Europe/Prague wall-clock time.
 
 Bookings: a session's seats are `unnamedBookings` (anonymous seats from the export) plus
-`SessionAssignment` rows (a named person on a session, with FKs to both; deleting a session
-cascades, deleting a person with bookings is refused). The booked total is always derived,
+`SessionAssignment` rows (a named person on a session, with FKs to both and to the `User` who
+booked it; deleting a session cascades, deleting a person with bookings is refused). The booked total is always derived,
 never stored twice. Saving a booking locks the session row (`SELECT … FOR UPDATE`) and
 re-checks seats, status, clashes and need, so two people can never take the last seat.
 `capacity >= 0` and `unnamed_bookings >= 0` are CHECK constraints in the migration SQL.
@@ -185,7 +212,7 @@ links to its parent list.
 
 `/advisor` shows every required training that is **non-compliant now** (expired or never
 completed) or **lapses within the next 6 months**, what is being done about each, and which
-session would cover the rest. Visitors can read it; signed-in users can save the proposals (as
+session would cover the rest. Every role can read it; admins can save the proposals (as
 `ADVISOR` bookings) and move unnamed seats out of overbooked sessions.
 
 - **Breakdown** (the default view): one bar per bucket, "non-compliant now" and then each month
@@ -282,15 +309,15 @@ these outcomes and the totals.
 ## Sensitive data
 
 Fields listed in `packages/domain/src/sanitize/sanitize.config.ts` go through a policy before
-they leave the server. Each field has a rule per audience (`anonymous`, `authenticated`):
-`show`, `omit`, `mask` (`keepFirst`/`keepLast`) or `maskEmail`. Defaults: the birth number is
-omitted for visitors and masked to its last four digits for signed-in users; email is masked
-for visitors; notes are hidden from visitors.
+they leave the server. Each field has a rule per role (`VIEWER`, `FULL`, `ADMIN`): `show`,
+`omit`, `mask` (`keepFirst`/`keepLast`) or `maskEmail`. Defaults: for viewers the birth number
+and notes are omitted and the email is masked; `full` and `admin` see whole records. Prices
+are shown to everyone.
 
-Override per deployment with `MUNI_SANITIZE_POLICY` (JSON, merged per field and audience):
+Override per deployment with `MUNI_SANITIZE_POLICY` (JSON, merged per field and role):
 
 ```sh
-MUNI_SANITIZE_POLICY='{"employee.email":{"anonymous":{"mode":"omit"}}}'
+MUNI_SANITIZE_POLICY='{"employee.email":{"VIEWER":{"mode":"omit"}}}'
 ```
 
 An invalid override (unknown field or mode, masking a number) throws on first use instead

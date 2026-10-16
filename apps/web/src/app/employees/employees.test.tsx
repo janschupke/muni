@@ -14,7 +14,8 @@ import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { getViewer, requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
+import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { booking, counts, employeeDetail, employeePage, employeeRow } from '@/test/fixtures'
 import { NotFoundError, router } from '@/test/next'
@@ -45,8 +46,7 @@ vi.mock('@/server/actions/edit', () => ({
 vi.mock('@/server/actions/assignments', () => ({ removeAssignmentAction: vi.fn() }))
 
 beforeEach(() => {
-  vi.mocked(getViewer).mockResolvedValue('anonymous')
-  vi.mocked(requirePageUser).mockResolvedValue('user_1')
+  signInAs('VIEWER')
   vi.mocked(listEmployees).mockResolvedValue(employeePage())
   vi.mocked(listDepartments).mockResolvedValue(['Knihovna', 'Laboratoře'])
   vi.mocked(listPositions).mockResolvedValue(['Laborantka', 'Referent'])
@@ -210,7 +210,7 @@ describe('employee detail', () => {
     )
   })
 
-  it('shows the profile, requirements, bookings and history to visitors, read-only', async () => {
+  it('shows the profile, requirements, bookings and history to viewers, read-only', async () => {
     await renderServer(EmployeePage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'Marie Černá' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Back to Employees' }).getAttribute('href')).toBe(
@@ -234,10 +234,24 @@ describe('employee detail', () => {
     )
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Cancel booking/ })).toBeNull()
+    expect(getEmployee).toHaveBeenCalledWith('E0153', 'VIEWER')
   })
 
-  it('gives signed-in users the edit, record and cancel actions and the sensitive fields', async () => {
-    vi.mocked(getViewer).mockResolvedValue('authenticated')
+  it('shows the full role the whole record, read-only', async () => {
+    signInAs('FULL')
+    vi.mocked(getEmployee).mockResolvedValue(
+      employeeDetail({ nationalId: '665917/0359', note: 'interní poznámka' })
+    )
+    await renderServer(EmployeePage(props))
+    expect(getEmployee).toHaveBeenCalledWith('E0153', 'FULL')
+    expect(screen.getByText('665917/0359')).toBeTruthy()
+    expect(screen.getByText('interní poznámka')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Record completion' })).toBeNull()
+  })
+
+  it('gives admins the edit, record and cancel actions and the sensitive fields', async () => {
+    signInAs('ADMIN')
     vi.mocked(getEmployee).mockResolvedValue(
       employeeDetail({
         nationalId: '•••••••0359',
@@ -263,7 +277,7 @@ describe('employee detail', () => {
   })
 
   it('says when nothing is required, booked or recorded', async () => {
-    // A visitor policy that omits the email drops the key altogether.
+    // A viewer policy that omits the email drops the key altogether.
     const { email: _omitted, ...withoutEmail } = employeeDetail({
       requirements: [],
       completions: [],
@@ -345,11 +359,11 @@ describe('managers', () => {
 describe('employee forms', () => {
   const props = { params: params({ externalId: 'E0153' }) }
 
-  it('require a signed-in user and an existing person', async () => {
+  it('require an admin and an existing person', async () => {
     vi.mocked(getEmployeeForEdit).mockResolvedValue(null)
     await expect(EditEmployeePage(props)).rejects.toThrow(NotFoundError)
     await expect(NewCompletionPage(props)).rejects.toThrow(NotFoundError)
-    expect(requirePageUser).toHaveBeenCalledTimes(2)
+    expect(requireAdminPage).toHaveBeenCalledTimes(2)
   })
 
   it('edit the person with their current values', async () => {

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PlannerView } from '@/features/planner/planner-view'
 import { createOfferedSession } from '@/server/actions/sessions'
-import { getViewer } from '@/server/auth'
+import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { advisorInput, plannerInput } from '@/test/fixtures'
 import { renderClient, renderServer } from '@/test/render'
@@ -26,7 +26,7 @@ vi.mock('@/server/actions/sessions', () => ({
 }))
 
 beforeEach(() => {
-  vi.mocked(getViewer).mockResolvedValue('anonymous')
+  signInAs('VIEWER')
   // POZ-OCH has nothing scheduled: Adámek Petr needs a new session.
   vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
   vi.mocked(getPlannerInput).mockResolvedValue(plannerInput())
@@ -37,7 +37,7 @@ describe('session planner', () => {
     const user = userEvent.setup()
     expect(await generateMetadata()).toEqual({ title: 'Session planner' })
     await renderServer(PlannerPage())
-    expect(screen.getByText('Sign in to create sessions.')).toBeTruthy()
+    expect(screen.getByText('Only admins can create sessions.')).toBeTruthy()
     const section = screen.getByRole('region', { name: 'Požární ochrana' })
     expect(
       within(section).getByRole('link', { name: 'Požární ochrana' }).getAttribute('href')
@@ -79,9 +79,9 @@ describe('session planner', () => {
     expect(screen.getByText('Every training that needs a session has one.')).toBeTruthy()
   })
 
-  it('lets signed-in users create the offered session, and says why when it cannot', async () => {
+  it('lets admins create the offered session, and says why when it cannot', async () => {
     const user = userEvent.setup()
-    vi.mocked(getViewer).mockResolvedValue('authenticated')
+    signInAs('ADMIN')
     vi.mocked(createOfferedSession).mockResolvedValueOnce({ ok: true, externalId: 'S001' })
     await renderServer(PlannerPage())
     await user.click(screen.getByRole('button', { name: 'Create session' }))

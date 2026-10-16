@@ -15,7 +15,7 @@ import {
 import type * as Context from './repositories/context'
 import { seedFromDirectory } from './seed'
 
-// Whether the policy withholds prices from anonymous viewers (the default shows them).
+// Whether the policy withholds prices from viewers (the default shows them).
 const policy = vi.hoisted(() => ({ hidePrices: false }))
 vi.mock('./repositories/context', async importOriginal => {
   const actual = await importOriginal<typeof Context>()
@@ -26,7 +26,7 @@ vi.mock('./repositories/context', async importOriginal => {
       return policy.hidePrices
         ? {
             ...loaded,
-            'completion.price': { ...loaded['completion.price'], anonymous: { mode: 'omit' } },
+            'completion.price': { ...loaded['completion.price'], VIEWER: { mode: 'omit' } },
           }
         : loaded
     },
@@ -66,7 +66,7 @@ afterAll(async () => {
 
 describe('provider figures', () => {
   it('lists every provider with what was done with it, counted again here', async () => {
-    const { providers, prices } = await listProviders('authenticated', options)
+    const { providers, prices } = await listProviders('FULL', options)
     expect(prices).toBe(true)
     expect(providers.map(p => p.name)).toEqual([
       'E-learning portál',
@@ -98,9 +98,9 @@ describe('provider figures', () => {
   })
 
   it('shows one provider: its totals, per course, and its latest completions', async () => {
-    const { providers } = await listProviders('anonymous', options)
+    const { providers } = await listProviders('VIEWER', options)
     const listed = providers.find(p => p.name === 'Interní školitel')
-    const provider = await getProvider(listed?.id ?? '', 'anonymous', options)
+    const provider = await getProvider(listed?.id ?? '', 'VIEWER', options)
     expect(provider).toMatchObject({ ...listed, prices: true, email: null })
     const byCourse = provider?.byCourse ?? []
     expect(byCourse.reduce((n, c) => n + c.completions, 0)).toBe(provider?.completions)
@@ -133,22 +133,22 @@ describe('provider figures', () => {
         row?.course.code,
       ])
     }
-    expect(await getProvider('nope', 'anonymous', options)).toBeNull()
+    expect(await getProvider('nope', 'VIEWER', options)).toBeNull()
   })
 
   it('withholds every price, sums included, from a viewer the policy hides them from', async () => {
     policy.hidePrices = true
     try {
-      const { providers, prices } = await listProviders('anonymous', options)
+      const { providers, prices } = await listProviders('VIEWER', options)
       expect(prices).toBe(false)
       expect(providers.every(p => p.spend === null && p.completions > 0)).toBe(true)
-      const provider = await getProvider(providers[0]?.id ?? '', 'anonymous', options)
+      const provider = await getProvider(providers[0]?.id ?? '', 'VIEWER', options)
       expect(provider?.prices).toBe(false)
       expect(provider?.spend).toBeNull()
       expect(provider?.byCourse.every(c => c.spend === null)).toBe(true)
       expect(provider?.recentCompletions.every(c => c.price === null)).toBe(true)
-      // Signed-in viewers still see them.
-      expect((await listProviders('authenticated', options)).prices).toBe(true)
+      // The full role still sees them.
+      expect((await listProviders('FULL', options)).prices).toBe(true)
     } finally {
       policy.hidePrices = false
     }
@@ -159,11 +159,9 @@ describe('a new provider', () => {
   it('has nothing done yet, then counts what is recorded with it', async () => {
     const created = await createProvider({ ...blank, name: 'Druhý dodavatel' }, options)
     if (!created.ok) throw new Error('not created')
-    const empty = (await listProviders('authenticated', options)).providers.find(
-      p => p.id === created.id
-    )
+    const empty = (await listProviders('FULL', options)).providers.find(p => p.id === created.id)
     expect(empty).toMatchObject({ completions: 0, people: 0, courses: 0, spend: null })
-    expect(await getProvider(created.id, 'authenticated', options)).toMatchObject({
+    expect(await getProvider(created.id, 'FULL', options)).toMatchObject({
       completions: 0,
       lastCompletedOn: null,
       byCourse: [],
@@ -182,7 +180,7 @@ describe('a new provider', () => {
       },
       options
     )
-    expect(await getProvider(created.id, 'authenticated', options)).toMatchObject({
+    expect(await getProvider(created.id, 'FULL', options)).toMatchObject({
       completions: 1,
       people: 1,
       courses: 1,

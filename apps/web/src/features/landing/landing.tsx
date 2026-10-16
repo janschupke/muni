@@ -1,0 +1,81 @@
+import { ROLES } from '@muni/domain/enums'
+import { Button } from '@muni/ui/button'
+import { Card, CardBody } from '@muni/ui/card'
+import { CalendarRange, Grid3x3, Lightbulb, LogIn, Upload, UserPlus } from 'lucide-react'
+import Link from 'next/link'
+import { getTranslations } from 'next-intl/server'
+
+const FEATURES = [
+  { key: 'compliance', Icon: Grid3x3 },
+  { key: 'advisor', Icon: Lightbulb },
+  { key: 'planner', Icon: CalendarRange },
+  { key: 'import', Icon: Upload },
+] as const
+
+/** What visitors see instead of the register: what it is, and how to get in. No data. */
+export async function Landing() {
+  const t = await getTranslations('landing')
+  return (
+    <div className="mx-auto flex max-w-4xl flex-col gap-12 py-6 lg:py-12">
+      <section className="flex flex-col items-start gap-5">
+        <h1 className="text-3xl font-semibold tracking-tight text-balance text-fg sm:text-4xl">
+          {t('title')}
+        </h1>
+        <p className="max-w-2xl text-lg text-pretty text-fg-muted">{t('lead')}</p>
+        <div className="flex flex-wrap gap-3">
+          <Button asChild variant="primary">
+            <Link href="/sign-in">
+              <LogIn aria-hidden />
+              {t('signIn')}
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/sign-up">
+              <UserPlus aria-hidden />
+              {t('signUp')}
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+      <section aria-labelledby="landing-features">
+        <h2 id="landing-features" className="mb-4 text-lg font-semibold text-fg">
+          {t('features.title')}
+        </h2>
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {FEATURES.map(({ key, Icon }) => (
+            <li key={key}>
+              <Card className="h-full">
+                <CardBody className="flex gap-3">
+                  <Icon aria-hidden className="mt-0.5 size-5 shrink-0 text-accent-text" />
+                  <div>
+                    <h3 className="font-medium text-fg">{t(`features.${key}.title`)}</h3>
+                    <p className="mt-1 text-sm text-fg-muted">{t(`features.${key}.body`)}</p>
+                  </div>
+                </CardBody>
+              </Card>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-labelledby="landing-access">
+        <h2 id="landing-access" className="mb-1 text-lg font-semibold text-fg">
+          {t('access.title')}
+        </h2>
+        <p className="mb-4 text-sm text-fg-muted">{t('access.description')}</p>
+        <dl className="grid gap-3 sm:grid-cols-3">
+          {ROLES.map(role => (
+            <div
+              key={role}
+              className="rounded-lg border border-border-default bg-surface-elevated p-4"
+            >
+              <dt className="font-medium text-fg">{t(`access.${role}.title`)}</dt>
+              <dd className="mt-1 text-sm text-fg-muted">{t(`access.${role}.body`)}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    </div>
+  )
+}

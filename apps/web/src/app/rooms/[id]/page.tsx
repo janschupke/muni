@@ -1,4 +1,5 @@
 import { getRoom } from '@muni/db/repositories'
+import { canWrite } from '@muni/domain/enums'
 import { UTILISATION_DAYS } from '@muni/domain/rooms'
 import { BarRow } from '@muni/ui/bar-row'
 import { Button } from '@muni/ui/button'
@@ -22,7 +23,7 @@ import { BackLink } from '@/components/back-link'
 import { CapabilityList, RoomKindBadge } from '@/components/room-badges'
 import { SessionTable } from '@/components/session-table'
 import { RoomFitTable } from '@/features/rooms/room-fit-table'
-import { getViewer } from '@/server/auth'
+import { requireReader } from '@/server/auth'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -36,16 +37,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function RoomPage({ params }: Props) {
+  const user = await requireReader()
   const { id } = await params
-  const [room, viewer, t, tc, locale] = await Promise.all([
+  const [room, t, tc, locale] = await Promise.all([
     loadRoom(id),
-    getViewer(),
     getTranslations('rooms'),
     getTranslations('common'),
     getLocale(),
   ])
   if (!room) notFound()
-  const canEdit = viewer === 'authenticated'
+  const canEdit = canWrite(user.role)
   const seats = room.capacity === null ? t('unlimited') : formatInteger(room.capacity, locale)
 
   return (

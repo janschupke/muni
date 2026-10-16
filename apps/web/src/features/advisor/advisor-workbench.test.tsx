@@ -160,7 +160,7 @@ describe('AdvisorWorkbench', () => {
 
   it('lets visitors look but not save', () => {
     renderWorkbench({ view: 'action' })
-    expect(screen.getByText('Sign in to save bookings.')).toBeTruthy()
+    expect(screen.getByText('Only admins can save bookings.')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /^Save|^Book/ })).toBeNull()
   })
 

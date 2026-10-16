@@ -4,6 +4,7 @@ import path from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { createDb, getDb } from './client'
 import {
   applyAssignments,
@@ -76,9 +77,13 @@ const restore = async () => {
   await db.position.deleteMany({ where: { name: CREATED.position } })
 }
 
-beforeAll(restore)
+beforeAll(async () => {
+  await restore()
+  await createTestUser(db)
+})
 afterAll(async () => {
   await restore()
+  await deleteTestUser(db)
   await db.$disconnect()
 })
 
@@ -116,7 +121,7 @@ describe('lookups and edit loaders', () => {
 
   it('returns nothing for a course or person that does not exist', async () => {
     expect(await getCourse('NOPE', options)).toBeNull()
-    expect(await getEmployee('E9999', 'anonymous', options)).toBeNull()
+    expect(await getEmployee('E9999', 'VIEWER', options)).toBeNull()
   })
 
   it('finds people by name, ignoring case and diacritics', async () => {
@@ -220,7 +225,7 @@ describe('edits', () => {
       options
     )
     expect(withProvider.externalId).toMatch(/^A[0-9A-Z]+$/)
-    const completions = (await getEmployee('E0153', 'authenticated', options))?.completions ?? []
+    const completions = (await getEmployee('E0153', 'FULL', options))?.completions ?? []
     expect(completions.find(c => c.externalId === withProvider.externalId)).toMatchObject({
       provider: { name: CREATED.provider },
       validUntil: '2028-10-01',
@@ -250,7 +255,7 @@ describe('bookings the main suite does not reach', () => {
         manual('T018', left.externalId),
         manual('T023', 'E0153'),
       ],
-      'user_test',
+      TEST_USER,
       opts
     )
     expect(outcomes.map(o => (o.ok ? 'ok' : o.reason))).toEqual([
@@ -272,14 +277,14 @@ describe('bookings the main suite does not reach', () => {
     })
     const [outcome] = await applyAssignments(
       [{ sessionExternalId: 'T034', employeeExternalId: other.externalId, source: 'ADVISOR' }],
-      'user_test',
+      TEST_USER,
       opts
     )
     expect(outcome).toMatchObject({ ok: false, reason: 'NOT_REQUIRED' })
   })
 
   it("lists a person's upcoming bookings, soonest first", async () => {
-    await applyAssignments([manual('T018', 'E0153'), manual('T020', 'E0153')], 'user_test', opts)
+    await applyAssignments([manual('T018', 'E0153'), manual('T020', 'E0153')], TEST_USER, opts)
     const bookings = await listEmployeeBookings('E0153', opts)
     expect(bookings.map(b => [b.sessionExternalId, b.courseCode, b.source])).toEqual([
       ['T020', 'GDPR', 'MANUAL'],
@@ -295,7 +300,7 @@ describe('bookings the main suite does not reach', () => {
   })
 
   it('uses the real clock when none is given', async () => {
-    const [outcome] = await applyAssignments([manual('T999', 'E0153')], 'user_test', options)
+    const [outcome] = await applyAssignments([manual('T999', 'E0153')], TEST_USER, options)
     expect(outcome).toMatchObject({ reason: 'SESSION_NOT_FOUND' })
     expect(await moveSeats('T016', 'T999', 1, options)).toEqual({
       ok: false,

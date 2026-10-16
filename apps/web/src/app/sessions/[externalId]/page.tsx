@@ -1,4 +1,5 @@
 import { getSession } from '@muni/db/repositories'
+import { canWrite } from '@muni/domain/enums'
 import { BarRow } from '@muni/ui/bar-row'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
@@ -22,7 +23,7 @@ import { BackLink } from '@/components/back-link'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RoomLink } from '@/components/session-links'
 import { OccupancyBadge, seatTone, SessionStatusBadge } from '@/components/status-badges'
-import { getViewer } from '@/server/auth'
+import { requireReader } from '@/server/auth'
 
 interface Props {
   params: Promise<{ externalId: string }>
@@ -40,16 +41,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function SessionPage({ params }: Props) {
+  const user = await requireReader()
   const { externalId } = await params
-  const [session, viewer, t, tc, locale] = await Promise.all([
+  const [session, t, tc, locale] = await Promise.all([
     loadSession(externalId),
-    getViewer(),
     getTranslations('sessions'),
     getTranslations('common'),
     getLocale(),
   ])
   if (!session) notFound()
-  const canEdit = viewer === 'authenticated'
+  const canEdit = canWrite(user.role)
 
   return (
     <>

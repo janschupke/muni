@@ -123,6 +123,30 @@ function MobileNav({ groups, labels }: { groups: NavGroup[]; labels: ShellLabels
   )
 }
 
+const TOP_BAR =
+  'sticky top-0 z-30 flex h-header shrink-0 items-center gap-2 border-b border-border-default bg-surface-elevated/95 px-4 backdrop-blur sm:px-6 lg:px-5'
+
+/** The frame for visitors (the landing page, sign-in): the top bar without navigation. */
+export function PublicShell({
+  appName,
+  controls,
+  children,
+}: {
+  appName: string
+  controls: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <div className="flex min-h-dvh flex-col">
+      <header className={TOP_BAR}>
+        <Brand name={appName} />
+        <div className="ml-auto flex shrink-0 items-center gap-2">{controls}</div>
+      </header>
+      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+    </div>
+  )
+}
+
 /**
  * The app frame. A top bar at every size carries the logo and name, and the language, theme
  * and account controls. From `lg` a sidebar below it holds the navigation and collapses to
@@ -153,7 +177,7 @@ export function SidebarShell({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-30 flex h-header shrink-0 items-center gap-2 border-b border-border-default bg-surface-elevated/95 px-4 backdrop-blur sm:px-6 lg:px-5">
+      <header className={TOP_BAR}>
         <MobileNav groups={groups} labels={labels} />
         <Brand name={labels.appName} />
         <div className="ml-auto flex shrink-0 items-center gap-2">{controls}</div>

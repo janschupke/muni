@@ -1,4 +1,4 @@
-import type { Viewer } from '@muni/domain/enums'
+import type { Role } from '@muni/domain/enums'
 import { type ProviderInput, providerSchema } from '@muni/domain/schemas'
 import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
@@ -8,13 +8,13 @@ import { dbOf, getPolicy, type RepoOptions, toAmount } from './context'
 
 // Training providers: who delivered the completions on record, with their contact details
 // and what was done with them. Prices follow the sanitisation policy for `completion.price`:
-// a viewer who may not see a completion's price sees no sums of them either.
+// a role that may not see a completion's price sees no sums of them either.
 
 /** What was done with a provider, across all its completions or one course's. */
 export interface ProviderTotals {
   completions: number
   people: number
-  /** Sum of the recorded prices; null when none was recorded or the viewer may not see prices. */
+  /** Sum of the recorded prices; null when none was recorded or the role may not see prices. */
   spend: number | null
   lastCompletedOn: IsoDate | null
 }
@@ -28,7 +28,7 @@ export interface ProviderListItem extends ProviderTotals {
 
 export interface ProviderList {
   providers: ProviderListItem[]
-  /** Whether the viewer may see prices; the spend column shows only then. */
+  /** Whether the role may see prices; the spend column shows only then. */
   prices: boolean
 }
 
@@ -55,7 +55,7 @@ export interface ProviderDetail extends ProviderListItem {
 
 const RECENT_COMPLETIONS = 20
 
-const pricesVisible = (viewer: Viewer) => getPolicy()['completion.price'][viewer].mode === 'show'
+const pricesVisible = (role: Role) => getPolicy()['completion.price'][role].mode === 'show'
 
 interface TotalsRow {
   completions: number
@@ -107,8 +107,8 @@ function totalsByCourse(options: RepoOptions | undefined, providerId: string) {
      ORDER BY completions DESC, c.code`
 }
 
-export async function listProviders(viewer: Viewer, options?: RepoOptions): Promise<ProviderList> {
-  const prices = pricesVisible(viewer)
+export async function listProviders(role: Role, options?: RepoOptions): Promise<ProviderList> {
+  const prices = pricesVisible(role)
   const [providers, totals] = await Promise.all([
     dbOf(options).provider.findMany({
       select: { id: true, name: true, companyId: true },
@@ -128,11 +128,11 @@ export async function listProviders(viewer: Viewer, options?: RepoOptions): Prom
 
 export async function getProvider(
   id: string,
-  viewer: Viewer,
+  role: Role,
   options?: RepoOptions
 ): Promise<ProviderDetail | null> {
   const db = dbOf(options)
-  const prices = pricesVisible(viewer)
+  const prices = pricesVisible(role)
   const [provider, [total = NONE], perCourse, recent] = await Promise.all([
     db.provider.findUnique({
       where: { id },

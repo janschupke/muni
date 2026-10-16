@@ -5,7 +5,8 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { removeProvider } from '@/server/actions/providers'
-import { getViewer, requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
+import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { providerDetail, providerRow } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
@@ -40,7 +41,7 @@ const internal = providerRow({
 })
 
 beforeEach(() => {
-  vi.mocked(getViewer).mockResolvedValue('anonymous')
+  signInAs('VIEWER')
   vi.mocked(listProviders).mockResolvedValue({ providers: [providerRow(), internal], prices: true })
   vi.mocked(getProvider).mockResolvedValue(providerDetail())
   vi.mocked(getProviderForEdit).mockResolvedValue({
@@ -87,7 +88,7 @@ describe('provider list', () => {
     vi.mocked(listProviders).mockResolvedValueOnce({ providers: [providerRow()], prices: false })
     await renderServer(ProvidersPage())
     expect(screen.queryByRole('columnheader', { name: /Spent/ })).toBeNull()
-    vi.mocked(getViewer).mockResolvedValue('authenticated')
+    signInAs('ADMIN')
     vi.mocked(listProviders).mockResolvedValueOnce({ providers: [], prices: true })
     await renderServer(ProvidersPage())
     expect(screen.getByRole('link', { name: 'New provider' }).getAttribute('href')).toBe(
@@ -128,7 +129,7 @@ describe('provider detail', () => {
   })
 
   it('without details, completions or prices, says so; and not one that does not exist', async () => {
-    vi.mocked(getViewer).mockResolvedValue('authenticated')
+    signInAs('ADMIN')
     vi.mocked(getProvider).mockResolvedValue(
       providerDetail({
         ...internal,
@@ -156,10 +157,10 @@ describe('provider detail', () => {
 })
 
 describe('provider forms', () => {
-  it('add a provider, for signed-in users only', async () => {
+  it('add a provider, for admins only', async () => {
     expect(await newMetadata()).toEqual({ title: 'New provider' })
     await renderServer(NewProviderPage())
-    expect(requirePageUser).toHaveBeenCalled()
+    expect(requireAdminPage).toHaveBeenCalled()
     expect(screen.getByRole('textbox', { name: /Name/ })).toHaveProperty('value', '')
     // Renaming is explained only where there is a name to change.
     expect(screen.queryByText(/Renaming changes the name/)).toBeNull()

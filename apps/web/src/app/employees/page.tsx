@@ -18,12 +18,14 @@ import { getTranslations } from 'next-intl/server'
 import { EmployeeFilters } from '@/components/employee-filters'
 import { EmployeesTable } from '@/components/employees-table'
 import { oneOf, param, parseSort, type SearchParams, withParams } from '@/lib/search-params'
+import { requireReader } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('employees'))('title') }
 }
 
 export default async function EmployeesPage({ searchParams }: { searchParams: SearchParams }) {
+  await requireReader()
   const params = await searchParams
   const filters = {
     q: param(params, 'q'),

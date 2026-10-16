@@ -5,7 +5,7 @@ import { COMMIT_CHUNK_SIZE, commitChunk, CommitValidationError } from '@muni/db/
 import { DATASET_KINDS, type DatasetKind } from '@muni/importer'
 import { revalidatePath } from 'next/cache'
 
-import { requireUser } from '@/server/auth'
+import { requireAdmin } from '@/server/auth'
 
 export type CommitChunkResult =
   | { ok: true; created: number; updated: number }
@@ -20,7 +20,7 @@ export async function commitImportChunk(
   records: unknown[]
 ): Promise<CommitChunkResult> {
   try {
-    await requireUser()
+    await requireAdmin()
   } catch {
     return { ok: false, error: 'unauthorized' }
   }

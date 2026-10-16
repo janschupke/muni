@@ -1,4 +1,5 @@
 import { listProviders } from '@muni/db/repositories'
+import { canWrite } from '@muni/domain/enums'
 import { Button } from '@muni/ui/button'
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
@@ -8,16 +9,16 @@ import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 
 import { ProvidersTable } from '@/features/providers/providers-table'
-import { getViewer } from '@/server/auth'
+import { requireReader } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('providers'))('title') }
 }
 
 export default async function ProvidersPage() {
-  const viewer = await getViewer()
+  const user = await requireReader()
   const [{ providers, prices }, t] = await Promise.all([
-    listProviders(viewer),
+    listProviders(user.role),
     getTranslations('providers'),
   ])
   return (
@@ -26,7 +27,7 @@ export default async function ProvidersPage() {
         title={t('title')}
         description={t('description')}
         actions={
-          viewer === 'authenticated' && (
+          canWrite(user.role) && (
             <Button asChild variant="primary">
               <Link href="/providers/new">
                 <Plus aria-hidden />

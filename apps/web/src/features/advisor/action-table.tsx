@@ -122,7 +122,7 @@ export function ActionTable({
         )
       ) : (
         <Alert tone="info" role="none">
-          {t('action.signIn')}
+          {t('action.readOnly')}
         </Alert>
       )}
       {shortfall.length > 0 && (

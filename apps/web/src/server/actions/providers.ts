@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { type DeleteState, fieldErrors, formError, type FormState, text } from '@/lib/form'
-import { requireUser } from '@/server/auth'
+import { requireAdmin } from '@/server/auth'
 import { deleteRecord } from '@/server/delete-record'
 
 const codeOf = (error: unknown) => (error as { code?: unknown } | null)?.code
@@ -17,7 +17,7 @@ export async function saveProvider(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireUser()
+  await requireAdmin()
   const input = {
     name: text(form, 'name'),
     companyId: text(form, 'companyId'),

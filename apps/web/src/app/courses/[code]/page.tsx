@@ -1,4 +1,5 @@
 import { getCourse } from '@muni/db/repositories'
+import { canWrite } from '@muni/domain/enums'
 import { COMPLIANCE_STATUSES } from '@muni/domain/enums'
 import { BarRow } from '@muni/ui/bar-row'
 import { Button } from '@muni/ui/button'
@@ -21,7 +22,7 @@ import { RecentCompletionsTable } from '@/components/completion-tables'
 import { ComplianceBar, ComplianceLegend } from '@/components/compliance-breakdown'
 import { RequirementList } from '@/components/requirement-list'
 import { SessionTable } from '@/components/session-table'
-import { getViewer } from '@/server/auth'
+import { requireReader } from '@/server/auth'
 
 interface Props {
   params: Promise<{ code: string }>
@@ -35,17 +36,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function CoursePage({ params }: Props) {
+  const user = await requireReader()
   const { code } = await params
-  const [course, viewer, t, tc, ts, locale] = await Promise.all([
+  const [course, t, tc, ts, locale] = await Promise.all([
     loadCourse(code),
-    getViewer(),
     getTranslations('courses'),
     getTranslations('common'),
     getTranslations('status.compliance'),
     getLocale(),
   ])
   if (!course) notFound()
-  const canEdit = viewer === 'authenticated'
+  const canEdit = canWrite(user.role)
 
   return (
     <>

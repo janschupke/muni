@@ -8,10 +8,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppFailure } from '@/components/app-failure'
 import { NotFoundMessage } from '@/components/not-found-message'
 import { setLocale } from '@/server/actions/locale'
-import { getViewer } from '@/server/auth'
+import { signInAs, signOut } from '@/test/auth'
 import { advisorInput, dashboard, session } from '@/test/fixtures'
 import { setViewportWidth } from '@/test/media'
-import { navigate, NotFoundError, requestCookies, route, router } from '@/test/next'
+import { navigate, requestCookies, route, router } from '@/test/next'
 import { Providers, renderClient, renderServer, resolveServer } from '@/test/render'
 
 import ErrorPage from './error'
@@ -19,27 +19,22 @@ import RootLayout, { generateMetadata } from './layout'
 import NotFound from './not-found'
 import DashboardPage from './page'
 import SignInPage from './sign-in/[[...sign-in]]/page'
+import SignUpPage from './sign-up/[[...sign-up]]/page'
 import Template from './template'
 
-const clerk = vi.hoisted(() => ({ enabled: false }))
-vi.mock('@/server/clerk', () => ({
-  get clerkEnabled() {
-    return clerk.enabled
-  },
-}))
 vi.mock('@clerk/nextjs', () => ({
   ClerkProvider: ({ children }: { children: ReactNode }) => children,
   SignInButton: ({ children }: { children: ReactNode }) => children,
   UserButton: () => <button type="button">Account</button>,
   SignIn: () => <p>Clerk sign-in form</p>,
+  SignUp: () => <p>Clerk sign-up form</p>,
 }))
 vi.mock('@muni/db/repositories')
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/locale', () => ({ setLocale: vi.fn(() => Promise.resolve()) }))
 
 beforeEach(() => {
-  clerk.enabled = false
-  vi.mocked(getViewer).mockResolvedValue('anonymous')
+  signInAs('VIEWER')
   vi.mocked(getDashboard).mockResolvedValue(dashboard())
   vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
 })
@@ -91,7 +86,9 @@ describe('root layout', () => {
     // Keyboard users can jump past the header straight to the page.
     expect(screen.getByRole('link', { name: 'Skip to content' }).getAttribute('href')).toBe('#main')
     expect(screen.getByRole('main').id).toBe('main')
-    expect(screen.getByRole('contentinfo').textContent).toContain('Personal data is masked')
+    expect(screen.getByRole('contentinfo').textContent).toContain(
+      'Personal data is redacted for your role'
+    )
     // The top bar: the logo and name lead home; language and theme sit at its end.
     const header = screen.getByRole('banner')
     expect(
@@ -99,20 +96,44 @@ describe('root layout', () => {
     ).toBe('/')
     expect(within(header).getByRole('radiogroup', { name: 'Language' })).toBeTruthy()
     expect(within(header).getByRole('radiogroup', { name: 'Colour theme' })).toBeTruthy()
+    // The account menu, with the role beside it.
+    expect(within(header).getByRole('button', { name: 'Account' })).toBeTruthy()
+    expect(within(header).getByText('Viewer')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Sign in' })).toBeNull()
   })
 
-  it('adds Clerk, sign-in and import once auth is configured', async () => {
-    clerk.enabled = true
+  it('wraps the app in Clerk, and gives visitors a top bar with sign-in and no navigation', async () => {
+    signOut()
     const tree = (await RootLayout({ children: null })) as { props: Record<string, unknown> }
-    expect(tree.props).toMatchObject({ signInUrl: '/sign-in', afterSignOutUrl: '/' })
+    expect(tree.props).toMatchObject({
+      signInUrl: '/sign-in',
+      signUpUrl: '/sign-up',
+      afterSignOutUrl: '/',
+    })
     await renderLayout(<p>Obsah</p>)
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeTruthy()
+    expect(screen.queryByRole('navigation')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Account' })).toBeNull()
+    expect(screen.getByRole('contentinfo').textContent).toContain('Sign in to see the register.')
+  })
 
-    vi.mocked(getViewer).mockResolvedValue('authenticated')
+  it('gives admins the administration group: import and users', async () => {
+    signInAs('ADMIN')
     await renderLayout(<p>Obsah</p>)
-    expect(screen.getByRole('button', { name: 'Account' })).toBeTruthy()
-    expect(screen.getAllByRole('link', { name: 'Import' }).length).toBeGreaterThan(0)
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' })
+    expect(within(nav).getByText('Administration')).toBeTruthy()
+    expect(within(nav).getByRole('link', { name: 'Import' }).getAttribute('href')).toBe('/import')
+    expect(within(nav).getByRole('link', { name: 'Users' }).getAttribute('href')).toBe('/users')
+    expect(within(screen.getByRole('banner')).getByText('Admin')).toBeTruthy()
+    expect(screen.getByRole('contentinfo').textContent).toContain('You can edit')
+  })
+
+  it('keeps the full role read-only: no administration', async () => {
+    signInAs('FULL')
+    await renderLayout(<p>Obsah</p>)
+    expect(screen.queryByRole('link', { name: 'Import' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Users' })).toBeNull()
+    expect(within(screen.getByRole('banner')).getByText('Full access')).toBeTruthy()
   })
 
   it('groups the navigation, and collapses the sidebar to icons, remembering it', async () => {
@@ -205,6 +226,22 @@ describe('root layout', () => {
   })
 })
 
+describe('home', () => {
+  it('introduces the app to visitors, with sign-in and sign-up, and reads no data', async () => {
+    signOut()
+    await renderServer(DashboardPage())
+    expect(screen.getByRole('heading', { level: 1, name: 'Training register' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe('/sign-in')
+    expect(screen.getByRole('link', { name: 'Create account' }).getAttribute('href')).toBe(
+      '/sign-up'
+    )
+    expect(screen.getByRole('heading', { name: 'What it does' })).toBeTruthy()
+    expect(screen.getByText('Full access')).toBeTruthy()
+    expect(getDashboard).not.toHaveBeenCalled()
+    expect(getAdvisorInput).not.toHaveBeenCalled()
+  })
+})
+
 describe('dashboard', () => {
   it('links every count to the list behind it', async () => {
     await renderServer(DashboardPage())
@@ -236,8 +273,8 @@ describe('dashboard', () => {
     expect(screen.getByText('No sessions are scheduled.')).toBeTruthy()
   })
 
-  it('shows the upcoming sessions, with edit links for signed-in users', async () => {
-    vi.mocked(getViewer).mockResolvedValue('authenticated')
+  it('shows the upcoming sessions, with edit links for admins', async () => {
+    signInAs('ADMIN')
     vi.mocked(getDashboard).mockResolvedValue(dashboard({ upcomingSessions: [session()] }))
     await renderServer(DashboardPage())
     expect(screen.getByRole('link', { name: 'BOZP – základní školení' })).toBeTruthy()
@@ -308,11 +345,11 @@ describe('error pages', () => {
   })
 })
 
-describe('sign-in', () => {
-  it('is a 404 without auth, and the Clerk form with it', () => {
-    expect(() => SignInPage()).toThrow(NotFoundError)
-    clerk.enabled = true
+describe('sign-in and sign-up', () => {
+  it('are the Clerk forms', () => {
     render(SignInPage())
     expect(screen.getByText('Clerk sign-in form')).toBeTruthy()
+    render(SignUpPage())
+    expect(screen.getByText('Clerk sign-up form')).toBeTruthy()
   })
 })

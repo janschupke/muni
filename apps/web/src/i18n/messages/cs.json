@@ -54,8 +54,10 @@
     "groups": {
       "register": "Evidence",
       "training": "Školení",
-      "planning": "Plánování"
-    }
+      "planning": "Plánování",
+      "admin": "Správa"
+    },
+    "users": "Uživatelé"
   },
   "status": {
     "employment": {
@@ -95,6 +97,11 @@
       "ONLINE": "Online",
       "EXTERNAL": "Externí",
       "OUTDOOR": "Venkovní"
+    },
+    "role": {
+      "VIEWER": "Čtenář",
+      "FULL": "Plný přístup",
+      "ADMIN": "Správce"
     }
   },
   "dashboard": {
@@ -572,9 +579,13 @@
   "footer": {
     "appName": "Registr školení",
     "asOf": "Data k {date}",
-    "privacy": "Osobní údaje jsou pro návštěvníky skryté. Pro úpravy se přihlaste.",
-    "signedIn": "Jste přihlášeni: změny se ukládají pro všechny.",
-    "nav": "Patička"
+    "nav": "Patička",
+    "access": {
+      "VISITOR": "Pro zobrazení registru se přihlaste.",
+      "VIEWER": "Jen pro čtení. Osobní údaje jsou pro vaši roli skryté.",
+      "FULL": "Jen pro čtení, s úplnými záznamy.",
+      "ADMIN": "Můžete upravovat: změny se ukládají pro všechny."
+    }
   },
   "advisor": {
     "title": "Poradce",
@@ -639,7 +650,6 @@
       "gap": "{days, plural, =0 {Skončí v den propadnutí} one {Začíná po propadnutí: # den bez školení} few {Začíná po propadnutí: # dny bez školení} other {Začíná po propadnutí: # dní bez školení}}",
       "coveredOn": "Bez školení do {until}",
       "saveAll": "Uložit {count, plural, one {# navrženou přihlášku} few {všechny # navržené přihlášky} other {všech # navržených přihlášek}} · {cost}",
-      "signIn": "Pro uložení přihlášek se přihlaste.",
       "save": "Uložit",
       "saveOne": "Přihlásit {name} na {session}",
       "reasons": {
@@ -653,7 +663,8 @@
       },
       "shortfallTitle": "Vypište další termíny",
       "shortfall": "{course}: {people, plural, one {# osoba nemá} few {# osoby nemají} other {# osob nemá}} kam se přihlásit.",
-      "empty": "Každé školení v přehledu má přihlášku."
+      "empty": "Každé školení v přehledu má přihlášku.",
+      "readOnly": "Přihlášky mohou ukládat jen správci."
     },
     "planned": {
       "rows": "Každý řádek je jedno školení v nesouladu nebo před propadnutím, které už má přihlášku jménem. Termín, který skončí po propadnutí, nechá mezeru.",
@@ -935,7 +946,7 @@
     "openSession": "Otevřít",
     "bookInAdvisor": "Přihlásit lidi v poradci",
     "refused": {
-      "unauthorized": "Už nejste přihlášeni. Přihlaste se a zkuste to znovu.",
+      "unauthorized": "Termíny už vytvářet nemůžete. Přihlaste se jako správce a zkuste to znovu.",
       "invalid": "Tento návrh už neplatí. Načtěte plánovač znovu.",
       "failed": "Termín se nepodařilo vytvořit. Zkuste to znovu.",
       "ROOM_BUSY": "Místnost mezitím někdo v tu dobu obsadil. Obnovený plán nabízí jiný termín.",
@@ -943,7 +954,6 @@
       "ROOM_TOO_SMALL": "Místnost má méně míst, než termín otevírá. Obnovený plán nabízí jinou místnost.",
       "ROOM_MISSING_CAPABILITIES": "Místnosti chybí vybavení, které kurz potřebuje. Obnovený plán nabízí jinou místnost."
     },
-    "signIn": "Pro vytváření termínů se přihlaste.",
     "problems": {
       "NO_ROOM_WITH": "I nejlépe vybavené místnosti chybí {missing}.",
       "NO_ROOM_LARGE_ENOUGH": "{size, plural, one {Žádná vybavená místnost nepojme # osobu} few {Žádná vybavená místnost nepojme # osoby} other {Žádná vybavená místnost nepojme # osob}}; největší má {largest, plural, one {# místo} few {# místa} other {# míst}}.",
@@ -951,6 +961,58 @@
       "RUNS_PAST_MIDNIGHT": "V obvyklý čas a délce by termín skončil po půlnoci.",
       "NO_FREE_SLOT": "V příštích {days} dnech není volný termín."
     },
-    "rule": "Školení, která žádný termín nepojme, se seskupí podle kurzu a termínu splnění (propadlá do dvou týdnů, ostatní den před propadnutím) a rozdělí podle velikosti skupiny kurzu, případně podle největší vhodné místnosti. Každý termín dostane první pracovní den od zítřka (víkendy a státní svátky se nepočítají), kdy je v obvyklý čas kurzu volná vhodná místnost: online, pokud to kurz dovoluje, jinak místnost se vším, co kurz potřebuje, a s dostatkem míst; dříve použité místnosti mají přednost."
+    "rule": "Školení, která žádný termín nepojme, se seskupí podle kurzu a termínu splnění (propadlá do dvou týdnů, ostatní den před propadnutím) a rozdělí podle velikosti skupiny kurzu, případně podle největší vhodné místnosti. Každý termín dostane první pracovní den od zítřka (víkendy a státní svátky se nepočítají), kdy je v obvyklý čas kurzu volná vhodná místnost: online, pokud to kurz dovoluje, jinak místnost se vším, co kurz potřebuje, a s dostatkem míst; dříve použité místnosti mají přednost.",
+    "readOnly": "Termíny mohou vytvářet jen správci."
+  },
+  "landing": {
+    "title": "Registr školení",
+    "lead": "Kdo potřebuje které školení, kdo ho má a do kdy, a které termíny pokryjí mezery. Pro ty, kdo plánují povinná školení.",
+    "signIn": "Přihlásit se",
+    "signUp": "Vytvořit účet",
+    "features": {
+      "title": "Co umí",
+      "compliance": {
+        "title": "Plnění na první pohled",
+        "body": "Každý člověk proti každému kurzu, který musí mít: platné, brzy vyprší, propadlé nebo chybí, podle útvarů a pozic."
+      },
+      "advisor": {
+        "title": "Poradce",
+        "body": "Přiřadí lidem, kteří školení potřebují, nadcházející termíny s volnými místy dřív, než jim osvědčení vyprší."
+      },
+      "planner": {
+        "title": "Plánovač",
+        "body": "Ukáže, kde stávající termíny nestačí, a navrhne nové i s místnostmi, které kurzu vyhovují."
+      },
+      "import": {
+        "title": "Import",
+        "body": "Načte exporty, které už máte, opraví, co bezpečně jde, a vypíše každý řádek, který nepřevzal."
+      }
+    },
+    "access": {
+      "title": "Přístup",
+      "description": "Každý nový účet může registr číst. Širší přístup přidělují správci.",
+      "VIEWER": {
+        "title": "Čtenář",
+        "body": "Každý nový účet. Čte vše; osobní údaje jako rodné číslo, e-mail a poznámky jsou skryté už na serveru."
+      },
+      "FULL": {
+        "title": "Plný přístup",
+        "body": "Čte celé záznamy včetně osobních údajů. Přiděluje správce."
+      },
+      "ADMIN": {
+        "title": "Správce",
+        "body": "Navíc upravuje záznamy, přihlašuje na termíny a importuje data. Přiděluje správce."
+      }
+    }
+  },
+  "users": {
+    "title": "Uživatelé",
+    "description": "Všichni, kdo se přihlásili, a jejich role. Role se přidělují v administraci Clerk (veřejná metadata \"role\": viewer, full nebo admin) a platí do pěti minut nebo od příštího přihlášení.",
+    "columns": {
+      "name": "Jméno",
+      "email": "E-mail",
+      "role": "Role",
+      "lastSignInAt": "Poslední přihlášení"
+    }
   }
 }

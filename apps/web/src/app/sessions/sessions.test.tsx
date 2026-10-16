@@ -5,7 +5,8 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { removeAssignmentAction } from '@/server/actions/assignments'
-import { getViewer, requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
+import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { advisorInput, AULA_A, ONLINE, session } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
@@ -44,8 +45,7 @@ const online = session({
 })
 
 beforeEach(() => {
-  vi.mocked(getViewer).mockResolvedValue('anonymous')
-  vi.mocked(requirePageUser).mockResolvedValue('user_1')
+  signInAs('VIEWER')
   vi.mocked(listSessions).mockResolvedValue([
     session(),
     online,
@@ -149,7 +149,7 @@ describe('session detail', () => {
     )
   })
 
-  it('shows the facts, seats and named bookings, read-only for visitors', async () => {
+  it('shows the facts, seats and named bookings, read-only for viewers', async () => {
     await renderServer(SessionPage(props))
     expect(screen.getByRole('link', { name: 'Back to Sessions' }).getAttribute('href')).toBe(
       '/sessions'
@@ -166,9 +166,9 @@ describe('session detail', () => {
     expect(screen.queryByRole('button', { name: /Cancel the booking/ })).toBeNull()
   })
 
-  it('lets signed-in users edit the session and cancel a booking', async () => {
+  it('lets admins edit the session and cancel a booking', async () => {
     const user = userEvent.setup()
-    vi.mocked(getViewer).mockResolvedValue('authenticated')
+    signInAs('ADMIN')
     await renderServer(SessionPage(props))
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '/sessions/T016/edit'
@@ -193,9 +193,9 @@ describe('session detail', () => {
 describe('session edit', () => {
   const props = { params: params({ externalId: 'T016' }) }
 
-  it('edits a session for signed-in users, listing the people booked by name', async () => {
+  it('edits a session for admins, listing the people booked by name', async () => {
     await renderServer(EditSessionPage(props))
-    expect(requirePageUser).toHaveBeenCalled()
+    expect(requireAdminPage).toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 1, name: 'Edit session T016' })).toBeTruthy()
     expect(screen.getByRole('combobox', { name: /Room/ }).textContent).toContain('Aula A')
     expect(screen.getByRole('link', { name: 'Černá Marie' })).toBeTruthy()
@@ -220,11 +220,11 @@ describe('advisor page', () => {
     expect(await advisorMetadata()).toEqual({ title: 'Advisor' })
     await renderServer(AdvisorPage(search({ view: 'action' })))
     expect(screen.getByRole('link', { name: /^Action required/, current: 'page' })).toBeTruthy()
-    expect(screen.getByText('Sign in to save bookings.')).toBeTruthy()
+    expect(screen.getByText('Only admins can save bookings.')).toBeTruthy()
   })
 
   it('falls back to the breakdown of what is non-compliant now on anything unknown', async () => {
-    vi.mocked(getViewer).mockResolvedValue('authenticated')
+    signInAs('ADMIN')
     await renderServer(AdvisorPage(search({ view: 'nonsense', bucket: '1999-01' })))
     expect(screen.getByRole('heading', { name: 'Non-compliant now: 2 trainings' })).toBeTruthy()
   })

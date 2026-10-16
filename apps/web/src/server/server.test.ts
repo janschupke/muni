@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import {
   applyAssignments,
   createCompletion,
@@ -7,6 +7,7 @@ import {
   createSession,
   deleteProvider,
   deleteRoom,
+  findUserByClerkId,
   getCourseForEdit,
   moveSeats,
   removeAssignment,
@@ -15,8 +16,11 @@ import {
   updateProvider,
   updateRoom,
   updateSession,
+  upsertUserFromClerk,
+  type UserRecord,
 } from '@muni/db/repositories'
 import { commitChunk, CommitValidationError } from '@muni/db/writer'
+import type { Role } from '@muni/domain/enums'
 import { revalidatePath } from 'next/cache'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -41,17 +45,18 @@ import { setLocale } from './actions/locale'
 import { removeProvider, saveProvider } from './actions/providers'
 import { removeRoom, saveRoom } from './actions/rooms'
 import { createOfferedSession, saveNewSession } from './actions/sessions'
-import { getViewer, requirePageUser, requireUser } from './auth'
+import {
+  getSessionUser,
+  requireAdmin,
+  requireAdminPage,
+  requireReader,
+  SYNC_INTERVAL_MS,
+} from './auth'
 
-const clerk = vi.hoisted(() => ({ enabled: true }))
-vi.mock('./clerk', () => ({
-  get clerkEnabled() {
-    return clerk.enabled
-  },
-}))
 vi.mock('@clerk/nextjs/server', () => ({
   auth: Object.assign(vi.fn(), { protect: vi.fn() }),
-  clerkMiddleware: vi.fn(() => 'clerk middleware'),
+  clerkClient: vi.fn(),
+  clerkMiddleware: vi.fn((handler: unknown) => handler),
 }))
 vi.mock('@muni/db/repositories', () => ({
   applyAssignments: vi.fn(),
@@ -61,6 +66,7 @@ vi.mock('@muni/db/repositories', () => ({
   createSession: vi.fn(),
   deleteProvider: vi.fn(),
   deleteRoom: vi.fn(),
+  findUserByClerkId: vi.fn(),
   updateProvider: vi.fn(),
   updateRoom: vi.fn(),
   getCourseForEdit: vi.fn(),
@@ -69,6 +75,7 @@ vi.mock('@muni/db/repositories', () => ({
   updateCourse: vi.fn(),
   updateEmployee: vi.fn(),
   updateSession: vi.fn(),
+  upsertUserFromClerk: vi.fn(),
 }))
 vi.mock('@muni/db/client', () => ({ getDb: () => 'db' }))
 vi.mock('@muni/db/writer', async importOriginal => ({
@@ -77,14 +84,59 @@ vi.mock('@muni/db/writer', async importOriginal => ({
 }))
 
 type AuthResult = Awaited<ReturnType<typeof auth>>
-const signedIn = (userId: string | null) => {
-  vi.mocked(auth).mockResolvedValue({ userId } as AuthResult)
+
+/** A users row for `clerkId`, synced just now in session `sess_1`. */
+const userRow = (clerkId: string, role: Role, overrides: Partial<UserRecord> = {}): UserRecord => ({
+  id: clerkId.replace('user_', 'usr_'),
+  clerkId,
+  email: `${clerkId}@example.com`,
+  name: clerkId,
+  role,
+  lastSessionId: 'sess_1',
+  lastSignInAt: null,
+  syncedAt: new Date(),
+  ...overrides,
+})
+
+/** Signs in `clerkId` with a fresh users row of `role` (no Clerk call needed), or signs out. */
+const signedIn = (clerkId: string | null, role: Role = 'ADMIN') => {
+  vi.mocked(auth).mockResolvedValue({
+    userId: clerkId,
+    sessionId: clerkId && 'sess_1',
+  } as AuthResult)
+  vi.mocked(findUserByClerkId).mockResolvedValue(clerkId ? userRow(clerkId, role) : null)
+}
+
+/** Clerk's backend client: one user, whose public metadata holds `role`. */
+const clerkUsers = {
+  getUser: vi.fn(),
+  updateUserMetadata: vi.fn(),
+}
+const clerkHas = (role: unknown) => {
+  clerkUsers.getUser.mockResolvedValue({
+    publicMetadata: role === undefined ? {} : { role },
+    primaryEmailAddress: { emailAddress: 'jana@example.com' },
+    fullName: 'Jana Nová',
+    username: null,
+    lastSignInAt: Date.parse('2026-10-16T09:00:00Z'),
+  })
 }
 
 beforeEach(() => {
-  clerk.enabled = true
   signedIn('user_1')
   vi.mocked(auth.protect).mockResolvedValue({ userId: 'user_1' } as never)
+  vi.mocked(clerkClient).mockResolvedValue({ users: clerkUsers } as never)
+  vi.mocked(upsertUserFromClerk).mockImplementation(sync =>
+    Promise.resolve(
+      userRow(sync.clerkId, sync.role, {
+        email: sync.email,
+        name: sync.name,
+        lastSessionId: sync.sessionId,
+        lastSignInAt: sync.lastSignInAt,
+        syncedAt: sync.syncedAt,
+      })
+    )
+  )
 })
 afterEach(() => {
   vi.clearAllMocks()
@@ -105,21 +157,144 @@ async function redirectOf(action: Promise<unknown>): Promise<string> {
   return error.url
 }
 
-describe('auth', () => {
-  it('without Clerk, everyone is a visitor and protected pages do not exist', async () => {
-    clerk.enabled = false
-    expect(await getViewer()).toBe('anonymous')
-    await expect(requirePageUser()).rejects.toThrow(NotFoundError)
-    await expect(requireUser()).rejects.toMatchObject({ name: 'UnauthorizedError' })
+describe('session user', () => {
+  it('is null for visitors, without touching the database', async () => {
+    signedIn(null)
+    expect(await getSessionUser()).toBeNull()
+    expect(findUserByClerkId).not.toHaveBeenCalled()
   })
 
-  it('with Clerk, signing in is the only distinction', async () => {
-    expect(await getViewer()).toBe('authenticated')
-    expect(await requireUser()).toBe('user_1')
-    expect(await requirePageUser()).toBe('user_1')
+  it('reads a fresh row from the database, without asking Clerk', async () => {
+    signedIn('user_1', 'FULL')
+    expect(await getSessionUser()).toEqual({
+      id: 'usr_1',
+      clerkId: 'user_1',
+      role: 'FULL',
+      name: 'user_1',
+      email: 'user_1@example.com',
+    })
+    expect(clerkClient).not.toHaveBeenCalled()
+  })
+
+  it('on a first sign-in, gives a user without a role the viewer role, in Clerk and the row', async () => {
+    vi.mocked(findUserByClerkId).mockResolvedValue(null)
+    clerkHas(undefined)
+    expect(await getSessionUser()).toMatchObject({ role: 'VIEWER', name: 'Jana Nová' })
+    expect(clerkUsers.updateUserMetadata).toHaveBeenCalledWith('user_1', {
+      publicMetadata: { role: 'viewer' },
+    })
+    expect(upsertUserFromClerk).toHaveBeenCalledWith({
+      clerkId: 'user_1',
+      email: 'jana@example.com',
+      name: 'Jana Nová',
+      role: 'VIEWER',
+      sessionId: 'sess_1',
+      lastSignInAt: new Date('2026-10-16T09:00:00Z'),
+      syncedAt: expect.any(Date) as Date,
+    })
+  })
+
+  it.each([
+    ['an unknown role', 'owner', 'VIEWER', 'viewer'],
+    ['a role spelled differently', ' Full', 'FULL', 'full'],
+  ])('rewrites %s in Clerk', async (_, stored, role, written) => {
+    vi.mocked(findUserByClerkId).mockResolvedValue(null)
+    clerkHas(stored)
+    expect(await getSessionUser()).toMatchObject({ role })
+    expect(clerkUsers.updateUserMetadata).toHaveBeenCalledWith('user_1', {
+      publicMetadata: { role: written },
+    })
+  })
+
+  it('leaves a valid role alone', async () => {
+    vi.mocked(findUserByClerkId).mockResolvedValue(null)
+    clerkHas('admin')
+    expect(await getSessionUser()).toMatchObject({ role: 'ADMIN' })
+    expect(clerkUsers.updateUserMetadata).not.toHaveBeenCalled()
+  })
+
+  it('stores what Clerk lacks as empty: no email, no name, never signed in', async () => {
+    vi.mocked(findUserByClerkId).mockResolvedValue(null)
+    clerkUsers.getUser.mockResolvedValue({
+      publicMetadata: { role: 'viewer' },
+      primaryEmailAddress: null,
+      fullName: null,
+      username: 'jnova',
+      lastSignInAt: null,
+    })
+    await getSessionUser()
+    expect(upsertUserFromClerk).toHaveBeenCalledWith(
+      expect.objectContaining({ email: null, name: 'jnova', lastSignInAt: null })
+    )
+    clerkUsers.getUser.mockResolvedValue({
+      publicMetadata: { role: 'viewer' },
+      primaryEmailAddress: null,
+      fullName: null,
+      username: null,
+      lastSignInAt: null,
+    })
+    await getSessionUser()
+    expect(upsertUserFromClerk).toHaveBeenLastCalledWith(expect.objectContaining({ name: null }))
+  })
+
+  it('checks Clerk again on a new sign-in, and picks up a role changed there', async () => {
+    vi.mocked(findUserByClerkId).mockResolvedValue(
+      userRow('user_1', 'VIEWER', { lastSessionId: 'sess_0' })
+    )
+    clerkHas('full')
+    expect(await getSessionUser()).toMatchObject({ role: 'FULL' })
+    expect(upsertUserFromClerk).toHaveBeenCalledWith(
+      expect.objectContaining({ role: 'FULL', sessionId: 'sess_1' })
+    )
+  })
+
+  it('checks Clerk again once the stored role is older than the sync interval', async () => {
+    const stale = new Date(Date.now() - SYNC_INTERVAL_MS - 1000)
+    vi.mocked(findUserByClerkId).mockResolvedValue(userRow('user_1', 'ADMIN', { syncedAt: stale }))
+    clerkHas('viewer')
+    expect(await getSessionUser()).toMatchObject({ role: 'VIEWER' })
+  })
+
+  it('keeps the stored role when Clerk cannot be reached, and fails without one', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    clerkUsers.getUser.mockRejectedValue(new Error('Clerk down'))
+    vi.mocked(findUserByClerkId).mockResolvedValue(
+      userRow('user_1', 'FULL', { lastSessionId: 'sess_0' })
+    )
+    expect(await getSessionUser()).toMatchObject({ role: 'FULL' })
+    expect(warn).toHaveBeenCalled()
+    vi.mocked(findUserByClerkId).mockResolvedValue(null)
+    await expect(getSessionUser()).rejects.toThrow('Clerk down')
+  })
+})
+
+describe('guards', () => {
+  it('let every role read; signed-out readers go to sign-in', async () => {
+    for (const role of ['VIEWER', 'FULL', 'ADMIN'] as const) {
+      signedIn('user_1', role)
+      expect(await requireReader()).toMatchObject({ role })
+    }
+    vi.mocked(auth.protect).mockRejectedValue(new RedirectError('/sign-in'))
     signedIn(null)
-    expect(await getViewer()).toBe('anonymous')
-    await expect(requireUser()).rejects.toMatchObject({ name: 'UnauthorizedError' })
+    await expect(requireReader()).rejects.toThrow(RedirectError)
+  })
+
+  it('a reader without a row (it cannot be made) gets a 404, not a guessed role', async () => {
+    vi.mocked(findUserByClerkId).mockResolvedValue(null)
+    vi.mocked(auth).mockResolvedValue({ userId: null, sessionId: null } as AuthResult)
+    await expect(requireReader()).rejects.toThrow(NotFoundError)
+  })
+
+  it('keep edit pages and mutations to admins', async () => {
+    expect(await requireAdminPage()).toMatchObject({ role: 'ADMIN' })
+    expect(await requireAdmin()).toMatchObject({ id: 'usr_1' })
+    for (const role of ['VIEWER', 'FULL'] as const) {
+      signedIn('user_1', role)
+      await expect(requireAdminPage()).rejects.toThrow(NotFoundError)
+      await expect(requireAdmin()).rejects.toMatchObject({ name: 'UnauthorizedError' })
+    }
+    signedIn(null)
+    await expect(requireAdmin()).rejects.toMatchObject({ name: 'UnauthorizedError' })
   })
 })
 
@@ -160,11 +335,13 @@ describe('edit actions', () => {
     expect(log).toHaveBeenCalled()
   })
 
-  it('refuse visitors before reading the form', async () => {
-    signedIn(null)
-    await expect(saveCourse('BOZP-Z', idle, form({ name: 'BOZP' }))).rejects.toMatchObject({
-      name: 'UnauthorizedError',
-    })
+  it('refuse visitors and readers before reading the form', async () => {
+    for (const user of [null, 'user_2'] as const) {
+      signedIn(user, 'FULL')
+      await expect(saveCourse('BOZP-Z', idle, form({ name: 'BOZP' }))).rejects.toMatchObject({
+        name: 'UnauthorizedError',
+      })
+    }
   })
 
   const sessionForm = {
@@ -287,7 +464,7 @@ describe('edit actions', () => {
 describe('booking actions', () => {
   const pair = { sessionExternalId: 'T018', employeeExternalId: 'E0153', source: 'ADVISOR' }
 
-  it('save bookings as the signed-in user and report each refusal', async () => {
+  it('save bookings as the signed-in admin and report each refusal', async () => {
     vi.mocked(applyAssignments).mockResolvedValue([
       { request: { ...pair, source: 'ADVISOR' }, ok: true },
       {
@@ -300,7 +477,8 @@ describe('booking actions', () => {
       applied: 1,
       failed: [{ sessionExternalId: 'T018', employeeExternalId: 'E0002', reason: 'SESSION_FULL' }],
     })
-    expect(applyAssignments).toHaveBeenCalledWith(expect.any(Array), 'user_1')
+    // The users-table id, not the Clerk id.
+    expect(applyAssignments).toHaveBeenCalledWith(expect.any(Array), 'usr_1')
     await expect(applyAssignmentsAction([])).rejects.toThrow()
     await expect(applyAssignmentsAction([{ ...pair, score: 1, source: 'GUESS' }])).rejects.toThrow()
   })
@@ -400,16 +578,25 @@ describe('import commit', () => {
 })
 
 describe('proxy', () => {
-  it('attaches Clerk only when it is configured', async () => {
-    vi.resetModules()
-    clerk.enabled = true
-    expect((await import('@/proxy')).default).toBe('clerk middleware')
-    vi.resetModules()
-    clerk.enabled = false
-    const { default: passThrough, config } = await import('@/proxy')
-    const response = (passThrough as () => Response)()
-    expect(response.headers.get('x-middleware-next')).toBe('1')
+  it('sends visitors to sign-in everywhere but the home page and Clerk’s pages', async () => {
+    const { default: handler, config, isPublicPath } = await import('@/proxy')
     expect(config.matcher).toHaveLength(2)
+    const protect = vi.fn()
+    const run = (pathname: string) =>
+      (handler as unknown as (auth: unknown, request: unknown) => Promise<void>)(
+        { protect },
+        { nextUrl: { pathname } }
+      )
+    for (const path of ['/', '/sign-in', '/sign-in/factor-one', '/sign-up']) {
+      expect(isPublicPath(path), path).toBe(true)
+      await run(path)
+    }
+    expect(protect).not.toHaveBeenCalled()
+    for (const path of ['/employees', '/users', '/sign-inx', '/signup', '/employees/E0001']) {
+      expect(isPublicPath(path), path).toBe(false)
+      await run(path)
+    }
+    expect(protect).toHaveBeenCalledTimes(5)
   })
 })
 

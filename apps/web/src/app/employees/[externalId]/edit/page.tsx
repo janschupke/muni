@@ -6,14 +6,14 @@ import { getTranslations } from 'next-intl/server'
 import { BackLink } from '@/components/back-link'
 import { EmployeeForm } from '@/components/form/entity-forms'
 import { saveEmployee } from '@/server/actions/edit'
-import { requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
 
 export default async function EditEmployeePage({
   params,
 }: {
   params: Promise<{ externalId: string }>
 }) {
-  await requirePageUser()
+  await requireAdminPage()
   const { externalId } = await params
   const [employee, departments, positions, t] = await Promise.all([
     getEmployeeForEdit(externalId),

@@ -54,8 +54,10 @@
     "groups": {
       "register": "Register",
       "training": "Training",
-      "planning": "Planning"
-    }
+      "planning": "Planning",
+      "admin": "Administration"
+    },
+    "users": "Users"
   },
   "status": {
     "employment": {
@@ -95,6 +97,11 @@
       "ONLINE": "Online",
       "EXTERNAL": "External",
       "OUTDOOR": "Outdoor"
+    },
+    "role": {
+      "VIEWER": "Viewer",
+      "FULL": "Full access",
+      "ADMIN": "Admin"
     }
   },
   "dashboard": {
@@ -572,9 +579,13 @@
   "footer": {
     "appName": "Training register",
     "asOf": "Data as of {date}",
-    "privacy": "Personal data is masked for visitors. Sign in to edit.",
-    "signedIn": "You are signed in: changes are saved for everyone.",
-    "nav": "Footer"
+    "nav": "Footer",
+    "access": {
+      "VISITOR": "Sign in to see the register.",
+      "VIEWER": "Read-only. Personal data is redacted for your role.",
+      "FULL": "Read-only, with full records.",
+      "ADMIN": "You can edit: changes are saved for everyone."
+    }
   },
   "advisor": {
     "title": "Advisor",
@@ -639,7 +650,6 @@
       "gap": "{days, plural, =0 {Ends the day it lapses} one {Starts after it lapses: # day without it} other {Starts after it lapses: # days without it}}",
       "coveredOn": "Without it until {until}",
       "saveAll": "Save {count, plural, one {# proposed booking} other {all # proposed bookings}} · {cost}",
-      "signIn": "Sign in to save bookings.",
       "save": "Save",
       "saveOne": "Book {name} on {session}",
       "reasons": {
@@ -653,7 +663,8 @@
       },
       "shortfallTitle": "Schedule more sessions",
       "shortfall": "{course}: {people, plural, one {# person} other {# people}} with no session to join.",
-      "empty": "Every training in scope has a booking."
+      "empty": "Every training in scope has a booking.",
+      "readOnly": "Only admins can save bookings."
     },
     "planned": {
       "rows": "Each row is one training that is non-compliant or lapsing and already has a named booking. A booking that ends after the lapse leaves a gap.",
@@ -935,7 +946,7 @@
     "openSession": "Open it",
     "bookInAdvisor": "Book people in the advisor",
     "refused": {
-      "unauthorized": "You are no longer signed in. Sign in and try again.",
+      "unauthorized": "You can no longer create sessions. Sign in as an admin and try again.",
       "invalid": "This offer is no longer valid. Reload the planner.",
       "failed": "The session could not be created. Try again.",
       "ROOM_BUSY": "The room has been taken at that time meanwhile. The refreshed plan offers another slot.",
@@ -943,7 +954,6 @@
       "ROOM_TOO_SMALL": "The room has fewer seats than the session opens. The refreshed plan offers another room.",
       "ROOM_MISSING_CAPABILITIES": "The room lacks equipment the course needs. The refreshed plan offers another room."
     },
-    "signIn": "Sign in to create sessions.",
     "problems": {
       "NO_ROOM_WITH": "Even the best-equipped room lacks {missing}.",
       "NO_ROOM_LARGE_ENOUGH": "{size, plural, one {No equipped room seats # person} other {No equipped room seats # people}}; the largest takes {largest}.",
@@ -951,6 +961,58 @@
       "RUNS_PAST_MIDNIGHT": "At its usual time and length a session would end after midnight.",
       "NO_FREE_SLOT": "No free slot in the next {days} days."
     },
-    "rule": "Trainings no session can take are grouped by course and due date (lapsed ones within two weeks, the rest the day before they lapse) and split by the course's group size, or by the largest room that suits it. Each session gets the first working day from tomorrow (weekends and public holidays are not) with a valid room free at the course's usual time: online if the course allows it, otherwise a room with everything the course needs and enough seats, rooms used before first."
+    "rule": "Trainings no session can take are grouped by course and due date (lapsed ones within two weeks, the rest the day before they lapse) and split by the course's group size, or by the largest room that suits it. Each session gets the first working day from tomorrow (weekends and public holidays are not) with a valid room free at the course's usual time: online if the course allows it, otherwise a room with everything the course needs and enough seats, rooms used before first.",
+    "readOnly": "Only admins can create sessions."
+  },
+  "landing": {
+    "title": "Training register",
+    "lead": "Who needs which training, who holds it and until when, and which sessions fill the gaps. Built for the people who plan mandatory training.",
+    "signIn": "Sign in",
+    "signUp": "Create account",
+    "features": {
+      "title": "What it does",
+      "compliance": {
+        "title": "Compliance at a glance",
+        "body": "Every person against every course they must hold: valid, expiring, expired or missing, by department and position."
+      },
+      "advisor": {
+        "title": "Advisor",
+        "body": "Matches people who need a training with upcoming sessions that have free seats, before their certificate lapses."
+      },
+      "planner": {
+        "title": "Planner",
+        "body": "Shows where existing sessions are not enough and proposes new ones, with rooms that fit the course."
+      },
+      "import": {
+        "title": "Import",
+        "body": "Reads the exports you already have, fixes what it safely can and lists every row it could not take."
+      }
+    },
+    "access": {
+      "title": "Access",
+      "description": "Every new account can read the register. Administrators grant wider access.",
+      "VIEWER": {
+        "title": "Viewer",
+        "body": "Every new account. Reads everything; personal data such as the birth number, email and notes is redacted on the server."
+      },
+      "FULL": {
+        "title": "Full access",
+        "body": "Reads whole records, personal data included. Granted by an administrator."
+      },
+      "ADMIN": {
+        "title": "Admin",
+        "body": "Also edits records, books seats and imports data. Granted by an administrator."
+      }
+    }
+  },
+  "users": {
+    "title": "Users",
+    "description": "Everyone who has signed in, with their role. Roles are assigned in the Clerk dashboard (public metadata \"role\": viewer, full or admin) and take effect within five minutes or at the next sign-in.",
+    "columns": {
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "lastSignInAt": "Last sign-in"
+    }
   }
 }

@@ -1,5 +1,5 @@
 // Read and write access for the web app. Every function returns plain, serialisable DTOs;
-// personal fields have already been passed through the sanitisation policy for the viewer.
+// personal fields have already been passed through the sanitisation policy for the role.
 import 'server-only'
 
 export { getAdvisorInput } from './advisor'
@@ -95,3 +95,11 @@ export {
 } from './providers'
 export { getRoom, getRoomForEdit, listRooms, type RoomDetail, type RoomListItem } from './rooms'
 export { getSession, listSessions, type SessionWindow } from './sessions'
+export {
+  type ClerkUserSync,
+  findUserByClerkId,
+  listUsers,
+  upsertUserFromClerk,
+  type UserListItem,
+  type UserRecord,
+} from './users'

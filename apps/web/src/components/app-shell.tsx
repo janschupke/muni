@@ -1,5 +1,6 @@
 import { SignInButton, UserButton } from '@clerk/nextjs'
-import type { Viewer } from '@muni/domain/enums'
+import { canWrite } from '@muni/domain/enums'
+import { Badge } from '@muni/ui/badge'
 import { Button } from '@muni/ui/button'
 import { ThemeToggle } from '@muni/ui/theme/theme-toggle'
 import {
@@ -14,6 +15,7 @@ import {
   LayoutDashboard,
   Lightbulb,
   LogIn,
+  ShieldCheck,
   Upload,
   Users,
 } from 'lucide-react'
@@ -22,13 +24,22 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import type { ReactNode } from 'react'
 
 import { SIDEBAR_COOKIE } from '@/lib/sidebar'
-import { clerkEnabled } from '@/server/clerk'
+import type { SessionUser } from '@/server/auth'
 
 import { LocaleSwitch } from './locale-switch'
-import { type NavGroup, SidebarShell } from './sidebar-shell'
+import { type NavGroup, PublicShell, SidebarShell } from './sidebar-shell'
 
-/** The navigation, the language/theme/account controls and the frame around every page. */
-export async function AppShell({ viewer, children }: { viewer: Viewer; children: ReactNode }) {
+/**
+ * The language/theme/account controls and the frame around every page: the navigation for
+ * signed-in users, a bare top bar for visitors (who see only the landing page and sign-in).
+ */
+export async function AppShell({
+  user,
+  children,
+}: {
+  user: SessionUser | null
+  children: ReactNode
+}) {
   const [t, locale, cookieStore] = await Promise.all([getTranslations(), getLocale(), cookies()])
   const item = (href: string, label: string, Icon: typeof Users) => ({
     href,
@@ -60,9 +71,19 @@ export async function AppShell({ viewer, children }: { viewer: Viewer; children:
         item('/compliance', t('nav.compliance'), Grid3x3),
         item('/advisor', t('nav.advisor'), Lightbulb),
         item('/planner', t('nav.planner'), CalendarRange),
-        ...(viewer === 'authenticated' ? [item('/import', t('nav.import'), Upload)] : []),
       ],
     },
+    ...(user && canWrite(user.role)
+      ? [
+          {
+            label: t('nav.groups.admin'),
+            items: [
+              item('/import', t('nav.import'), Upload),
+              item('/users', t('nav.users'), ShieldCheck),
+            ],
+          },
+        ]
+      : []),
   ]
   const controls = (
     <>
@@ -79,19 +100,30 @@ export async function AppShell({ viewer, children }: { viewer: Viewer; children:
           system: t('nav.theme.system'),
         }}
       />
-      {clerkEnabled &&
-        (viewer === 'authenticated' ? (
+      {user ? (
+        <>
+          <Badge tone={user.role === 'ADMIN' ? 'accent' : 'neutral'} className="max-sm:sr-only">
+            {t(`status.role.${user.role}`)}
+          </Badge>
           <UserButton />
-        ) : (
-          <SignInButton mode="modal">
-            <Button variant="primary" size="sm">
-              <LogIn aria-hidden />
-              <span className="max-sm:sr-only">{t('common.signIn')}</span>
-            </Button>
-          </SignInButton>
-        ))}
+        </>
+      ) : (
+        <SignInButton mode="modal">
+          <Button variant="primary" size="sm">
+            <LogIn aria-hidden />
+            <span className="max-sm:sr-only">{t('common.signIn')}</span>
+          </Button>
+        </SignInButton>
+      )}
     </>
   )
+  if (!user) {
+    return (
+      <PublicShell appName={t('common.appName')} controls={controls}>
+        {children}
+      </PublicShell>
+    )
+  }
   return (
     <SidebarShell
       groups={groups}

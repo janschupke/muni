@@ -7,14 +7,14 @@ import { getTranslations } from 'next-intl/server'
 import { BackLink } from '@/components/back-link'
 import { CompletionForm } from '@/components/form/entity-forms'
 import { recordCompletion } from '@/server/actions/edit'
-import { requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
 
 export default async function NewCompletionPage({
   params,
 }: {
   params: Promise<{ externalId: string }>
 }) {
-  await requirePageUser()
+  await requireAdminPage()
   const { externalId } = await params
   const [employee, courses, providers, t] = await Promise.all([
     getEmployeeForEdit(externalId),

@@ -15,12 +15,16 @@ import { BackLink } from '@/components/back-link'
 import { GroupBreakdown } from '@/features/org/group-breakdown'
 import { GroupFacts } from '@/features/org/group-facts'
 import { GroupCourses, GroupPeople } from '@/features/org/group-sections'
+import { requireReader } from '@/server/auth'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
-const loadDepartment = cache((id: string) => getDepartment(id))
+const loadDepartment = cache(async (id: string) => {
+  await requireReader()
+  return getDepartment(id)
+})
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params

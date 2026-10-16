@@ -1,11 +1,16 @@
 import { clerkMiddleware } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
 
-import { clerkEnabled } from './server/clerk'
+/** The landing page and Clerk's own pages; everything else needs a signed-in user. */
+export function isPublicPath(pathname: string): boolean {
+  return pathname === '/' || /^\/(sign-in|sign-up)(\/|$)/.test(pathname)
+}
 
-// Attaches the Clerk session to requests. Access control is not path-based: every protected
-// page calls requirePageUser() and every server action calls requireUser().
-export default clerkEnabled ? clerkMiddleware() : () => NextResponse.next()
+// The first line of defence: signed-out visitors are sent to sign-in before any page renders.
+// Each page still checks for itself (requireReader / requireAdminPage) and every server action
+// calls requireAdmin, so a route this misses is still protected.
+export default clerkMiddleware(async (auth, request) => {
+  if (!isPublicPath(request.nextUrl.pathname)) await auth.protect()
+})
 
 export const config = {
   matcher: [

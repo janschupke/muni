@@ -37,7 +37,7 @@ export function PlannerView({ groups, canCreate }: { groups: PlannerGroup[]; can
     <div className="flex flex-col gap-8">
       {!canCreate && (
         <Alert tone="info" variant="inline">
-          {t('signIn')}
+          {t('readOnly')}
         </Alert>
       )}
       {groups.map(group => (

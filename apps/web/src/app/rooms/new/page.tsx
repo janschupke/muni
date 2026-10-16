@@ -5,14 +5,14 @@ import { getTranslations } from 'next-intl/server'
 import { BackLink } from '@/components/back-link'
 import { RoomForm } from '@/features/rooms/room-form'
 import { saveRoom } from '@/server/actions/rooms'
-import { requirePageUser } from '@/server/auth'
+import { requireAdminPage } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('rooms.form'))('newTitle') }
 }
 
 export default async function NewRoomPage() {
-  await requirePageUser()
+  await requireAdminPage()
   const t = await getTranslations('rooms')
   return (
     <>
