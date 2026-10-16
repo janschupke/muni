@@ -168,7 +168,15 @@ describe('room forms', () => {
       'true'
     )
     await expectNoAxeViolations()
+    // It asks first: cancelling deletes nothing.
     await user.click(screen.getByRole('button', { name: 'Delete room' }))
+    const confirm = await screen.findByRole('dialog', { name: 'Delete Aula A?' })
+    await user.click(within(confirm).getByRole('button', { name: 'Cancel' }))
+    expect(removeRoom).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Delete room' }))
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' })
+    )
     expect(removeRoom).toHaveBeenCalled()
     expect(
       await screen.findByText('The room still has sessions, so it cannot be deleted.')

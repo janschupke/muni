@@ -7,8 +7,9 @@ import { Tooltip } from '../components/tooltip'
 export const HEAT_BANDS = ['FULL', 'HIGH', 'FAIR', 'LOW', 'POOR'] as const
 export type HeatBand = (typeof HEAT_BANDS)[number]
 
-// Green → yellow → red, lightness running one way so the order survives colour-blind
-// vision; each band brings its own ink so the printed value keeps 4.5:1.
+// Green → yellow → red in plain sentiment colours. Neighbouring bands stay apart for
+// colour-blind readers; the printed value carries the order where hue alone would not, and
+// each band brings its own ink so that value keeps 4.5:1.
 const BAND_CLASS: Record<HeatBand, string> = {
   FULL: 'bg-heat-full text-heat-full-ink',
   HIGH: 'bg-heat-high text-heat-high-ink',

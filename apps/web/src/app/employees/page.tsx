@@ -1,5 +1,6 @@
 import {
   EMPLOYEE_SORT_KEYS,
+  getPersonName,
   listDepartments,
   listEmployees,
   listPositions,
@@ -40,10 +41,11 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Se
     dir: sort?.desc ? 'desc' : undefined,
   }
   const page = Number(param(params, 'page') ?? 1) || 1
-  const [result, departments, positions, t, tc] = await Promise.all([
+  const [result, departments, positions, managerName, t, tc] = await Promise.all([
     listEmployees({ ...filters, sort, page }),
     listDepartments(),
     listPositions(),
+    filters.manager ? getPersonName(filters.manager) : null,
     getTranslations('employees'),
     getTranslations('common'),
   ])
@@ -53,7 +55,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Se
       <PageHeader title={t('title')} description={t('description')} />
       {filters.manager && (
         <Alert tone="info" variant="inline" className="mb-3">
-          {t('filters.manager', { id: filters.manager })}{' '}
+          {t('filters.manager', { name: managerName ?? filters.manager })}{' '}
           <TextLink asChild tone="inherit">
             <Link href={withParams('/employees', query, { manager: undefined, page: undefined })}>
               {t('filters.clearManager')}

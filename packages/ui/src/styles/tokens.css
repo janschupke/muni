@@ -101,7 +101,10 @@
    * Compliance heat scale, best (full) to worst (poor), in plain sentiment colours: a solid
    * green for 100 %, a lighter green, yellow, orange, red. Adjacent bands stay apart for
    * colour-blind readers (CVD ΔE >= 8.2 light, 12.2 dark) and everyone else (ΔE >= 18.8 light,
-   * 16.2 dark); every band carries an ink with >= 4.8:1 contrast. Every cell prints its rate too.
+   * 16.2 dark). Over all pairs the closest for colour-blind readers is a green vs the orange
+   * (high/low ΔE 7.1 light, full/low 7.0 dark): fine only because every cell prints its
+   * rate, on an ink with >= 4.8:1 contrast. Lightness does not run one way; the printed rate
+   * carries the order.
    */
   --ramp-heat-full-light: #15803d;
   --ramp-heat-high-light: #4ade80;

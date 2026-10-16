@@ -290,8 +290,14 @@ describe('error pages', () => {
     expect(reset).toHaveBeenCalled()
     unmount()
     document.cookie = 'NEXT_LOCALE=; max-age=0; path=/'
-    render(<AppFailure error={new Error('x')} reset={reset} />)
+    // No cookie: the browser's languages decide, as they do for the app.
+    const languages = vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['en-GB', 'cs'])
+    const english = render(<AppFailure error={new Error('x')} reset={reset} />)
     expect(screen.getByText('Something went wrong')).toBeTruthy()
+    english.unmount()
+    languages.mockReturnValue(['cs-CZ'])
+    render(<AppFailure error={new Error('x')} reset={reset} />)
+    expect(screen.getByText('Něco se pokazilo')).toBeTruthy()
   })
 
   it('the route template fades each page in', () => {

@@ -2,7 +2,7 @@
 
 import './globals.css'
 
-import { AppFailure, appFailureLocale } from '@/components/app-failure'
+import { AppFailure, useFailureLocale } from '@/components/app-failure'
 
 export default function GlobalError({
   error,
@@ -11,8 +11,9 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const locale = useFailureLocale()
   return (
-    <html lang={appFailureLocale()}>
+    <html lang={locale}>
       <body className="flex min-h-dvh items-center justify-center bg-surface-base p-6 text-fg">
         <AppFailure error={error} reset={reset} />
       </body>

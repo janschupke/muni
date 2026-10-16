@@ -117,9 +117,11 @@ One palette, defined once in `packages/ui/src/styles/tokens.css`:
   the brand and never a state. A signal colour always comes with an icon and a label.
 - **Compliance rates** are coloured by band (`complianceBand` in `@muni/domain`): 100 %,
   90–99 %, 75–89 %, 50–74 % and under 50 %, in plain sentiment colours: solid green, light
-  green, yellow, orange, red (`bg-heat-*`). Adjacent bands are checked to stay apart for
-  colour-blind readers, and every band has an ink with at least 4.8:1 contrast. Rate meters
-  and the overview card use the same bands. The rate is always printed too.
+  green, yellow, orange, red (`bg-heat-*`). Neighbouring bands stay apart for colour-blind
+  readers (ΔE ≥ 8.2); the closest pair overall, a green and the orange further down the
+  scale, is ΔE 7.0, which the printed rate makes safe: every cell prints it, on an ink with at least
+  4.8:1 contrast. Rate meters and the overview card use the same bands in the four signal
+  colours (100 % and 90–99 % are both green).
 
 ### Layout
 
@@ -130,7 +132,8 @@ the server reads, so the first paint is right. Below `lg` the bar's menu opens t
 navigation in a drawer, which closes on any route change and when the screen widens to `lg`.
 On a phone the bar keeps the logo without the name. Content runs full width up to 1920px
 (`max-w-page`). Tooltips are
-Radix (`Tooltip`, `IconButton`); a lint rule bans native `title` attributes.
+Radix (`Tooltip`, `IconButton`); a lint rule bans native `title` attributes on DOM elements
+(an iframe's stays: it names the frame) and on the components that pass them through.
 
 Errors: `error.tsx` logs the error, shows its digest as a reference and retries with fresh
 data; `global-error.tsx` draws its own page when the root layout fails. Every record route

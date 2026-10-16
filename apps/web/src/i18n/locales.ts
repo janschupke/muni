@@ -1,6 +1,6 @@
 export const LOCALES = ['cs', 'en'] as const
 export type Locale = (typeof LOCALES)[number]
-const DEFAULT_LOCALE: Locale = 'cs'
+export const DEFAULT_LOCALE: Locale = 'cs'
 export const LOCALE_COOKIE = 'NEXT_LOCALE'
 
 export function isLocale(value: unknown): value is Locale {
@@ -15,4 +15,13 @@ export function resolveLocale(cookie: string | undefined, acceptLanguage: string
     if (isLocale(tag)) return tag
   }
   return DEFAULT_LOCALE
+}
+
+/** The language cookie's value in a `document.cookie` string, if it is set. */
+export function localeCookieIn(cookies: string): string | undefined {
+  for (const part of cookies.split(';')) {
+    const [name, value] = part.trim().split('=')
+    if (name === LOCALE_COOKIE) return value
+  }
+  return undefined
 }

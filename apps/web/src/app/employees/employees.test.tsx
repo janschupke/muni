@@ -2,6 +2,7 @@
 import {
   getEmployee,
   getEmployeeForEdit,
+  getPersonName,
   listCourseOptions,
   listDepartments,
   listEmployeeBookings,
@@ -9,7 +10,7 @@ import {
   listPositions,
   listProviders,
 } from '@muni/db/repositories'
-import { screen, within } from '@testing-library/react'
+import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -28,6 +29,7 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
   getEmployee: vi.fn(),
   getEmployeeForEdit: vi.fn(),
+  getPersonName: vi.fn(),
   listCourseOptions: vi.fn(),
   listDepartments: vi.fn(),
   listEmployeeBookings: vi.fn(),
@@ -324,12 +326,19 @@ describe('managers', () => {
   })
 
   it('narrow the list to their reports, with a way back to everyone', async () => {
+    vi.mocked(getPersonName).mockResolvedValue('Urbanová Tereza')
     await renderServer(EmployeesPage({ searchParams: params({ manager: 'E0001' }) }))
     expect(listEmployees).toHaveBeenCalledWith(expect.objectContaining({ manager: 'E0001' }))
-    expect(screen.getByText(/Direct reports of E0001/)).toBeTruthy()
+    expect(getPersonName).toHaveBeenCalledWith('E0001')
+    expect(screen.getByText(/Direct reports of Urbanová Tereza/)).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Show everyone' }).getAttribute('href')).toBe(
       '/employees'
     )
+    cleanup()
+    // Nobody by that ID: the ID stands in.
+    vi.mocked(getPersonName).mockResolvedValue(null)
+    await renderServer(EmployeesPage({ searchParams: params({ manager: 'E9999' }) }))
+    expect(screen.getByText(/Direct reports of E9999/)).toBeTruthy()
   })
 })
 

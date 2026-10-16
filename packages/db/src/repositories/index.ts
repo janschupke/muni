@@ -48,6 +48,7 @@ export {
 } from './employees'
 export { EMPLOYEE_SORT_KEYS, type EmployeeSortKey } from './employee-sort'
 export {
+  getPersonName,
   listDepartments,
   listPositions,
   listProviders,

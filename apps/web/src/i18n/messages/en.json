@@ -141,7 +141,7 @@
       "any": "Any",
       "apply": "Filter",
       "reset": "Reset",
-      "manager": "Direct reports of {id}",
+      "manager": "Direct reports of {name}",
       "clearManager": "Show everyone"
     },
     "columns": {
@@ -175,7 +175,7 @@
       "cancelBooking": "Cancel booking for {course}",
       "team": {
         "title": "Team",
-        "description": "{count, plural, one {# direct report} other {# direct reports}} who have not left",
+        "description": "{count, plural, one {# direct report who has not left} other {# direct reports who have not left}}",
         "inList": "All direct reports in the list",
         "heldOf": "{held} of {total} held"
       }
@@ -747,11 +747,14 @@
       "name": "Name",
       "kind": "Kind",
       "capacity": "Seats",
-      "capacityHelp": "Leave empty when there is no fixed limit (online).",
+      "capacityHelp": "An online room has no seat limit; every other room needs a seat count.",
       "capabilities": "Equipment",
       "note": "Note",
       "delete": "Delete room",
-      "deleteHint": "A room can be deleted only while no session uses it."
+      "deleteHint": "A room can be deleted only while no session uses it.",
+      "confirmTitle": "Delete {name}?",
+      "confirmBody": "The room and its equipment are removed for good.",
+      "confirm": "Delete"
     }
   },
   "org": {

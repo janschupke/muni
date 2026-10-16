@@ -81,7 +81,7 @@ export interface EmployeeFilters {
   department?: string
   /** Position name. */
   position?: string
-  /** Direct reports of this person (external ID). */
+  /** Direct reports of this person (external ID); people who left are not reports. */
   manager?: string
   status?: EmploymentStatus
   /** People with at least one required training in this state. */
@@ -110,7 +110,10 @@ export async function listEmployees(
       where: {
         ...(filters.department && { department: { name: filters.department } }),
         ...(filters.position && { position: { name: filters.position } }),
-        ...(filters.manager && { manager: { externalId: filters.manager } }),
+        ...(filters.manager && {
+          manager: { externalId: filters.manager },
+          status: { not: 'TERMINATED' as const },
+        }),
         ...(filters.status && { status: filters.status }),
       },
       select: {

@@ -141,7 +141,7 @@
       "any": "Vše",
       "apply": "Filtrovat",
       "reset": "Zrušit filtry",
-      "manager": "Přímí podřízení {id}",
+      "manager": "Přímí podřízení: {name}",
       "clearManager": "Zobrazit všechny"
     },
     "columns": {
@@ -175,7 +175,7 @@
       "cancelBooking": "Zrušit přihlášku na {course}",
       "team": {
         "title": "Tým",
-        "description": "{count, plural, one {# přímý podřízený} few {# přímí podřízení} other {# přímých podřízených}}, kteří neodešli",
+        "description": "{count, plural, one {# přímý podřízený, který neodešel} few {# přímí podřízení, kteří neodešli} other {# přímých podřízených, kteří neodešli}}",
         "inList": "Všichni přímí podřízení v seznamu",
         "heldOf": "Splněno {held} z {total}"
       }
@@ -737,7 +737,7 @@
       "noCourses": "Žádný kurz zatím nemá nastavené, co termín potřebuje.",
       "mismatch": {
         "ONLINE_NOT_ALLOWED": "Nekoná se online",
-        "TOO_SMALL": "Jen {capacity} míst",
+        "TOO_SMALL": "{capacity, plural, one {Jen # místo} few {Jen # místa} other {Jen # míst}}",
         "MISSING_CAPABILITIES": "Chybí {missing}"
       }
     },
@@ -747,11 +747,14 @@
       "name": "Název",
       "kind": "Typ",
       "capacity": "Místa",
-      "capacityHelp": "Nechte prázdné, pokud počet míst není omezený (online).",
+      "capacityHelp": "Online místnost nemá omezení míst; každá jiná místnost potřebuje počet míst.",
       "capabilities": "Vybavení",
       "note": "Poznámka",
       "delete": "Smazat místnost",
-      "deleteHint": "Místnost lze smazat, jen dokud ji nepoužívá žádný termín."
+      "deleteHint": "Místnost lze smazat, jen dokud ji nepoužívá žádný termín.",
+      "confirmTitle": "Smazat místnost {name}?",
+      "confirmBody": "Místnost i s vybavením se natrvalo odstraní.",
+      "confirm": "Smazat"
     }
   },
   "org": {

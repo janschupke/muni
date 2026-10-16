@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 
-import { localeOfCookie } from '@/lib/locale-cookie'
+import { DEFAULT_LOCALE, localeCookieIn, resolveLocale, type Locale } from '@/i18n/locales'
 
-// The root layout itself failed, so there is no frame, no translations and no theme script:
-// the text is picked from the language cookie here.
+// The root layout itself failed, so there is no frame and no translations: the language is
+// resolved here the way the app does it (cookie, then the browser, then Czech).
 const TEXT = {
   en: {
     title: 'Something went wrong',
@@ -21,8 +21,19 @@ const TEXT = {
   },
 } as const
 
-export const appFailureLocale = () =>
-  typeof document === 'undefined' ? 'en' : localeOfCookie(document.cookie)
+const noSubscription = () => () => undefined
+
+/**
+ * The visitor's language. The server knows no cookie here, so it renders Czech; the client
+ * then reads the cookie and the browser's languages without a hydration mismatch.
+ */
+export function useFailureLocale(): Locale {
+  return useSyncExternalStore(
+    noSubscription,
+    () => resolveLocale(localeCookieIn(document.cookie), navigator.languages.join(',')),
+    () => DEFAULT_LOCALE
+  )
+}
 
 /** What `global-error.tsx` shows inside its own document. */
 export function AppFailure({
@@ -32,7 +43,7 @@ export function AppFailure({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  const text = TEXT[appFailureLocale()]
+  const text = TEXT[useFailureLocale()]
   useEffect(() => {
     console.error(error)
   }, [error])

@@ -13,6 +13,7 @@ import {
   getComplianceMatrix,
   getCourse,
   getDashboard,
+  getPersonName,
   getEmployee,
   listCourses,
   listEmployees,
@@ -471,6 +472,10 @@ describe('departments and positions', () => {
   it('show a manager’s team, and filter the list by manager, department and position', async () => {
     const manager = await getEmployee('E0001', 'anonymous', options)
     expect(manager?.reports.map(r => r.externalId)).toContain('E0002')
+    expect(await getPersonName('E0001', options)).toBe(
+      manager && `${manager.lastName} ${manager.firstName}`
+    )
+    expect(await getPersonName('E9999', options)).toBeNull()
     // The team's rate counts its active people only.
     expect(manager?.teamCounts.total).toBe(
       manager?.reports.filter(r => r.status === 'ACTIVE').reduce((n, r) => n + r.counts.total, 0)
@@ -479,7 +484,8 @@ describe('departments and positions', () => {
     expect(team.items.map(e => e.externalId).toSorted()).toEqual(
       (
         await db.employee.findMany({
-          where: { manager: { externalId: 'E0001' } },
+          // Reports who have left are not listed, as on the team card.
+          where: { manager: { externalId: 'E0001' }, status: { not: 'TERMINATED' } },
           select: { externalId: true },
         })
       )

@@ -22,7 +22,7 @@ export default async function EditRoomPage({ params }: { params: Promise<{ id: s
       />
       <RoomForm action={saveRoom.bind(null, id)} cancelHref={`/rooms/${id}`} defaults={room} />
       <hr className="my-8 max-w-2xl border-border-muted" />
-      <DeleteRoomButton action={removeRoom.bind(null, id)} />
+      <DeleteRoomButton name={room.name} action={removeRoom.bind(null, id)} />
     </>
   )
 }

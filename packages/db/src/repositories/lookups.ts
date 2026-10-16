@@ -40,3 +40,12 @@ export async function listRoomOptions(options?: RepoOptions): Promise<RoomOption
     orderBy: { name: 'asc' },
   })
 }
+
+/** A person's name as the lists show it ("Last First"), or null when there is no such person. */
+export async function getPersonName(externalId: string, options?: RepoOptions) {
+  const person = await dbOf(options).employee.findUnique({
+    where: { externalId },
+    select: { firstName: true, lastName: true },
+  })
+  return person && `${person.lastName} ${person.firstName}`
+}

@@ -64,11 +64,19 @@ export function react(tsconfigRootDir, { next = false } = {}) {
     {
       rules: {
         // Native `title` tooltips are slow, unstyled and unreachable by keyboard: use the
-        // Tooltip component (or IconButton for icon-only buttons).
+        // Tooltip component (or IconButton for icon-only buttons). Banned on DOM elements
+        // (an iframe's title is its accessible name, so it stays) and on the components that
+        // pass it through to one; components whose `title` prop is a heading are fine.
         'no-restricted-syntax': [
           'error',
           {
-            selector: 'JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name="title"]',
+            selector:
+              'JSXOpeningElement[name.name=/^(?!iframe$)[a-z]/] > JSXAttribute[name.name="title"]',
+            message: 'Use <Tooltip> (or <IconButton>) instead of a native title attribute.',
+          },
+          {
+            selector:
+              'JSXOpeningElement[name.name=/^(Button|Link|TextLink|NavItem|LinkTab)$/] > JSXAttribute[name.name="title"]',
             message: 'Use <Tooltip> (or <IconButton>) instead of a native title attribute.',
           },
         ],

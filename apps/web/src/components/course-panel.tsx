@@ -3,7 +3,7 @@ import { complianceBand } from '@muni/domain/compliance'
 import { HeatCell } from '@muni/ui/charts/heat-cell'
 import { Meter } from '@muni/ui/meter'
 import { TextLink } from '@muni/ui/text-link'
-import { formatPercent } from '@muni/utils/format'
+import { formatInteger, formatPercent } from '@muni/utils/format'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -88,7 +88,7 @@ export function CoursePanel({ course }: { course: CourseListItem }) {
                     </Link>
                   </TextLink>
                   <span className="ml-auto text-xs text-fg-muted tabular-nums">
-                    {held}/{d.counts.total}
+                    {formatInteger(held, locale)}/{formatInteger(d.counts.total, locale)}
                   </span>
                 </li>
               )
