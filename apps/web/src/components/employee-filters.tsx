@@ -53,7 +53,7 @@ export function EmployeeFilters({
           apply({ q: typeof q === 'string' ? q.trim() : undefined })
         }}
       >
-        <Field label={t('search')} className="w-56">
+        <Field label={t('search')} className="w-full sm:w-56">
           {control => (
             <div className="relative">
               <Search
@@ -73,7 +73,7 @@ export function EmployeeFilters({
             </div>
           )}
         </Field>
-        <Field label={t('filters.department')} className="w-52">
+        <Field label={t('filters.department')} className="w-full sm:w-52">
           {control => (
             <Select
               {...control}
@@ -86,7 +86,7 @@ export function EmployeeFilters({
             />
           )}
         </Field>
-        <Field label={t('filters.status')} className="w-40">
+        <Field label={t('filters.status')} className="w-full sm:w-40">
           {control => (
             <Select
               {...control}
@@ -99,7 +99,7 @@ export function EmployeeFilters({
             />
           )}
         </Field>
-        <Field label={t('filters.compliance')} className="w-40">
+        <Field label={t('filters.compliance')} className="w-full sm:w-40">
           {control => (
             <Select
               {...control}

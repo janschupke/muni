@@ -50,7 +50,15 @@
     "rooms": "Místnosti",
     "departments": "Útvary",
     "positions": "Pozice",
-    "planner": "Plánovač"
+    "planner": "Plánovač",
+    "menu": "Menu",
+    "collapse": "Sbalit postranní panel",
+    "expand": "Rozbalit postranní panel",
+    "groups": {
+      "register": "Evidence",
+      "training": "Školení",
+      "planning": "Plánování"
+    }
   },
   "status": {
     "employment": {
@@ -495,12 +503,47 @@
     }
   },
   "errors": {
-    "notFoundTitle": "Nenalezeno",
-    "notFoundBody": "Tato stránka nebo záznam neexistuje.",
+    "notFoundTitle": "Stránka nenalezena",
+    "notFoundBody": "Na adrese {path} nic není. Adresa může být chybně zadaná, nebo byl záznam odstraněn.",
+    "notFoundShort": "Tato stránka nebo záznam neexistuje.",
     "errorTitle": "Něco se pokazilo",
-    "errorBody": "Stránku se nepodařilo načíst.",
+    "errorBody": "Stránku se nepodařilo načíst. Často pomůže zkusit to znovu; pokud chyba trvá, nahlaste níže uvedený kód.",
+    "reference": "Kód chyby: {digest}",
     "retry": "Zkusit znovu",
-    "home": "Na přehled"
+    "home": "Přejít na přehled",
+    "goTo": "Přejít na",
+    "entity": {
+      "employees": {
+        "title": "Zaměstnanec nenalezen",
+        "body": "Zaměstnanec {id} v registru není.",
+        "back": "Všichni zaměstnanci"
+      },
+      "courses": {
+        "title": "Kurz nenalezen",
+        "body": "Kurz {id} v katalogu není.",
+        "back": "Všechny kurzy"
+      },
+      "sessions": {
+        "title": "Termín nenalezen",
+        "body": "Termín {id} neexistuje.",
+        "back": "Všechny termíny"
+      },
+      "rooms": {
+        "title": "Místnost nenalezena",
+        "body": "Tato místnost neexistuje nebo byla smazána.",
+        "back": "Všechny místnosti"
+      },
+      "departments": {
+        "title": "Útvar nenalezen",
+        "body": "Tento útvar neexistuje.",
+        "back": "Všechny útvary"
+      },
+      "positions": {
+        "title": "Pozice nenalezena",
+        "body": "Tato pozice neexistuje.",
+        "back": "Všechny pozice"
+      }
+    }
   },
   "back": {
     "overview": "Přehled",

@@ -3,14 +3,19 @@ import type { HTMLAttributes, ReactNode } from 'react'
 
 import { cn } from '../cn'
 
-/** The page's centred content column. `asChild` puts it on the child (`<main>`). */
+/**
+ * The page's content column: full width up to 1920px, centred beyond. `asChild` puts it on
+ * the child (`<main>`).
+ */
 export function Container({
   asChild = false,
   className,
   ...props
 }: HTMLAttributes<HTMLElement> & { asChild?: boolean }) {
   const Comp = asChild ? Slot.Root : 'div'
-  return <Comp className={cn('mx-auto w-full max-w-7xl px-4 sm:px-6', className)} {...props} />
+  return (
+    <Comp className={cn('mx-auto w-full max-w-page px-4 sm:px-6 lg:px-8', className)} {...props} />
+  )
 }
 
 /** A narrow side column next to a wide main one from `lg`; stacked below it. */

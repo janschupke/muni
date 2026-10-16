@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { getAdvisorInput, getDashboard } from '@muni/db/repositories'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,8 +8,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getViewer } from '@/server/auth'
 import { setLocale } from '@/server/actions/locale'
 import { advisorInput, dashboard, session } from '@/test/fixtures'
-import { NotFoundError, route } from '@/test/next'
+import { NotFoundError, requestCookies, route, router } from '@/test/next'
 import { Providers, renderClient, renderServer, resolveServer } from '@/test/render'
+
+import { AppFailure } from '@/components/app-failure'
+import { NotFoundMessage } from '@/components/not-found-message'
 
 import ErrorPage from './error'
 import RootLayout, { generateMetadata } from './layout'
@@ -90,6 +93,58 @@ describe('root layout', () => {
     expect(screen.getAllByRole('link', { name: 'Import' }).length).toBeGreaterThan(0)
   })
 
+  it('groups the navigation, and collapses the sidebar to icons, remembering it', async () => {
+    const user = userEvent.setup()
+    await renderLayout(<p>Obsah</p>)
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' })
+    expect(within(nav).getByText('Register')).toBeTruthy()
+    expect(within(nav).getByRole('link', { name: 'Rooms' }).getAttribute('href')).toBe('/rooms')
+    const collapse = screen.getByRole('button', { name: 'Collapse sidebar' })
+    expect(collapse.getAttribute('aria-expanded')).toBe('true')
+    await user.click(collapse)
+    expect(document.cookie).toContain('muni.sidebar=collapsed')
+    // Icons only: the label stays the link's name; the group headings give way to rules.
+    const rail = screen.getByRole('navigation', { name: 'Main navigation' })
+    expect(within(rail).getByRole('link', { name: 'Rooms' }).textContent).toBe('')
+    expect(within(rail).queryByText('Register')).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Expand sidebar' }).getAttribute('aria-expanded')
+    ).toBe('false')
+    // The language and theme controls live in the expanded sidebar and the drawer.
+    expect(screen.queryByRole('radiogroup', { name: 'Colour theme' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Expand sidebar' }))
+    expect(document.cookie).toContain('muni.sidebar=expanded')
+  })
+
+  it('starts collapsed when the cookie says so', async () => {
+    requestCookies.set('muni.sidebar', 'collapsed')
+    await renderLayout(<p>Obsah</p>)
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeTruthy()
+  })
+
+  it('opens the navigation in a drawer on small screens, closing it on the way', async () => {
+    const user = userEvent.setup()
+    await renderLayout(<p>Obsah</p>)
+    await user.click(screen.getByRole('button', { name: 'Menu' }))
+    const drawer = await screen.findByRole('dialog', { name: 'Training register' })
+    expect(within(drawer).getByRole('radiogroup', { name: 'Colour theme' })).toBeTruthy()
+    // jsdom cannot follow the link; the drawer's own handler is what matters here.
+    document.addEventListener(
+      'click',
+      event => {
+        event.preventDefault()
+      },
+      {
+        capture: true,
+        once: true,
+      }
+    )
+    await user.click(within(drawer).getByRole('link', { name: 'Courses' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+  })
+
   it('switches the language through the server action', async () => {
     const user = userEvent.setup()
     await renderLayout(<p>Obsah</p>)
@@ -138,18 +193,55 @@ describe('dashboard', () => {
 })
 
 describe('error pages', () => {
-  it('not found offers the way home', async () => {
+  it('not found names the address and offers the way home and to every list', async () => {
+    route.pathname = '/kurzy'
     await renderServer(NotFound())
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Not found')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Page not found')
+    expect(screen.getByText(/Nothing lives at \/kurzy\./)).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Go to overview' }).getAttribute('href')).toBe('/')
+    expect(screen.getByRole('link', { name: 'Rooms' }).getAttribute('href')).toBe('/rooms')
   })
 
-  it('an error offers a retry', async () => {
+  it('a missing record says which, and leads back to its list', () => {
+    route.pathname = '/employees/E9999/edit'
+    renderClient(<NotFoundMessage entity="employees" />)
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Employee not found')
+    expect(screen.getByText('There is no employee E9999 in the register.')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'All employees' }).getAttribute('href')).toBe(
+      '/employees'
+    )
+  })
+
+  it('an error is logged, shows its reference, and retries with fresh data', async () => {
     const user = userEvent.setup()
     const reset = vi.fn()
-    renderClient(<ErrorPage error={new Error('db down')} reset={reset} />)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const error = Object.assign(new Error('db down'), { digest: '2731823015' })
+    renderClient(<ErrorPage error={error} reset={reset} />)
+    expect(log).toHaveBeenCalledWith(error)
+    expect(screen.getByText('Reference: 2731823015')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Go to overview' }).getAttribute('href')).toBe('/')
     await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(router.refresh).toHaveBeenCalled()
     expect(reset).toHaveBeenCalled()
+  })
+
+  it('a failure of the whole app draws its own page, in the chosen language', async () => {
+    const user = userEvent.setup()
+    const reset = vi.fn()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    document.cookie = 'NEXT_LOCALE=cs; path=/'
+    const { unmount } = render(
+      <AppFailure error={Object.assign(new Error('x'), { digest: 'abc' })} reset={reset} />
+    )
+    expect(screen.getByText('Něco se pokazilo')).toBeTruthy()
+    expect(screen.getByText('Kód chyby: abc')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Zkusit znovu' }))
+    expect(reset).toHaveBeenCalled()
+    unmount()
+    document.cookie = 'NEXT_LOCALE=; max-age=0; path=/'
+    render(<AppFailure error={new Error('x')} reset={reset} />)
+    expect(screen.getByText('Something went wrong')).toBeTruthy()
   })
 
   it('the route template fades each page in', () => {

@@ -114,16 +114,28 @@ describe('surfaces and layout', () => {
             description="Stránka neexistuje."
             actions={<a href="/">Domů</a>}
           />
-          <PageMessage title="Chyba" />
+          <PageMessage title="Chyba" icon={<svg aria-hidden />} tone="danger">
+            <code>abc</code>
+          </PageMessage>
+          <PageMessage title="Prázdno" icon={<svg aria-hidden />} />
         </main>
       </Container>
     )
-    expect(screen.getByRole('main').className).toContain('max-w-7xl')
+    // Full width up to 1920px.
+    expect(screen.getByRole('main').className).toContain('max-w-page')
     expect(screen.getAllByRole('heading', { level: 1 }).map(h => h.textContent)).toEqual([
       'Marie Černá',
       'Nenalezeno',
       'Chyba',
+      'Prázdno',
     ])
+    expect(screen.getByText('abc').parentElement?.className).toContain('text-fg-muted')
+    const [errorIcon, emptyIcon] = screen
+      .getAllByRole('heading', { level: 1 })
+      .slice(2)
+      .map(h => h.previousElementSibling?.className ?? '')
+    expect(errorIcon).toContain('bg-danger-soft')
+    expect(emptyIcon).toContain('bg-surface-sunken')
     expect(screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent)).toEqual([
       'Nadcházející termíny',
       'Profil',

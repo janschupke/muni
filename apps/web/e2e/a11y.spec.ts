@@ -51,6 +51,19 @@ for (const theme of ['light', 'dark'] as const) {
       await expectNoViolations(page, 'cell dialog')
     })
 
+    test('collapsed sidebar, and the navigation drawer on a phone', async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 900 })
+      await page.goto('/courses')
+      await page.getByRole('button', { name: 'Collapse sidebar' }).click()
+      await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeVisible()
+      await expectNoViolations(page, 'collapsed sidebar')
+      await page.getByRole('button', { name: 'Expand sidebar' }).click()
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.getByRole('button', { name: 'Menu' }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await expectNoViolations(page, 'navigation drawer')
+    })
+
     test('employee list with a row open and a filter open', async ({ page }) => {
       await page.goto('/employees')
       await page

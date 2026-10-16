@@ -29,6 +29,8 @@ import { ComplianceBar, ComplianceLegend } from '@/components/compliance-breakdo
 import { COMPLIANCE, ComplianceBadge } from '@/components/status-badges'
 
 const HEAD = 'border-b-0 px-2 py-1'
+// The department column stays put while the courses scroll sideways on narrow screens.
+const STICKY = 'sticky left-0 z-10 bg-surface-elevated'
 
 // A person's cell: the status's own tint, icon and (for screen readers) words.
 const STATUS_CELL: Record<ComplianceStatus, string> = {
@@ -93,7 +95,7 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
         <Table className="border-separate border-spacing-0.5 p-2">
           <THead className="bg-transparent">
             <tr>
-              <Th className={HEAD}>{t('department')}</Th>
+              <Th className={cn(HEAD, STICKY)}>{t('department')}</Th>
               <Th align="right" className={HEAD}>
                 {t('headcount')}
               </Th>
@@ -114,7 +116,11 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
               return (
                 <Fragment key={row.department}>
                   <Tr>
-                    <Th scope="row" nowrap className="border-b-0 px-1 py-1 text-sm text-fg">
+                    <Th
+                      scope="row"
+                      nowrap
+                      className={cn('border-b-0 px-1 py-1 text-sm text-fg', STICKY)}
+                    >
                       <span className="flex items-center gap-1">
                         <button
                           type="button"
@@ -195,7 +201,11 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
                         id={personRowId(rowIndex, person.externalId)}
                         className="motion-safe:animate-fade-in"
                       >
-                        <Th scope="row" nowrap className="border-b-0 py-0.5 pr-2 pl-9 font-normal">
+                        <Th
+                          scope="row"
+                          nowrap
+                          className={cn('border-b-0 py-0.5 pr-2 pl-9 font-normal', STICKY)}
+                        >
                           <span className="flex flex-col leading-tight">
                             <TextLink asChild>
                               <Link href={`/employees/${person.externalId}`}>{person.name}</Link>

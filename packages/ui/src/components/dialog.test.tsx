@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { useRef, useState } from 'react'
 import { describe, expect, it } from 'vitest'
 
-import { Dialog } from './dialog'
+import { Dialog, Drawer } from './dialog'
 
 function Harness({
   description,
@@ -69,5 +69,36 @@ describe('Dialog', () => {
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull()
     })
+  })
+})
+
+describe('Drawer', () => {
+  function Harness() {
+    const [open, setOpen] = useState(false)
+    return (
+      <Drawer
+        open={open}
+        onOpenChange={setOpen}
+        title="Registr školení"
+        closeLabel="Zavřít"
+        trigger={<button type="button">Menu</button>}
+      >
+        <a href="/kurzy">Kurzy</a>
+      </Drawer>
+    )
+  }
+
+  it('slides the navigation in from its trigger and closes it again', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    await user.click(screen.getByRole('button', { name: 'Menu' }))
+    const drawer = await screen.findByRole('dialog', { name: 'Registr školení' })
+    expect(drawer.hasAttribute('aria-describedby')).toBe(false)
+    expect(screen.getByRole('link', { name: 'Kurzy' })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Zavřít' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Menu' }))
   })
 })

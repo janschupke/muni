@@ -2,6 +2,7 @@ import { listDepartmentSummaries } from '@muni/db/repositories'
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
 import type { Metadata } from 'next'
+import { connection } from 'next/server'
 import { getTranslations } from 'next-intl/server'
 
 import { DepartmentsTable } from '@/features/org/departments-table'
@@ -11,6 +12,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function DepartmentsPage() {
+  // Live data: render per request, never at build time (nothing else here reads the request).
+  await connection()
   const [departments, t] = await Promise.all([
     listDepartmentSummaries(),
     getTranslations('departments'),

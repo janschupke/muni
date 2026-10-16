@@ -268,6 +268,59 @@ test.describe('public register (signed out)', () => {
     }
   })
 
+  test('the sidebar collapses to icons and stays collapsed', async ({ page }) => {
+    await setLocale(page, 'en')
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/courses')
+    await page.getByRole('button', { name: 'Collapse sidebar' }).click()
+    const nav = page.getByRole('navigation', { name: 'Main navigation' })
+    await expect(nav.getByRole('link', { name: 'Courses' })).toHaveText('')
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeVisible()
+    await page.getByRole('button', { name: 'Expand sidebar' }).click()
+    await expect(nav.getByRole('link', { name: 'Courses' })).toHaveText('Courses')
+  })
+
+  test('on a phone the navigation opens from the menu and closes on the way', async ({ page }) => {
+    await setLocale(page, 'en')
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeHidden()
+    await page.getByRole('button', { name: 'Menu' }).click()
+    const drawer = page.getByRole('dialog', { name: 'Training register' })
+    await drawer.getByRole('link', { name: 'Rooms' }).click()
+    await expect(page).toHaveURL(/\/rooms$/)
+    await expect(drawer).toBeHidden()
+    await expect(page.getByRole('heading', { level: 1, name: 'Rooms' })).toBeVisible()
+  })
+
+  test('no page scrolls sideways, from a phone to a wide screen', async ({ page }) => {
+    await setLocale(page, 'en')
+    for (const width of [390, 1024, 1920]) {
+      await page.setViewportSize({ width, height: 900 })
+      for (const path of ['/', '/employees', '/compliance', '/advisor', '/planner', '/rooms']) {
+        await page.goto(path)
+        const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+          scrollWidth: document.documentElement.scrollWidth,
+          clientWidth: document.documentElement.clientWidth,
+        }))
+        expect(scrollWidth, `${path} at ${String(width)}px`).toBeLessThanOrEqual(clientWidth)
+      }
+    }
+  })
+
+  test('a missing record says which one, and leads back to its list', async ({ page }) => {
+    await setLocale(page, 'en')
+    const response = await page.goto('/employees/E9999')
+    expect(response?.status()).toBe(404)
+    await expect(page.getByRole('heading', { level: 1, name: 'Employee not found' })).toBeVisible()
+    await expect(page.getByText('There is no employee E9999 in the register.')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'All employees' })).toHaveAttribute(
+      'href',
+      '/employees'
+    )
+  })
+
   test('protected routes are not reachable without auth', async ({ page }) => {
     for (const path of [
       '/import',

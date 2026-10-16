@@ -39,6 +39,12 @@ vi.mock('next/headers', async () => {
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
+// Outside a request `connection()` throws; in tests every render is a request.
+vi.mock('next/server', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  connection: () => Promise.resolve(),
+}))
+
 vi.mock('next-intl/server', async () => {
   const { createTranslator } = await import('next-intl')
   const { default: en } = await import('@/i18n/messages/en.json')

@@ -9,7 +9,7 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import type { ReactNode } from 'react'
 
 import { AppFooter } from '@/components/app-footer'
-import { AppHeader } from '@/components/app-header'
+import { AppShell } from '@/components/app-shell'
 import { NavigationHistory } from '@/components/navigation-history'
 import { getViewer } from '@/server/auth'
 import { clerkEnabled } from '@/server/clerk'
@@ -37,7 +37,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         {/* Applies the stored theme before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
-      <body className="flex min-h-dvh flex-col">
+      <body className="min-h-dvh">
         <NextIntlClientProvider>
           <TooltipProvider>
             <a
@@ -46,15 +46,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             >
               {t('skipToContent')}
             </a>
-            <AppHeader viewer={viewer} />
-            <NavigationHistory>
-              <Container asChild className="flex-1 py-8">
-                <main id="main" tabIndex={-1} className="outline-none">
-                  {children}
-                </main>
-              </Container>
-            </NavigationHistory>
-            <AppFooter viewer={viewer} />
+            <AppShell viewer={viewer}>
+              <NavigationHistory>
+                <Container asChild className="flex-1 py-6 lg:py-8">
+                  <main id="main" tabIndex={-1} className="outline-none">
+                    {children}
+                  </main>
+                </Container>
+              </NavigationHistory>
+              <AppFooter viewer={viewer} />
+            </AppShell>
           </TooltipProvider>
         </NextIntlClientProvider>
       </body>
