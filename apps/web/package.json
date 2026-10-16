@@ -43,6 +43,7 @@
     "@vitest/coverage-v8": "catalog:",
     "axe-core": "catalog:",
     "dotenv-cli": "catalog:",
+    "intl-messageformat": "catalog:",
     "jsdom": "catalog:",
     "lighthouse": "catalog:",
     "tailwindcss": "catalog:",

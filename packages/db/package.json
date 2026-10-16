@@ -12,6 +12,8 @@
   },
   "scripts": {
     "generate": "prisma generate --no-hints",
+    "check:schema": "prisma validate && prisma format --check",
+    "check:drift": "dotenv -e .env.test -- prisma migrate deploy && dotenv -e .env.test -- prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code",
     "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
     "migrate:deploy": "tsx scripts/migrate-deploy.ts",
     "migrate:reset": "dotenv -e ../../.env -- prisma migrate reset",
