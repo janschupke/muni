@@ -12,11 +12,19 @@ import { useMemo } from 'react'
 
 import { ComplianceBar } from './compliance-breakdown'
 import { CoursePanel } from './course-panel'
+import { RowActions } from './record-actions'
 import { RequirementList } from './requirement-list'
 
 const col = createDataColumns<CourseListItem>()
 
-export function CoursesTable({ courses }: { courses: CourseListItem[] }) {
+export function CoursesTable({
+  courses,
+  canEdit = false,
+}: {
+  courses: CourseListItem[]
+  /** Admins get a pencil and archive on each row. */
+  canEdit?: boolean | undefined
+}) {
   const t = useTranslations('courses')
   const tc = useTranslations('common')
   const locale = useLocale()
@@ -84,8 +92,25 @@ export function CoursesTable({ courses }: { courses: CourseListItem[] }) {
           meta: { align: 'right' },
           cell: ({ getValue }) => formatInteger(getValue(), locale),
         }),
+        ...(canEdit
+          ? [
+              col.display({
+                id: 'actions',
+                header: () => <span className="sr-only">{tc('actions')}</span>,
+                meta: { headerClassName: 'w-0', align: 'right' },
+                cell: ({ row }) => (
+                  <RowActions
+                    kind="course"
+                    id={row.original.id}
+                    name={row.original.name}
+                    editHref={`/courses/${row.original.code}/edit`}
+                  />
+                ),
+              }),
+            ]
+          : []),
       ]),
-    [locale, t, tc]
+    [canEdit, locale, t, tc]
   )
 
   return (

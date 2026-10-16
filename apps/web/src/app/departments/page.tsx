@@ -24,12 +24,16 @@ export default async function DepartmentsPage() {
       <PageHeader
         title={t('title')}
         description={t('description')}
-        actions={canWrite(user.role) && <ListActions kind="department" />}
+        actions={
+          canWrite(user.role) && (
+            <ListActions kind="department" create={{ href: '/departments/new', label: t('new') }} />
+          )
+        }
       />
       {departments.length === 0 ? (
         <EmptyState title={t('empty')} />
       ) : (
-        <GroupsTable kind="departments" groups={departments} />
+        <GroupsTable kind="departments" groups={departments} canEdit={canWrite(user.role)} />
       )}
     </>
   )

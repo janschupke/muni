@@ -24,6 +24,7 @@ import ImportPage, { generateMetadata as importMetadata } from '../import/page'
 import EditCoursePage from './[code]/edit/page'
 import CoursePage, { generateMetadata as courseMetadata } from './[code]/page'
 import NewSessionPage from './[code]/sessions/new/page'
+import NewCoursePage, { generateMetadata as newCourseMetadata } from './new/page'
 import CoursesPage, { generateMetadata as listMetadata } from './page'
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
@@ -31,6 +32,13 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   getComplianceMatrix: vi.fn(),
   getCourse: vi.fn(),
   getCourseForEdit: vi.fn(),
+  listGroupOptions: vi.fn(kind =>
+    Promise.resolve(
+      kind === 'department'
+        ? [{ id: 'dep_lab', name: 'Laboratoře' }]
+        : [{ id: 'pos_head', name: 'Vedoucí' }]
+    )
+  ),
   listRoomOptions: vi.fn(() =>
     Promise.resolve([{ id: 'room_aula_a', name: 'Aula A', kind: 'CLASSROOM', capacity: 40 }])
   ),
@@ -41,6 +49,7 @@ vi.mock('@muni/db/reference', () => ({ loadReferenceSnapshot: vi.fn() }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/edit', () => ({ saveCourse: vi.fn(), saveSession: vi.fn() }))
 vi.mock('@/server/actions/sessions', () => ({ saveNewSession: vi.fn() }))
+vi.mock('@/server/actions/archive', () => ({ archiveAction: vi.fn(), previewArchive: vi.fn() }))
 vi.mock('@/features/import/actions', () => ({ commitImportChunk: vi.fn() }))
 
 beforeEach(() => {
@@ -161,18 +170,21 @@ describe('course detail', () => {
     )
     // Signed out: no edit links, for the course or its sessions.
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
-    expect(screen.queryByRole('link', { name: /Edit session/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Edit T016/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull()
   })
 
-  it('lets admins edit the course and its sessions', async () => {
+  it('lets admins edit and archive the course and its sessions', async () => {
     signInAs('ADMIN')
     await renderServer(CoursePage(props))
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '/courses/BOZP-Z/edit'
     )
-    expect(screen.getByRole('link', { name: 'Edit session T016' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Edit T016' }).getAttribute('href')).toBe(
       '/sessions/T016/edit'
     )
+    expect(screen.getByRole('button', { name: 'Archive T016' })).toBeTruthy()
     await expectNoAxeViolations()
   })
 
@@ -191,7 +203,8 @@ describe('course detail', () => {
     expect(screen.getByText('No completions yet.')).toBeTruthy()
   })
 
-  it('edits the name and validity, for admins only', async () => {
+  it('edits the name, validity and who must hold it, for admins only', async () => {
+    vi.mocked(getCourseForEdit).mockResolvedValue(courseForEdit({ departmentIds: ['dep_lab'] }))
     await renderServer(EditCoursePage(props))
     expect(requireAdminPage).toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 1, name: 'Edit course BOZP-Z' })).toBeTruthy()
@@ -199,9 +212,32 @@ describe('course detail', () => {
       'value',
       'BOZP – základní školení'
     )
+    expect(screen.getByRole('checkbox', { name: 'Everyone' }).getAttribute('aria-checked')).toBe(
+      'true'
+    )
+    expect(screen.getByRole('checkbox', { name: 'Laboratoře' }).getAttribute('aria-checked')).toBe(
+      'true'
+    )
     await expectNoAxeViolations()
     vi.mocked(getCourseForEdit).mockResolvedValue(null)
     await expect(EditCoursePage(props)).rejects.toThrow(NotFoundError)
+  })
+
+  it('adds a course: admins open an empty form from the list', async () => {
+    signInAs('ADMIN')
+    vi.mocked(listCourses).mockResolvedValue([courseRow()])
+    await renderServer(CoursesPage())
+    expect(screen.getByRole('link', { name: 'New course' }).getAttribute('href')).toBe(
+      '/courses/new'
+    )
+    expect(screen.getByRole('link', { name: 'Archived' }).getAttribute('href')).toBe(
+      '/courses/archived'
+    )
+    expect(screen.getByRole('link', { name: 'Edit BOZP – základní školení' })).toBeTruthy()
+    expect(await newCourseMetadata()).toEqual({ title: 'New course' })
+    await renderServer(NewCoursePage())
+    expect(screen.getByRole('heading', { level: 1, name: 'New course' })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: /Code/ })).toHaveProperty('value', '')
   })
 })
 
@@ -219,8 +255,8 @@ describe('new session', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'New session of BOZP – základní školení' })
     ).toBeTruthy()
-    expect(screen.getByLabelText(/Start/)).toHaveProperty('value', '09:00')
-    expect(screen.getByLabelText(/End/)).toHaveProperty('value', '12:00')
+    expect(screen.getByRole('textbox', { name: /^Start/ })).toHaveProperty('value', '09:00')
+    expect(screen.getByRole('textbox', { name: /^End/ })).toHaveProperty('value', '12:00')
     expect(screen.getByRole('textbox', { name: /Capacity/ })).toHaveProperty('value', '30')
     expect(screen.queryByRole('textbox', { name: /Other bookings/ })).toBeNull()
     await expectNoAxeViolations()
@@ -231,7 +267,7 @@ describe('new session', () => {
       courseForEdit({ sessionMinutes: null, groupSize: null })
     )
     await renderServer(NewSessionPage(props))
-    expect(screen.getByLabelText(/End/)).toHaveProperty('value', '12:00')
+    expect(screen.getByRole('textbox', { name: /^End/ })).toHaveProperty('value', '12:00')
     vi.mocked(getCourseForEdit).mockResolvedValue(null)
     await expect(NewSessionPage(props)).rejects.toThrow(NotFoundError)
   })

@@ -1,4 +1,3 @@
-import { PageHeader } from '@muni/ui/page-header'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
@@ -15,16 +14,14 @@ export default async function NewRoomPage() {
   await requireAdminPage()
   const t = await getTranslations('rooms')
   return (
-    <>
-      <PageHeader
-        title={t('form.newTitle')}
-        eyebrow={<BackLink fallback={{ href: '/rooms', label: t('title') }} />}
-      />
-      <RoomForm
-        action={saveRoom.bind(null, null)}
-        cancelHref="/rooms"
-        defaults={{ name: '', kind: 'CLASSROOM', capacity: null, capabilities: [], note: null }}
-      />
-    </>
+    <RoomForm
+      action={saveRoom.bind(null, null)}
+      cancelHref="/rooms"
+      heading={{
+        title: t('form.newTitle'),
+        eyebrow: <BackLink fallback={{ href: '/rooms', label: t('title') }} />,
+      }}
+      defaults={{ name: '', kind: 'CLASSROOM', capacity: null, capabilities: [], note: null }}
+    />
   )
 }

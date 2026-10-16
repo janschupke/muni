@@ -33,7 +33,7 @@ export default async function ProvidersPage() {
       {providers.length === 0 ? (
         <EmptyState title={t('empty')} />
       ) : (
-        <ProvidersTable providers={providers} prices={prices} />
+        <ProvidersTable providers={providers} prices={prices} canEdit={canWrite(user.role)} />
       )}
     </>
   )

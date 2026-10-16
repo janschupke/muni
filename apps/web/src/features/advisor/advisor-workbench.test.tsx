@@ -208,6 +208,12 @@ describe('AdvisorWorkbench', () => {
         name: 'Cancel the booking of Cibulka Ota on BOZP – základní školení',
       })
     )
+    // It asks first.
+    expect(removeAssignmentAction).not.toHaveBeenCalled()
+    const confirm = await screen.findByRole('dialog', {
+      name: 'Cancel the booking of Cibulka Ota on BOZP – základní školení?',
+    })
+    await user.click(within(confirm).getByRole('button', { name: 'Remove' }))
     expect(removeAssignmentAction).toHaveBeenCalledWith({
       sessionExternalId: 'T019',
       employeeExternalId: 'E0003',

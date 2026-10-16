@@ -1,5 +1,4 @@
 import { getProviderForEdit } from '@muni/db/repositories'
-import { PageHeader } from '@muni/ui/page-header'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
@@ -17,16 +16,14 @@ export default async function EditProviderPage({ params }: { params: Promise<{ i
   ])
   if (!provider) notFound()
   return (
-    <>
-      <PageHeader
-        title={t('editTitle', { name: provider.name })}
-        eyebrow={<BackLink fallback={{ href: `/providers/${id}`, label: provider.name }} />}
-      />
-      <ProviderForm
-        action={saveProvider.bind(null, id)}
-        cancelHref={`/providers/${id}`}
-        defaults={provider}
-      />
-    </>
+    <ProviderForm
+      action={saveProvider.bind(null, id)}
+      cancelHref={`/providers/${id}`}
+      heading={{
+        title: t('editTitle', { name: provider.name }),
+        eyebrow: <BackLink fallback={{ href: `/providers/${id}`, label: provider.name }} />,
+      }}
+      defaults={provider}
+    />
   )
 }

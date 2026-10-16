@@ -40,6 +40,7 @@ export const sessionInclude = {
 } as const
 
 interface SessionRow {
+  id: string
   externalId: string
   startsAt: Date
   endsAt: Date
@@ -63,6 +64,7 @@ interface SessionRow {
 /** The booked total is derived: anonymous seats plus named assignments. */
 export function toSessionItem(s: SessionRow): SessionListItem {
   return {
+    id: s.id,
     externalId: s.externalId,
     courseCode: s.course.code,
     courseName: s.course.name,

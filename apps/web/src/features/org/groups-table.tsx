@@ -13,6 +13,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { PersonLink, personText } from '@/components/archived'
+import { RowActions } from '@/components/record-actions'
 import { rateTone } from '@/components/status-badges'
 
 import { MembersTable } from './members-table'
@@ -26,11 +27,16 @@ const col = createDataColumns<Group>()
  * people, how its mandatory training stands. A row opens to the records of its people.
  */
 export function GroupsTable(
-  props:
+  props: (
     | { kind: 'departments'; groups: DepartmentSummary[] }
     | { kind: 'positions'; groups: PositionSummary[] }
+  ) & {
+    /** Admins get a pencil (rename) and archive on each row. */
+    canEdit?: boolean | undefined
+  }
 ) {
-  const { kind } = props
+  const { kind, canEdit = false } = props
+  const tcommon = useTranslations('common')
   const t = useTranslations(kind)
   const to = useTranslations('org')
   const locale = useLocale()
@@ -122,8 +128,25 @@ export function GroupsTable(
         meta: { align: 'right' },
         cell: ({ getValue }) => n(getValue()),
       }),
+      ...(canEdit
+        ? [
+            col.display({
+              id: 'actions',
+              header: () => <span className="sr-only">{tcommon('actions')}</span>,
+              meta: { headerClassName: 'w-0', align: 'right' },
+              cell: ({ row }) => (
+                <RowActions
+                  kind={kind === 'departments' ? 'department' : 'position'}
+                  id={row.original.id}
+                  name={row.original.name}
+                  editHref={`/${kind}/${row.original.id}/edit`}
+                />
+              ),
+            }),
+          ]
+        : []),
     ])
-  }, [kind, locale, t, to])
+  }, [canEdit, kind, locale, t, tcommon, to])
   return (
     <DataTable<Group>
       columns={columns}

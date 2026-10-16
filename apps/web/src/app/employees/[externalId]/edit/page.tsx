@@ -1,5 +1,4 @@
-import { getEmployeeForEdit, listDepartments, listPositions } from '@muni/db/repositories'
-import { PageHeader } from '@muni/ui/page-header'
+import { getEmployeeForEdit, listEmployeeOptions, listGroupOptions } from '@muni/db/repositories'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
@@ -15,33 +14,27 @@ export default async function EditEmployeePage({
 }) {
   await requireAdminPage()
   const { externalId } = await params
-  const [employee, departments, positions, t] = await Promise.all([
+  const [employee, departments, positions, people, t] = await Promise.all([
     getEmployeeForEdit(externalId),
-    listDepartments(),
-    listPositions(),
+    listGroupOptions('department'),
+    listGroupOptions('position'),
+    listEmployeeOptions(),
     getTranslations('forms.employee'),
   ])
   if (!employee) notFound()
+  const name = `${employee.firstName} ${employee.lastName}`
   return (
-    <>
-      <PageHeader
-        title={t('title', { name: `${employee.firstName} ${employee.lastName}` })}
-        eyebrow={
-          <BackLink
-            fallback={{
-              href: `/employees/${externalId}`,
-              label: `${employee.firstName} ${employee.lastName}`,
-            }}
-          />
-        }
-      />
-      <EmployeeForm
-        action={saveEmployee.bind(null, externalId)}
-        cancelHref={`/employees/${externalId}`}
-        defaults={employee}
-        departments={departments}
-        positions={positions}
-      />
-    </>
+    <EmployeeForm
+      action={saveEmployee.bind(null, externalId)}
+      cancelHref={`/employees/${externalId}`}
+      heading={{
+        title: t('title', { name }),
+        eyebrow: <BackLink fallback={{ href: `/employees/${externalId}`, label: name }} />,
+      }}
+      defaults={employee}
+      departments={departments}
+      positions={positions}
+      managers={people.filter(p => p.externalId !== externalId)}
+    />
   )
 }

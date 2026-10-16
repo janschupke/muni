@@ -1,12 +1,6 @@
 import { type RoomMismatch, roomMismatch } from '@muni/domain/rooms'
 import {
   APP_ID_PREFIX,
-  type CompletionCreate,
-  completionCreateSchema,
-  type CourseEdit,
-  courseEditSchema,
-  type EmployeeEdit,
-  employeeEditSchema,
   type RoomEdit,
   roomSchema,
   type SessionCreate,
@@ -14,7 +8,7 @@ import {
   type SessionEdit,
   sessionEditSchema,
 } from '@muni/domain/schemas'
-import { isoDateToUtc, zonedTimeToUtc } from '@muni/utils/dates'
+import { zonedTimeToUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
 
 import type { Tx } from '../client'
@@ -23,31 +17,6 @@ import { dbOf, type RepoOptions } from './context'
 
 // Mutations. Callers (server actions) must have verified a signed-in user first;
 // the input is re-parsed here regardless of what the caller validated.
-
-export async function updateCourse(code: string, input: CourseEdit, options?: RepoOptions) {
-  const data = courseEditSchema.parse(input)
-  return dbOf(options).$transaction(async tx => {
-    const course = await tx.course.update({
-      where: { code, ...ACTIVE },
-      data: {
-        name: data.name,
-        validityMonths: data.validityMonths,
-        sessionMinutes: data.sessionMinutes,
-        groupSize: data.groupSize,
-        onlineAllowed: data.onlineAllowed,
-        // Set by hand now: imports stop deriving the needs from the sessions.
-        needsManual: true,
-      },
-      select: { id: true, code: true },
-    })
-    await tx.courseCapability.deleteMany({ where: { courseId: course.id } })
-    await tx.courseCapability.createMany({
-      data: data.capabilities.map(capability => ({ courseId: course.id, capability })),
-      skipDuplicates: true,
-    })
-    return { code: course.code }
-  })
-}
 
 /** Why a session cannot be saved in the room and time asked for. */
 export type SessionProblem =
@@ -247,91 +216,3 @@ export const createRoom = (input: RoomEdit, options?: RepoOptions) =>
 
 export const updateRoom = (id: string, input: RoomEdit, options?: RepoOptions) =>
   writeRoom(options, id, input)
-
-/**
- * An active department's or position's id by name, created when there is none. (An archived
- * one of that name is left alone: a new active one takes the name.)
- */
-async function nameId(
-  options: RepoOptions | undefined,
-  model: 'department' | 'position',
-  name: string | null
-): Promise<string | null> {
-  if (!name) return null
-  const db = dbOf(options)
-  const delegate = (model === 'department' ? db.department : db.position) as unknown as {
-    findFirst(args: object): Promise<{ id: string } | null>
-    create(args: object): Promise<{ id: string }>
-  }
-  return (
-    (await delegate.findFirst({ where: { name, ...ACTIVE }, select: { id: true } })) ??
-    (await delegate.create({ data: { name }, select: { id: true } }))
-  ).id
-}
-
-/** An active provider's id by name, created when there is none. */
-async function providerId(options: RepoOptions | undefined, name: string): Promise<string> {
-  const db = dbOf(options)
-  return (
-    (await db.provider.findFirst({ where: { name, ...ACTIVE }, select: { id: true } })) ??
-    (await db.provider.create({ data: { name }, select: { id: true } }))
-  ).id
-}
-
-export async function updateEmployee(
-  externalId: string,
-  input: EmployeeEdit,
-  options?: RepoOptions
-) {
-  const data = employeeEditSchema.parse(input)
-  return dbOf(options).employee.update({
-    where: { externalId, ...ACTIVE },
-    data: {
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      departmentId: await nameId(options, 'department', data.department),
-      positionId: await nameId(options, 'position', data.position),
-      hiredOn: isoDateToUtc(data.hiredOn),
-      leftOn: data.leftOn ? isoDateToUtc(data.leftOn) : null,
-      status: data.status,
-      note: cleanFreeText(data.note),
-    },
-    select: { externalId: true },
-  })
-}
-
-/** Records a completion entered in the app. Its ID gets an `A` prefix to keep clear of imports. */
-export async function createCompletion(
-  employeeExternalId: string,
-  input: CompletionCreate,
-  options?: RepoOptions
-) {
-  const data = completionCreateSchema.parse(input)
-  const db = dbOf(options)
-  const [employee, course] = await Promise.all([
-    db.employee.findFirstOrThrow({
-      where: { externalId: employeeExternalId, ...ACTIVE },
-      select: { id: true },
-    }),
-    db.course.findFirstOrThrow({
-      where: { code: data.courseCode, ...ACTIVE },
-      select: { id: true },
-    }),
-  ])
-  const provider = data.provider ? await providerId(options, data.provider) : null
-  return db.courseCompletion.create({
-    data: {
-      externalId:
-        `${APP_ID_PREFIX.completion}${Date.now().toString(36)}${crypto.randomUUID().slice(0, 4)}`.toUpperCase(),
-      employeeId: employee.id,
-      courseId: course.id,
-      completedOn: isoDateToUtc(data.completedOn),
-      validUntil: data.validUntil ? isoDateToUtc(data.validUntil) : null,
-      providerId: provider,
-      price: data.price,
-      note: cleanFreeText(data.note),
-    },
-    select: { externalId: true },
-  })
-}

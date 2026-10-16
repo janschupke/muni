@@ -21,12 +21,16 @@ export default async function PositionsPage() {
       <PageHeader
         title={t('title')}
         description={t('description')}
-        actions={canWrite(user.role) && <ListActions kind="position" />}
+        actions={
+          canWrite(user.role) && (
+            <ListActions kind="position" create={{ href: '/positions/new', label: t('new') }} />
+          )
+        }
       />
       {positions.length === 0 ? (
         <EmptyState title={t('empty')} />
       ) : (
-        <GroupsTable kind="positions" groups={positions} />
+        <GroupsTable kind="positions" groups={positions} canEdit={canWrite(user.role)} />
       )}
     </>
   )

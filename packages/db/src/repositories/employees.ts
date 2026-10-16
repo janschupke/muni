@@ -23,6 +23,8 @@ import { compareNames, type EmployeeSortKey, sortEmployees } from './employee-so
 import { courseOf, loadNextBookings, type RequirementContext, requirementOf } from './requirements'
 
 export interface EmployeeListItem {
+  /** Internal id (archiving acts on it). */
+  id: string
   externalId: string
   firstName: string
   lastName: string
@@ -52,6 +54,7 @@ export interface EmployeeListRequirement {
 
 /** What a person's record is built from: the person as stored, with their place. */
 export interface EmployeeSource {
+  id: string
   externalId: string
   firstName: string
   lastName: string
@@ -67,6 +70,7 @@ export function employeeRecord(
   context: RequirementContext
 ): EmployeeListItem {
   return {
+    id: e.id,
     externalId: e.externalId,
     firstName: e.firstName,
     lastName: e.lastName,
@@ -181,6 +185,8 @@ interface EmployeeRequirementRow {
 }
 
 interface EmployeeCompletionRow {
+  /** Internal id (editing and archiving act on it). */
+  id: string
   externalId: string
   courseCode: string
   courseName: string
@@ -203,6 +209,8 @@ export interface TeamMember {
 }
 
 export interface EmployeeDetail {
+  /** Internal id (archiving acts on it). */
+  id: string
   externalId: string
   firstName: string
   lastName: string
@@ -293,6 +301,7 @@ export async function getEmployee(
 
   return {
     ...base,
+    id: employee.id,
     externalId: employee.externalId,
     firstName: employee.firstName,
     lastName: employee.lastName,
@@ -324,6 +333,7 @@ export async function getEmployee(
         policy,
         'completion',
         {
+          id: c.id,
           externalId: c.externalId,
           courseCode: c.course.code,
           courseName: c.course.name,
@@ -348,7 +358,7 @@ export async function getEmployee(
 export async function getEmployeeForEdit(externalId: string, options?: RepoOptions) {
   const employee = await dbOf(options).employee.findFirst({
     where: { externalId, ...ACTIVE },
-    include: { department: { select: { name: true } }, position: { select: { name: true } } },
+    include: { manager: { select: { externalId: true, archivedAt: true } } },
   })
   if (!employee) return null
   return {
@@ -356,8 +366,11 @@ export async function getEmployeeForEdit(externalId: string, options?: RepoOptio
     firstName: employee.firstName,
     lastName: employee.lastName,
     email: employee.email,
-    department: employee.department?.name ?? null,
-    position: employee.position?.name ?? null,
+    nationalId: employee.nationalId,
+    departmentId: employee.departmentId,
+    positionId: employee.positionId,
+    // An archived manager is not offered again; saving leaves the person without one.
+    managerExternalId: employee.manager?.archivedAt === null ? employee.manager.externalId : null,
     hiredOn: isoDateFromUtc(employee.hiredOn),
     leftOn: employee.leftOn ? isoDateFromUtc(employee.leftOn) : null,
     status: employee.status,

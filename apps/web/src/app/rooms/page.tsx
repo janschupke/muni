@@ -27,7 +27,11 @@ export default async function RoomsPage() {
           )
         }
       />
-      {rooms.length === 0 ? <EmptyState title={t('empty')} /> : <RoomsTable rooms={rooms} />}
+      {rooms.length === 0 ? (
+        <EmptyState title={t('empty')} />
+      ) : (
+        <RoomsTable rooms={rooms} canEdit={canWrite(user.role)} />
+      )}
     </>
   )
 }

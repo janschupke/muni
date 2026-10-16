@@ -1,5 +1,12 @@
 // @vitest-environment jsdom
-import { getAdvisorInput, getSession, listRoomOptions, listSessions } from '@muni/db/repositories'
+import {
+  getAdvisorInput,
+  getSession,
+  listCourseOptions,
+  listEmployeeOptions,
+  listRoomOptions,
+  listSessions,
+} from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -15,18 +22,24 @@ import { params, renderServer } from '@/test/render'
 import AdvisorPage, { generateMetadata as advisorMetadata } from '../advisor/page'
 import EditSessionPage from './[externalId]/edit/page'
 import SessionPage, { generateMetadata as sessionMetadata } from './[externalId]/page'
+import NewSessionsPage, { generateMetadata as newSessionMetadata } from './new/page'
 import SessionsPage, { generateMetadata as listMetadata } from './page'
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
   listRoomOptions: vi.fn(),
+  listCourseOptions: vi.fn(),
+  listEmployeeOptions: vi.fn(() => Promise.resolve([])),
   getAdvisorInput: vi.fn(),
   getSession: vi.fn(),
   listSessions: vi.fn(),
 }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/edit', () => ({ saveSession: vi.fn() }))
+vi.mock('@/server/actions/archive', () => ({ archiveAction: vi.fn(), previewArchive: vi.fn() }))
+vi.mock('@/server/actions/sessions', () => ({ saveNewSession: vi.fn() }))
 vi.mock('@/server/actions/assignments', () => ({
+  addBookingAction: vi.fn(),
   applyAssignmentsAction: vi.fn(),
   moveSeatsAction: vi.fn(),
   removeAssignmentAction: vi.fn(() => Promise.resolve(true)),
@@ -166,15 +179,29 @@ describe('session detail', () => {
     expect(screen.queryByRole('button', { name: /Cancel the booking/ })).toBeNull()
   })
 
-  it('lets admins edit the session and cancel a booking', async () => {
+  it('lets admins edit the session, book people and cancel a booking', async () => {
     const user = userEvent.setup()
     signInAs('ADMIN')
+    vi.mocked(listEmployeeOptions).mockResolvedValue([
+      { externalId: 'E0001', name: 'Urbanová Tereza' },
+      { externalId: 'E0153', name: 'Černá Marie' },
+    ])
     await renderServer(SessionPage(props))
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '/sessions/T016/edit'
     )
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeTruthy()
+    // People not yet booked can be added by hand; the booked one is not offered.
+    await user.click(screen.getByRole('combobox', { name: 'Add a person' }))
+    expect(screen.getByRole('option', { name: 'Urbanová Tereza' })).toBeTruthy()
+    expect(screen.queryByRole('option', { name: 'Černá Marie' })).toBeNull()
+    await user.keyboard('{Escape}')
     await expectNoAxeViolations()
     await user.click(screen.getByRole('button', { name: 'Cancel the booking of Černá Marie' }))
+    const confirm = await screen.findByRole('dialog', {
+      name: 'Remove Černá Marie from this session?',
+    })
+    await user.click(within(confirm).getByRole('button', { name: 'Remove' }))
     expect(removeAssignmentAction).toHaveBeenCalledWith({
       sessionExternalId: 'T016',
       employeeExternalId: 'E0153',
@@ -193,23 +220,31 @@ describe('session detail', () => {
 describe('session edit', () => {
   const props = { params: params({ externalId: 'T016' }) }
 
-  it('edits a session for admins, listing the people booked by name', async () => {
+  it('edits a session for admins, with Save and Cancel on the heading row', async () => {
     await renderServer(EditSessionPage(props))
     expect(requireAdminPage).toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 1, name: 'Edit session T016' })).toBeTruthy()
     expect(screen.getByRole('combobox', { name: /Room/ }).textContent).toContain('Aula A')
-    expect(screen.getByRole('link', { name: 'Černá Marie' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Cancel' }).getAttribute('href')).toBe('/sessions/T016')
     await expectNoAxeViolations()
   })
 
-  it('is a 404 for an unknown session, and says when nobody is named', async () => {
-    vi.mocked(getSession).mockResolvedValue(online)
-    await renderServer(EditSessionPage(props))
-    expect(
-      screen.getByText('Nobody is booked by name yet; the advisor can suggest people.')
-    ).toBeTruthy()
+  it('is a 404 for an unknown session', async () => {
     vi.mocked(getSession).mockResolvedValue(null)
     await expect(EditSessionPage(props)).rejects.toThrow(NotFoundError)
+  })
+
+  it('adds a session of a course chosen in the form, from the sessions list', async () => {
+    signInAs('ADMIN')
+    vi.mocked(listCourseOptions).mockResolvedValue([
+      { code: 'BOZP-Z', name: 'BOZP – základní školení', validityMonths: 24 },
+    ])
+    expect(await newSessionMetadata()).toEqual({ title: 'New session' })
+    await renderServer(NewSessionsPage())
+    expect(screen.getByRole('heading', { level: 1, name: 'New session' })).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: /Course/ })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: /^Start/ })).toHaveProperty('value', '09:00')
+    await expectNoAxeViolations()
   })
 })
 

@@ -4,7 +4,7 @@ import type { IsoDate } from '@muni/utils/dates'
 import { collapseWhitespace, fold, titleCase } from '@muni/utils/text'
 import * as z from 'zod'
 
-import type { RowBuilder } from '../fields'
+import { reservedId, type RowBuilder } from '../fields'
 import type { RowMapResult } from '../types'
 
 const STATUS_BY_FOLD: Record<string, EmploymentStatus> = {
@@ -87,7 +87,7 @@ function status(b: RowBuilder): EmploymentStatus | null {
 export function mapEmployee(b: RowBuilder, ctx: { today: IsoDate }): RowMapResult<EmployeeInput> {
   if (b.isSummaryRow('externalId')) return b.rejectSummary()
 
-  const externalId = b.required('externalId')?.toUpperCase() ?? null
+  const externalId = reservedId(b, b.required('externalId')?.toUpperCase() ?? null, 'employee')
   const firstName = personName(b, 'firstName')
   const lastName = personName(b, 'lastName')
   const email = normalizeEmail(b, 'email')

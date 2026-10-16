@@ -34,7 +34,7 @@ export const externalIdSchema = z
  * ID prefixes for records created in the app. Imports refuse them, so a source export can
  * never overwrite something entered here.
  */
-export const APP_ID_PREFIX = { session: 'S', completion: 'A' } as const
+export const APP_ID_PREFIX = { session: 'S', completion: 'A', employee: 'N' } as const
 
 export const requirementSchema = z.discriminatedUnion('scope', [
   z.object({ scope: z.literal('ALL') }),
@@ -171,7 +171,18 @@ export type CompletionInput = z.infer<typeof completionSchema>
 
 // ---- Edit forms -------------------------------------------------------------------------
 
+/** A record's internal id, as a form posts it (a select's value). */
+const entityId = z.string().trim().min(1).max(64)
+const entityIds = z
+  .array(entityId)
+  .max(500)
+  .refine(ids => new Set(ids).size === ids.length, { error: 'duplicate' })
+
 export const courseEditSchema = courseSchema.pick({ name: true, validityMonths: true }).extend({
+  /** Who must hold it: everyone, and/or these departments and positions; none = optional. */
+  requiredForAll: z.boolean(),
+  departmentIds: entityIds,
+  positionIds: entityIds,
   /** What one session needs: the planner's input. */
   /** At most 12 hours: from the usual 09:00 start, a session ends the same day. */
   sessionMinutes: z.int().min(15).max(720).nullable(),
@@ -180,6 +191,9 @@ export const courseEditSchema = courseSchema.pick({ name: true, validityMonths: 
   capabilities,
 })
 export type CourseEdit = z.infer<typeof courseEditSchema>
+
+export const courseCreateSchema = courseEditSchema.extend({ code: courseCodeSchema })
+export type CourseCreate = z.infer<typeof courseCreateSchema>
 
 const roomId = z.string().trim().min(1).max(64)
 
@@ -206,13 +220,20 @@ export type SessionCreate = z.infer<typeof sessionCreateSchema>
 /** The room form edits every field the import sets. */
 export type RoomEdit = RoomInput
 
+/** What the app edits of a person; a new person gets an `N`-prefixed ID. */
 export const employeeEditSchema = z
   .object({
     firstName: trimmed(100),
     lastName: trimmed(100),
     email: z.email().max(254).nullable(),
-    department: optionalText(120),
-    position: optionalText(120),
+    nationalId: z
+      .string()
+      .regex(/^\d{6}\/?\d{3,4}$/)
+      .nullable(),
+    departmentId: entityId.nullable(),
+    positionId: entityId.nullable(),
+    /** The manager's ID; must be someone else. */
+    managerExternalId: externalIdSchema.nullable(),
     hiredOn: isoDate,
     leftOn: isoDate.nullable(),
     status: z.enum(EMPLOYMENT_STATUSES),
@@ -238,3 +259,13 @@ export const completionCreateSchema = z
     error: 'before_completed',
   })
 export type CompletionCreate = z.infer<typeof completionCreateSchema>
+
+/** A department's or a position's name. */
+export const groupSchema = z.object({ name: trimmed(120) })
+export type GroupInput = z.infer<typeof groupSchema>
+
+/** One named booking, added by hand. */
+export const bookingSchema = z.object({
+  sessionExternalId: externalIdSchema,
+  employeeExternalId: externalIdSchema,
+})

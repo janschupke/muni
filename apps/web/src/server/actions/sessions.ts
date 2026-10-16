@@ -43,15 +43,18 @@ export async function createOfferedSession(input: SessionCreate): Promise<Create
   }
 }
 
-/** The course page's "new session" form; opens the new session. */
+/**
+ * The "new session" form, from a course's page (`courseCode` fixed) or the sessions list
+ * (the course is chosen in the form); opens the new session.
+ */
 export async function saveNewSession(
-  courseCode: string,
+  courseCode: string | null,
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
   await requireAdmin()
   const input = {
-    courseCode,
+    courseCode: courseCode ?? text(form, 'courseCode'),
     date: text(form, 'date'),
     startTime: text(form, 'startTime'),
     endTime: text(form, 'endTime'),

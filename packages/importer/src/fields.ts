@@ -146,7 +146,8 @@ export class RowBuilder {
 
 /**
  * A source ID, unless it carries a prefix the app gives the records it creates (S… for
- * sessions, A… for completions): an import must never overwrite those, so the row is refused.
+ * sessions, A… for completions, N… for people): an import must never overwrite those, so the
+ * row is refused.
  */
 export function reservedId(
   b: RowBuilder,

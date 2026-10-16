@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import {
   getDepartment,
+  getGroupForEdit,
   getPosition,
   listDepartmentSummaries,
   listPositionSummaries,
@@ -22,9 +23,13 @@ import {
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
+import EditPositionPage from '../positions/[id]/edit/page'
 import PositionPage, { generateMetadata as positionMetadata } from '../positions/[id]/page'
+import NewPositionPage, { generateMetadata as newPositionMetadata } from '../positions/new/page'
 import PositionsPage, { generateMetadata as positionsMetadata } from '../positions/page'
+import EditDepartmentPage from './[id]/edit/page'
 import DepartmentPage, { generateMetadata as departmentMetadata } from './[id]/page'
+import NewDepartmentPage, { generateMetadata as newDepartmentMetadata } from './new/page'
 import DepartmentsPage, { generateMetadata as departmentsMetadata } from './page'
 
 /**
@@ -55,12 +60,15 @@ function peopleTable(): HTMLElement {
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
   getDepartment: vi.fn(),
+  getGroupForEdit: vi.fn(),
   getPosition: vi.fn(),
   listDepartmentSummaries: vi.fn(),
   listPositionSummaries: vi.fn(),
 }))
 
 vi.mock('@/server/auth')
+vi.mock('@/server/actions/groups', () => ({ saveGroup: vi.fn() }))
+vi.mock('@/server/actions/archive', () => ({ archiveAction: vi.fn(), previewArchive: vi.fn() }))
 
 beforeEach(() => {
   signInAs('VIEWER')
@@ -256,8 +264,56 @@ describe('access', () => {
     await expect(departmentMetadata(props)).rejects.toThrow('redirect to sign-in')
     await expect(PositionsPage()).rejects.toThrow('redirect to sign-in')
     await expect(PositionPage(props)).rejects.toThrow('redirect to sign-in')
-    expect(requireReader).toHaveBeenCalledTimes(5)
+    // A detail page checks for itself (it needs the role) and through its loader, which its
+    // metadata shares.
+    expect(requireReader).toHaveBeenCalledTimes(7)
     for (const read of [listDepartmentSummaries, getDepartment, listPositionSummaries, getPosition])
       expect(read).not.toHaveBeenCalled()
+  })
+})
+
+describe('managing departments and positions', () => {
+  it('gives admins a new button, a pencil and archive per row, and record actions', async () => {
+    signInAs('ADMIN')
+    await renderServer(DepartmentsPage())
+    expect(screen.getByRole('link', { name: 'New department' }).getAttribute('href')).toBe(
+      '/departments/new'
+    )
+    expect(screen.getByRole('link', { name: 'Edit Laboratoře' }).getAttribute('href')).toBe(
+      '/departments/dep_lab/edit'
+    )
+    expect(screen.getByRole('button', { name: 'Archive Laboratoře' })).toBeTruthy()
+    await renderServer(DepartmentPage({ params: params({ id: 'dep_lab' }) }))
+    expect(screen.getAllByRole('link', { name: 'Edit' }).at(-1)?.getAttribute('href')).toBe(
+      '/departments/dep_lab/edit'
+    )
+  })
+
+  it('offers none of it to readers', async () => {
+    signInAs('FULL')
+    await renderServer(PositionsPage())
+    expect(screen.queryByRole('link', { name: 'New position' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Archive/ })).toBeNull()
+  })
+
+  it('create and rename them in a one-field form', async () => {
+    expect(await newDepartmentMetadata()).toEqual({ title: 'New department' })
+    expect(await newPositionMetadata()).toEqual({ title: 'New position' })
+    await renderServer(NewDepartmentPage())
+    expect(screen.getByRole('heading', { level: 1, name: 'New department' })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: /Name/ })).toHaveProperty('value', '')
+    await expectNoAxeViolations()
+    await renderServer(NewPositionPage())
+    vi.mocked(getGroupForEdit).mockResolvedValue({ id: 'pos_lab', name: 'Laborant' })
+    await renderServer(EditPositionPage({ params: params({ id: 'pos_lab' }) }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Rename Laborant' })).toBeTruthy()
+    expect(screen.getAllByRole('textbox', { name: /Name/ }).at(-1)).toHaveProperty(
+      'value',
+      'Laborant'
+    )
+    vi.mocked(getGroupForEdit).mockResolvedValue(null)
+    await expect(EditDepartmentPage({ params: params({ id: 'gone' }) })).rejects.toThrow(
+      NotFoundError
+    )
   })
 })

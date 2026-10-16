@@ -22,6 +22,8 @@ import { isUpcoming, sessionInclude, toSessionItem, upcomingSessionWhere } from 
 export type { RequirementView } from './audience'
 
 export interface CourseListItem {
+  /** Internal id (archiving acts on it). */
+  id: string
   code: string
   name: string
   validityMonths: number | null
@@ -73,6 +75,7 @@ export async function listCourses(options?: RepoOptions): Promise<CourseListItem
     const cells = cellsByCourse.get(course.id) ?? []
     const counts = countStatuses(cells)
     return {
+      id: course.id,
       code: course.code,
       name: course.name,
       validityMonths: course.validityMonths,
@@ -110,6 +113,8 @@ function byDepartment(
 }
 
 export interface SessionListItem {
+  /** Internal id (archiving acts on it). */
+  id: string
   externalId: string
   courseCode: string
   courseName: string
@@ -170,6 +175,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
   const now = new Date()
   const upcoming = course.sessions.filter(s => isUpcoming(s, now))
   return {
+    id: course.id,
     code: course.code,
     name: course.name,
     validityMonths: course.validityMonths,
@@ -203,13 +209,24 @@ export async function getCourseForEdit(code: string, options?: RepoOptions) {
       code: true,
       name: true,
       validityMonths: true,
+      requiredForAll: true,
       sessionMinutes: true,
       groupSize: true,
       onlineAllowed: true,
       capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
+      // Active ones only: an archived department's requirement is dropped on the next save.
+      departmentRequirements: { where: { department: ACTIVE }, select: { departmentId: true } },
+      positionRequirements: { where: { position: ACTIVE }, select: { positionId: true } },
     },
   })
-  return course && { ...course, capabilities: course.capabilities.map(c => c.capability) }
+  if (!course) return null
+  const { departmentRequirements, positionRequirements, capabilities, ...rest } = course
+  return {
+    ...rest,
+    capabilities: capabilities.map(c => c.capability),
+    departmentIds: departmentRequirements.map(r => r.departmentId),
+    positionIds: positionRequirements.map(r => r.positionId),
+  }
 }
 
 export async function listCourseOptions(options?: RepoOptions) {

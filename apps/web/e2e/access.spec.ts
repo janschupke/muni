@@ -94,7 +94,7 @@ test.describe('admin', () => {
   test('edits, imports and sees who has access', async ({ page }) => {
     await page.goto('/employees/E0153')
     await expect(page.getByRole('banner').getByText('Admin', { exact: true })).toBeVisible()
-    await page.getByRole('link', { name: 'Edit' }).click()
+    await page.getByRole('link', { name: 'Edit', exact: true }).click()
     await expect(page).toHaveURL(/\/employees\/E0153\/edit$/)
     await expect(page.getByRole('textbox', { name: 'Email' })).toHaveValue(/^alena\.mala@/)
 

@@ -21,7 +21,10 @@
     "choose": "Choose…",
     "pagination": "Pages",
     "close": "Close",
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "editLabel": "Edit {name}",
+    "actions": "Actions",
+    "remove": "Remove"
   },
   "nav": {
     "primary": "Main navigation",
@@ -182,7 +185,8 @@
         "description": "{count, plural, one {# direct report who has not left} other {# direct reports who have not left}}",
         "inList": "All direct reports in the list",
         "heldOf": "{held} of {total} held"
-      }
+      },
+      "cancelBookingConfirm": "Cancel the booking for {course}?"
     },
     "validOf": "{valid} of {total}",
     "panel": {
@@ -194,7 +198,8 @@
       "validUntil": "Valid until",
       "completedOn": "Last completed",
       "booked": "Booked session"
-    }
+    },
+    "new": "New employee"
   },
   "courses": {
     "title": "Courses",
@@ -236,7 +241,8 @@
       "byDepartment": "Compliance by department",
       "noDepartments": "Nobody active must hold it.",
       "departmentTitle": "{department}: {held} of {total} held"
-    }
+    },
+    "new": "New course"
   },
   "sessions": {
     "title": "Sessions",
@@ -246,7 +252,6 @@
     "columns": {
       "course": "Course",
       "date": "Date",
-      "time": "Time",
       "location": "Location",
       "capacity": "Booked",
       "price": "Price per person",
@@ -276,7 +281,9 @@
       "price": "Price per person",
       "seats": "Seats"
     },
-    "nearlyFull": "Almost full"
+    "nearlyFull": "Almost full",
+    "newTitle": "New session",
+    "new": "New session"
   },
   "compliance": {
     "title": "Compliance matrix",
@@ -324,7 +331,7 @@
       "before_completed": "Validity cannot end before the completion date.",
       "not_found": "The record no longer exists.",
       "generic": "Saving failed. Please try again.",
-      "taken": "This name is already used.",
+      "taken": "Another record already uses this.",
       "duplicate": "Each value may appear only once.",
       "room_busy": "Another planned session uses this room at that time.",
       "room_online_not_allowed": "This course is not held online.",
@@ -332,7 +339,11 @@
       "room_missing_capabilities": "The room lacks equipment this course needs.",
       "company_id": "Enter the 8-digit IČO; this one's check digit does not match.",
       "room_archived": "The room is archived.",
-      "course_archived": "The course is archived."
+      "course_archived": "The course is archived.",
+      "unavailable": "This choice is no longer available; choose again.",
+      "manager_cycle": "This person reports to them, directly or through others; choose someone else.",
+      "own_role": "You cannot change your own role.",
+      "last_admin": "This is the last admin; make someone else an admin first."
     },
     "course": {
       "title": "Edit course {code}",
@@ -344,7 +355,15 @@
       "sessionMinutes": "Session length (minutes)",
       "groupSize": "Group size",
       "onlineAllowed": "Can be held online",
-      "capabilities": "The room must have"
+      "capabilities": "The room must have",
+      "newTitle": "New course",
+      "code": "Code",
+      "codeHelp": "Capital letters, digits and dashes, such as FIRE-1. It cannot be changed later.",
+      "audience": "Who must hold it",
+      "audienceHelp": "Nothing ticked makes the course optional. A courses import sets this again from the catalogue.",
+      "requiredForAll": "Everyone",
+      "departments": "Departments",
+      "positions": "Positions"
     },
     "session": {
       "date": "Date",
@@ -355,7 +374,8 @@
       "status": "Status",
       "unnamedBookings": "Other bookings (not named)",
       "unnamedHelp": "{count, plural, =0 {Nobody is booked by name.} one {Plus # person booked by name.} other {Plus # people booked by name.}}",
-      "room": "Room"
+      "room": "Room",
+      "course": "Course"
     },
     "employee": {
       "title": "Edit {name}",
@@ -367,7 +387,14 @@
       "hiredOn": "Hired",
       "leftOn": "Left",
       "status": "Employment",
-      "note": "Note"
+      "note": "Note",
+      "newTitle": "New employee",
+      "newHelp": "People added here get an ID starting with N, which imports never overwrite.",
+      "nationalId": "Birth number",
+      "nationalIdHelp": "Optional; shown only to roles allowed to see it.",
+      "place": "Where they work",
+      "manager": "Manager",
+      "employment": "Employment"
     },
     "completion": {
       "title": "Record completion for {name}",
@@ -377,7 +404,25 @@
       "validUntilHelp": "Leave empty to calculate it from the course validity.",
       "provider": "Provider",
       "price": "Price ({currency})",
-      "note": "Note"
+      "note": "Note",
+      "editTitle": "Edit completion {id} of {name}",
+      "importedHint": "This record came from an import, so the next import of the same file overwrites changes made here."
+    },
+    "fixBelow": "Some fields need a change; each says what below.",
+    "picker": {
+      "chooseDate": "Choose {field} from a calendar",
+      "chooseTime": "Choose {field} from a list",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "previousYear": "Previous year",
+      "nextYear": "Next year",
+      "today": "Today",
+      "clear": "Clear",
+      "hours": "Hours",
+      "minutes": "Minutes"
+    },
+    "group": {
+      "name": "Name"
     }
   },
   "import": {
@@ -675,7 +720,8 @@
       "rows": "Each row is one training that is non-compliant or lapsing and already has a named booking. A booking that ends after the lapse leaves a gap.",
       "remove": "Cancel the booking of {name} on {session}",
       "empty": "Nothing is booked yet.",
-      "cancel": "Cancel booking"
+      "cancel": "Cancel booking",
+      "removeConfirm": "Cancel the booking of {name} on {session}?"
     },
     "table": {
       "pagination": "Pages",
@@ -891,7 +937,10 @@
       "noPositions": "Nobody has a position here.",
       "noCourses": "Nothing is required of this department.",
       "inList": "Open in the employee list"
-    }
+    },
+    "newTitle": "New department",
+    "editTitle": "Rename {name}",
+    "new": "New department"
   },
   "positions": {
     "title": "Positions",
@@ -908,7 +957,10 @@
       "noDepartments": "Nobody with this position belongs to a department.",
       "noCourses": "Nothing is required of this position.",
       "inList": "Open in the employee list"
-    }
+    },
+    "newTitle": "New position",
+    "editTitle": "Rename {name}",
+    "new": "New position"
   },
   "planner": {
     "title": "Session planner",
@@ -1007,12 +1059,22 @@
   },
   "users": {
     "title": "Users",
-    "description": "Everyone who has signed in, with their role. Roles are assigned in the Clerk dashboard (public metadata \"role\": viewer, full or admin) and take effect within five minutes or at the next sign-in.",
+    "description": "Everyone who has signed in, with their role. Open a user to change their role (it is stored in Clerk and applies within five minutes or at their next sign-in) or to archive them, which ends their access.",
     "columns": {
       "name": "Name",
       "email": "Email",
       "role": "Role",
       "lastSignInAt": "Last sign-in"
+    },
+    "detail": {
+      "facts": "Account",
+      "role": "Role",
+      "roleHelp": "Viewers see personal data redacted, full access sees whole records, admins also edit, book and import. The role is stored in Clerk.",
+      "saveRole": "Change role",
+      "lastSignIn": "Last sign-in",
+      "since": "Has access since",
+      "bookingsMade": "Bookings made",
+      "email": "Email"
     }
   },
   "archive": {
@@ -1123,5 +1185,15 @@
       "archivedAt": "Archived on",
       "archivedBy": "Archived by"
     }
+  },
+  "bookings": {
+    "add": "Book",
+    "choose": "Choose whom or what to book first.",
+    "noneLeft": "Nothing left to book here.",
+    "refused": "Not booked: {reason}.",
+    "person": "Add a person",
+    "session": "Book on a session",
+    "sessionOption": "{when} · {course} ({free, plural, one {# seat free} other {# seats free}})",
+    "removeConfirm": "Remove {name} from this session?"
   }
 }

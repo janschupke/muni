@@ -59,7 +59,11 @@ export default async function SessionsPage({ searchParams }: Props) {
             t('description')
           )
         }
-        actions={canWrite(user.role) && <ListActions kind="session" />}
+        actions={
+          canWrite(user.role) && (
+            <ListActions kind="session" create={{ href: '/sessions/new', label: t('new') }} />
+          )
+        }
       />
       <LinkTabs aria-label={t('title')}>
         {WINDOWS.map(w => (

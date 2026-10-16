@@ -61,6 +61,10 @@ export function PlannedTable({
                         name: need.employee.name,
                         session: booked.courseName,
                       })}
+                      confirmTitle={t('planned.removeConfirm', {
+                        name: need.employee.name,
+                        session: booked.courseName,
+                      })}
                     />
                   )
                 },

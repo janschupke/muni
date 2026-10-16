@@ -1,7 +1,6 @@
-import { getSession } from '@muni/db/repositories'
+import { getSession, listEmployeeOptions } from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
 import { BarRow } from '@muni/ui/bar-row'
-import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
@@ -12,7 +11,6 @@ import { PageHeader } from '@muni/ui/page-header'
 import { TextLink } from '@muni/ui/text-link'
 import { toZonedParts } from '@muni/utils/dates'
 import { formatCurrency, formatDate, formatTimeRange } from '@muni/utils/format'
-import { Pencil } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -21,9 +19,11 @@ import { cache } from 'react'
 
 import { PersonLink } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
+import { RecordActions } from '@/components/record-actions'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RoomLink } from '@/components/session-links'
 import { OccupancyBadge, seatTone, SessionStatusBadge } from '@/components/status-badges'
+import { AddBookingForm } from '@/features/bookings/add-booking'
 import { requireReader } from '@/server/auth'
 
 interface Props {
@@ -44,14 +44,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SessionPage({ params }: Props) {
   const user = await requireReader()
   const { externalId } = await params
-  const [session, t, tc, locale] = await Promise.all([
+  const canEdit = canWrite(user.role)
+  const [session, t, tb, locale, people] = await Promise.all([
     loadSession(externalId),
     getTranslations('sessions'),
-    getTranslations('common'),
+    getTranslations('bookings'),
     getLocale(),
+    canEdit ? listEmployeeOptions() : [],
   ])
   if (!session) notFound()
-  const canEdit = canWrite(user.role)
+  const booked = new Set(session.assigned.flatMap(a => (a.archived ? [] : [a.externalId])))
+  // Booking by hand is for planned sessions that have not started.
+  const bookable =
+    canEdit && session.status === 'PLANNED' && new Date(session.startsAt) > new Date()
 
   return (
     <>
@@ -61,12 +66,13 @@ export default async function SessionPage({ params }: Props) {
         description={formatTimeRange(session.startsAt, session.endsAt, locale)}
         actions={
           canEdit && (
-            <Button asChild>
-              <Link href={`/sessions/${session.externalId}/edit`}>
-                <Pencil aria-hidden />
-                {tc('edit')}
-              </Link>
-            </Button>
+            <RecordActions
+              kind="session"
+              id={session.id}
+              name={`${session.externalId} · ${session.courseName}`}
+              editHref={`/sessions/${session.externalId}/edit`}
+              then="/sessions"
+            />
           )
         }
       />
@@ -121,7 +127,17 @@ export default async function SessionPage({ params }: Props) {
                 unnamed: session.unnamedBookings,
               })}
             />
-            <CardBody>
+            <CardBody className="flex flex-col gap-4">
+              {bookable && (
+                <AddBookingForm
+                  fixed={{ sessionExternalId: session.externalId }}
+                  field="employeeExternalId"
+                  label={tb('person')}
+                  options={people
+                    .filter(p => !booked.has(p.externalId))
+                    .map(p => ({ value: p.externalId, label: p.name }))}
+                />
+              )}
               {session.assigned.length === 0 ? (
                 <EmptyState variant="inline" title={t('attendees.noneNamed')} />
               ) : (
@@ -134,6 +150,7 @@ export default async function SessionPage({ params }: Props) {
                           sessionExternalId={session.externalId}
                           employeeExternalId={a.externalId}
                           label={t('attendees.remove', { name: a.name })}
+                          confirmTitle={tb('removeConfirm', { name: a.name })}
                         />
                       )}
                     </ItemListRow>

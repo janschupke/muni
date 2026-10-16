@@ -6,6 +6,7 @@ import {
   EMPLOYMENT_STATUSES,
   SESSION_STATUSES,
 } from '@muni/domain/enums'
+import { Alert } from '@muni/ui/alert'
 import { FieldRow } from '@muni/ui/field'
 import { currencySymbol } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
@@ -15,50 +16,100 @@ import type { FormState } from '@/lib/form'
 import {
   CheckboxField,
   CheckboxGroupField,
+  DateField,
+  type FormHeading,
+  FormSection,
   FormShell,
   SelectField,
   TextAreaField,
   TextField,
+  TimeField,
 } from './form-shell'
 
 type Action = (state: FormState, form: FormData) => Promise<FormState>
 
-export function CourseForm({
-  action,
-  cancelHref,
-  defaults,
-}: {
+interface FormProps {
   action: Action
   cancelHref: string
-  defaults: {
-    name: string
-    validityMonths: number | null
-    sessionMinutes: number | null
-    groupSize: number | null
-    onlineAllowed: boolean
-    capabilities: readonly Capability[]
-  }
+  heading: FormHeading
+}
+
+interface Option {
+  id: string
+  name: string
+}
+
+export interface CourseDefaults {
+  name: string
+  validityMonths: number | null
+  requiredForAll: boolean
+  departmentIds: readonly string[]
+  positionIds: readonly string[]
+  sessionMinutes: number | null
+  groupSize: number | null
+  onlineAllowed: boolean
+  capabilities: readonly Capability[]
+}
+
+/** A course: a new one also takes its code, which then never changes. */
+export function CourseForm({
+  defaults,
+  departments,
+  positions,
+  isNew = false,
+  ...shell
+}: FormProps & {
+  defaults: CourseDefaults
+  departments: readonly Option[]
+  positions: readonly Option[]
+  isNew?: boolean | undefined
 }) {
   const t = useTranslations('forms.course')
   const tc = useTranslations('status.capability')
   return (
-    <FormShell action={action} cancelHref={cancelHref}>
-      <TextField name="name" label={t('name')} required defaultValue={defaults.name} />
-      <TextField
-        name="validityMonths"
-        label={t('validityMonths')}
-        help={t('validityHelp')}
-        inputMode="numeric"
-        defaultValue={defaults.validityMonths ?? ''}
-        className="max-w-48"
-      />
-      <fieldset className="flex flex-col gap-4 border-t border-border-muted pt-4">
-        <legend className="sr-only">{t('sessionNeeds')}</legend>
-        <div aria-hidden>
-          <p className="text-sm font-semibold text-fg">{t('sessionNeeds')}</p>
-          <p className="text-xs text-fg-muted">{t('sessionNeedsHelp')}</p>
-        </div>
-        <FieldRow columns={2}>
+    <FormShell {...shell}>
+      <FieldRow>
+        {isNew && (
+          <TextField
+            name="code"
+            label={t('code')}
+            help={t('codeHelp')}
+            required
+            autoComplete="off"
+          />
+        )}
+        <TextField name="name" label={t('name')} required defaultValue={defaults.name} />
+      </FieldRow>
+      <FieldRow>
+        <TextField
+          name="validityMonths"
+          label={t('validityMonths')}
+          help={t('validityHelp')}
+          inputMode="numeric"
+          defaultValue={defaults.validityMonths ?? ''}
+        />
+      </FieldRow>
+      <FormSection title={t('audience')} description={t('audienceHelp')}>
+        <CheckboxField
+          name="requiredForAll"
+          label={t('requiredForAll')}
+          defaultChecked={defaults.requiredForAll}
+        />
+        <CheckboxGroupField
+          name="departmentIds"
+          label={t('departments')}
+          options={departments.map(d => ({ value: d.id, label: d.name }))}
+          defaultValue={defaults.departmentIds}
+        />
+        <CheckboxGroupField
+          name="positionIds"
+          label={t('positions')}
+          options={positions.map(p => ({ value: p.id, label: p.name }))}
+          defaultValue={defaults.positionIds}
+        />
+      </FormSection>
+      <FormSection title={t('sessionNeeds')} description={t('sessionNeedsHelp')}>
+        <FieldRow>
           <TextField
             name="sessionMinutes"
             label={t('sessionMinutes')}
@@ -83,21 +134,21 @@ export function CourseForm({
           options={CAPABILITIES.map(c => ({ value: c, label: tc(c) }))}
           defaultValue={defaults.capabilities}
         />
-      </fieldset>
+      </FormSection>
     </FormShell>
   )
 }
 
 export function SessionForm({
-  action,
-  cancelHref,
   defaults,
   rooms,
+  courses,
   mode = 'edit',
-}: {
-  action: Action
-  cancelHref: string
-  rooms: readonly { id: string; name: string }[]
+  ...shell
+}: FormProps & {
+  rooms: readonly Option[]
+  /** Offered when the course is not given by the page (a new session from the sessions list). */
+  courses?: readonly { code: string; name: string }[] | undefined
   /** A new session starts empty: no other bookings to state. */
   mode?: 'edit' | 'create' | undefined
   defaults: {
@@ -118,37 +169,41 @@ export function SessionForm({
   const ts = useTranslations('status.session')
   const locale = useLocale()
   return (
-    <FormShell action={action} cancelHref={cancelHref}>
-      <FieldRow columns={3}>
-        <TextField
-          name="date"
-          type="date"
-          label={t('date')}
+    <FormShell {...shell}>
+      {courses && (
+        <SelectField
+          name="courseCode"
+          label={t('course')}
           required
-          defaultValue={defaults.date}
+          options={courses.map(c => ({ value: c.code, label: `${c.code} · ${c.name}` }))}
         />
-        <TextField
+      )}
+      <FieldRow columns={3}>
+        <DateField name="date" label={t('date')} required defaultValue={defaults.date} />
+        <TimeField
           name="startTime"
-          type="time"
           label={t('startTime')}
           required
           defaultValue={defaults.startTime}
         />
-        <TextField
-          name="endTime"
-          type="time"
-          label={t('endTime')}
+        <TimeField name="endTime" label={t('endTime')} required defaultValue={defaults.endTime} />
+      </FieldRow>
+      <FieldRow>
+        <SelectField
+          name="roomId"
+          label={t('room')}
           required
-          defaultValue={defaults.endTime}
+          defaultValue={defaults.roomId}
+          options={rooms.map(r => ({ value: r.id, label: r.name }))}
+        />
+        <SelectField
+          name="status"
+          label={t('status')}
+          required
+          defaultValue={defaults.status}
+          options={SESSION_STATUSES.map(s => ({ value: s, label: ts(s) }))}
         />
       </FieldRow>
-      <SelectField
-        name="roomId"
-        label={t('room')}
-        required
-        defaultValue={defaults.roomId}
-        options={rooms.map(r => ({ value: r.id, label: r.name }))}
-      />
       <FieldRow columns={3}>
         <TextField
           name="capacity"
@@ -173,44 +228,41 @@ export function SessionForm({
           defaultValue={defaults.pricePerPerson ?? ''}
         />
       </FieldRow>
-      <SelectField
-        name="status"
-        label={t('status')}
-        required
-        defaultValue={defaults.status}
-        options={SESSION_STATUSES.map(s => ({ value: s, label: ts(s) }))}
-      />
     </FormShell>
   )
 }
 
+export interface EmployeeDefaults {
+  firstName: string
+  lastName: string
+  email: string | null
+  nationalId: string | null
+  departmentId: string | null
+  positionId: string | null
+  managerExternalId: string | null
+  hiredOn: string
+  leftOn: string | null
+  status: string
+  note: string | null
+}
+
 export function EmployeeForm({
-  action,
-  cancelHref,
   defaults,
   departments,
   positions,
-}: {
-  action: Action
-  cancelHref: string
-  defaults: {
-    firstName: string
-    lastName: string
-    email: string | null
-    department: string | null
-    position: string | null
-    hiredOn: string
-    leftOn: string | null
-    status: string
-    note: string | null
-  }
-  departments: string[]
-  positions: string[]
+  managers,
+  ...shell
+}: FormProps & {
+  defaults: EmployeeDefaults
+  departments: readonly Option[]
+  positions: readonly Option[]
+  /** Who can be the manager (the person themselves is left out by the page). */
+  managers: readonly { externalId: string; name: string }[]
 }) {
   const t = useTranslations('forms.employee')
   const ts = useTranslations('status.employment')
   return (
-    <FormShell action={action} cancelHref={cancelHref}>
+    <FormShell {...shell}>
       <FieldRow>
         <TextField
           name="firstName"
@@ -227,100 +279,125 @@ export function EmployeeForm({
           autoComplete="off"
         />
       </FieldRow>
-      <TextField
-        name="email"
-        type="email"
-        label={t('email')}
-        defaultValue={defaults.email ?? ''}
-        autoComplete="off"
-      />
       <FieldRow>
-        <SelectField
-          name="department"
-          label={t('department')}
-          allowEmpty
-          defaultValue={defaults.department ?? ''}
-          options={departments.map(d => ({ value: d, label: d }))}
-        />
-        <SelectField
-          name="position"
-          label={t('position')}
-          allowEmpty
-          defaultValue={defaults.position ?? ''}
-          options={positions.map(p => ({ value: p, label: p }))}
-        />
-      </FieldRow>
-      <FieldRow columns={3}>
-        <SelectField
-          name="status"
-          label={t('status')}
-          required
-          defaultValue={defaults.status}
-          options={EMPLOYMENT_STATUSES.map(s => ({ value: s, label: ts(s) }))}
+        <TextField
+          name="email"
+          type="email"
+          label={t('email')}
+          defaultValue={defaults.email ?? ''}
+          autoComplete="off"
         />
         <TextField
-          name="hiredOn"
-          type="date"
-          label={t('hiredOn')}
-          required
-          defaultValue={defaults.hiredOn}
-        />
-        <TextField
-          name="leftOn"
-          type="date"
-          label={t('leftOn')}
-          defaultValue={defaults.leftOn ?? ''}
+          name="nationalId"
+          label={t('nationalId')}
+          help={t('nationalIdHelp')}
+          defaultValue={defaults.nationalId ?? ''}
+          autoComplete="off"
         />
       </FieldRow>
-      <TextAreaField name="note" label={t('note')} defaultValue={defaults.note ?? ''} />
+      <FormSection title={t('place')}>
+        <FieldRow columns={3}>
+          <SelectField
+            name="departmentId"
+            label={t('department')}
+            allowEmpty
+            defaultValue={defaults.departmentId ?? ''}
+            options={departments.map(d => ({ value: d.id, label: d.name }))}
+          />
+          <SelectField
+            name="positionId"
+            label={t('position')}
+            allowEmpty
+            defaultValue={defaults.positionId ?? ''}
+            options={positions.map(p => ({ value: p.id, label: p.name }))}
+          />
+          <SelectField
+            name="managerExternalId"
+            label={t('manager')}
+            allowEmpty
+            defaultValue={defaults.managerExternalId ?? ''}
+            options={managers.map(m => ({ value: m.externalId, label: m.name }))}
+          />
+        </FieldRow>
+      </FormSection>
+      <FormSection title={t('employment')}>
+        <FieldRow columns={3}>
+          <SelectField
+            name="status"
+            label={t('status')}
+            required
+            defaultValue={defaults.status}
+            options={EMPLOYMENT_STATUSES.map(s => ({ value: s, label: ts(s) }))}
+          />
+          <DateField name="hiredOn" label={t('hiredOn')} required defaultValue={defaults.hiredOn} />
+          <DateField name="leftOn" label={t('leftOn')} defaultValue={defaults.leftOn} />
+        </FieldRow>
+        <TextAreaField name="note" label={t('note')} defaultValue={defaults.note ?? ''} />
+      </FormSection>
     </FormShell>
   )
 }
 
+export interface CompletionDefaults {
+  courseCode: string
+  completedOn: string
+  validUntil: string | null
+  provider: string | null
+  price: number | null
+  note: string | null
+  /** From an import: the next import of the same record overwrites the changes. */
+  imported: boolean
+}
+
 export function CompletionForm({
-  action,
-  cancelHref,
   courses,
   providers,
-  today,
-}: {
-  action: Action
-  cancelHref: string
+  defaults,
+  ...shell
+}: FormProps & {
   courses: { code: string; name: string }[]
   providers: string[]
-  today: string
+  defaults: CompletionDefaults
 }) {
   const t = useTranslations('forms.completion')
   const locale = useLocale()
   return (
-    <FormShell action={action} cancelHref={cancelHref}>
+    <FormShell {...shell}>
+      {defaults.imported && <Alert tone="info">{t('importedHint')}</Alert>}
       <SelectField
         name="courseCode"
         label={t('course')}
         required
+        defaultValue={defaults.courseCode}
         options={courses.map(c => ({ value: c.code, label: `${c.code} · ${c.name}` }))}
       />
       <FieldRow>
-        <TextField
+        <DateField
           name="completedOn"
-          type="date"
           label={t('completedOn')}
           required
-          defaultValue={today}
+          defaultValue={defaults.completedOn}
         />
-        <TextField
+        <DateField
           name="validUntil"
-          type="date"
           label={t('validUntil')}
           help={t('validUntilHelp')}
+          defaultValue={defaults.validUntil}
         />
       </FieldRow>
       <FieldRow>
-        <TextField name="provider" label={t('provider')} list="providers" autoComplete="off" />
+        <TextField
+          name="provider"
+          label={t('provider')}
+          list="providers"
+          autoComplete="off"
+          defaultValue={defaults.provider ?? ''}
+        />
         <TextField
           name="price"
           inputMode="decimal"
           label={t('price', { currency: currencySymbol(locale) })}
+          defaultValue={defaults.price ?? ''}
         />
       </FieldRow>
       <datalist id="providers">
@@ -328,7 +405,17 @@ export function CompletionForm({
           <option key={p} value={p} />
         ))}
       </datalist>
-      <TextAreaField name="note" label={t('note')} />
+      <TextAreaField name="note" label={t('note')} defaultValue={defaults.note ?? ''} />
+    </FormShell>
+  )
+}
+
+/** A department's or a position's name: the only thing either has. */
+export function GroupForm({ defaults, ...shell }: FormProps & { defaults: { name: string } }) {
+  const t = useTranslations('forms.group')
+  return (
+    <FormShell {...shell}>
+      <TextField name="name" label={t('name')} required defaultValue={defaults.name} />
     </FormShell>
   )
 }

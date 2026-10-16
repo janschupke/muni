@@ -2,17 +2,15 @@
 
 import type { SessionListItem } from '@muni/db/repositories'
 import { BarRow } from '@muni/ui/bar-row'
-import { Button } from '@muni/ui/button'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
 import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { formatCurrency } from '@muni/utils/format'
-import { Pencil } from 'lucide-react'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { PersonLink, RecordLink } from './archived'
+import { RowActions } from './record-actions'
 import { RoomLink, SessionDateLink } from './session-links'
 import { OccupancyBadge, seatTone, SessionStatusBadge } from './status-badges'
 
@@ -127,18 +125,16 @@ export function SessionTable({
         ...(canEdit && !compact
           ? [
               col.display({
-                id: 'edit',
-                header: () => <span className="sr-only">{tc('edit')}</span>,
-                meta: { headerClassName: 'w-0' },
+                id: 'actions',
+                header: () => <span className="sr-only">{tc('actions')}</span>,
+                meta: { headerClassName: 'w-0', align: 'right' },
                 cell: ({ row }) => (
-                  <Button asChild variant="ghost" size="icon-sm">
-                    <Link
-                      href={`/sessions/${row.original.externalId}/edit`}
-                      aria-label={t('editTitle', { id: row.original.externalId })}
-                    >
-                      <Pencil aria-hidden />
-                    </Link>
-                  </Button>
+                  <RowActions
+                    kind="session"
+                    id={row.original.id}
+                    name={row.original.externalId}
+                    editHref={`/sessions/${row.original.externalId}/edit`}
+                  />
                 ),
               }),
             ]

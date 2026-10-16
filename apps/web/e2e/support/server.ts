@@ -1,7 +1,7 @@
 import type { PlaywrightTestConfig } from '@playwright/test'
 
 /** The seeded test database (pnpm db:up && pnpm test:integration). */
-const TEST_DB = 'postgresql://muni:muni@localhost:5439/muni_test'
+export const TEST_DB = 'postgresql://muni:muni@localhost:5439/muni_test'
 
 /** The production build (`next build` first) on the test database, with the Clerk dev keys. */
 export function productionServer(port: number): NonNullable<PlaywrightTestConfig['webServer']> {

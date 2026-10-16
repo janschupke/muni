@@ -4,17 +4,22 @@ import type { UserListItem } from '@muni/db/repositories'
 import { type Role, ROLES } from '@muni/domain/enums'
 import { Badge } from '@muni/ui/badge'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { TextLink } from '@muni/ui/text-link'
 import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
+import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
+
+import { RowActions } from '@/components/record-actions'
 
 const col = createDataColumns<UserListItem>()
 
 /** Sorting by role puts admins first. */
 const rank = (role: Role) => ROLES.length - ROLES.indexOf(role)
 
-/** Everyone with access and their role. Roles are changed in Clerk, not here. */
+/** Everyone with access and their role; each opens to change the role, or archive the user. */
 export function UsersTable({ users }: { users: UserListItem[] }) {
+  const tcommon = useTranslations('common')
   const t = useTranslations('users.columns')
   const tr = useTranslations('status.role')
   const locale = useLocale()
@@ -25,8 +30,12 @@ export function UsersTable({ users }: { users: UserListItem[] }) {
           id: 'name',
           header: t('name'),
           sortFn: 'text',
-          cell: ({ getValue }) => (
-            <span className="font-medium text-fg">{getValue() ?? PLACEHOLDER}</span>
+          cell: ({ row, getValue }) => (
+            <TextLink asChild emphasis>
+              <Link href={`/users/${row.original.id}`}>
+                {getValue() ?? row.original.email ?? PLACEHOLDER}
+              </Link>
+            </TextLink>
           ),
         }),
         col.accessor(u => u.email ?? undefined, {
@@ -55,8 +64,21 @@ export function UsersTable({ users }: { users: UserListItem[] }) {
             return value === undefined ? PLACEHOLDER : formatDateTime(value, locale)
           },
         }),
+        col.display({
+          id: 'actions',
+          header: () => <span className="sr-only">{tcommon('actions')}</span>,
+          meta: { headerClassName: 'w-0', align: 'right' },
+          cell: ({ row }) => (
+            <RowActions
+              kind="user"
+              id={row.original.id}
+              name={row.original.name ?? row.original.email ?? row.original.id}
+              editHref={`/users/${row.original.id}`}
+            />
+          ),
+        }),
       ]),
-    [locale, t, tr]
+    [locale, t, tcommon, tr]
   )
   return <DataTable columns={columns} data={users} getRowId={u => u.id} />
 }

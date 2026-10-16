@@ -63,21 +63,29 @@ export {
   type TeamMember,
 } from './employees'
 export {
+  createGroup,
+  getGroupForEdit,
+  type GroupKind,
+  listGroupOptions,
+  renameGroup,
+} from './groups'
+export {
   getPersonName,
+  listBookableSessions,
   listDepartments,
+  listEmployeeOptions,
   listPositions,
   listProviderNames,
   listRoomOptions,
+  type PersonOption,
   type RoomOption,
+  type SessionOption,
 } from './lookups'
 export {
-  createCompletion,
   createRoom,
   createSession,
   type SessionProblem,
   type SessionWrite,
-  updateCourse,
-  updateEmployee,
   updateRoom,
   updateSession,
 } from './mutations'
@@ -105,13 +113,29 @@ export {
   type ProviderWrite,
   updateProvider,
 } from './providers'
+export {
+  createCompletion,
+  createCourse,
+  createEmployee,
+  getCompletionForEdit,
+  type RecordProblem,
+  type RecordWrite,
+  updateCompletion,
+  updateCourse,
+  updateEmployee,
+} from './records'
 export { getRoom, getRoomForEdit, listRooms, type RoomDetail, type RoomListItem } from './rooms'
 export { getSession, listSessions, type SessionWindow } from './sessions'
 export {
+  canSetUserRole,
   type ClerkUserSync,
   findUserByClerkId,
+  getUser,
   listUsers,
+  type RoleChange,
+  setUserRole,
   upsertUserFromClerk,
+  type UserDetail,
   type UserListItem,
   type UserRecord,
 } from './users'

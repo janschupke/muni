@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod'
 
 import { fieldErrors, type FormState } from '@/lib/form'
+import { expectNoAxeViolations } from '@/test/axe'
 import { ONLINE, session } from '@/test/fixtures'
 import { route, router } from '@/test/next'
 import { renderClient } from '@/test/render'
@@ -29,7 +30,9 @@ afterEach(() => {
 })
 
 describe('forms', () => {
-  it('show field and form errors from the action, and the pending state', async () => {
+  const heading = { title: 'Edit course BOZP-Z' }
+
+  it('put Cancel and Save on the heading row, and show errors and the pending state', async () => {
     const user = userEvent.setup()
     let finish: (state: FormState) => void = () => undefined
     const action = vi.fn(
@@ -42,9 +45,15 @@ describe('forms', () => {
       <CourseForm
         action={action}
         cancelHref="/courses/BOZP-Z"
+        heading={heading}
+        departments={[{ id: 'dep_lab', name: 'Laboratoře' }]}
+        positions={[{ id: 'pos_head', name: 'Vedoucí' }]}
         defaults={{
           name: 'BOZP',
           validityMonths: null,
+          requiredForAll: false,
+          departmentIds: ['dep_lab'],
+          positionIds: [],
           sessionMinutes: 180,
           groupSize: null,
           onlineAllowed: true,
@@ -52,21 +61,26 @@ describe('forms', () => {
         }}
       />
     )
+    // The heading is part of the form, its actions on the right.
+    const title = screen.getByRole('heading', { level: 1, name: 'Edit course BOZP-Z' })
+    const header = title.closest('div')?.parentElement
+    expect(within(header ?? document.body).getByRole('button', { name: 'Save' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'Valid for (months)' })).toHaveProperty('value', '')
-    // What a session of the course needs: online allowed, one capability ticked.
+    // Who must hold it, and what a session needs.
+    expect(screen.getByRole('group', { name: 'Who must hold it' })).toBeTruthy()
+    expect(screen.getByRole('checkbox', { name: 'Laboratoře' }).getAttribute('aria-checked')).toBe(
+      'true'
+    )
+    expect(screen.getByRole('checkbox', { name: 'Everyone' }).getAttribute('aria-checked')).toBe(
+      'false'
+    )
     expect(
       screen.getByRole('checkbox', { name: 'Can be held online' }).getAttribute('aria-checked')
     ).toBe('true')
     expect(screen.getByRole('checkbox', { name: 'Projector' }).getAttribute('aria-checked')).toBe(
       'true'
     )
-    expect(screen.getByRole('checkbox', { name: 'Computers' }).getAttribute('aria-checked')).toBe(
-      'false'
-    )
-    expect(screen.getByRole('textbox', { name: 'Session length (minutes)' })).toHaveProperty(
-      'value',
-      '180'
-    )
+    expect(screen.queryByRole('textbox', { name: /Code/ })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByRole('button', { name: 'Saving…' })).toHaveProperty('disabled', true)
     act(() => {
@@ -78,23 +92,57 @@ describe('forms', () => {
     expect(screen.getByRole('link', { name: 'Cancel' }).getAttribute('href')).toBe(
       '/courses/BOZP-Z'
     )
+    await expectNoAxeViolations()
   })
 
-  it('fill empty optional values as blanks', () => {
-    const action = vi.fn()
+  it('say at the top when fields below need a change', async () => {
+    const user = userEvent.setup()
     renderClient(
+      <CourseForm
+        isNew
+        action={() => Promise.resolve({ status: 'error', fieldErrors: { code: 'taken' } })}
+        cancelHref="/courses"
+        heading={{ title: 'New course' }}
+        departments={[]}
+        positions={[]}
+        defaults={{
+          name: '',
+          validityMonths: null,
+          requiredForAll: false,
+          departmentIds: [],
+          positionIds: [],
+          sessionMinutes: null,
+          groupSize: null,
+          onlineAllowed: false,
+          capabilities: [],
+        }}
+      />
+    )
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Some fields need a change; each says what below.')).toBeTruthy()
+    expect(screen.getByText('Another record already uses this.')).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: /Code/ }).getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('fill empty optional values as blanks, and dates and times through the pickers', () => {
+    const action = vi.fn()
+    const { container } = renderClient(
       <>
         <EmployeeForm
           action={action}
           cancelHref="/employees/E0153"
-          departments={['Laboratoře']}
-          positions={['Laborantka']}
+          heading={{ title: 'Edit Marie Černá' }}
+          departments={[{ id: 'dep_lab', name: 'Laboratoře' }]}
+          positions={[{ id: 'pos_lab', name: 'Laborantka' }]}
+          managers={[{ externalId: 'E0001', name: 'Urbanová Tereza' }]}
           defaults={{
             firstName: 'Marie',
             lastName: 'Černá',
             email: null,
-            department: null,
-            position: null,
+            nationalId: null,
+            departmentId: 'dep_lab',
+            positionId: null,
+            managerExternalId: 'E0001',
             hiredOn: '2019-03-01',
             leftOn: null,
             status: 'ACTIVE',
@@ -103,11 +151,13 @@ describe('forms', () => {
         />
         <SessionForm
           action={action}
-          cancelHref="/courses/BOZP-Z"
+          cancelHref="/sessions/T016"
+          heading={{ title: 'Edit T016' }}
           rooms={[
             { id: 'room_aula_a', name: 'Aula A' },
             { id: 'room_online', name: 'Online' },
           ]}
+          courses={[{ code: 'BOZP-Z', name: 'BOZP – základní školení' }]}
           defaults={{
             date: '2026-11-04',
             startTime: '08:00',
@@ -123,21 +173,41 @@ describe('forms', () => {
         <CompletionForm
           action={action}
           cancelHref="/employees/E0153"
+          heading={{ title: 'Edit completion' }}
           courses={[{ code: 'GDPR', name: 'Ochrana osobních údajů' }]}
           providers={['Bezpečná firma s.r.o.']}
-          today="2026-10-16"
+          defaults={{
+            courseCode: 'GDPR',
+            completedOn: '2026-10-16',
+            validUntil: null,
+            provider: null,
+            price: null,
+            note: null,
+            imported: true,
+          }}
         />
       </>
     )
+    const posted = (name: string) =>
+      container.querySelector<HTMLInputElement>(`input[type="hidden"][name="${name}"]`)?.value
     expect(screen.getByRole('textbox', { name: 'Email' })).toHaveProperty('value', '')
-    expect(screen.getByLabelText('Left')).toHaveProperty('value', '')
+    expect(screen.getByRole('combobox', { name: 'Manager' }).textContent).toContain('Urbanová')
+    expect(screen.getByRole('textbox', { name: 'Left' })).toHaveProperty('value', '')
+    expect(screen.getByRole('textbox', { name: /Hired/ })).toHaveProperty('value', '3/1/2019')
+    expect(posted('hiredOn')).toBe('2019-03-01')
+    expect(screen.getByRole('button', { name: 'Choose Hired from a calendar' })).toBeTruthy()
     expect(screen.getByRole('combobox', { name: /Room/ }).textContent).toContain('Online')
+    expect(screen.getAllByRole('combobox', { name: /Course/ })).toHaveLength(2)
+    expect(screen.getByRole('textbox', { name: /Start/ })).toHaveProperty('value', '08:00')
+    expect(screen.getByRole('button', { name: 'Choose Start from a list' })).toBeTruthy()
+    expect(posted('date')).toBe('2026-11-04')
     expect(screen.getByText('Plus 1 person booked by name.')).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'Price per person (CZK)' })).toHaveProperty(
       'value',
       ''
     )
-    expect(screen.getByLabelText('Completed on')).toHaveProperty('value', '2026-10-16')
+    expect(posted('completedOn')).toBe('2026-10-16')
+    expect(screen.getByText(/came from an import/)).toBeTruthy()
   })
 
   it('map every zod issue to one message per field', () => {
@@ -338,6 +408,7 @@ describe('tables', () => {
     const user = userEvent.setup()
     const completions = [
       {
+        id: 'cmp_Z1',
         externalId: 'Z1',
         courseCode: 'GDPR',
         courseName: 'Ochrana osobních údajů',
@@ -349,6 +420,7 @@ describe('tables', () => {
         note: 'online',
       },
       {
+        id: 'cmp_Z2',
         externalId: 'Z2',
         courseCode: 'BOZP-Z',
         courseName: 'BOZP – základní školení',
@@ -359,6 +431,7 @@ describe('tables', () => {
         price: null,
       },
       {
+        id: 'cmp_Z3',
         externalId: 'Z3',
         courseCode: 'STARY',
         courseName: 'Zrušený kurz',

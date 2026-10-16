@@ -15,6 +15,7 @@ import { useMemo, useTransition } from 'react'
 import { withParams } from '@/lib/search-params'
 
 import { OrgLink } from './org-links'
+import { RowActions } from './record-actions'
 import { RequirementPanel } from './requirement-panel'
 import { ComplianceBadge, EmploymentBadge, rateTone } from './status-badges'
 
@@ -30,8 +31,11 @@ export function EmployeesTable({
   query,
   sort,
   omit,
+  canEdit = false,
 }: {
   items: EmployeeListItem[]
+  /** Admins get a pencil and archive on each row. */
+  canEdit?: boolean | undefined
   /** A column every row shares, left out: the department on a department's page. */
   omit?: 'department' | 'position' | undefined
   /** The list page's filters: sorting rewrites the URL. Without them the table sorts itself. */
@@ -39,6 +43,7 @@ export function EmployeesTable({
   sort?: { by: string; desc: boolean } | undefined
 }) {
   const t = useTranslations('employees')
+  const tcommon = useTranslations('common')
   const router = useRouter()
   const [pending, startTransition] = useTransition()
 
@@ -133,8 +138,25 @@ export function EmployeesTable({
             )
           },
         }),
+        ...(canEdit
+          ? [
+              col.display({
+                id: 'actions',
+                header: () => <span className="sr-only">{tcommon('actions')}</span>,
+                meta: { headerClassName: 'w-0', align: 'right' },
+                cell: ({ row }) => (
+                  <RowActions
+                    kind="employee"
+                    id={row.original.id}
+                    name={`${row.original.lastName} ${row.original.firstName}`}
+                    editHref={`/employees/${row.original.externalId}/edit`}
+                  />
+                ),
+              }),
+            ]
+          : []),
       ]),
-    [omit, t]
+    [canEdit, omit, t, tcommon]
   )
 
   return (

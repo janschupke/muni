@@ -1,4 +1,3 @@
-import { PageHeader } from '@muni/ui/page-header'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
@@ -15,23 +14,21 @@ export default async function NewProviderPage() {
   await requireAdminPage()
   const t = await getTranslations('providers')
   return (
-    <>
-      <PageHeader
-        title={t('form.newTitle')}
-        eyebrow={<BackLink fallback={{ href: '/providers', label: t('title') }} />}
-      />
-      <ProviderForm
-        action={saveProvider.bind(null, null)}
-        cancelHref="/providers"
-        defaults={{
-          name: '',
-          companyId: null,
-          email: null,
-          phone: null,
-          website: null,
-          note: null,
-        }}
-      />
-    </>
+    <ProviderForm
+      action={saveProvider.bind(null, null)}
+      cancelHref="/providers"
+      heading={{
+        title: t('form.newTitle'),
+        eyebrow: <BackLink fallback={{ href: '/providers', label: t('title') }} />,
+      }}
+      defaults={{
+        name: '',
+        companyId: null,
+        email: null,
+        phone: null,
+        website: null,
+        note: null,
+      }}
+    />
   )
 }

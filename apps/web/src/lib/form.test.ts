@@ -40,6 +40,9 @@ describe('form helpers', () => {
     const input = {
       name: null,
       validityMonths: 'x',
+      requiredForAll: false,
+      departmentIds: [],
+      positionIds: [],
       sessionMinutes: null,
       groupSize: null,
       onlineAllowed: false,

@@ -7,6 +7,7 @@ import {
   moveSeats,
   removeAssignment,
 } from '@muni/db/repositories'
+import { bookingSchema } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 
@@ -55,11 +56,35 @@ export async function applyAssignmentsAction(input: unknown): Promise<ApplyResul
   }
 }
 
+/** What booking someone by hand says: done, or why not (the same reasons as the advisor's). */
+export type BookingState =
+  | { status: 'idle' }
+  | { status: 'done' }
+  | { status: 'refused'; reason: AssignmentFailure | 'invalid' }
+
+/**
+ * Books one person on one session by hand (the session page adds a person, a person's page
+ * adds a session). Every rule is checked on the server, as for the advisor's bookings.
+ */
+export async function addBookingAction(
+  fixed: { sessionExternalId?: string; employeeExternalId?: string },
+  _state: BookingState,
+  form: FormData
+): Promise<BookingState> {
+  const user = await requireAdmin()
+  const parsed = bookingSchema.safeParse({
+    sessionExternalId: fixed.sessionExternalId ?? form.get('sessionExternalId'),
+    employeeExternalId: fixed.employeeExternalId ?? form.get('employeeExternalId'),
+  })
+  if (!parsed.success) return { status: 'refused', reason: 'invalid' }
+  const [outcome] = await applyAssignments([{ ...parsed.data, source: 'MANUAL' }], user.id)
+  revalidatePath('/', 'layout')
+  return !outcome || outcome.ok ? { status: 'done' } : { status: 'refused', reason: outcome.reason }
+}
+
 export async function removeAssignmentAction(input: unknown): Promise<boolean> {
   await requireAdmin()
-  const { sessionExternalId, employeeExternalId } = z
-    .object({ sessionExternalId: externalId, employeeExternalId: externalId })
-    .parse(input)
+  const { sessionExternalId, employeeExternalId } = bookingSchema.parse(input)
   const removed = await removeAssignment(sessionExternalId, employeeExternalId)
   revalidatePath('/', 'layout')
   return removed

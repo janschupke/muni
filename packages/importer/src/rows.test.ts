@@ -158,6 +158,11 @@ describe('employees', () => {
       ...raw,
     })
 
+  it('refuses the IDs the app gives the people it adds', () => {
+    // N… people were added in the app: an export may not overwrite them.
+    expect(codes(employee({ externalId: 'N0001' }))).toEqual(['externalId:RESERVED_ID'])
+  })
+
   it('title-cases names written in one case, and trusts mixed case', () => {
     const shouted = employee({ firstName: 'MARIE', lastName: 'černá' })
     expect(shouted.data).toMatchObject({ firstName: 'Marie', lastName: 'Černá' })

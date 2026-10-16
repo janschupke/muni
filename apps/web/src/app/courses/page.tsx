@@ -22,14 +22,18 @@ export default async function CoursesPage() {
       <PageHeader
         title={t('title')}
         description={t('description')}
-        actions={canWrite(user.role) && <ListActions kind="course" />}
+        actions={
+          canWrite(user.role) && (
+            <ListActions kind="course" create={{ href: '/courses/new', label: t('new') }} />
+          )
+        }
       />
       {courses.length === 0 ? (
         <EmptyState title={t('empty')} />
       ) : (
         <>
           <ComplianceLegend className="mb-3" />
-          <CoursesTable courses={courses} />
+          <CoursesTable courses={courses} canEdit={canWrite(user.role)} />
         </>
       )}
     </>

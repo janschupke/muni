@@ -1,4 +1,9 @@
-import { getEmployee, getPolicy, listEmployeeBookings } from '@muni/db/repositories'
+import {
+  getEmployee,
+  getPolicy,
+  listBookableSessions,
+  listEmployeeBookings,
+} from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
 import { isVisible } from '@muni/domain/sanitize'
 import { BarRow } from '@muni/ui/bar-row'
@@ -13,8 +18,14 @@ import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
-import { formatDate, formatOptional, formatPercent, PLACEHOLDER } from '@muni/utils/format'
-import { Pencil, Plus } from 'lucide-react'
+import {
+  formatDate,
+  formatOptional,
+  formatPercent,
+  formatTimeRange,
+  PLACEHOLDER,
+} from '@muni/utils/format'
+import { Plus } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -25,10 +36,12 @@ import { PersonLink } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
 import { CompletionHistoryTable } from '@/components/completion-tables'
 import { OrgLink } from '@/components/org-links'
+import { RecordActions } from '@/components/record-actions'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RoomLink, SessionDateLink } from '@/components/session-links'
 import { ComplianceBadge, EmploymentBadge, rateTone } from '@/components/status-badges'
 import { TeamCard } from '@/components/team-card'
+import { AddBookingForm } from '@/features/bookings/add-booking'
 import { requireReader } from '@/server/auth'
 
 interface Props {
@@ -49,17 +62,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function EmployeePage({ params }: Props) {
   const { externalId } = await params
   const user = await requireReader()
-  const [employee, bookings, t, te, tc, tCommon, locale] = await Promise.all([
+  const canEdit = canWrite(user.role)
+  const [employee, bookings, bookable, t, te, tc, tb, locale] = await Promise.all([
     loadEmployee(externalId),
     listEmployeeBookings(externalId),
+    canEdit ? listBookableSessions(externalId) : [],
     getTranslations('employees.detail'),
     getTranslations('employees'),
     getTranslations('courses'),
-    getTranslations('common'),
+    getTranslations('bookings'),
     getLocale(),
   ])
   if (!employee) notFound()
-  const canEdit = canWrite(user.role)
+  const name = `${employee.firstName} ${employee.lastName}`
   const date = (value: string | null) => formatOptional(value, v => formatDate(v, locale))
   const held = employee.requirements.filter(
     r => r.status === 'VALID' || r.status === 'EXPIRING'
@@ -69,24 +84,24 @@ export default async function EmployeePage({ params }: Props) {
     <>
       <PageHeader
         eyebrow={<BackLink fallback={{ href: '/employees', label: te('title') }} />}
-        title={`${employee.firstName} ${employee.lastName}`}
+        title={name}
         description={[employee.position, employee.department].filter(Boolean).join(' · ')}
         actions={
           canEdit && (
-            <>
+            <RecordActions
+              kind="employee"
+              id={employee.id}
+              name={name}
+              editHref={`/employees/${employee.externalId}/edit`}
+              then="/employees"
+            >
               <Button asChild variant="primary">
                 <Link href={`/employees/${employee.externalId}/completions/new`}>
                   <Plus aria-hidden />
                   {t('recordCompletion')}
                 </Link>
               </Button>
-              <Button asChild>
-                <Link href={`/employees/${employee.externalId}/edit`}>
-                  <Pencil aria-hidden />
-                  {tCommon('edit')}
-                </Link>
-              </Button>
-            </>
+            </RecordActions>
           )
         }
       />
@@ -140,7 +155,22 @@ export default async function EmployeePage({ params }: Props) {
             {employee.reports.length > 0 && <TeamCard employee={employee} />}
             <Card>
               <CardHeader title={t('bookings')} />
-              <CardBody>
+              <CardBody className="flex flex-col gap-4">
+                {canEdit && employee.status !== 'TERMINATED' && (
+                  <AddBookingForm
+                    fixed={{ employeeExternalId: employee.externalId }}
+                    field="sessionExternalId"
+                    label={tb('session')}
+                    options={bookable.map(s => ({
+                      value: s.externalId,
+                      label: tb('sessionOption', {
+                        when: formatTimeRange(s.startsAt, s.endsAt, locale),
+                        course: s.courseName,
+                        free: s.free,
+                      }),
+                    }))}
+                  />
+                )}
                 {bookings.length === 0 ? (
                   <EmptyState variant="inline" title={t('noBookings')} />
                 ) : (
@@ -172,6 +202,7 @@ export default async function EmployeePage({ params }: Props) {
                             sessionExternalId={b.sessionExternalId}
                             employeeExternalId={employee.externalId}
                             label={t('cancelBooking', { course: b.courseName })}
+                            confirmTitle={t('cancelBookingConfirm', { course: b.courseName })}
                           />
                         )}
                       </ItemListRow>
@@ -242,6 +273,7 @@ export default async function EmployeePage({ params }: Props) {
         <CompletionHistoryTable
           completions={employee.completions}
           showNotes={isVisible(getPolicy(), 'completion.note', user.role)}
+          editFor={canEdit ? employee.externalId : undefined}
         />
       )}
     </>

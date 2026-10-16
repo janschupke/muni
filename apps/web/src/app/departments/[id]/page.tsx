@@ -1,4 +1,5 @@
 import { getDepartment } from '@muni/db/repositories'
+import { canWrite } from '@muni/domain/enums'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem } from '@muni/ui/description-list'
 import { SplitLayout } from '@muni/ui/layout'
@@ -11,6 +12,7 @@ import { cache } from 'react'
 
 import { PersonLink } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
+import { RecordActions } from '@/components/record-actions'
 import { GroupBreakdown } from '@/features/org/group-breakdown'
 import { GroupFacts } from '@/features/org/group-facts'
 import { GroupCourses, GroupPeople } from '@/features/org/group-sections'
@@ -32,13 +34,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function DepartmentPage({ params }: Props) {
   const { id } = await params
-  const [department, t] = await Promise.all([loadDepartment(id), getTranslations('departments')])
+  const [department, t, user] = await Promise.all([
+    loadDepartment(id),
+    getTranslations('departments'),
+    requireReader(),
+  ])
   if (!department) notFound()
   return (
     <>
       <PageHeader
         eyebrow={<BackLink fallback={{ href: '/departments', label: t('title') }} />}
         title={department.name}
+        actions={
+          canWrite(user.role) && (
+            <RecordActions
+              kind="department"
+              id={department.id}
+              name={department.name}
+              editHref={`/departments/${department.id}/edit`}
+              then="/departments"
+            />
+          )
+        }
       />
       <SplitLayout
         side={

@@ -1,0 +1,71 @@
+'use client'
+
+import { Alert } from '@muni/ui/alert'
+import { Button } from '@muni/ui/button'
+import { Field } from '@muni/ui/field'
+import { Select } from '@muni/ui/select'
+import { UserPlus } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { useActionState, useState } from 'react'
+
+import { addBookingAction, type BookingState } from '@/server/actions/assignments'
+
+const IDLE: BookingState = { status: 'idle' }
+
+/**
+ * Books by hand: on a session's page, a person; on a person's page, a session. The server
+ * checks every rule (seats, status, clashes) and says why when it refuses.
+ */
+export function AddBookingForm({
+  fixed,
+  field,
+  label,
+  options,
+}: {
+  fixed: { sessionExternalId: string } | { employeeExternalId: string }
+  /** What the form chooses. */
+  field: 'employeeExternalId' | 'sessionExternalId'
+  label: string
+  options: { value: string; label: string }[]
+}) {
+  const t = useTranslations()
+  // A booked choice leaves the list; the select starts over.
+  const [round, setRound] = useState(0)
+  const [state, formAction, pending] = useActionState(
+    async (previous: BookingState, form: FormData) => {
+      const next = await addBookingAction(fixed, previous, form)
+      if (next.status === 'done') setRound(r => r + 1)
+      return next
+    },
+    IDLE
+  )
+  if (options.length === 0) return <p className="text-sm text-fg-muted">{t('bookings.noneLeft')}</p>
+  return (
+    <form action={formAction} className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label={label} className="min-w-0 flex-1">
+          {control => (
+            <Select
+              key={round}
+              {...control}
+              name={field}
+              options={options}
+              placeholder={t('common.choose')}
+            />
+          )}
+        </Field>
+        <Button type="submit" variant="primary" disabled={pending}>
+          <UserPlus aria-hidden />
+          {t('bookings.add')}
+        </Button>
+      </div>
+      {state.status === 'refused' && (
+        <Alert tone="danger">
+          {state.reason === 'invalid'
+            ? t('bookings.choose')
+            : t('bookings.refused', { reason: t(`advisor.outcome.reasons.${state.reason}`) })}
+        </Alert>
+      )}
+    </form>
+  )
+}

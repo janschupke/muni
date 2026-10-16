@@ -21,7 +21,10 @@
     "choose": "Vyberte…",
     "pagination": "Stránkování",
     "close": "Zavřít",
-    "skipToContent": "Přeskočit na obsah"
+    "skipToContent": "Přeskočit na obsah",
+    "editLabel": "Upravit {name}",
+    "actions": "Akce",
+    "remove": "Odebrat"
   },
   "nav": {
     "primary": "Hlavní navigace",
@@ -182,7 +185,8 @@
         "description": "{count, plural, one {# přímý podřízený, který neodešel} few {# přímí podřízení, kteří neodešli} other {# přímých podřízených, kteří neodešli}}",
         "inList": "Všichni přímí podřízení v seznamu",
         "heldOf": "Splněno {held} z {total}"
-      }
+      },
+      "cancelBookingConfirm": "Zrušit rezervaci na {course}?"
     },
     "validOf": "{valid} z {total}",
     "panel": {
@@ -194,7 +198,8 @@
       "validUntil": "Platí do",
       "completedOn": "Naposledy absolvováno",
       "booked": "Přihlášený termín"
-    }
+    },
+    "new": "Nový zaměstnanec"
   },
   "courses": {
     "title": "Kurzy",
@@ -236,7 +241,8 @@
       "byDepartment": "Plnění podle útvarů",
       "noDepartments": "Nikdo aktivní ho nemusí mít.",
       "departmentTitle": "{department}: splněno {held} z {total}"
-    }
+    },
+    "new": "Nový kurz"
   },
   "sessions": {
     "title": "Termíny",
@@ -246,7 +252,6 @@
     "columns": {
       "course": "Kurz",
       "date": "Datum",
-      "time": "Čas",
       "location": "Místo",
       "capacity": "Obsazeno",
       "price": "Cena za osobu",
@@ -276,7 +281,9 @@
       "price": "Cena za osobu",
       "seats": "Místa"
     },
-    "nearlyFull": "Téměř plno"
+    "nearlyFull": "Téměř plno",
+    "newTitle": "Nový termín",
+    "new": "Nový termín"
   },
   "compliance": {
     "title": "Matice plnění",
@@ -324,7 +331,7 @@
       "before_completed": "Platnost nemůže skončit před datem absolvování.",
       "not_found": "Záznam už neexistuje.",
       "generic": "Uložení se nepovedlo. Zkuste to znovu.",
-      "taken": "Tento název už se používá.",
+      "taken": "Tuto hodnotu už používá jiný záznam.",
       "duplicate": "Každá hodnota smí být uvedena jen jednou.",
       "room_busy": "V tu dobu místnost využívá jiný plánovaný termín.",
       "room_online_not_allowed": "Tento kurz se online nekoná.",
@@ -332,7 +339,11 @@
       "room_missing_capabilities": "Místnosti chybí vybavení, které kurz potřebuje.",
       "company_id": "Zadejte osmimístné IČO; u tohoto nesedí kontrolní číslice.",
       "room_archived": "Místnost je archivovaná.",
-      "course_archived": "Kurz je archivovaný."
+      "course_archived": "Kurz je archivovaný.",
+      "unavailable": "Tato volba už není k dispozici; vyberte znovu.",
+      "manager_cycle": "Tento člověk je jim podřízený (přímo nebo přes další); vyberte někoho jiného.",
+      "own_role": "Vlastní roli změnit nemůžete.",
+      "last_admin": "Je to poslední správce; nejdřív udělejte správcem někoho jiného."
     },
     "course": {
       "title": "Upravit kurz {code}",
@@ -344,7 +355,15 @@
       "sessionMinutes": "Délka termínu (minuty)",
       "groupSize": "Velikost skupiny",
       "onlineAllowed": "Lze konat online",
-      "capabilities": "Místnost musí mít"
+      "capabilities": "Místnost musí mít",
+      "newTitle": "Nový kurz",
+      "code": "Kód",
+      "codeHelp": "Velká písmena, číslice a pomlčky, například POZAR-1. Později jej nelze změnit.",
+      "audience": "Kdo jej musí mít",
+      "audienceHelp": "Když není nic zaškrtnuto, kurz je nepovinný. Import katalogu toto nastaví znovu podle katalogu.",
+      "requiredForAll": "Všichni",
+      "departments": "Útvary",
+      "positions": "Pozice"
     },
     "session": {
       "date": "Datum",
@@ -355,7 +374,8 @@
       "status": "Stav",
       "unnamedBookings": "Další obsazená místa (bez jména)",
       "unnamedHelp": "{count, plural, =0 {Nikdo není přihlášen jménem.} one {A # osoba přihlášená jménem.} few {A # osoby přihlášené jménem.} other {A # osob přihlášených jménem.}}",
-      "room": "Místnost"
+      "room": "Místnost",
+      "course": "Kurz"
     },
     "employee": {
       "title": "Upravit: {name}",
@@ -367,7 +387,14 @@
       "hiredOn": "Nástup",
       "leftOn": "Ukončení",
       "status": "Pracovní poměr",
-      "note": "Poznámka"
+      "note": "Poznámka",
+      "newTitle": "Nový zaměstnanec",
+      "newHelp": "Lidé přidaní zde dostanou ID začínající N, které import nikdy nepřepíše.",
+      "nationalId": "Rodné číslo",
+      "nationalIdHelp": "Nepovinné; vidí je jen role, které k tomu mají oprávnění.",
+      "place": "Kde pracuje",
+      "manager": "Vedoucí",
+      "employment": "Pracovní poměr"
     },
     "completion": {
       "title": "Zapsat absolvování: {name}",
@@ -377,7 +404,25 @@
       "validUntilHelp": "Nechte prázdné a dopočítá se z platnosti kurzu.",
       "provider": "Poskytovatel",
       "price": "Cena ({currency})",
-      "note": "Poznámka"
+      "note": "Poznámka",
+      "editTitle": "Upravit absolvování {id} – {name}",
+      "importedHint": "Tento záznam pochází z importu, takže další import stejného souboru změny provedené zde přepíše."
+    },
+    "fixBelow": "Některá pole je třeba upravit; u každého je níže uvedeno proč.",
+    "picker": {
+      "chooseDate": "Vybrat {field} v kalendáři",
+      "chooseTime": "Vybrat {field} ze seznamu",
+      "previousMonth": "Předchozí měsíc",
+      "nextMonth": "Další měsíc",
+      "previousYear": "Předchozí rok",
+      "nextYear": "Další rok",
+      "today": "Dnes",
+      "clear": "Vymazat",
+      "hours": "Hodiny",
+      "minutes": "Minuty"
+    },
+    "group": {
+      "name": "Název"
     }
   },
   "import": {
@@ -675,7 +720,8 @@
       "rows": "Každý řádek je jedno školení v nesouladu nebo před propadnutím, které už má přihlášku jménem. Termín, který skončí po propadnutí, nechá mezeru.",
       "remove": "Zrušit přihlášku {name} na {session}",
       "empty": "Zatím není nic zarezervováno.",
-      "cancel": "Zrušit přihlášku"
+      "cancel": "Zrušit přihlášku",
+      "removeConfirm": "Zrušit rezervaci {name} na {session}?"
     },
     "table": {
       "pagination": "Stránky",
@@ -891,7 +937,10 @@
       "noPositions": "Nikdo tu nemá pozici.",
       "noCourses": "Tento útvar nemá žádná povinná školení.",
       "inList": "Otevřít v seznamu zaměstnanců"
-    }
+    },
+    "newTitle": "Nový útvar",
+    "editTitle": "Přejmenovat {name}",
+    "new": "Nový útvar"
   },
   "positions": {
     "title": "Pozice",
@@ -908,7 +957,10 @@
       "noDepartments": "Nikdo s touto pozicí nepatří do útvaru.",
       "noCourses": "Tato pozice nemá žádná povinná školení.",
       "inList": "Otevřít v seznamu zaměstnanců"
-    }
+    },
+    "newTitle": "Nová pozice",
+    "editTitle": "Přejmenovat {name}",
+    "new": "Nová pozice"
   },
   "planner": {
     "title": "Plánovač termínů",
@@ -1007,12 +1059,22 @@
   },
   "users": {
     "title": "Uživatelé",
-    "description": "Všichni, kdo se přihlásili, a jejich role. Role se přidělují v administraci Clerk (veřejná metadata \"role\": viewer, full nebo admin) a platí do pěti minut nebo od příštího přihlášení.",
+    "description": "Všichni, kdo se přihlásili, a jejich role. Otevřením uživatele můžete změnit roli (ukládá se v Clerku a platí do pěti minut nebo od příštího přihlášení) nebo jej archivovat, čímž jeho přístup skončí.",
     "columns": {
       "name": "Jméno",
       "email": "E-mail",
       "role": "Role",
       "lastSignInAt": "Poslední přihlášení"
+    },
+    "detail": {
+      "facts": "Účet",
+      "role": "Role",
+      "roleHelp": "Čtenáři vidí osobní údaje skryté, plný přístup vidí celé záznamy, správci navíc upravují, rezervují a importují. Role je uložena v Clerku.",
+      "saveRole": "Změnit roli",
+      "lastSignIn": "Poslední přihlášení",
+      "since": "Přístup od",
+      "bookingsMade": "Vytvořené rezervace",
+      "email": "E-mail"
     }
   },
   "archive": {
@@ -1123,5 +1185,15 @@
       "archivedAt": "Archivováno",
       "archivedBy": "Archivoval(a)"
     }
+  },
+  "bookings": {
+    "add": "Rezervovat",
+    "choose": "Nejdřív vyberte, koho nebo co rezervovat.",
+    "noneLeft": "Tady už není co rezervovat.",
+    "refused": "Nerezervováno: {reason}.",
+    "person": "Přidat člověka",
+    "session": "Rezervovat termín",
+    "sessionOption": "{when} · {course} ({free, plural, one {volné # místo} few {volná # místa} other {volných # míst}})",
+    "removeConfirm": "Odebrat {name} z tohoto termínu?"
   }
 }

@@ -59,7 +59,11 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Se
       <PageHeader
         title={t('title')}
         description={t('description')}
-        actions={canWrite(user.role) && <ListActions kind="employee" />}
+        actions={
+          canWrite(user.role) && (
+            <ListActions kind="employee" create={{ href: '/employees/new', label: t('new') }} />
+          )
+        }
       />
       {filters.manager && (
         <Alert tone="info" variant="inline" className="mb-3">
@@ -81,7 +85,12 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Se
       {result.items.length === 0 ? (
         <EmptyState title={t('empty')} />
       ) : (
-        <EmployeesTable items={result.items} query={query} sort={sort} />
+        <EmployeesTable
+          items={result.items}
+          query={query}
+          sort={sort}
+          canEdit={canWrite(user.role)}
+        />
       )}
 
       <Pagination

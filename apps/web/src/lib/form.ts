@@ -21,6 +21,10 @@ export type FieldErrorKey =
   | 'room_archived'
   | 'course_archived'
   | 'company_id'
+  | 'unavailable'
+  | 'manager_cycle'
+  | 'own_role'
+  | 'last_admin'
 
 /** What can go wrong with the whole form: i18n keys under forms.errors. */
 export type FormErrorKey = 'not_found' | 'generic'

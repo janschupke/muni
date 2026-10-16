@@ -8,6 +8,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { PersonLink, personText, RecordLink } from './archived'
+import { RowActions } from './record-actions'
 
 type EmployeeCompletion = EmployeeDetail['completions'][number]
 type CourseCompletion = CourseDetail['recentCompletions'][number]
@@ -16,13 +17,18 @@ type CourseCompletion = CourseDetail['recentCompletions'][number]
 
 const history = createDataColumns<EmployeeCompletion>()
 
-/** An employee's completions, newest first; notes only for signed-in viewers. */
+/**
+ * An employee's completions, newest first; notes only for roles that may see them. With
+ * `editFor` (the person's ID, for admins) each row gets a pencil and archive.
+ */
 export function CompletionHistoryTable({
   completions,
   showNotes,
+  editFor,
 }: {
   completions: EmployeeCompletion[]
   showNotes: boolean
+  editFor?: string | undefined
 }) {
   const t = useTranslations()
   const locale = useLocale()
@@ -96,8 +102,25 @@ export function CompletionHistoryTable({
               }),
             ]
           : []),
+        ...(editFor
+          ? [
+              history.display({
+                id: 'actions',
+                header: () => <span className="sr-only">{t('common.actions')}</span>,
+                meta: { headerClassName: 'w-0', align: 'right' },
+                cell: ({ row }) => (
+                  <RowActions
+                    kind="completion"
+                    id={row.original.id}
+                    name={`${row.original.courseName} (${row.original.externalId})`}
+                    editHref={`/employees/${editFor}/completions/${row.original.id}/edit`}
+                  />
+                ),
+              }),
+            ]
+          : []),
       ]),
-    [locale, showNotes, t]
+    [editFor, locale, showNotes, t]
   )
 
   return <DataTable columns={columns} data={completions} getRowId={c => c.externalId} />

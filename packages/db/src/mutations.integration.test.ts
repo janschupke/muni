@@ -106,6 +106,9 @@ describe('lookups and edit loaders', () => {
       code: 'BOZP-Z',
       name: 'BOZP – základní školení',
       validityMonths: 24,
+      requiredForAll: true,
+      departmentIds: [],
+      positionIds: [],
       sessionMinutes: 180,
       groupSize: 30,
       onlineAllowed: false,
@@ -132,6 +135,14 @@ describe('lookups and edit loaders', () => {
   })
 })
 
+/** A course's current audience, so an edit of something else leaves it as it is. */
+async function audienceOf(code: string) {
+  const course = await getCourseForEdit(code, options)
+  if (!course) throw new Error(`fixture: ${code} missing`)
+  const { requiredForAll, departmentIds, positionIds } = course
+  return { requiredForAll, departmentIds, positionIds }
+}
+
 describe('edits', () => {
   it('renames a course and sets what its sessions need', async () => {
     const needs = {
@@ -140,11 +151,13 @@ describe('edits', () => {
       onlineAllowed: true,
       capabilities: ['PROJECTOR', 'VIDEO_CONFERENCE'] as const,
     }
+    const audience = await audienceOf('ANGL')
     await updateCourse(
       'ANGL',
       {
         name: 'Angličtina pro pokročilé',
         validityMonths: 12,
+        ...audience,
         ...needs,
         capabilities: [...needs.capabilities],
       },
@@ -154,36 +167,48 @@ describe('edits', () => {
       code: 'ANGL',
       name: 'Angličtina pro pokročilé',
       validityMonths: 12,
+      requiredForAll: false,
+      departmentIds: [],
+      positionIds: [],
       ...needs,
       capabilities: ['PROJECTOR', 'VIDEO_CONFERENCE'],
     })
     // Setting it again replaces the list.
     await updateCourse(
       'ANGL',
-      { name: 'Angličtina pro pokročilé', validityMonths: 12, ...needs, capabilities: [] },
+      {
+        name: 'Angličtina pro pokročilé',
+        validityMonths: 12,
+        ...audience,
+        ...needs,
+        capabilities: [],
+      },
       options
     )
     expect((await getCourseForEdit('ANGL', options))?.capabilities).toEqual([])
     expect(await getCourseForEdit('NOPE', options)).toBeNull()
   })
 
-  it('edits a person, creating a new department and clearing the position', async () => {
+  it('edits a person: department, no position, leaving date, note', async () => {
     const before = await getEmployeeForEdit('E0153', options)
     if (!before) throw new Error('fixture: E0153 missing')
-    await updateEmployee(
-      'E0153',
-      {
-        ...before,
-        department: CREATED.department,
-        position: null,
-        leftOn: '2026-12-31',
-        note: '  odchází  ',
-      },
-      options
-    )
+    const department = await db.department.create({ data: { name: CREATED.department } })
+    expect(
+      await updateEmployee(
+        'E0153',
+        {
+          ...before,
+          departmentId: department.id,
+          positionId: null,
+          leftOn: '2026-12-31',
+          note: '  odchází  ',
+        },
+        options
+      )
+    ).toEqual({ ok: true, externalId: 'E0153' })
     expect(await getEmployeeForEdit('E0153', options)).toMatchObject({
-      department: CREATED.department,
-      position: null,
+      departmentId: department.id,
+      positionId: null,
       leftOn: '2026-12-31',
       note: 'odchází',
     })
@@ -193,9 +218,10 @@ describe('edits', () => {
   it('sets a position and clears the leaving date', async () => {
     const before = await getEmployeeForEdit('E0153', options)
     if (!before) throw new Error('fixture: E0153 missing')
-    await updateEmployee('E0153', { ...before, position: CREATED.position, leftOn: null }, options)
+    const position = await db.position.create({ data: { name: CREATED.position } })
+    await updateEmployee('E0153', { ...before, positionId: position.id, leftOn: null }, options)
     expect(await getEmployeeForEdit('E0153', options)).toMatchObject({
-      position: CREATED.position,
+      positionId: position.id,
       leftOn: null,
     })
   })
@@ -360,6 +386,7 @@ describe('rooms', () => {
     await updateCourse(
       'LAB-BEZ',
       {
+        ...(await audienceOf('LAB-BEZ')),
         name: 'Bezpečná práce v laboratoři',
         validityMonths: 12,
         sessionMinutes: 240,
@@ -515,6 +542,7 @@ describe('rooms', () => {
     await updateCourse(
       'POZ-OCH',
       {
+        ...(await audienceOf('POZ-OCH')),
         name: 'Požární ochrana',
         validityMonths: 24,
         sessionMinutes: 90,

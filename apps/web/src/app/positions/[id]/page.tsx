@@ -1,4 +1,5 @@
 import { getPosition } from '@muni/db/repositories'
+import { canWrite } from '@muni/domain/enums'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { SplitLayout } from '@muni/ui/layout'
 import { PageHeader } from '@muni/ui/page-header'
@@ -8,6 +9,7 @@ import { getTranslations } from 'next-intl/server'
 import { cache } from 'react'
 
 import { BackLink } from '@/components/back-link'
+import { RecordActions } from '@/components/record-actions'
 import { GroupBreakdown } from '@/features/org/group-breakdown'
 import { GroupFacts } from '@/features/org/group-facts'
 import { GroupCourses, GroupPeople } from '@/features/org/group-sections'
@@ -29,13 +31,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PositionPage({ params }: Props) {
   const { id } = await params
-  const [position, t] = await Promise.all([loadPosition(id), getTranslations('positions')])
+  const [position, t, user] = await Promise.all([
+    loadPosition(id),
+    getTranslations('positions'),
+    requireReader(),
+  ])
   if (!position) notFound()
   return (
     <>
       <PageHeader
         eyebrow={<BackLink fallback={{ href: '/positions', label: t('title') }} />}
         title={position.name}
+        actions={
+          canWrite(user.role) && (
+            <RecordActions
+              kind="position"
+              id={position.id}
+              name={position.name}
+              editHref={`/positions/${position.id}/edit`}
+              then="/positions"
+            />
+          )
+        }
       />
       <SplitLayout
         side={

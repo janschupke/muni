@@ -31,6 +31,19 @@ export const APP_PAGES: readonly AppPage[] = [
   { name: 'advisor-planned', path: '/advisor?view=planned' },
   { name: 'advisor-overbooked', path: '/advisor?view=overbooked' },
   { name: 'users', path: '/users' },
+  { name: 'user', via: '/users', prefix: '/users/' },
+  // Forms (admins): the heading row's actions, the date and time fields.
+  { name: 'course-new', path: '/courses/new' },
+  { name: 'course-edit', path: '/courses/BOZP-Z/edit' },
+  { name: 'session-new', path: '/sessions/new' },
+  { name: 'session-edit', path: '/sessions/T016/edit' },
+  { name: 'employee-new', path: '/employees/new' },
+  { name: 'employee-edit', path: '/employees/E0153/edit' },
+  { name: 'completion-new', path: '/employees/E0153/completions/new' },
+  { name: 'department-new', path: '/departments/new' },
+  // Archived records (admins).
+  { name: 'employees-archived', path: '/employees/archived' },
+  { name: 'rooms-archived', path: '/rooms/archived' },
   { name: 'not-found', path: '/no-such-page', status: 404 },
 ]
 
@@ -42,7 +55,8 @@ export async function pathOf(
   if ('path' in page) return page.path
   const html = await fetchHtml(page.via)
   const escaped = page.prefix.replace(/[/.]/g, '\\$&')
-  const match = new RegExp(`href="(${escaped}[^"/?]+)"`).exec(html)
+  // A record, not the list's own "new" and "archived" pages an admin sees first.
+  const match = new RegExp(`href="(${escaped}(?!new"|archived")[^"/?]+)"`).exec(html)
   if (!match?.[1]) throw new Error(`No ${page.prefix} link on ${page.via}`)
   return match[1]
 }

@@ -18,6 +18,7 @@ function employee(
   extra: Partial<EmployeeListItem> = {}
 ): EmployeeListItem {
   return {
+    id: `id_${externalId}`,
     externalId,
     lastName,
     firstName,

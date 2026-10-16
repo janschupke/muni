@@ -10,7 +10,7 @@ import { SplitLayout } from '@muni/ui/layout'
 import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { formatInteger, formatPercent, PLACEHOLDER } from '@muni/utils/format'
-import { CalendarPlus, Pencil } from 'lucide-react'
+import { CalendarPlus } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -20,6 +20,7 @@ import { cache } from 'react'
 import { BackLink } from '@/components/back-link'
 import { RecentCompletionsTable } from '@/components/completion-tables'
 import { ComplianceBar, ComplianceLegend } from '@/components/compliance-breakdown'
+import { RecordActions } from '@/components/record-actions'
 import { RequirementList } from '@/components/requirement-list'
 import { SessionTable } from '@/components/session-table'
 import { requireReader } from '@/server/auth'
@@ -60,20 +61,20 @@ export default async function CoursePage({ params }: Props) {
         }`}
         actions={
           canEdit && (
-            <>
+            <RecordActions
+              kind="course"
+              id={course.id}
+              name={course.name}
+              editHref={`/courses/${course.code}/edit`}
+              then="/courses"
+            >
               <Button asChild variant="primary">
                 <Link href={`/courses/${course.code}/sessions/new`}>
                   <CalendarPlus aria-hidden />
                   {t('newSession')}
                 </Link>
               </Button>
-              <Button asChild>
-                <Link href={`/courses/${course.code}/edit`}>
-                  <Pencil aria-hidden />
-                  {tc('edit')}
-                </Link>
-              </Button>
-            </>
+            </RecordActions>
           )
         }
       />

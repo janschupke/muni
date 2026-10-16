@@ -37,6 +37,7 @@ export const counts = (c: Partial<ComplianceCounts> = {}): ComplianceCounts => {
 }
 
 export const session = (over: Partial<SessionListItem> = {}): SessionListItem => ({
+  id: `ses_${over.externalId ?? 'T016'}`,
   externalId: 'T016',
   courseCode: 'BOZP-Z',
   courseName: 'BOZP – základní školení',
@@ -54,6 +55,7 @@ export const session = (over: Partial<SessionListItem> = {}): SessionListItem =>
 })
 
 export const employeeRow = (over: Partial<EmployeeListItem> = {}): EmployeeListItem => ({
+  id: `emp_${over.externalId ?? 'E0153'}`,
   externalId: 'E0153',
   firstName: 'Marie',
   lastName: 'Černá',
@@ -109,6 +111,7 @@ export const employeePage = (
 })
 
 export const employeeDetail = (over: Partial<EmployeeDetail> = {}): EmployeeDetail => ({
+  id: 'emp_E0153',
   externalId: 'E0153',
   firstName: 'Marie',
   lastName: 'Černá',
@@ -142,6 +145,7 @@ export const employeeDetail = (over: Partial<EmployeeDetail> = {}): EmployeeDeta
   completionRate: 0.5,
   completions: [
     {
+      id: 'cmp_Z000101',
       externalId: 'Z000101',
       courseCode: 'GDPR',
       courseName: 'Ochrana osobních údajů',
@@ -166,6 +170,7 @@ export const booking = (over: Partial<EmployeeBooking> = {}): EmployeeBooking =>
 })
 
 export const courseRow = (over: Partial<CourseListItem> = {}): CourseListItem => ({
+  id: `crs_${over.code ?? 'BOZP-Z'}`,
   code: 'BOZP-Z',
   name: 'BOZP – základní školení',
   validityMonths: 24,
@@ -394,6 +399,9 @@ export const courseForEdit = (over: Partial<CourseForEdit> = {}): CourseForEdit 
   code: 'BOZP-Z',
   name: 'BOZP – základní školení',
   validityMonths: 24,
+  requiredForAll: true,
+  departmentIds: [],
+  positionIds: [],
   sessionMinutes: 180,
   groupSize: 30,
   onlineAllowed: false,

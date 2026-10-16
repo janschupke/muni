@@ -8,17 +8,23 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { RowActions } from '@/components/record-actions'
+
 const col = createDataColumns<ProviderListItem>()
 
 /** Every provider with what was completed with it; spend only for viewers who see prices. */
 export function ProvidersTable({
   providers,
   prices,
+  canEdit = false,
 }: {
   providers: ProviderListItem[]
   prices: boolean
+  /** Admins get a pencil and archive on each row. */
+  canEdit?: boolean | undefined
 }) {
   const t = useTranslations('providers.columns')
+  const tcommon = useTranslations('common')
   const locale = useLocale()
   const columns = useMemo(
     () =>
@@ -78,8 +84,25 @@ export function ProvidersTable({
             return value === undefined ? PLACEHOLDER : formatDate(value, locale)
           },
         }),
+        ...(canEdit
+          ? [
+              col.display({
+                id: 'actions',
+                header: () => <span className="sr-only">{tcommon('actions')}</span>,
+                meta: { headerClassName: 'w-0', align: 'right' },
+                cell: ({ row }) => (
+                  <RowActions
+                    kind="provider"
+                    id={row.original.id}
+                    name={row.original.name}
+                    editHref={`/providers/${row.original.id}/edit`}
+                  />
+                ),
+              }),
+            ]
+          : []),
       ]),
-    [locale, prices, t]
+    [canEdit, locale, prices, t, tcommon]
   )
   return <DataTable columns={columns} data={providers} getRowId={p => p.id} />
 }

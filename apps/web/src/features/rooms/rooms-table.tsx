@@ -11,12 +11,21 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { RowActions } from '@/components/record-actions'
 import { CapabilityList, RoomKindBadge } from '@/components/room-badges'
 
 const col = createDataColumns<RoomListItem>()
 
-export function RoomsTable({ rooms }: { rooms: RoomListItem[] }) {
+export function RoomsTable({
+  rooms,
+  canEdit = false,
+}: {
+  rooms: RoomListItem[]
+  /** Admins get a pencil and archive on each row. */
+  canEdit?: boolean | undefined
+}) {
   const t = useTranslations('rooms')
+  const tcommon = useTranslations('common')
   const tk = useTranslations('status.roomKind')
   const locale = useLocale()
   const columns = useMemo(
@@ -85,8 +94,25 @@ export function RoomsTable({ rooms }: { rooms: RoomListItem[] }) {
             )
           },
         }),
+        ...(canEdit
+          ? [
+              col.display({
+                id: 'actions',
+                header: () => <span className="sr-only">{tcommon('actions')}</span>,
+                meta: { headerClassName: 'w-0', align: 'right' },
+                cell: ({ row }) => (
+                  <RowActions
+                    kind="room"
+                    id={row.original.id}
+                    name={row.original.name}
+                    editHref={`/rooms/${row.original.id}/edit`}
+                  />
+                ),
+              }),
+            ]
+          : []),
       ]),
-    [locale, t, tk]
+    [canEdit, locale, t, tk, tcommon]
   )
   return <DataTable columns={columns} data={rooms} getRowId={r => r.id} />
 }
