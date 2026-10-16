@@ -11,7 +11,7 @@
     "./reference": "./src/reference.ts"
   },
   "scripts": {
-    "generate": "prisma generate",
+    "generate": "prisma generate --no-hints",
     "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
     "migrate:deploy": "tsx scripts/migrate-deploy.ts",
     "migrate:reset": "dotenv -e ../../.env -- prisma migrate reset",
