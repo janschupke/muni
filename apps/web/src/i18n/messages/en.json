@@ -217,7 +217,22 @@
       "validUntil": "Valid until"
     },
     "newSession": "New session",
-    "newTitle": "New session of {course}"
+    "newTitle": "New session of {course}",
+    "panel": {
+      "toggle": "Details for {name}",
+      "header": "Details",
+      "sessions": "Planned sessions",
+      "noSessions": "Nothing is planned.",
+      "needs": "A session needs",
+      "minutes": "{minutes} min",
+      "noMinutes": "Length not set",
+      "group": "Groups of {size}",
+      "noGroup": "No group size set",
+      "online": "Can be held online",
+      "byDepartment": "Compliance by department",
+      "noDepartments": "Nobody active must hold it.",
+      "departmentTitle": "{department}: {held} of {total} held"
+    }
   },
   "sessions": {
     "title": "Sessions",

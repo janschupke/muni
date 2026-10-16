@@ -363,6 +363,41 @@ describe('sessions', () => {
   })
 })
 
+describe('course list', () => {
+  it('shows each course’s planned sessions, session needs and compliance per department', async () => {
+    const [courses, matrix] = await Promise.all([
+      listCourses(options),
+      getComplianceMatrix(options),
+    ])
+    const course = (code: string) => courses.find(c => c.code === code)
+    expect(course('PRV-POM')?.byDepartment.map(d => d.name)).toEqual([
+      'Knihovna',
+      'Laboratoře',
+      'Správa budov',
+    ])
+    expect(course('LAB-BEZ')?.byDepartment.map(d => d.name)).toEqual(['Laboratoře'])
+    // The same numbers as the matrix.
+    for (const row of matrix.rows) {
+      const cell = row.cells['BOZP-Z']
+      expect(course('BOZP-Z')?.byDepartment.find(d => d.name === row.department)?.counts).toEqual(
+        cell?.counts
+      )
+    }
+    const bozp = course('BOZP-Z')
+    expect(bozp?.sessionNeeds).toEqual({
+      minutes: 180,
+      groupSize: 30,
+      onlineAllowed: false,
+      capabilities: [],
+    })
+    expect(bozp?.upcoming.length).toBe(bozp?.upcomingSessions)
+    expect(bozp?.upcoming.every(s => s.status === 'PLANNED' && s.courseCode === 'BOZP-Z')).toBe(
+      true
+    )
+    expect((await getCourse('BOZP-Z', options))?.byDepartment).toEqual(bozp?.byDepartment)
+  })
+})
+
 describe('departments and positions', () => {
   it('summarise each department, agreeing with the matrix', async () => {
     const [departments, matrix] = await Promise.all([

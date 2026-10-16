@@ -1,10 +1,15 @@
-import { complianceRate, countStatuses, type ComplianceCounts } from '@muni/domain/compliance'
-import type { SessionStatus } from '@muni/domain/enums'
+import {
+  complianceRate,
+  countStatuses,
+  type ComplianceCell,
+  type ComplianceCounts,
+} from '@muni/domain/compliance'
+import type { Capability, SessionStatus } from '@muni/domain/enums'
 import type { RoomRef } from '@muni/domain/rooms'
 import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
 import { audienceInclude, requirementViews, type RequirementView } from './audience'
-import { dbOf, loadCompliance, type RepoOptions } from './context'
+import { dbOf, loadCompliance, type ComplianceSnapshot, type RepoOptions } from './context'
 import { sessionInclude, toSessionItem } from './sessions'
 
 export type { RequirementView } from './audience'
@@ -18,39 +23,82 @@ export interface CourseListItem {
   upcomingSessions: number
   counts: ComplianceCounts
   rate: number
+  /** What one session needs (null where not set). */
+  sessionNeeds: {
+    minutes: number | null
+    groupSize: number | null
+    onlineAllowed: boolean
+    capabilities: Capability[]
+  }
+  /** Planned sessions still ahead, soonest first. */
+  upcoming: SessionListItem[]
+  /** Per department where the course applies to someone active. */
+  byDepartment: { id: string; name: string; counts: ComplianceCounts; rate: number }[]
 }
 
 export async function listCourses(options?: RepoOptions): Promise<CourseListItem[]> {
   const db = dbOf(options)
   const now = new Date()
-  const [courses, compliance] = await Promise.all([
+  const [courses, compliance, departments] = await Promise.all([
     db.course.findMany({
       include: {
         ...audienceInclude,
-        _count: {
-          select: {
-            completions: true,
-            sessions: { where: { startsAt: { gte: now }, status: 'PLANNED' } },
-          },
+        capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
+        sessions: {
+          where: { endsAt: { gte: now }, status: 'PLANNED' },
+          include: sessionInclude,
+          orderBy: { startsAt: 'asc' },
         },
+        _count: { select: { completions: true } },
       },
       orderBy: { code: 'asc' },
     }),
     loadCompliance(options),
+    db.department.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
   ])
   const cellsByCourse = Map.groupBy(compliance.cells, c => c.courseId)
   return courses.map(course => {
-    const counts = countStatuses(cellsByCourse.get(course.id) ?? [])
+    const cells = cellsByCourse.get(course.id) ?? []
+    const counts = countStatuses(cells)
     return {
       code: course.code,
       name: course.name,
       validityMonths: course.validityMonths,
       requirements: requirementViews(course),
       completionCount: course._count.completions,
-      upcomingSessions: course._count.sessions,
+      upcomingSessions: course.sessions.length,
       counts,
       rate: complianceRate(counts),
+      sessionNeeds: {
+        minutes: course.sessionMinutes,
+        groupSize: course.groupSize,
+        onlineAllowed: course.onlineAllowed,
+        capabilities: course.capabilities.map(c => c.capability),
+      },
+      upcoming: course.sessions.map(toSessionItem),
+      byDepartment: byDepartment(cells, compliance, departments),
     }
+  })
+}
+
+/** A course's cells per department, active people only; departments it does not apply to drop. */
+function byDepartment(
+  cells: ComplianceCell[],
+  compliance: ComplianceSnapshot,
+  departments: { id: string; name: string }[]
+): CourseListItem['byDepartment'] {
+  const activeDepartment = new Map(
+    compliance.employees.filter(e => e.status === 'ACTIVE').map(e => [e.id, e.departmentId])
+  )
+  const grouped = Map.groupBy(
+    cells.filter(c => activeDepartment.has(c.employeeId)),
+    c => activeDepartment.get(c.employeeId)
+  )
+  return departments.flatMap(d => {
+    const own = grouped.get(d.id)
+    if (!own) return []
+    const counts = countStatuses(own)
+    return [{ ...d, counts, rate: complianceRate(counts) }]
   })
 }
 
@@ -89,6 +137,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     where: { code },
     include: {
       ...audienceInclude,
+      capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
       sessions: { orderBy: { startsAt: 'asc' }, include: sessionInclude },
       completions: {
         orderBy: { completedOn: 'desc' },
@@ -99,8 +148,12 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     },
   })
   if (!course) return null
-  const compliance = await loadCompliance(options)
-  const counts = countStatuses(compliance.cells.filter(c => c.courseId === course.id))
+  const [compliance, departments] = await Promise.all([
+    loadCompliance(options),
+    db.department.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+  ])
+  const cells = compliance.cells.filter(c => c.courseId === course.id)
+  const counts = countStatuses(cells)
   const now = Date.now()
   return {
     code: course.code,
@@ -109,10 +162,20 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     requirements: requirementViews(course),
     completionCount: course._count.completions,
     upcomingSessions: course.sessions.filter(
-      s => s.startsAt.getTime() >= now && s.status === 'PLANNED'
+      s => s.endsAt.getTime() >= now && s.status === 'PLANNED'
     ).length,
     counts,
     rate: complianceRate(counts),
+    sessionNeeds: {
+      minutes: course.sessionMinutes,
+      groupSize: course.groupSize,
+      onlineAllowed: course.onlineAllowed,
+      capabilities: course.capabilities.map(c => c.capability),
+    },
+    upcoming: course.sessions
+      .filter(s => s.endsAt.getTime() >= now && s.status === 'PLANNED')
+      .map(toSessionItem),
+    byDepartment: byDepartment(cells, compliance, departments),
     sessions: course.sessions.map(toSessionItem),
     recentCompletions: course.completions.map(c => ({
       externalId: c.externalId,

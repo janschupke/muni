@@ -11,6 +11,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { ComplianceBar } from './compliance-breakdown'
+import { CoursePanel } from './course-panel'
 import { RequirementList } from './requirement-list'
 
 const col = createDataColumns<CourseListItem>()
@@ -87,5 +88,14 @@ export function CoursesTable({ courses }: { courses: CourseListItem[] }) {
     [locale, t, tc]
   )
 
-  return <DataTable columns={columns} data={courses} getRowId={c => c.code} />
+  return (
+    <DataTable
+      columns={columns}
+      data={courses}
+      getRowId={c => c.code}
+      renderExpanded={c => <CoursePanel course={c} />}
+      expandLabel={c => t('panel.toggle', { name: c.name })}
+      expandHeader={t('panel.header')}
+    />
+  )
 }

@@ -86,6 +86,42 @@ describe('course list', () => {
     expect(names[1]).toContain('Anglický jazyk')
   })
 
+  it('opens a course to its sessions, what a session needs, and each department', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listCourses).mockResolvedValue([
+      courseRow(),
+      courseRow({
+        code: 'ANGL',
+        name: 'Anglický jazyk – kurz',
+        upcoming: [],
+        byDepartment: [],
+        sessionNeeds: { minutes: null, groupSize: null, onlineAllowed: true, capabilities: [] },
+      }),
+    ])
+    await renderServer(CoursesPage())
+    await user.click(screen.getByRole('button', { name: 'Details for BOZP – základní školení' }))
+    const sessions = screen.getByRole('group', { name: 'Planned sessions' })
+    expect(within(sessions).getByRole('link', { name: 'Online' }).getAttribute('href')).toBe(
+      '/rooms/room_online'
+    )
+    expect(within(sessions).getByText('Full')).toBeTruthy()
+    const needs = screen.getByRole('group', { name: 'A session needs' })
+    expect(within(needs).getByText('180 min · Groups of 30')).toBeTruthy()
+    expect(within(needs).getByText('Projector')).toBeTruthy()
+    const departments = screen.getByRole('group', { name: 'Compliance by department' })
+    expect(within(departments).getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
+      '/departments/dep_lab'
+    )
+    expect(within(departments).getByText('70%').className).toContain('bg-heat-low')
+    expect(within(departments).getByText('100%').className).toContain('bg-heat-full')
+
+    await user.click(screen.getByRole('button', { name: 'Details for Anglický jazyk – kurz' }))
+    expect(screen.getByText('Nothing is planned.')).toBeTruthy()
+    expect(screen.getByText('Length not set · No group size set · Can be held online')).toBeTruthy()
+    expect(screen.getByText('Nobody active must hold it.')).toBeTruthy()
+    await expectNoAxeViolations()
+  })
+
   it('points to the import when the catalogue is empty', async () => {
     vi.mocked(listCourses).mockResolvedValue([])
     await renderServer(CoursesPage())
@@ -203,14 +239,17 @@ describe('new session', () => {
 
 describe('compliance matrix', () => {
   it('prints every percentage, and says where a course does not apply', async () => {
+    const user = userEvent.setup()
     expect(await complianceMetadata()).toEqual({ title: 'Compliance matrix' })
     await renderServer(CompliancePage())
     expect(screen.getByText(/Share of required trainings held.*Oct 16, 2026/)).toBeTruthy()
     const lab = screen.getByRole('row', { name: /^Laboratoře/ })
     expect(within(lab).getByText('67%')).toBeTruthy()
-    expect(
-      within(lab).getByTitle('Laboratoře, Bezpečná práce v laboratoři: 0 of 2 held')
-    ).toBeTruthy()
+    // A cell says what it counts on hover.
+    await user.hover(within(lab).getByText('0%'))
+    expect((await screen.findByRole('tooltip')).textContent).toBe(
+      'Laboratoře, Bezpečná práce v laboratoři: 0 of 2 held'
+    )
     const library = screen.getByRole('row', { name: /^Knihovna/ })
     expect(within(library).getByText('Not required')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'LAB-BEZ' }).getAttribute('href')).toBe(

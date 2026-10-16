@@ -217,7 +217,22 @@
       "validUntil": "Platí do"
     },
     "newSession": "Nový termín",
-    "newTitle": "Nový termín kurzu {course}"
+    "newTitle": "Nový termín kurzu {course}",
+    "panel": {
+      "toggle": "Podrobnosti: {name}",
+      "header": "Podrobnosti",
+      "sessions": "Naplánované termíny",
+      "noSessions": "Nic není naplánováno.",
+      "needs": "Termín potřebuje",
+      "minutes": "{minutes} min",
+      "noMinutes": "Délka nenastavena",
+      "group": "Skupiny po {size}",
+      "noGroup": "Velikost skupiny nenastavena",
+      "online": "Lze konat online",
+      "byDepartment": "Plnění podle útvarů",
+      "noDepartments": "Nikdo aktivní ho nemusí mít.",
+      "departmentTitle": "{department}: splněno {held} z {total}"
+    }
   },
   "sessions": {
     "title": "Termíny",
@@ -812,7 +827,7 @@
     },
     "bucket": {
       "now": "Propadlé teď",
-      "month": "Propadá v {month}"
+      "month": "Propadá: {month}"
     },
     "late": "Po termínu splnění",
     "alternatives": "{count, plural, one {nebo # další místnost} few {nebo # další místnosti} other {nebo # dalších místností}}",

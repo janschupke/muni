@@ -170,6 +170,20 @@ export const courseRow = (over: Partial<CourseListItem> = {}): CourseListItem =>
   upcomingSessions: 2,
   counts: counts(),
   rate: 0.7,
+  sessionNeeds: { minutes: 180, groupSize: 30, onlineAllowed: false, capabilities: ['PROJECTOR'] },
+  upcoming: [
+    session(),
+    session({ externalId: 'T020', room: ONLINE, bookedCount: 12, capacity: 100 }),
+  ],
+  byDepartment: [
+    { id: 'dep_lab', name: 'Laboratoře', counts: counts(), rate: 0.7 },
+    {
+      id: 'dep_lib',
+      name: 'Knihovna',
+      counts: counts({ VALID: 8, EXPIRING: 0, EXPIRED: 0, MISSING: 0 }),
+      rate: 1,
+    },
+  ],
   ...over,
 })
 
