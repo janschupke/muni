@@ -1,0 +1,49 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "globalDependencies": [
+    "pnpm-lock.yaml",
+    "tsconfig.base.json",
+    "tsconfig.react.json",
+    "eslint.preset.js",
+    "vitest.preset.ts",
+    ".prettierrc.json",
+    ".nvmrc"
+  ],
+  "globalPassThroughEnv": ["NODE_OPTIONS"],
+  "tasks": {
+    "generate": {
+      "inputs": ["prisma/schema.prisma", "prisma.config.ts"],
+      "outputs": ["src/generated/**"]
+    },
+    "build": {
+      "dependsOn": ["^build", "@muni/db#generate"],
+      "outputs": [".next/**", "!.next/cache/**"],
+      "env": [
+        "NEXT_PUBLIC_*",
+        "CLERK_SECRET_KEY",
+        "DATABASE_URL",
+        "DIRECT_URL",
+        "MUNI_*",
+        "VERCEL_*"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": ["@muni/db#generate"],
+      "outputs": []
+    },
+    "lint": {
+      "dependsOn": ["@muni/db#generate"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["@muni/db#generate"],
+      "outputs": []
+    },
+    "dev": {
+      "dependsOn": ["@muni/db#generate"],
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

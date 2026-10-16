@@ -1,0 +1,45 @@
+{
+  "name": "muni",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.11.2",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:integration": "pnpm --filter @muni/db test:integration",
+    "test:e2e": "pnpm --filter @muni/web test:e2e",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "knip": "knip --no-config-hints",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test && pnpm build",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:generate": "pnpm --filter @muni/db generate",
+    "db:migrate": "pnpm --filter @muni/db migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @muni/db migrate:deploy",
+    "db:reset": "pnpm --filter @muni/db migrate:reset",
+    "db:seed": "pnpm --filter @muni/db seed",
+    "db:studio": "pnpm --filter @muni/db studio"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@next/eslint-plugin-next": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
+    "globals": "catalog:",
+    "knip": "catalog:",
+    "prettier": "catalog:",
+    "prettier-plugin-tailwindcss": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  }
+}

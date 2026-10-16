@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "regions": ["fra1"],
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && pnpm --filter @muni/db migrate:deploy && pnpm turbo run build --filter=@muni/web",
+  "ignoreCommand": "npx turbo-ignore @muni/web"
+}

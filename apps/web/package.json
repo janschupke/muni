@@ -1,0 +1,46 @@
+{
+  "name": "@muni/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- next dev --port 3060",
+    "build": "next build",
+    "start": "next start --port 3060",
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@clerk/localizations": "catalog:",
+    "@clerk/nextjs": "catalog:",
+    "@muni/db": "workspace:*",
+    "@muni/domain": "workspace:*",
+    "@muni/importer": "workspace:*",
+    "@muni/ui": "workspace:*",
+    "@muni/utils": "workspace:*",
+    "lucide-react": "catalog:",
+    "next": "catalog:",
+    "next-intl": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "server-only": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "@tailwindcss/postcss": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "dotenv-cli": "catalog:",
+    "jsdom": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

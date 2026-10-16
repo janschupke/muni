@@ -1,0 +1,27 @@
+{
+  "name": "@muni/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./enums": "./src/enums.ts",
+    "./schemas": "./src/schemas.ts",
+    "./compliance": "./src/compliance.ts",
+    "./sanitize": "./src/sanitize/policy.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@muni/utils": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

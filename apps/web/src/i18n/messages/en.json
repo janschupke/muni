@@ -1,0 +1,394 @@
+{
+  "meta": {
+    "title": "Training register",
+    "description": "Mandatory staff training: who holds what, what expires, and what is scheduled."
+  },
+  "common": {
+    "appName": "Training register",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "back": "Back",
+    "notSet": "—",
+    "online": "Online",
+    "noExpiry": "No expiry",
+    "months": "{count, plural, one {# month} other {# months}}",
+    "people": "{count, plural, one {# person} other {# people}}",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {page} of {pageCount}",
+    "viewAll": "View all",
+    "signIn": "Sign in",
+    "readOnly": "You are viewing the public read-only register. Sign in to edit or import.",
+    "free": "Free"
+  },
+  "nav": {
+    "primary": "Main navigation",
+    "dashboard": "Overview",
+    "employees": "Employees",
+    "courses": "Courses",
+    "sessions": "Sessions",
+    "compliance": "Compliance",
+    "import": "Import",
+    "theme": {
+      "label": "Colour theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "language": {
+      "label": "Language",
+      "cs": "Čeština",
+      "en": "English"
+    }
+  },
+  "status": {
+    "employment": {
+      "ACTIVE": "Active",
+      "PARENTAL_LEAVE": "Parental leave",
+      "TERMINATED": "Left"
+    },
+    "compliance": {
+      "VALID": "Valid",
+      "EXPIRING": "Expiring",
+      "EXPIRED": "Expired",
+      "MISSING": "Missing"
+    },
+    "session": {
+      "PLANNED": "Planned",
+      "CANCELLED": "Cancelled"
+    },
+    "scope": {
+      "ALL": "Everyone",
+      "DEPARTMENT": "Department: {target}",
+      "POSITION": "Position: {target}"
+    },
+    "optional": "Optional",
+    "nothingRequired": "Nothing required"
+  },
+  "dashboard": {
+    "title": "Overview",
+    "description": "Mandatory training status as of {date}.",
+    "kpi": {
+      "activeEmployees": "Active employees",
+      "activeHint": "{count} more on parental leave",
+      "complianceRate": "Compliance",
+      "complianceHint": "{held} of {total} required trainings held",
+      "expiring": "Expiring soon",
+      "expiringHint": "Within {days} days",
+      "expired": "Expired",
+      "missing": "Never completed"
+    },
+    "byDepartment": {
+      "title": "Compliance by department",
+      "description": "Active employees only. Lowest first."
+    },
+    "upcoming": {
+      "title": "Upcoming sessions",
+      "empty": "No sessions are scheduled."
+    }
+  },
+  "employees": {
+    "title": "Employees",
+    "description": "Everyone in the register with their mandatory-training status.",
+    "search": "Search",
+    "searchPlaceholder": "Name or ID",
+    "filters": {
+      "department": "Department",
+      "status": "Employment",
+      "compliance": "Compliance",
+      "any": "Any",
+      "apply": "Filter",
+      "reset": "Reset"
+    },
+    "columns": {
+      "name": "Name",
+      "id": "ID",
+      "department": "Department",
+      "position": "Position",
+      "status": "Employment",
+      "compliance": "Compliance",
+      "required": "Required trainings"
+    },
+    "total": "{count, plural, one {# employee} other {# employees}}",
+    "empty": "No employees match these filters.",
+    "detail": {
+      "profile": "Profile",
+      "email": "Email",
+      "nationalId": "Birth number",
+      "manager": "Manager",
+      "hiredOn": "Hired",
+      "leftOn": "Left",
+      "note": "Note",
+      "requirements": "Required trainings",
+      "requirementsDescription": "Status of every course this person must hold.",
+      "noRequirements": "No training is required for this person.",
+      "history": "Training history",
+      "noHistory": "No completed trainings on record.",
+      "recordCompletion": "Record completion",
+      "rate": "{rate} of required trainings held"
+    }
+  },
+  "courses": {
+    "title": "Courses",
+    "description": "The training catalogue and who each course applies to.",
+    "columns": {
+      "code": "Code",
+      "name": "Course",
+      "validity": "Valid for",
+      "requiredFor": "Required for",
+      "completions": "Completions",
+      "upcoming": "Upcoming sessions",
+      "compliance": "Compliance"
+    },
+    "detail": {
+      "requirements": "Required for",
+      "sessions": "Sessions",
+      "noSessions": "No sessions for this course.",
+      "recentCompletions": "Recent completions",
+      "noCompletions": "No completions yet.",
+      "compliance": "Compliance",
+      "complianceDescription": "Across everyone this course is mandatory for.",
+      "employee": "Employee",
+      "completedOn": "Completed",
+      "validUntil": "Valid until"
+    }
+  },
+  "sessions": {
+    "title": "Sessions",
+    "description": "Scheduled course dates and how full they are.",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "columns": {
+      "course": "Course",
+      "date": "Date",
+      "time": "Time",
+      "location": "Location",
+      "capacity": "Booked",
+      "price": "Price per person",
+      "status": "Status"
+    },
+    "booked": "{booked} / {capacity}",
+    "overbooked": "Overbooked",
+    "full": "Full",
+    "empty": "No sessions to show.",
+    "editTitle": "Edit session {id}"
+  },
+  "compliance": {
+    "title": "Compliance matrix",
+    "description": "Share of required trainings held, per department and course. Active employees only.",
+    "department": "Department",
+    "headcount": "People",
+    "notApplicable": "Not required",
+    "cellTitle": "{department}, {course}: {held} of {total} held",
+    "empty": "No mandatory courses are defined yet.",
+    "legendFull": "100 % held",
+    "legendPoor": "≤ 50 % held"
+  },
+  "forms": {
+    "errors": {
+      "required": "This field is required.",
+      "invalid_type": "Enter a valid value.",
+      "invalid_format": "The format is not valid.",
+      "too_small": "The value is too small.",
+      "too_big": "The value is too large.",
+      "before_start": "The end must be after the start.",
+      "before_hired": "The leaving date cannot be before the hiring date.",
+      "before_completed": "Validity cannot end before the completion date.",
+      "not_found": "The record no longer exists.",
+      "generic": "Saving failed. Please try again."
+    },
+    "course": {
+      "title": "Edit course {code}",
+      "name": "Name",
+      "validityMonths": "Valid for (months)",
+      "validityHelp": "Leave empty if the course never expires."
+    },
+    "session": {
+      "date": "Date",
+      "startTime": "Start",
+      "endTime": "End",
+      "location": "Location",
+      "isOnline": "Online session",
+      "capacity": "Capacity",
+      "bookedCount": "Booked",
+      "pricePerPerson": "Price per person (CZK)",
+      "status": "Status"
+    },
+    "employee": {
+      "title": "Edit {name}",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email",
+      "department": "Department",
+      "position": "Position",
+      "hiredOn": "Hired",
+      "leftOn": "Left",
+      "status": "Employment",
+      "note": "Note"
+    },
+    "completion": {
+      "title": "Record completion for {name}",
+      "course": "Course",
+      "completedOn": "Completed on",
+      "validUntil": "Valid until",
+      "validUntilHelp": "Leave empty to calculate it from the course validity.",
+      "provider": "Provider",
+      "price": "Price (CZK)",
+      "note": "Note"
+    }
+  },
+  "import": {
+    "title": "Import",
+    "description": "Upload CSV exports. Rows with errors are skipped; rows with warnings are imported with the fix shown. Re-importing the same file updates records instead of duplicating them.",
+    "steps": {
+      "upload": "Upload",
+      "review": "Review",
+      "confirm": "Confirm",
+      "done": "Import"
+    },
+    "kinds": {
+      "courses": "Courses",
+      "employees": "Employees",
+      "sessions": "Sessions",
+      "completions": "Completions"
+    },
+    "upload": {
+      "title": "Drop CSV files here or choose them",
+      "hint": "Course catalogue, employees, sessions and completion records. Each file is recognised by its columns; encoding and delimiter are detected.",
+      "loadingReference": "Loading existing records…",
+      "file": "{name}: {kind}",
+      "details": "{encoding} · delimiter “{delimiter}” · {rows, plural, one {# row} other {# rows}}",
+      "skipped": "Skipped {blank} blank, {headers} repeated header and {comments} comment lines.",
+      "unknownColumns": "Ignored columns: {columns}",
+      "replaced": "One file per type: a second file of the same type replaces the first. Up to {mb} MB per file.",
+      "removeFile": "Remove {name}",
+      "tooLarge": "{name} is larger than 10 MB.",
+      "errors": {
+        "EMPTY_FILE": "{name}: the file is empty.",
+        "UNRECOGNIZED_FILE": "{name}: the columns do not match any known export.",
+        "MISSING_COLUMNS": "{name}: required columns are missing: {columns}."
+      },
+      "next": "Review rows"
+    },
+    "review": {
+      "total": "Total",
+      "valid": "Ready",
+      "invalid": "Errors",
+      "warnings": "Warnings",
+      "removed": "Removed",
+      "filterHint": "Click a number to filter the table.",
+      "invalidNotice": "{count, plural, one {# row has errors and will be skipped} other {# rows have errors and will be skipped}}. Fix them in the table or remove them.",
+      "rowNumber": "Line",
+      "actions": "Actions",
+      "problems": "Problems on line {row}",
+      "remove": "Remove row",
+      "restore": "Restore row",
+      "revert": "Undo edits",
+      "editCell": "Edit {field} on line {row}",
+      "errorPrefix": "Error",
+      "warningPrefix": "Warning",
+      "back": "Back to files",
+      "next": "Continue"
+    },
+    "confirm": {
+      "title": "Ready to import",
+      "summary": "{kind}: {count, plural, one {# record} other {# records}} will be written",
+      "skipped": "{count, plural, one {# invalid row is} other {# invalid rows are}} skipped.",
+      "start": "Import {count, plural, one {# record} other {# records}}",
+      "back": "Back to review"
+    },
+    "progress": {
+      "running": "{done} of {total} records",
+      "doneTitle": "Import complete",
+      "result": "{kind}: {created} created, {updated} updated",
+      "failed": "The import failed: {message}",
+      "partial": "{count, plural, one {# record was} other {# records were}} written before the failure.",
+      "again": "Import more files"
+    },
+    "fields": {
+      "row": "Row",
+      "code": "Code",
+      "name": "Name",
+      "validity": "Validity",
+      "requiredFor": "Required for",
+      "note": "Note",
+      "externalId": "ID",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email",
+      "department": "Department",
+      "position": "Position",
+      "managerEmail": "Manager email",
+      "hiredOn": "Hired",
+      "leftOn": "Left",
+      "status": "Status",
+      "nationalId": "Birth number",
+      "courseCode": "Course",
+      "date": "Date",
+      "time": "Time",
+      "location": "Location",
+      "capacity": "Capacity",
+      "bookedCount": "Booked",
+      "price": "Price",
+      "employeeExternalId": "Employee ID",
+      "employeeName": "Employee",
+      "completedOn": "Completed",
+      "validUntil": "Valid until",
+      "provider": "Provider"
+    },
+    "issues": {
+      "SUMMARY_ROW": "Totals row, not a record.",
+      "TOO_MANY_CELLS": "The row has {actual} cells but the header has {expected}.",
+      "DUPLICATE_ID": "This ID already appears on line {firstRow}.",
+      "DUPLICATE_PERSON": "Same person as {otherId} (same email or birth number). Their records are moved to {otherId}.",
+      "REQUIRED": "Required value is missing.",
+      "INVALID_VALUE": "The value is not valid.",
+      "INVALID_DATE": "“{raw}” is not a valid date.",
+      "PLACEHOLDER_DATE": "“{raw}” is a placeholder, not a real date.",
+      "INVALID_PRICE": "“{raw}” is not a price.",
+      "NEGATIVE_PRICE": "Negative price “{raw}”.",
+      "INVALID_NUMBER": "“{raw}” is not a whole number.",
+      "INVALID_TIME": "“{raw}” is not a time range like 09:00-12:00.",
+      "INVALID_CODE": "“{raw}” is not a valid course code.",
+      "INVALID_STATUS": "Unknown status “{raw}”.",
+      "INVALID_REQUIREMENT": "Cannot read “{raw}”. Use VSICHNI, UTVAR:…, POZICE:… or NEPOVINNE.",
+      "INVALID_VALIDITY": "Cannot read the validity “{raw}”.",
+      "VALIDITY_BEFORE_COMPLETION": "Validity “{raw}” ends before the completion date.",
+      "COURSE_NOT_FOUND": "Unknown course “{value}”.",
+      "EMPLOYEE_NOT_FOUND": "Unknown employee “{value}”.",
+      "EXCEL_SERIAL_DATE": "Excel date number “{raw}” read as {value}.",
+      "FREE_PRICE": "“{raw}” recorded as 0 CZK.",
+      "FORMULA_STRIPPED": "Spreadsheet formula removed from the text.",
+      "NAME_NORMALIZED": "“{raw}” changed to “{value}”.",
+      "EMAIL_NORMALIZED": "Email cleaned up to “{value}”.",
+      "INVALID_EMAIL": "“{raw}” is not a valid email; left empty.",
+      "CODE_NORMALIZED": "Course code “{raw}” read as {value}.",
+      "VALUE_NORMALIZED": "“{raw}” unified to “{value}”.",
+      "VALIDITY_NORMALIZED": "“{raw}” read as {value} months.",
+      "VALIDITY_NONE": "Validity “{raw}”: the course never expires.",
+      "VALIDITY_DERIVED": "Validity missing; calculated as {value}.",
+      "VALIDITY_MISMATCH": "Validity {raw} differs from the course rule ({value}); the file value is kept.",
+      "MANAGER_NOT_FOUND": "Manager “{value}” is not in the register; left empty.",
+      "EMPLOYEE_REMAPPED": "{raw} is a duplicate of {value}; the record is assigned to {value}.",
+      "NAME_MISMATCH": "Name “{raw}” does not match the employee ({value}).",
+      "NATIONAL_ID_INVALID": "The birth number does not look valid.",
+      "STATUS_DATE_MISMATCH": "Employment status and leaving date disagree.",
+      "UNKNOWN_DEPARTMENT": "Department “{value}” has no employees yet.",
+      "UNKNOWN_POSITION": "Position “{value}” has no employees yet.",
+      "DUPLICATE_SLOT": "Same course, time and place as {otherId}.",
+      "OVERBOOKED": "{booked} booked for {capacity} places.",
+      "ZERO_CAPACITY": "Capacity is 0.",
+      "FUTURE_COMPLETION": "Completion date {value} is in the future."
+    }
+  },
+  "errors": {
+    "notFoundTitle": "Not found",
+    "notFoundBody": "This page or record does not exist.",
+    "errorTitle": "Something went wrong",
+    "errorBody": "The page could not be loaded.",
+    "retry": "Try again",
+    "home": "Go to overview"
+  }
+}

@@ -1,0 +1,9 @@
+data/
+pnpm-lock.yaml
+packages/db/src/generated/
+packages/db/prisma/migrations/
+.next/
+.turbo/
+coverage/
+playwright-report/
+test-results/

@@ -1,0 +1,189 @@
+'use client'
+
+import {
+  COMMIT_ORDER,
+  committable,
+  editCell,
+  MAX_FILE_BYTES,
+  parseFile,
+  revertRow,
+  setRemoved,
+  validateBatch,
+  type DatasetKind,
+  type ImportBatch,
+  type ParsedFile,
+  type ReferenceSnapshot,
+} from '@muni/importer'
+import { StepIndicator } from '@muni/ui/step-indicator'
+import { useRouter } from 'next/navigation'
+import { useState, useTransition } from 'react'
+
+import { commitImportChunk } from './actions'
+import { ConfirmStep } from './confirm-step'
+import { ProgressStep, type ImportJob } from './progress-step'
+import { ReviewStep } from './review-step'
+import { UploadStep, type RejectedFile } from './upload-step'
+import { useImportText } from './use-issue-text'
+
+const CHUNK = 500
+
+function batchFrom(files: Partial<Record<DatasetKind, ParsedFile>>): ImportBatch {
+  const batch: Record<string, unknown> = {}
+  for (const [kind, file] of Object.entries(files)) batch[kind] = file.rows
+  return batch
+}
+
+/**
+ * The ceum import flow: upload → review → confirm → progress. Parsing and validation run in
+ * the browser with the same @muni/importer the seed uses; the server re-validates each chunk.
+ */
+export function ImportWizard({
+  reference,
+  today,
+}: {
+  reference: ReferenceSnapshot
+  today: string
+}) {
+  const { t } = useImportText()
+  const router = useRouter()
+  const ctx = { today }
+  const [step, setStep] = useState(0)
+  const [files, setFiles] = useState<Partial<Record<DatasetKind, ParsedFile>>>({})
+  const [rejected, setRejected] = useState<RejectedFile[]>([])
+  const [batch, setBatch] = useState<ImportBatch>({})
+  const [job, setJob] = useState<ImportJob | null>(null)
+  const [, startTransition] = useTransition()
+
+  const addFiles = async (incoming: File[]) => {
+    const next = { ...files }
+    const failed: RejectedFile[] = []
+    for (const file of incoming) {
+      if (file.size > MAX_FILE_BYTES) {
+        failed.push({ fileName: file.name, error: 'TOO_LARGE', missingColumns: [] })
+        continue
+      }
+      const parsed = parseFile(file.name, new Uint8Array(await file.arrayBuffer()), ctx)
+      if (parsed.kind && !parsed.error) next[parsed.kind] = parsed
+      else
+        failed.push({
+          fileName: parsed.fileName,
+          error: parsed.error ?? 'UNRECOGNIZED_FILE',
+          missingColumns: parsed.missingColumns,
+        })
+    }
+    setFiles(next)
+    setRejected(failed)
+    setBatch(validateBatch(batchFrom(next), reference))
+  }
+
+  const removeFile = (kind: DatasetKind) => {
+    const next = Object.fromEntries(Object.entries(files).filter(([k]) => k !== kind)) as Partial<
+      Record<DatasetKind, ParsedFile>
+    >
+    setFiles(next)
+    setBatch(validateBatch(batchFrom(next), reference))
+  }
+
+  const update = (fn: (b: ImportBatch) => ImportBatch) => {
+    startTransition(() => {
+      setBatch(fn)
+    })
+  }
+
+  const run = async () => {
+    const kinds = COMMIT_ORDER.filter(kind => (batch[kind]?.length ?? 0) > 0)
+    const total = kinds.reduce((sum, kind) => sum + committable(batch, kind).length, 0)
+    const results: Partial<Record<DatasetKind, { created: number; updated: number }>> = {}
+    let done = 0
+    setStep(3)
+    setJob({ status: 'running', done, total })
+    for (const kind of kinds) {
+      const records = committable(batch, kind)
+      for (let i = 0; i < records.length; i += CHUNK) {
+        const result = await commitImportChunk(kind, records.slice(i, i + CHUNK))
+        if (!result.ok) {
+          setJob({ status: 'failed', total, written: done, message: result.detail ?? result.error })
+          router.refresh()
+          return
+        }
+        const sum = results[kind] ?? { created: 0, updated: 0 }
+        results[kind] = {
+          created: sum.created + result.created,
+          updated: sum.updated + result.updated,
+        }
+        done += Math.min(CHUNK, records.length - i)
+        setJob({ status: 'running', done, total })
+      }
+    }
+    setJob({ status: 'succeeded', total, results })
+    router.refresh()
+  }
+
+  const reset = () => {
+    setFiles({})
+    setRejected([])
+    setBatch({})
+    setJob(null)
+    setStep(0)
+  }
+
+  const columnsByKind: Partial<Record<DatasetKind, string[]>> = {}
+  for (const file of Object.values(files)) {
+    if (file.kind) columnsByKind[file.kind] = file.columns
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <StepIndicator
+        steps={[t('steps.upload'), t('steps.review'), t('steps.confirm'), t('steps.done')]}
+        current={step}
+      />
+      {step === 0 && (
+        <UploadStep
+          files={files}
+          rejected={rejected}
+          onFiles={incoming => {
+            void addFiles(incoming)
+          }}
+          onRemove={removeFile}
+          onNext={() => {
+            setStep(1)
+          }}
+        />
+      )}
+      {step === 1 && (
+        <ReviewStep
+          batch={batch}
+          columnsByKind={columnsByKind}
+          onEdit={(kind, index, field, value) => {
+            update(b => editCell(b, kind, index, field, value, ctx, reference))
+          }}
+          onRemoved={(kind, index, removed) => {
+            update(b => setRemoved(b, kind, index, removed, reference))
+          }}
+          onRevert={(kind, index) => {
+            update(b => revertRow(b, kind, index, ctx, reference))
+          }}
+          onBack={() => {
+            setStep(0)
+          }}
+          onNext={() => {
+            setStep(2)
+          }}
+        />
+      )}
+      {step === 2 && (
+        <ConfirmStep
+          batch={batch}
+          onBack={() => {
+            setStep(1)
+          }}
+          onStart={() => {
+            void run()
+          }}
+        />
+      )}
+      {step === 3 && job && <ProgressStep job={job} onReset={reset} />}
+    </div>
+  )
+}

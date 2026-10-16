@@ -1,0 +1,52 @@
+{
+  "name": "@muni/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    "./styles/tokens.css": "./src/styles/tokens.css",
+    "./cn": "./src/cn.ts",
+    "./badge": "./src/components/badge.tsx",
+    "./button": "./src/components/button.tsx",
+    "./card": "./src/components/card.tsx",
+    "./dropzone": "./src/components/dropzone.tsx",
+    "./empty-state": "./src/components/empty-state.tsx",
+    "./field": "./src/components/field.tsx",
+    "./meter": "./src/components/meter.tsx",
+    "./page-header": "./src/components/page-header.tsx",
+    "./stat-card": "./src/components/stat-card.tsx",
+    "./step-indicator": "./src/components/step-indicator.tsx",
+    "./table": "./src/components/table.tsx",
+    "./tabs": "./src/components/tabs.tsx",
+    "./tooltip": "./src/components/tooltip.tsx",
+    "./charts/stacked-bar": "./src/charts/stacked-bar.tsx",
+    "./charts/heat-cell": "./src/charts/heat-cell.tsx",
+    "./theme/boot": "./src/theme/boot.ts",
+    "./theme/theme-toggle": "./src/theme/theme-toggle.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "lucide-react": "catalog:",
+    "radix-ui": "catalog:",
+    "tailwind-merge": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:"
+  }
+}

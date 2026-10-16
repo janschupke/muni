@@ -1,0 +1,158 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  PARENTAL_LEAVE
+  TERMINATED
+}
+
+enum RequirementScope {
+  ALL
+  DEPARTMENT
+  POSITION
+}
+
+enum SessionStatus {
+  PLANNED
+  CANCELLED
+}
+
+model Department {
+  id           String              @id @default(cuid())
+  name         String              @unique
+  employees    Employee[]
+  requirements CourseRequirement[]
+
+  @@map("departments")
+}
+
+model Position {
+  id           String              @id @default(cuid())
+  name         String              @unique
+  employees    Employee[]
+  requirements CourseRequirement[]
+
+  @@map("positions")
+}
+
+model Employee {
+  id           String             @id @default(cuid())
+  /// Source-system ID (E0001). Imports upsert on it.
+  externalId   String             @unique @map("external_id")
+  firstName    String             @map("first_name")
+  lastName     String             @map("last_name")
+  email        String?            @unique
+  /// Rodné číslo. Sensitive: only ever leaves the server through the sanitisation policy.
+  nationalId   String?            @map("national_id")
+  departmentId String?            @map("department_id")
+  department   Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  positionId   String?            @map("position_id")
+  position     Position?          @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  managerId    String?            @map("manager_id")
+  manager      Employee?          @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports      Employee[]         @relation("EmployeeManager")
+  hiredOn      DateTime           @map("hired_on") @db.Date
+  leftOn       DateTime?          @map("left_on") @db.Date
+  status       EmploymentStatus
+  note         String?
+  completions  CourseCompletion[]
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  @@index([departmentId])
+  @@index([positionId])
+  @@index([lastName, firstName])
+  @@map("employees")
+}
+
+model Course {
+  id             String              @id @default(cuid())
+  code           String              @unique
+  name           String
+  /// null = the course never expires.
+  validityMonths Int?                @map("validity_months")
+  requirements   CourseRequirement[]
+  sessions       CourseSession[]
+  completions    CourseCompletion[]
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  @@map("courses")
+}
+
+/// Who must hold a course. No rows = optional course.
+model CourseRequirement {
+  id           String           @id @default(cuid())
+  courseId     String           @map("course_id")
+  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  scope        RequirementScope
+  departmentId String?          @map("department_id")
+  department   Department?      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  positionId   String?          @map("position_id")
+  position     Position?        @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, scope, departmentId, positionId])
+  @@map("course_requirements")
+}
+
+model Provider {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  completions CourseCompletion[]
+
+  @@map("providers")
+}
+
+model CourseSession {
+  id             String        @id @default(cuid())
+  /// Source-system ID (T001).
+  externalId     String        @unique @map("external_id")
+  courseId       String        @map("course_id")
+  course         Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  startsAt       DateTime      @map("starts_at") @db.Timestamptz(3)
+  endsAt         DateTime      @map("ends_at") @db.Timestamptz(3)
+  location       String
+  isOnline       Boolean       @default(false) @map("is_online")
+  capacity       Int
+  bookedCount    Int           @default(0) @map("booked_count")
+  pricePerPerson Decimal?      @map("price_per_person") @db.Decimal(10, 2)
+  status         SessionStatus @default(PLANNED)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@index([startsAt])
+  @@index([courseId, startsAt])
+  @@map("course_sessions")
+}
+
+model CourseCompletion {
+  id          String    @id @default(cuid())
+  /// Source-system ID (Z000001). Records created in the app get an `A`-prefixed ID.
+  externalId  String    @unique @map("external_id")
+  employeeId  String    @map("employee_id")
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  courseId    String    @map("course_id")
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  completedOn DateTime  @map("completed_on") @db.Date
+  /// null = never expires.
+  validUntil  DateTime? @map("valid_until") @db.Date
+  providerId  String?   @map("provider_id")
+  provider    Provider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  price       Decimal?  @db.Decimal(10, 2)
+  note        String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([employeeId, courseId, completedOn])
+  @@index([courseId])
+  @@index([validUntil])
+  @@map("course_completions")
+}

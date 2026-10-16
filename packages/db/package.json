@@ -1,0 +1,42 @@
+{
+  "name": "@muni/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./client": "./src/client.ts",
+    "./repositories": "./src/repositories/index.ts",
+    "./writer": "./src/writer.ts",
+    "./reference": "./src/reference.ts"
+  },
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
+    "migrate:deploy": "tsx scripts/migrate-deploy.ts",
+    "migrate:reset": "dotenv -e ../../.env -- prisma migrate reset",
+    "seed": "dotenv -e ../../.env -- tsx src/seed.ts",
+    "studio": "dotenv -e ../../.env -- prisma studio",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:integration": "dotenv -e .env.test -- vitest run --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "@muni/domain": "workspace:*",
+    "@muni/importer": "workspace:*",
+    "@muni/utils": "workspace:*",
+    "@prisma/adapter-pg": "catalog:",
+    "@prisma/client": "catalog:",
+    "server-only": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "dotenv-cli": "catalog:",
+    "prisma": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

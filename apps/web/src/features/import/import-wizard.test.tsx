@@ -1,0 +1,125 @@
+// @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+
+import { EMPTY_REFERENCE } from '@muni/importer'
+import { TooltipProvider } from '@muni/ui/tooltip'
+import { cleanup, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { NextIntlClientProvider } from 'next-intl'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import en from '@/i18n/messages/en.json'
+
+import { ImportWizard } from './import-wizard'
+
+// The server action and router are the only things replaced; parsing, validation, the
+// review table and the commit loop are the real code, driven with the real exports.
+const commitImportChunk = vi.fn((_kind: string, records: unknown[]) =>
+  Promise.resolve({ ok: true as const, created: records.length, updated: 0 })
+)
+vi.mock('./actions', () => ({
+  commitImportChunk: (kind: string, records: unknown[]) => commitImportChunk(kind, records),
+}))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
+
+const DATA = path.join(import.meta.dirname, '../../../../../data')
+const csv = (name: string) =>
+  new File([readFileSync(path.join(DATA, name))], name, { type: 'text/csv' })
+
+function renderWizard() {
+  return render(
+    <NextIntlClientProvider locale="en" messages={en} timeZone="Europe/Prague">
+      <TooltipProvider>
+        <ImportWizard reference={EMPTY_REFERENCE} today="2026-10-16" />
+      </TooltipProvider>
+    </NextIntlClientProvider>
+  )
+}
+
+afterEach(() => {
+  cleanup()
+  commitImportChunk.mockClear()
+})
+
+describe('ImportWizard', () => {
+  it('runs upload → review → fix → confirm → import with the real exports', async () => {
+    const user = userEvent.setup()
+    const { container } = renderWizard()
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')
+    if (!input) throw new Error('file input missing')
+    await user.upload(input, [
+      csv('katalog_skoleni.csv'),
+      csv('zamestnanci.csv'),
+      csv('terminy_skoleni.csv'),
+      csv('absolvovana_skoleni.csv'),
+    ])
+
+    // Upload step: every file recognised, the Windows-1250 one included.
+    expect(await screen.findByText('absolvovana_skoleni.csv')).toBeTruthy()
+    expect(screen.getByText(/WINDOWS-1250 · delimiter “;” · 2,866 rows/)).toBeTruthy()
+    expect(screen.getByText(/Skipped 3 blank, 1 repeated header and 1 comment lines/)).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: 'Review rows' }))
+
+    // Review step: the sessions tab has the two known errors.
+    await user.click(screen.getByRole('tab', { name: /Sessions/ }))
+    const panel = screen.getByRole('tabpanel')
+    const errorsCard = within(panel).getByRole('button', { name: /Errors/ })
+    expect(errorsCard.textContent).toContain('2')
+    await user.click(errorsCard)
+    expect(errorsCard.getAttribute('aria-pressed')).toBe('true')
+    expect(
+      within(panel)
+        .getByRole('button', { name: /Problems on line 11/ })
+        .getAttribute('aria-label')
+    ).toContain('Unknown course “KYB3R”')
+
+    // Fix T010's course code inline; the row becomes valid and leaves the "errors" filter.
+    await user.click(within(panel).getByRole('button', { name: 'Edit Course on line 11' }))
+    const cell = within(panel).getByRole('textbox', { name: 'Edit Course on line 11' })
+    await user.clear(cell)
+    await user.type(cell, 'KYBER{Enter}')
+    expect(within(panel).getByRole('button', { name: /Errors/ }).textContent).toContain('1')
+    expect(within(panel).queryByRole('button', { name: /Problems on line 11/ })).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+
+    // Confirm step: counts per dataset, errors skipped.
+    expect(screen.getByText('Courses: 10 records will be written')).toBeTruthy()
+    expect(screen.getByText('Employees: 170 records will be written')).toBeTruthy()
+    expect(screen.getByText('Sessions: 33 records will be written')).toBeTruthy()
+    expect(screen.getByText('Completions: 2,822 records will be written')).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: /Import 3,035 records/ }))
+
+    // Commit: dependency order, chunks of at most 500.
+    expect(await screen.findByText('Import complete')).toBeTruthy()
+    const calls = commitImportChunk.mock.calls.map(([kind, records]) => [kind, records.length])
+    expect(calls).toEqual([
+      ['courses', 10],
+      ['employees', 170],
+      ['sessions', 33],
+      ['completions', 500],
+      ['completions', 500],
+      ['completions', 500],
+      ['completions', 500],
+      ['completions', 500],
+      ['completions', 322],
+    ])
+    expect(screen.getByText('Completions: 2822 created, 0 updated')).toBeTruthy()
+  })
+
+  it('rejects a file it cannot recognise', async () => {
+    const user = userEvent.setup()
+    const { container } = renderWizard()
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')
+    if (!input) throw new Error('file input missing')
+    await user.upload(input, new File(['foo;bar\n1;2'], 'random.csv', { type: 'text/csv' }))
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'random.csv: the columns do not match any known export.'
+    )
+    expect(screen.getByRole('button', { name: 'Review rows' }).hasAttribute('disabled')).toBe(true)
+  })
+})

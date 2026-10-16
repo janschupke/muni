@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+@import '@muni/ui/styles/tokens.css';
+
+/* Shared UI ships TypeScript source; Tailwind must scan it for class names. */
+@source '../../../../packages/ui/src';
+
+body {
+  background-color: var(--color-surface-base);
+  color: var(--color-fg);
+}

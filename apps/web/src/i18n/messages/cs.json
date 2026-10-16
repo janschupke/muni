@@ -1,0 +1,394 @@
+{
+  "meta": {
+    "title": "Registr školení",
+    "description": "Povinná školení zaměstnanců: kdo co má, co vyprší a co je naplánováno."
+  },
+  "common": {
+    "appName": "Registr školení",
+    "save": "Uložit",
+    "saving": "Ukládám…",
+    "cancel": "Zrušit",
+    "edit": "Upravit",
+    "back": "Zpět",
+    "notSet": "—",
+    "online": "Online",
+    "noExpiry": "Bez omezení",
+    "months": "{count, plural, one {# měsíc} few {# měsíce} other {# měsíců}}",
+    "people": "{count, plural, one {# osoba} few {# osoby} other {# osob}}",
+    "previous": "Předchozí",
+    "next": "Další",
+    "page": "Strana {page} z {pageCount}",
+    "viewAll": "Zobrazit vše",
+    "signIn": "Přihlásit se",
+    "readOnly": "Prohlížíte veřejný registr jen pro čtení. Pro úpravy a import se přihlaste.",
+    "free": "Zdarma"
+  },
+  "nav": {
+    "primary": "Hlavní navigace",
+    "dashboard": "Přehled",
+    "employees": "Zaměstnanci",
+    "courses": "Kurzy",
+    "sessions": "Termíny",
+    "compliance": "Plnění",
+    "import": "Import",
+    "theme": {
+      "label": "Barevný motiv",
+      "light": "Světlý",
+      "dark": "Tmavý",
+      "system": "Podle systému"
+    },
+    "language": {
+      "label": "Jazyk",
+      "cs": "Čeština",
+      "en": "English"
+    }
+  },
+  "status": {
+    "employment": {
+      "ACTIVE": "Aktivní",
+      "PARENTAL_LEAVE": "Rodičovská",
+      "TERMINATED": "Ukončen"
+    },
+    "compliance": {
+      "VALID": "Platné",
+      "EXPIRING": "Brzy vyprší",
+      "EXPIRED": "Prošlé",
+      "MISSING": "Chybí"
+    },
+    "session": {
+      "PLANNED": "Plánováno",
+      "CANCELLED": "Zrušeno"
+    },
+    "scope": {
+      "ALL": "Všichni",
+      "DEPARTMENT": "Útvar: {target}",
+      "POSITION": "Pozice: {target}"
+    },
+    "optional": "Nepovinné",
+    "nothingRequired": "Nic povinného"
+  },
+  "dashboard": {
+    "title": "Přehled",
+    "description": "Stav povinných školení k {date}.",
+    "kpi": {
+      "activeEmployees": "Aktivní zaměstnanci",
+      "activeHint": "dalších {count} na rodičovské",
+      "complianceRate": "Plnění",
+      "complianceHint": "{held} z {total} povinných školení splněno",
+      "expiring": "Brzy vyprší",
+      "expiringHint": "Do {days} dní",
+      "expired": "Prošlé",
+      "missing": "Nikdy neabsolvováno"
+    },
+    "byDepartment": {
+      "title": "Plnění podle útvarů",
+      "description": "Jen aktivní zaměstnanci. Nejhorší nahoře."
+    },
+    "upcoming": {
+      "title": "Nejbližší termíny",
+      "empty": "Žádné termíny nejsou naplánované."
+    }
+  },
+  "employees": {
+    "title": "Zaměstnanci",
+    "description": "Všichni v registru se stavem povinných školení.",
+    "search": "Hledat",
+    "searchPlaceholder": "Jméno nebo ID",
+    "filters": {
+      "department": "Útvar",
+      "status": "Pracovní poměr",
+      "compliance": "Plnění",
+      "any": "Vše",
+      "apply": "Filtrovat",
+      "reset": "Zrušit filtry"
+    },
+    "columns": {
+      "name": "Jméno",
+      "id": "ID",
+      "department": "Útvar",
+      "position": "Pozice",
+      "status": "Pracovní poměr",
+      "compliance": "Plnění",
+      "required": "Povinná školení"
+    },
+    "total": "{count, plural, one {# zaměstnanec} few {# zaměstnanci} other {# zaměstnanců}}",
+    "empty": "Filtrům neodpovídá žádný zaměstnanec.",
+    "detail": {
+      "profile": "Profil",
+      "email": "E-mail",
+      "nationalId": "Rodné číslo",
+      "manager": "Vedoucí",
+      "hiredOn": "Nástup",
+      "leftOn": "Ukončení",
+      "note": "Poznámka",
+      "requirements": "Povinná školení",
+      "requirementsDescription": "Stav všech kurzů, které musí mít.",
+      "noRequirements": "Pro tuto osobu není žádné školení povinné.",
+      "history": "Absolvovaná školení",
+      "noHistory": "Žádné absolvované školení.",
+      "recordCompletion": "Zapsat absolvování",
+      "rate": "Splněno {rate} povinných školení"
+    }
+  },
+  "courses": {
+    "title": "Kurzy",
+    "description": "Katalog školení a pro koho je které povinné.",
+    "columns": {
+      "code": "Kód",
+      "name": "Kurz",
+      "validity": "Platnost",
+      "requiredFor": "Povinné pro",
+      "completions": "Absolvování",
+      "upcoming": "Nadcházející termíny",
+      "compliance": "Plnění"
+    },
+    "detail": {
+      "requirements": "Povinné pro",
+      "sessions": "Termíny",
+      "noSessions": "Kurz nemá žádné termíny.",
+      "recentCompletions": "Poslední absolvování",
+      "noCompletions": "Zatím nikdo neabsolvoval.",
+      "compliance": "Plnění",
+      "complianceDescription": "Napříč všemi, pro které je kurz povinný.",
+      "employee": "Zaměstnanec",
+      "completedOn": "Absolvováno",
+      "validUntil": "Platí do"
+    }
+  },
+  "sessions": {
+    "title": "Termíny",
+    "description": "Naplánované termíny kurzů a jejich obsazenost.",
+    "upcoming": "Nadcházející",
+    "past": "Proběhlé",
+    "columns": {
+      "course": "Kurz",
+      "date": "Datum",
+      "time": "Čas",
+      "location": "Místo",
+      "capacity": "Obsazeno",
+      "price": "Cena za osobu",
+      "status": "Stav"
+    },
+    "booked": "{booked} / {capacity}",
+    "overbooked": "Přeplněno",
+    "full": "Plno",
+    "empty": "Žádné termíny k zobrazení.",
+    "editTitle": "Upravit termín {id}"
+  },
+  "compliance": {
+    "title": "Matice plnění",
+    "description": "Podíl splněných povinných školení podle útvaru a kurzu. Jen aktivní zaměstnanci.",
+    "department": "Útvar",
+    "headcount": "Osob",
+    "notApplicable": "Nepovinné",
+    "cellTitle": "{department}, {course}: splněno {held} z {total}",
+    "empty": "Zatím nejsou definované žádné povinné kurzy.",
+    "legendFull": "splněno 100 %",
+    "legendPoor": "splněno ≤ 50 %"
+  },
+  "forms": {
+    "errors": {
+      "required": "Toto pole je povinné.",
+      "invalid_type": "Zadejte platnou hodnotu.",
+      "invalid_format": "Neplatný formát.",
+      "too_small": "Hodnota je příliš malá.",
+      "too_big": "Hodnota je příliš velká.",
+      "before_start": "Konec musí být po začátku.",
+      "before_hired": "Datum ukončení nemůže být před nástupem.",
+      "before_completed": "Platnost nemůže skončit před datem absolvování.",
+      "not_found": "Záznam už neexistuje.",
+      "generic": "Uložení se nepovedlo. Zkuste to znovu."
+    },
+    "course": {
+      "title": "Upravit kurz {code}",
+      "name": "Název",
+      "validityMonths": "Platnost (měsíce)",
+      "validityHelp": "Nechte prázdné, pokud kurz nevyprší."
+    },
+    "session": {
+      "date": "Datum",
+      "startTime": "Začátek",
+      "endTime": "Konec",
+      "location": "Místo",
+      "isOnline": "Online termín",
+      "capacity": "Kapacita",
+      "bookedCount": "Obsazeno",
+      "pricePerPerson": "Cena za osobu (Kč)",
+      "status": "Stav"
+    },
+    "employee": {
+      "title": "Upravit: {name}",
+      "firstName": "Jméno",
+      "lastName": "Příjmení",
+      "email": "E-mail",
+      "department": "Útvar",
+      "position": "Pozice",
+      "hiredOn": "Nástup",
+      "leftOn": "Ukončení",
+      "status": "Pracovní poměr",
+      "note": "Poznámka"
+    },
+    "completion": {
+      "title": "Zapsat absolvování: {name}",
+      "course": "Kurz",
+      "completedOn": "Absolvováno",
+      "validUntil": "Platí do",
+      "validUntilHelp": "Nechte prázdné a dopočítá se z platnosti kurzu.",
+      "provider": "Poskytovatel",
+      "price": "Cena (Kč)",
+      "note": "Poznámka"
+    }
+  },
+  "import": {
+    "title": "Import",
+    "description": "Nahrajte exporty CSV. Řádky s chybou se přeskočí, řádky s upozorněním se naimportují s uvedenou opravou. Opakovaný import stejného souboru záznamy aktualizuje, neduplikuje.",
+    "steps": {
+      "upload": "Nahrání",
+      "review": "Kontrola",
+      "confirm": "Potvrzení",
+      "done": "Import"
+    },
+    "kinds": {
+      "courses": "Kurzy",
+      "employees": "Zaměstnanci",
+      "sessions": "Termíny",
+      "completions": "Absolvování"
+    },
+    "upload": {
+      "title": "Přetáhněte sem soubory CSV nebo je vyberte",
+      "hint": "Katalog kurzů, zaměstnanci, termíny a absolvovaná školení. Soubor se pozná podle sloupců, kódování a oddělovač se zjistí automaticky.",
+      "loadingReference": "Načítám existující záznamy…",
+      "file": "{name}: {kind}",
+      "details": "{encoding} · oddělovač „{delimiter}“ · {rows, plural, one {# řádek} few {# řádky} other {# řádků}}",
+      "skipped": "Přeskočeno prázdných řádků: {blank}, opakovaných hlaviček: {headers}, komentářů: {comments}.",
+      "unknownColumns": "Ignorované sloupce: {columns}",
+      "replaced": "Jeden soubor na typ: další soubor stejného typu nahradí předchozí. Nejvýše {mb} MB na soubor.",
+      "removeFile": "Odebrat {name}",
+      "tooLarge": "{name} je větší než 10 MB.",
+      "errors": {
+        "EMPTY_FILE": "{name}: soubor je prázdný.",
+        "UNRECOGNIZED_FILE": "{name}: sloupce neodpovídají žádnému známému exportu.",
+        "MISSING_COLUMNS": "{name}: chybí povinné sloupce: {columns}."
+      },
+      "next": "Zkontrolovat řádky"
+    },
+    "review": {
+      "total": "Celkem",
+      "valid": "Připraveno",
+      "invalid": "Chyby",
+      "warnings": "Upozornění",
+      "removed": "Odebráno",
+      "filterHint": "Kliknutím na číslo tabulku vyfiltrujete.",
+      "invalidNotice": "{count, plural, one {# řádek má chyby a bude přeskočen} few {# řádky mají chyby a budou přeskočeny} other {# řádků má chyby a bude přeskočeno}}. Opravte je v tabulce, nebo je odeberte.",
+      "rowNumber": "Řádek",
+      "actions": "Akce",
+      "problems": "Problémy na řádku {row}",
+      "remove": "Odebrat řádek",
+      "restore": "Vrátit řádek",
+      "revert": "Zrušit úpravy",
+      "editCell": "Upravit {field} na řádku {row}",
+      "errorPrefix": "Chyba",
+      "warningPrefix": "Upozornění",
+      "back": "Zpět k souborům",
+      "next": "Pokračovat"
+    },
+    "confirm": {
+      "title": "Připraveno k importu",
+      "summary": "{kind}: zapíše se {count, plural, one {# záznam} few {# záznamy} other {# záznamů}}",
+      "skipped": "{count, plural, one {# chybný řádek se přeskočí} few {# chybné řádky se přeskočí} other {# chybných řádků se přeskočí}}.",
+      "start": "Importovat {count, plural, one {# záznam} few {# záznamy} other {# záznamů}}",
+      "back": "Zpět ke kontrole"
+    },
+    "progress": {
+      "running": "{done} z {total} záznamů",
+      "doneTitle": "Import dokončen",
+      "result": "{kind}: vytvořeno {created}, aktualizováno {updated}",
+      "failed": "Import selhal: {message}",
+      "partial": "Před selháním se zapsalo {count, plural, one {# záznam} few {# záznamy} other {# záznamů}}.",
+      "again": "Importovat další soubory"
+    },
+    "fields": {
+      "row": "Řádek",
+      "code": "Kód",
+      "name": "Název",
+      "validity": "Platnost",
+      "requiredFor": "Povinné pro",
+      "note": "Poznámka",
+      "externalId": "ID",
+      "firstName": "Jméno",
+      "lastName": "Příjmení",
+      "email": "E-mail",
+      "department": "Útvar",
+      "position": "Pozice",
+      "managerEmail": "E-mail vedoucího",
+      "hiredOn": "Nástup",
+      "leftOn": "Ukončení",
+      "status": "Stav",
+      "nationalId": "Rodné číslo",
+      "courseCode": "Kurz",
+      "date": "Datum",
+      "time": "Čas",
+      "location": "Místo",
+      "capacity": "Kapacita",
+      "bookedCount": "Obsazeno",
+      "price": "Cena",
+      "employeeExternalId": "ID zaměstnance",
+      "employeeName": "Zaměstnanec",
+      "completedOn": "Absolvováno",
+      "validUntil": "Platí do",
+      "provider": "Poskytovatel"
+    },
+    "issues": {
+      "SUMMARY_ROW": "Součtový řádek, nejde o záznam.",
+      "TOO_MANY_CELLS": "Řádek má {actual} buněk, hlavička {expected}.",
+      "DUPLICATE_ID": "Toto ID už je na řádku {firstRow}.",
+      "DUPLICATE_PERSON": "Stejná osoba jako {otherId} (stejný e-mail nebo rodné číslo). Její záznamy se přiřadí k {otherId}.",
+      "REQUIRED": "Chybí povinná hodnota.",
+      "INVALID_VALUE": "Neplatná hodnota.",
+      "INVALID_DATE": "„{raw}“ není platné datum.",
+      "PLACEHOLDER_DATE": "„{raw}“ je zástupné datum, ne skutečné.",
+      "INVALID_PRICE": "„{raw}“ není cena.",
+      "NEGATIVE_PRICE": "Záporná cena „{raw}“.",
+      "INVALID_NUMBER": "„{raw}“ není celé číslo.",
+      "INVALID_TIME": "„{raw}“ není časový rozsah typu 09:00-12:00.",
+      "INVALID_CODE": "„{raw}“ není platný kód kurzu.",
+      "INVALID_STATUS": "Neznámý stav „{raw}“.",
+      "INVALID_REQUIREMENT": "„{raw}“ nelze přečíst. Použijte VSICHNI, UTVAR:…, POZICE:… nebo NEPOVINNE.",
+      "INVALID_VALIDITY": "Platnost „{raw}“ nelze přečíst.",
+      "VALIDITY_BEFORE_COMPLETION": "Platnost „{raw}“ končí před datem absolvování.",
+      "COURSE_NOT_FOUND": "Neznámý kurz „{value}“.",
+      "EMPLOYEE_NOT_FOUND": "Neznámý zaměstnanec „{value}“.",
+      "EXCEL_SERIAL_DATE": "Číslo data z Excelu „{raw}“ přečteno jako {value}.",
+      "FREE_PRICE": "„{raw}“ zapsáno jako 0 Kč.",
+      "FORMULA_STRIPPED": "Z textu byl odstraněn vzorec tabulkového procesoru.",
+      "NAME_NORMALIZED": "„{raw}“ upraveno na „{value}“.",
+      "EMAIL_NORMALIZED": "E-mail upraven na „{value}“.",
+      "INVALID_EMAIL": "„{raw}“ není platný e-mail; ponecháno prázdné.",
+      "CODE_NORMALIZED": "Kód kurzu „{raw}“ přečten jako {value}.",
+      "VALUE_NORMALIZED": "„{raw}“ sjednoceno na „{value}“.",
+      "VALIDITY_NORMALIZED": "„{raw}“ přečteno jako {value} měsíců.",
+      "VALIDITY_NONE": "Platnost „{raw}“: kurz nevyprší.",
+      "VALIDITY_DERIVED": "Platnost chybí; dopočteno {value}.",
+      "VALIDITY_MISMATCH": "Platnost {raw} se liší od pravidla kurzu ({value}); ponechána hodnota ze souboru.",
+      "MANAGER_NOT_FOUND": "Vedoucí „{value}“ není v registru; ponecháno prázdné.",
+      "EMPLOYEE_REMAPPED": "{raw} je duplicitní k {value}; záznam se přiřadí k {value}.",
+      "NAME_MISMATCH": "Jméno „{raw}“ neodpovídá zaměstnanci ({value}).",
+      "NATIONAL_ID_INVALID": "Rodné číslo nevypadá platně.",
+      "STATUS_DATE_MISMATCH": "Stav pracovního poměru neodpovídá datu ukončení.",
+      "UNKNOWN_DEPARTMENT": "Útvar „{value}“ zatím nemá žádné zaměstnance.",
+      "UNKNOWN_POSITION": "Pozice „{value}“ zatím nemá žádné zaměstnance.",
+      "DUPLICATE_SLOT": "Stejný kurz, čas a místo jako {otherId}.",
+      "OVERBOOKED": "Obsazeno {booked} míst z {capacity}.",
+      "ZERO_CAPACITY": "Kapacita je 0.",
+      "FUTURE_COMPLETION": "Datum absolvování {value} je v budoucnosti."
+    }
+  },
+  "errors": {
+    "notFoundTitle": "Nenalezeno",
+    "notFoundBody": "Tato stránka nebo záznam neexistuje.",
+    "errorTitle": "Něco se pokazilo",
+    "errorBody": "Stránku se nepodařilo načíst.",
+    "retry": "Zkusit znovu",
+    "home": "Na přehled"
+  }
+}
