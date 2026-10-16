@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRef, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { render } from '../test/render'
 import { Dialog, Drawer } from './dialog'
 import { IconButton } from './icon-button'
 

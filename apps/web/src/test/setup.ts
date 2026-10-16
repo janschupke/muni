@@ -1,12 +1,14 @@
 import { afterEach, vi } from 'vitest'
 
+import { installMatchMedia, resetMedia } from './media'
 import { resetNext } from './next'
 
 // Next's server modules only work inside a request; these stand in for them in every test.
 // A test file can still replace one with its own `vi.mock`.
 
 vi.mock('next/navigation', async () => {
-  const { NotFoundError, RedirectError, route, router } = await import('./next')
+  const { NotFoundError, RedirectError, route, router, subscribeRoute } = await import('./next')
+  const { useSyncExternalStore } = await import('react')
   return {
     notFound: () => {
       throw new NotFoundError()
@@ -14,7 +16,7 @@ vi.mock('next/navigation', async () => {
     redirect: (url: string) => {
       throw new RedirectError(url)
     },
-    usePathname: () => route.pathname,
+    usePathname: () => useSyncExternalStore(subscribeRoute, () => route.pathname),
     useSearchParams: () => new URLSearchParams(route.search),
     useRouter: () => router,
   }
@@ -76,10 +78,12 @@ if (typeof window !== 'undefined') {
     releasePointerCapture: () => undefined,
     scrollIntoView: () => undefined,
   })
+  installMatchMedia()
 }
 
 afterEach(async () => {
   resetNext()
+  resetMedia()
   // Only jsdom tests render; node tests never load the DOM library.
   if (typeof document !== 'undefined') (await import('@testing-library/react')).cleanup()
 })

@@ -23,10 +23,8 @@ test.use({ reducedMotion: 'reduce' })
 
 for (const theme of ['light', 'dark'] as const) {
   test.describe(`accessibility, ${theme} theme`, () => {
-    test.beforeEach(async ({ page }) => {
-      await page
-        .context()
-        .addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: 'http://localhost:3061' }])
+    test.beforeEach(async ({ page, baseURL }) => {
+      await page.context().addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: baseURL }])
       await page.addInitScript(value => {
         localStorage.setItem('muni.theme', value)
       }, theme)

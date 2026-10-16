@@ -4,13 +4,14 @@ import { Button } from '@muni/ui/button'
 import { cn } from '@muni/ui/cn'
 import { Drawer } from '@muni/ui/dialog'
 import { Tooltip } from '@muni/ui/tooltip'
-import { GraduationCap, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import { SIDEBAR_COOKIE } from '@/lib/sidebar'
 
+import { LogoMark } from './logo-mark'
 import { NavLink } from './nav-link'
 
 export interface NavGroup {
@@ -28,15 +29,18 @@ export interface ShellLabels {
   expand: string
 }
 
-function Brand({ name, iconOnly = false }: { name: string; iconOnly?: boolean }) {
+/** Where the sidebar takes over from the drawer: Tailwind's `lg`. */
+const DESKTOP = '(min-width: 64rem)'
+
+function Brand({ name }: { name: string }) {
   return (
     <Link
       href="/"
-      aria-label={iconOnly ? name : undefined}
-      className="flex min-h-9 items-center gap-2 rounded-md font-semibold text-fg transition-colors hover:text-accent-text"
+      className="flex min-h-9 min-w-0 items-center gap-2.5 rounded-md font-semibold text-fg transition-colors hover:text-accent-text"
     >
-      <GraduationCap aria-hidden className="size-5 shrink-0 text-accent-text" />
-      {!iconOnly && <span className="truncate">{name}</span>}
+      <LogoMark />
+      {/* A phone keeps the mark only; the name stays the link's accessible text. */}
+      <span className="truncate max-sm:sr-only">{name}</span>
     </Link>
   )
 }
@@ -77,10 +81,53 @@ function Nav({
   )
 }
 
+/** The navigation drawer of small screens: it closes on any route change and at `lg`. */
+function MobileNav({ groups, labels }: { groups: NavGroup[]; labels: ShellLabels }) {
+  const pathname = usePathname()
+  const [drawer, setDrawer] = useState({ open: false, at: pathname })
+  // A route change (a link, the back button) closes it: adjusted while rendering, as React
+  // recommends for state that follows a prop.
+  if (drawer.at !== pathname) setDrawer({ open: false, at: pathname })
+  const close = () => {
+    setDrawer(d => ({ ...d, open: false }))
+  }
+
+  // Widening past `lg` swaps the drawer for the sidebar, so it must not stay open behind it.
+  useEffect(() => {
+    const desktop = window.matchMedia(DESKTOP)
+    const onChange = () => {
+      if (desktop.matches) setDrawer(d => ({ ...d, open: false }))
+    }
+    desktop.addEventListener('change', onChange)
+    return () => {
+      desktop.removeEventListener('change', onChange)
+    }
+  }, [])
+
+  return (
+    <Drawer
+      open={drawer.open}
+      onOpenChange={open => {
+        setDrawer({ open, at: pathname })
+      }}
+      title={labels.menu}
+      closeLabel={labels.close}
+      trigger={
+        <Button variant="ghost" size="icon" aria-label={labels.menu} className="lg:hidden">
+          <Menu aria-hidden />
+        </Button>
+      }
+    >
+      <Nav groups={groups} label={labels.primary} onNavigate={close} />
+    </Drawer>
+  )
+}
+
 /**
- * The app frame: from `lg` a left sidebar that collapses to an icon rail (remembered in a
- * cookie, so the server renders it the same way); below `lg` a top bar whose menu opens the
- * same navigation in a drawer.
+ * The app frame. A top bar at every size carries the logo and name, and the language, theme
+ * and account controls. From `lg` a sidebar below it holds the navigation and collapses to
+ * an icon rail (remembered in a cookie, so the server renders it the same way); below `lg`
+ * the bar's menu opens the same navigation in a drawer.
  */
 export function SidebarShell({
   groups,
@@ -90,21 +137,13 @@ export function SidebarShell({
   children,
 }: {
   groups: NavGroup[]
-  /** Language, theme and account controls, shown expanded and in the drawer. */
+  /** Language, theme and account controls, at the bar's end. */
   controls: ReactNode
   labels: ShellLabels
   initiallyCollapsed: boolean
   children: ReactNode
 }) {
   const [collapsed, setCollapsed] = useState(initiallyCollapsed)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const pathname = usePathname()
-
-  // A route change (link, back button) closes the drawer.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDrawerOpen(false)
-  }, [pathname])
 
   const toggle = () => {
     const next = !collapsed
@@ -113,76 +152,47 @@ export function SidebarShell({
   }
 
   return (
-    <div className="flex min-h-dvh">
-      <aside
-        id="sidebar"
-        data-collapsed={collapsed}
-        className={cn(
-          'sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border-default bg-surface-elevated transition-[width] duration-(--motion-normal) lg:flex',
-          collapsed ? 'w-16' : 'w-64'
-        )}
-      >
-        <div
-          className={cn(
-            'flex h-14 items-center border-b border-border-muted',
-            collapsed ? 'justify-center' : 'px-5'
-          )}
-        >
-          <Brand name={labels.appName} iconOnly={collapsed} />
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <Nav groups={groups} label={labels.primary} collapsed={collapsed} />
-        </div>
-        <div
-          className={cn(
-            'flex flex-col gap-3 border-t border-border-muted py-3',
-            collapsed ? 'items-center' : 'px-4'
-          )}
-        >
-          {!collapsed && controls}
-          <Tooltip content={collapsed ? labels.expand : labels.collapse} side="right">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={collapsed ? labels.expand : labels.collapse}
-              aria-expanded={!collapsed}
-              aria-controls="sidebar"
-              onClick={toggle}
-              className={collapsed ? undefined : 'self-end'}
-            >
-              {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}
-            </Button>
-          </Tooltip>
-        </div>
-      </aside>
+    <div className="flex min-h-dvh flex-col">
+      <header className="sticky top-0 z-30 flex h-header shrink-0 items-center gap-2 border-b border-border-default bg-surface-elevated/95 px-4 backdrop-blur sm:px-6 lg:px-5">
+        <MobileNav groups={groups} labels={labels} />
+        <Brand name={labels.appName} />
+        <div className="ml-auto flex shrink-0 items-center gap-2">{controls}</div>
+      </header>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border-default bg-surface-elevated/95 px-4 backdrop-blur sm:px-6 lg:hidden">
-          <Brand name={labels.appName} />
-          <Drawer
-            open={drawerOpen}
-            onOpenChange={setDrawerOpen}
-            title={labels.appName}
-            closeLabel={labels.close}
-            trigger={
-              <Button variant="ghost" size="icon" aria-label={labels.menu}>
-                <Menu aria-hidden />
-              </Button>
-            }
+      <div className="flex flex-1">
+        <aside
+          id="sidebar"
+          data-collapsed={collapsed}
+          className={cn(
+            'sticky top-header hidden h-[calc(100dvh-var(--spacing-header))] shrink-0 flex-col border-r border-border-default bg-surface-elevated transition-[width] duration-(--motion-normal) lg:flex',
+            collapsed ? 'w-16' : 'w-64'
+          )}
+        >
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <Nav groups={groups} label={labels.primary} collapsed={collapsed} />
+          </div>
+          <div
+            className={cn(
+              'flex border-t border-border-muted py-3',
+              collapsed ? 'justify-center' : 'justify-end px-4'
+            )}
           >
-            <Nav
-              groups={groups}
-              label={labels.primary}
-              onNavigate={() => {
-                setDrawerOpen(false)
-              }}
-            />
-            <div className="mt-auto flex flex-col gap-3 border-t border-border-muted p-4">
-              {controls}
-            </div>
-          </Drawer>
-        </div>
-        {children}
+            <Tooltip content={collapsed ? labels.expand : labels.collapse} side="right">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={collapsed ? labels.expand : labels.collapse}
+                aria-expanded={!collapsed}
+                aria-controls="sidebar"
+                onClick={toggle}
+              >
+                {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}
+              </Button>
+            </Tooltip>
+          </div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
       </div>
     </div>
   )

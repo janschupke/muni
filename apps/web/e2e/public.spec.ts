@@ -1,7 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const setLocale = (page: Page, locale: 'cs' | 'en') =>
-  page.context().addCookies([{ name: 'NEXT_LOCALE', value: locale, url: 'http://localhost:3061' }])
+  page
+    .context()
+    .addCookies([{ name: 'NEXT_LOCALE', value: locale, url: test.info().project.use.baseURL }])
 
 test.describe('Czech browser', () => {
   test.use({ locale: 'cs-CZ' })
@@ -275,6 +277,10 @@ test.describe('public register (signed out)', () => {
     await page.getByRole('button', { name: 'Collapse sidebar' }).click()
     const nav = page.getByRole('navigation', { name: 'Main navigation' })
     await expect(nav.getByRole('link', { name: 'Courses' })).toHaveText('')
+    // Language and theme stay in the top bar whatever the sidebar does.
+    const header = page.getByRole('banner')
+    await expect(header.getByRole('radiogroup', { name: 'Language' })).toBeVisible()
+    await expect(header.getByRole('radiogroup', { name: 'Colour theme' })).toBeVisible()
     await page.reload()
     await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeVisible()
     await page.getByRole('button', { name: 'Expand sidebar' }).click()
@@ -287,7 +293,7 @@ test.describe('public register (signed out)', () => {
     await page.goto('/')
     await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeHidden()
     await page.getByRole('button', { name: 'Menu' }).click()
-    const drawer = page.getByRole('dialog', { name: 'Training register' })
+    const drawer = page.getByRole('dialog', { name: 'Menu' })
     await drawer.getByRole('link', { name: 'Rooms' }).click()
     await expect(page).toHaveURL(/\/rooms$/)
     await expect(drawer).toBeHidden()
@@ -296,7 +302,7 @@ test.describe('public register (signed out)', () => {
 
   test('no page scrolls sideways, from a phone to a wide screen', async ({ page }) => {
     await setLocale(page, 'en')
-    for (const width of [390, 1024, 1920]) {
+    for (const width of [360, 390, 1024, 1920]) {
       await page.setViewportSize({ width, height: 900 })
       for (const path of ['/', '/employees', '/compliance', '/advisor', '/planner', '/rooms']) {
         await page.goto(path)

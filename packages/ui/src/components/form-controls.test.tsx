@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import { render } from '../test/render'
 import { Checkbox } from './checkbox'
 import { Dropzone } from './dropzone'
 import { Field, FieldRow, Hint, Input, Textarea } from './field'

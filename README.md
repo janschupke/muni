@@ -113,10 +113,13 @@ One palette, defined once in `packages/ui/src/styles/tokens.css`:
 
 ### Layout
 
-From `lg` (1024px) the navigation is a left sidebar in groups (Register, Training,
-Planning). It collapses to an icon rail with tooltips; the choice is a cookie the server
-reads, so the first paint is right. Below `lg` a top bar's menu opens the same navigation in
-a drawer. Content runs full width up to 1920px (`max-w-page`, breakpoint `3xl`). Tooltips are
+A top bar at every width carries the logo and name, the language and theme switches and the
+account. From `lg` (1024px) the navigation is a sidebar below it, in groups (Register,
+Training, Planning); it collapses to an icon rail with tooltips, and the choice is a cookie
+the server reads, so the first paint is right. Below `lg` the bar's menu opens the same
+navigation in a drawer, which closes on any route change and when the screen widens to `lg`.
+On a phone the bar keeps the logo without the name. Content runs full width up to 1920px
+(`max-w-page`). Tooltips are
 Radix (`Tooltip`, `IconButton`); a lint rule bans native `title` attributes.
 
 Errors: `error.tsx` logs the error, shows its digest as a reference and retries with fresh

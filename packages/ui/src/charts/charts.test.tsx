@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import { render } from '../test/render'
 import { BarRow } from '../components/bar-row'
 import { Meter } from '../components/meter'
 import { HeatCell, HeatLegend } from './heat-cell'

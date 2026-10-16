@@ -3,9 +3,10 @@ import { Container } from '@muni/ui/layout'
 import { TextLink } from '@muni/ui/text-link'
 import { todayIn } from '@muni/utils/dates'
 import { formatDate } from '@muni/utils/format'
-import { GraduationCap } from 'lucide-react'
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
+
+import { LogoMark } from './logo-mark'
 
 export async function AppFooter({ viewer }: { viewer: Viewer }) {
   const [t, tn, locale] = await Promise.all([
@@ -23,7 +24,7 @@ export async function AppFooter({ viewer }: { viewer: Viewer }) {
       <Container className="flex flex-col gap-4 py-6 text-sm text-fg-muted sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-1">
           <span className="flex items-center gap-2 font-medium text-fg">
-            <GraduationCap aria-hidden className="size-4 text-accent-text" />
+            <LogoMark className="size-5" />
             {t('appName')}
           </span>
           <span>{t('asOf', { date: formatDate(todayIn(), locale) })}</span>

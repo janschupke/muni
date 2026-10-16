@@ -1,15 +1,16 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { render } from '../test/render'
 import { THEME_BOOT_SCRIPT, THEME_STORAGE_KEY } from '../theme/boot'
 import { ThemeToggle } from '../theme/theme-toggle'
 import { LinkTab, LinkTabs, NavItem } from './nav'
 import { Pagination } from './pagination'
 import { SegmentedControl } from './segmented-control'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs'
-import { Tooltip, TooltipProvider } from './tooltip'
+import { Tooltip } from './tooltip'
 
 function FakeLink({ href, rel, children }: { href: string; rel?: string; children: ReactNode }) {
   return (
@@ -130,11 +131,9 @@ describe('Tooltip', () => {
   it('shows its content when the trigger gets focus', async () => {
     const user = userEvent.setup()
     render(
-      <TooltipProvider>
-        <Tooltip content="Prošlé: 3" side="bottom">
-          <button type="button">3</button>
-        </Tooltip>
-      </TooltipProvider>
+      <Tooltip content="Prošlé: 3" side="bottom">
+        <button type="button">3</button>
+      </Tooltip>
     )
     await user.tab()
     expect((await screen.findByRole('tooltip')).textContent).toBe('Prošlé: 3')
@@ -167,9 +166,9 @@ describe('theme', () => {
     expect(document.documentElement.dataset.theme).toBeUndefined()
   })
 
-  it('starts from the stored choice and stores a new one', async () => {
+  it('starts from the choice the boot script applied, and stores a new one', async () => {
     const user = userEvent.setup()
-    localStorage.setItem(THEME_STORAGE_KEY, 'light')
+    document.documentElement.dataset.theme = 'light'
     render(<ThemeToggle labels={themeLabels} groupLabel="Motiv" />)
     expect(screen.getByRole('radio', { name: 'Světlý' }).getAttribute('aria-checked')).toBe('true')
     await user.click(screen.getByRole('radio', { name: 'Tmavý' }))
@@ -178,6 +177,19 @@ describe('theme', () => {
     await user.click(screen.getByRole('radio', { name: 'Systémový' }))
     expect(document.documentElement.dataset.theme).toBeUndefined()
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull()
+  })
+
+  it('keeps every switch on the page in step', async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <ThemeToggle labels={themeLabels} groupLabel="Motiv" />
+        <ThemeToggle labels={themeLabels} groupLabel="Motiv 2" />
+      </>
+    )
+    await user.click(screen.getAllByRole('radio', { name: 'Tmavý' })[0] as HTMLElement)
+    for (const radio of screen.getAllByRole('radio', { name: 'Tmavý' }))
+      expect(radio.getAttribute('aria-checked')).toBe('true')
   })
 
   it('still switches when storage is blocked', async () => {

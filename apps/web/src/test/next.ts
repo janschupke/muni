@@ -6,6 +6,22 @@ import { vi } from 'vitest'
  * every test.
  */
 export const route = { pathname: '/', search: '' }
+
+const routeListeners = new Set<() => void>()
+
+/** For the mocked `usePathname`: components re-render when the route changes, as in Next. */
+export function subscribeRoute(listener: () => void) {
+  routeListeners.add(listener)
+  return () => {
+    routeListeners.delete(listener)
+  }
+}
+
+/** Moves to another route without a click (the back button, a redirect). */
+export function navigate(pathname: string) {
+  route.pathname = pathname
+  for (const listener of routeListeners) listener()
+}
 export const router = {
   push: vi.fn(),
   replace: vi.fn(),

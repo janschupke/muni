@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
 
+import { render } from '../test/render'
 import { Meter } from './meter'
 import { StatCard } from './stat-card'
 

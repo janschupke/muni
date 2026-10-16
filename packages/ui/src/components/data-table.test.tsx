@@ -1,7 +1,8 @@
-import { render, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import { render } from '../test/render'
 import { createDataColumns, DataTable, type SortingState } from './data-table'
 
 interface Person {

@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import { getAdvisorInput, getDashboard } from '@muni/db/repositories'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { ReactNode } from 'react'
+import { isValidElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getViewer } from '@/server/auth'
 import { setLocale } from '@/server/actions/locale'
 import { advisorInput, dashboard, session } from '@/test/fixtures'
-import { NotFoundError, requestCookies, route, router } from '@/test/next'
+import { setViewportWidth } from '@/test/media'
+import { navigate, NotFoundError, requestCookies, route, router } from '@/test/next'
 import { Providers, renderClient, renderServer, resolveServer } from '@/test/render'
 
 import { AppFailure } from '@/components/app-failure'
@@ -44,15 +45,27 @@ beforeEach(() => {
   vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
 })
 
+type Element = { type: unknown; props: { children?: ReactNode } }
+
+/** The first element of a type in a server tree, depth first through children. */
+function find(node: ReactNode, type: string): Element | undefined {
+  if (Array.isArray(node)) {
+    for (const child of node as ReactNode[]) {
+      const found = find(child, type)
+      if (found) return found
+    }
+    return undefined
+  }
+  if (!isValidElement(node)) return undefined
+  const element = node as Element
+  return element.type === type ? element : find(element.props.children, type)
+}
+
 /** Renders the layout's <body> content (an <html> cannot be mounted inside a test container). */
 async function renderLayout(children: ReactNode) {
-  const tree = (await resolveServer(await RootLayout({ children }))) as {
-    props: { children: ReactNode | ReactNode[] }
-  }
-  const html = clerk.enabled ? (tree.props.children as { props: { children: ReactNode[] } }) : tree
-  const body = (html.props.children as ReactNode[])[1] as { props: { children: ReactNode } }
-  // The layout's provider reads its locale from the request; the test providers stand in.
-  const intl = body.props.children as { props: { children: ReactNode } }
+  const body = find(await resolveServer(await RootLayout({ children })), 'body')
+  // The layout's intl provider reads its locale from the request; the test providers stand in.
+  const intl = body?.props.children as Element
   return render(<Providers>{intl.props.children}</Providers>)
 }
 
@@ -77,6 +90,13 @@ describe('root layout', () => {
     expect(screen.getByRole('link', { name: 'Skip to content' }).getAttribute('href')).toBe('#main')
     expect(screen.getByRole('main').id).toBe('main')
     expect(screen.getByRole('contentinfo').textContent).toContain('Personal data is masked')
+    // The top bar: the logo and name lead home; language and theme sit at its end.
+    const header = screen.getByRole('banner')
+    expect(
+      within(header).getByRole('link', { name: 'Training register' }).getAttribute('href')
+    ).toBe('/')
+    expect(within(header).getByRole('radiogroup', { name: 'Language' })).toBeTruthy()
+    expect(within(header).getByRole('radiogroup', { name: 'Colour theme' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Sign in' })).toBeNull()
   })
 
@@ -110,8 +130,10 @@ describe('root layout', () => {
     expect(
       screen.getByRole('button', { name: 'Expand sidebar' }).getAttribute('aria-expanded')
     ).toBe('false')
-    // The language and theme controls live in the expanded sidebar and the drawer.
-    expect(screen.queryByRole('radiogroup', { name: 'Colour theme' })).toBeNull()
+    // Language and theme stay in the top bar, whatever the sidebar does.
+    expect(
+      within(screen.getByRole('banner')).getByRole('radiogroup', { name: 'Colour theme' })
+    ).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Expand sidebar' }))
     expect(document.cookie).toContain('muni.sidebar=expanded')
   })
@@ -126,20 +148,48 @@ describe('root layout', () => {
     const user = userEvent.setup()
     await renderLayout(<p>Obsah</p>)
     await user.click(screen.getByRole('button', { name: 'Menu' }))
-    const drawer = await screen.findByRole('dialog', { name: 'Training register' })
-    expect(within(drawer).getByRole('radiogroup', { name: 'Colour theme' })).toBeTruthy()
+    const drawer = await screen.findByRole('dialog', { name: 'Menu' })
+    // Only the navigation: the controls stay in the top bar, rendered once.
+    expect(within(drawer).queryByRole('radiogroup')).toBeNull()
+    expect(screen.getAllByRole('radiogroup', { name: 'Colour theme', hidden: true })).toHaveLength(
+      1
+    )
     // jsdom cannot follow the link; the drawer's own handler is what matters here.
     document.addEventListener(
       'click',
       event => {
         event.preventDefault()
       },
-      {
-        capture: true,
-        once: true,
-      }
+      { capture: true, once: true }
     )
     await user.click(within(drawer).getByRole('link', { name: 'Courses' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+  })
+
+  it('closes the drawer when the route changes, and when the screen grows to the sidebar', async () => {
+    const user = userEvent.setup()
+    await renderLayout(<p>Obsah</p>)
+    await user.click(screen.getByRole('button', { name: 'Menu' }))
+    await screen.findByRole('dialog')
+    // The back button: a new path, no click in the drawer.
+    act(() => {
+      navigate('/rooms')
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Menu' }))
+    await screen.findByRole('dialog')
+    act(() => {
+      setViewportWidth(800)
+    })
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    act(() => {
+      setViewportWidth(1024)
+    })
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull()
     })

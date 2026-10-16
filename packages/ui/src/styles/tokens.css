@@ -289,15 +289,15 @@
 }
 
 /*
- * Layout. Tailwind's breakpoints (sm 40rem, md 48rem, lg 64rem, xl 80rem, 2xl 96rem) plus one
- * for wide screens; content stops growing at 120rem (1920px). The sidebar appears at lg.
+ * Layout: Tailwind's breakpoints (sm 40rem, md 48rem, lg 64rem, xl 80rem, 2xl 96rem); the
+ * navigation sidebar appears at lg. Content stops growing at 120rem (1920px). The top bar is
+ * --spacing-header tall, and the sticky sidebar starts below it. Then motion: easings,
+ * durations and the keyframes.
  */
 @theme {
-  --breakpoint-3xl: 120rem;
   --container-page: 120rem;
-}
+  --spacing-header: 3.5rem;
 
-@theme {
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
   --ease-exit: cubic-bezier(0.3, 0, 1, 1);
@@ -353,7 +353,7 @@
   }
 }
 
-/* Hides a scroll container's bar while keeping it scrollable (tab strips, the header nav). */
+/* Hides a scroll container's bar while keeping it scrollable (tab strips). */
 @utility scrollbar-none {
   scrollbar-width: none;
   &::-webkit-scrollbar {

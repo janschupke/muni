@@ -63,7 +63,7 @@ export async function AppShell({ viewer, children }: { viewer: Viewer; children:
     },
   ]
   const controls = (
-    <div className="flex flex-wrap items-center gap-2">
+    <>
       <LocaleSwitch
         current={locale}
         groupLabel={t('nav.language.label')}
@@ -84,11 +84,11 @@ export async function AppShell({ viewer, children }: { viewer: Viewer; children:
           <SignInButton mode="modal">
             <Button variant="primary" size="sm">
               <LogIn aria-hidden />
-              {t('common.signIn')}
+              <span className="max-sm:sr-only">{t('common.signIn')}</span>
             </Button>
           </SignInButton>
         ))}
-    </div>
+    </>
   )
   return (
     <SidebarShell

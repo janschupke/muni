@@ -39,7 +39,7 @@ export function LinkTab({ asChild = false, active = false, className, ...props }
   )
 }
 
-/** A primary-navigation item (header). */
+/** A primary-navigation item (the sidebar and the navigation drawer). */
 export function NavItem({ asChild = false, active = false, className, ...props }: LinkProps) {
   const Comp = asChild ? Slot.Root : 'a'
   return (
