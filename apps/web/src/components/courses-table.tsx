@@ -1,6 +1,7 @@
 'use client'
 
 import type { CourseListItem } from '@muni/db/repositories'
+import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
@@ -59,12 +60,11 @@ export function CoursesTable({ courses }: { courses: CourseListItem[] }) {
           meta: { headerClassName: 'w-56' },
           cell: ({ row }) =>
             row.original.counts.total > 0 ? (
-              <div className="flex items-center gap-2">
-                <ComplianceBar counts={row.original.counts} label={row.original.name} />
-                <span className="w-10 text-right text-xs tabular-nums">
-                  {formatPercent(row.original.rate, locale)}
-                </span>
-              </div>
+              <BarRow
+                layout="inline"
+                bar={<ComplianceBar counts={row.original.counts} label={row.original.name} />}
+                value={formatPercent(row.original.rate, locale)}
+              />
             ) : (
               <span className="text-fg-subtle">{PLACEHOLDER}</span>
             ),

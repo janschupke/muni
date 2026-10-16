@@ -49,7 +49,9 @@ export function SessionForm({
     location: string
     isOnline: boolean
     capacity: number
-    bookedCount: number
+    unnamedBookings: number
+    /** Named bookings, shown next to the unnamed ones (managed as assignments). */
+    assignedCount: number
     pricePerPerson: number | null
     status: string
   }
@@ -92,10 +94,11 @@ export function SessionForm({
           defaultValue={defaults.capacity}
         />
         <TextField
-          name="bookedCount"
+          name="unnamedBookings"
           inputMode="numeric"
-          label={t('bookedCount')}
-          defaultValue={defaults.bookedCount}
+          label={t('unnamedBookings')}
+          help={t('unnamedHelp', { count: defaults.assignedCount })}
+          defaultValue={defaults.unnamedBookings}
         />
         <TextField
           name="pricePerPerson"

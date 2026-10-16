@@ -162,12 +162,8 @@ export function ReviewStep({
             return (
               <TabsTrigger key={kind} value={kind}>
                 {t(`kinds.${kind}`)}
-                <Badge className="tabular-nums">{s.total}</Badge>
-                {s.invalid > 0 && (
-                  <Badge tone="danger" className="tabular-nums">
-                    {s.invalid}
-                  </Badge>
-                )}
+                <Badge>{s.total}</Badge>
+                {s.invalid > 0 && <Badge tone="danger">{s.invalid}</Badge>}
               </TabsTrigger>
             )
           })}

@@ -1,4 +1,4 @@
-import { getEmployee } from '@muni/db/repositories'
+import { getEmployee, listEmployeeBookings } from '@muni/db/repositories'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
@@ -8,29 +8,44 @@ import { SplitLayout } from '@muni/ui/layout'
 import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
-import { formatDate, formatOptional, formatPercent, PLACEHOLDER } from '@muni/utils/format'
+import { CellStack } from '@muni/ui/table'
+import {
+  formatDate,
+  formatOptional,
+  formatPercent,
+  formatTimeRange,
+  PLACEHOLDER,
+} from '@muni/utils/format'
 import { Pencil, Plus } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
+import { cache } from 'react'
 
+import { BackLink } from '@/components/back-link'
 import { CompletionHistoryTable } from '@/components/completion-tables'
+import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { ComplianceBadge, EmploymentBadge } from '@/components/status-badges'
 import { getViewer } from '@/server/auth'
 
 type Props = { params: Promise<{ externalId: string }> }
 
+// One fetch per request for both the title and the page.
+const loadEmployee = cache(async (externalId: string) => getEmployee(externalId, await getViewer()))
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { externalId } = await params
-  return { title: externalId }
+  const employee = await loadEmployee(externalId)
+  return { title: employee ? `${employee.firstName} ${employee.lastName}` : externalId }
 }
 
 export default async function EmployeePage({ params }: Props) {
   const { externalId } = await params
   const viewer = await getViewer()
-  const [employee, t, te, tc, tCommon, locale] = await Promise.all([
-    getEmployee(externalId, viewer),
+  const [employee, bookings, t, te, tc, tCommon, locale] = await Promise.all([
+    loadEmployee(externalId),
+    listEmployeeBookings(externalId),
     getTranslations('employees.detail'),
     getTranslations('employees'),
     getTranslations('courses'),
@@ -44,11 +59,7 @@ export default async function EmployeePage({ params }: Props) {
   return (
     <>
       <PageHeader
-        eyebrow={
-          <TextLink asChild className="text-inherit">
-            <Link href="/employees">{te('title')}</Link>
-          </TextLink>
-        }
+        eyebrow={<BackLink fallback={{ href: '/employees', label: te('title') }} />}
         title={`${employee.firstName} ${employee.lastName}`}
         description={[employee.position, employee.department].filter(Boolean).join(' · ')}
         actions={
@@ -73,47 +84,79 @@ export default async function EmployeePage({ params }: Props) {
 
       <SplitLayout
         side={
-          <Card>
-            <CardHeader title={t('profile')} />
-            <CardBody>
-              <DescriptionList>
-                <DescriptionItem label="ID">{employee.externalId}</DescriptionItem>
-                <DescriptionItem label={te('columns.status')}>
-                  <EmploymentBadge status={employee.status} />
-                </DescriptionItem>
-                {'email' in employee && (
-                  <DescriptionItem label={t('email')}>
-                    {employee.email ?? PLACEHOLDER}
+          <div className="flex flex-col gap-6">
+            <Card>
+              <CardHeader title={t('profile')} />
+              <CardBody>
+                <DescriptionList>
+                  <DescriptionItem label="ID">{employee.externalId}</DescriptionItem>
+                  <DescriptionItem label={te('columns.status')}>
+                    <EmploymentBadge status={employee.status} />
                   </DescriptionItem>
-                )}
-                {'nationalId' in employee && (
-                  <DescriptionItem label={t('nationalId')}>
-                    {employee.nationalId ?? PLACEHOLDER}
-                  </DescriptionItem>
-                )}
-                <DescriptionItem label={t('manager')}>
-                  {employee.manager ? (
-                    <TextLink asChild>
-                      <Link href={`/employees/${employee.manager.externalId}`}>
-                        {employee.manager.name}
-                      </Link>
-                    </TextLink>
-                  ) : (
-                    PLACEHOLDER
+                  {'email' in employee && (
+                    <DescriptionItem label={t('email')}>
+                      {employee.email ?? PLACEHOLDER}
+                    </DescriptionItem>
                   )}
-                </DescriptionItem>
-                <DescriptionItem label={t('hiredOn')}>{date(employee.hiredOn)}</DescriptionItem>
-                {employee.leftOn && (
-                  <DescriptionItem label={t('leftOn')}>{date(employee.leftOn)}</DescriptionItem>
-                )}
-                {'note' in employee && employee.note && (
-                  <DescriptionItem label={t('note')}>
-                    <span className="whitespace-pre-line">{employee.note}</span>
+                  {'nationalId' in employee && (
+                    <DescriptionItem label={t('nationalId')}>
+                      {employee.nationalId ?? PLACEHOLDER}
+                    </DescriptionItem>
+                  )}
+                  <DescriptionItem label={t('manager')}>
+                    {employee.manager ? (
+                      <TextLink asChild>
+                        <Link href={`/employees/${employee.manager.externalId}`}>
+                          {employee.manager.name}
+                        </Link>
+                      </TextLink>
+                    ) : (
+                      PLACEHOLDER
+                    )}
                   </DescriptionItem>
+                  <DescriptionItem label={t('hiredOn')}>{date(employee.hiredOn)}</DescriptionItem>
+                  {employee.leftOn && (
+                    <DescriptionItem label={t('leftOn')}>{date(employee.leftOn)}</DescriptionItem>
+                  )}
+                  {'note' in employee && employee.note && (
+                    <DescriptionItem label={t('note')}>
+                      <span className="whitespace-pre-line">{employee.note}</span>
+                    </DescriptionItem>
+                  )}
+                </DescriptionList>
+              </CardBody>
+            </Card>
+            <Card>
+              <CardHeader title={t('bookings')} />
+              <CardBody>
+                {bookings.length === 0 ? (
+                  <EmptyState variant="inline" title={t('noBookings')} />
+                ) : (
+                  <ItemList>
+                    {bookings.map(b => (
+                      <ItemListRow key={b.sessionExternalId}>
+                        <CellStack
+                          title={
+                            <TextLink asChild emphasis>
+                              <Link href={`/courses/${b.courseCode}`}>{b.courseName}</Link>
+                            </TextLink>
+                          }
+                          meta={`${formatTimeRange(b.startsAt, b.endsAt, locale)} · ${b.location}`}
+                        />
+                        {canEdit && (
+                          <RemoveBookingButton
+                            sessionExternalId={b.sessionExternalId}
+                            employeeExternalId={employee.externalId}
+                            label={t('cancelBooking', { course: b.courseName })}
+                          />
+                        )}
+                      </ItemListRow>
+                    ))}
+                  </ItemList>
                 )}
-              </DescriptionList>
-            </CardBody>
-          </Card>
+              </CardBody>
+            </Card>
+          </div>
         }
         main={
           <Card>

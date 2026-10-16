@@ -1,5 +1,6 @@
 import { getCourse } from '@muni/db/repositories'
 import { COMPLIANCE_STATUSES } from '@muni/domain/enums'
+import { BarRow } from '@muni/ui/bar-row'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { StatItem, StatList } from '@muni/ui/description-list'
@@ -7,14 +8,15 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
 import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
-import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent, PLACEHOLDER } from '@muni/utils/format'
 import { Pencil } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
+import { cache } from 'react'
 
+import { BackLink } from '@/components/back-link'
 import { RecentCompletionsTable } from '@/components/completion-tables'
 import { ComplianceBar, ComplianceLegend } from '@/components/compliance-breakdown'
 import { RequirementList } from '@/components/requirement-list'
@@ -23,14 +25,17 @@ import { getViewer } from '@/server/auth'
 
 type Props = { params: Promise<{ code: string }> }
 
+const loadCourse = cache((code: string) => getCourse(code))
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  return { title: (await params).code }
+  const { code } = await params
+  return { title: (await loadCourse(code))?.name ?? code }
 }
 
 export default async function CoursePage({ params }: Props) {
   const { code } = await params
   const [course, viewer, t, tc, ts, locale] = await Promise.all([
-    getCourse(code),
+    loadCourse(code),
     getViewer(),
     getTranslations('courses'),
     getTranslations('common'),
@@ -43,11 +48,7 @@ export default async function CoursePage({ params }: Props) {
   return (
     <>
       <PageHeader
-        eyebrow={
-          <TextLink asChild className="text-inherit">
-            <Link href="/courses">{t('title')}</Link>
-          </TextLink>
-        }
+        eyebrow={<BackLink fallback={{ href: '/courses', label: t('title') }} />}
         title={course.name}
         description={`${course.code} · ${
           course.validityMonths === null
@@ -86,13 +87,11 @@ export default async function CoursePage({ params }: Props) {
                 <EmptyState variant="inline" title={PLACEHOLDER} />
               ) : (
                 <>
-                  <div className="mb-2 flex items-baseline justify-between">
-                    <ComplianceLegend />
-                    <span className="text-lg font-semibold tabular-nums">
-                      {formatPercent(course.rate, locale)}
-                    </span>
-                  </div>
-                  <ComplianceBar counts={course.counts} label={course.name} />
+                  <BarRow
+                    label={<ComplianceLegend />}
+                    value={formatPercent(course.rate, locale)}
+                    bar={<ComplianceBar counts={course.counts} label={course.name} />}
+                  />
                   <StatList className="mt-3">
                     {COMPLIANCE_STATUSES.map(s => (
                       <StatItem key={s} label={ts(s)}>

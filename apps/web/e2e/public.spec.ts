@@ -36,15 +36,19 @@ test.describe('public register (signed out)', () => {
     await page.getByRole('combobox', { name: 'Department' }).click()
     await page.getByRole('option', { name: 'Laboratoře' }).click()
     await expect(page).toHaveURL(/department=Laborato/)
-    await page.getByRole('combobox', { name: 'Compliance' }).focus()
+    await page.getByRole('combobox', { name: 'Has training' }).focus()
     await page.keyboard.press('Enter')
     await page.getByRole('option', { name: 'Missing' }).click()
     await expect(page).toHaveURL(/compliance=MISSING/)
-    await expect(page.getByRole('combobox', { name: 'Compliance' })).toHaveText('Missing')
-    const rows = page.locator('tbody tr')
-    await expect(rows.first()).toBeVisible()
-    for (const badge of await rows.locator('td:nth-child(5)').allTextContents())
-      expect(badge).toContain('Missing')
+    await expect(page.getByRole('combobox', { name: 'Has training' })).toHaveText('Missing')
+    // "Has a training in this state": every row's details list a missing one.
+    const toggles = page.getByRole('button', { name: /^Details for / })
+    await expect(toggles.first()).toBeVisible()
+    for (const toggle of (await toggles.all()).slice(0, 5)) {
+      await toggle.click()
+      const detail = page.locator(`#${(await toggle.getAttribute('aria-controls')) ?? ''}`)
+      await expect(detail.getByText('Missing').first()).toBeVisible()
+    }
   })
 
   test('employees sort on the server, across pages', async ({ page }) => {
@@ -52,7 +56,7 @@ test.describe('public register (signed out)', () => {
     await page.goto('/employees')
     const nameHeader = page.getByRole('columnheader', { name: 'Name' })
     await expect(nameHeader).toHaveAttribute('aria-sort', 'ascending')
-    const firstName = () => page.locator('tbody tr').first().locator('td').first().locator('a')
+    const firstName = () => page.locator('tbody tr').first().locator('td').nth(1).locator('a')
     const first = await firstName().textContent()
 
     await nameHeader.getByRole('button').click()
@@ -99,12 +103,98 @@ test.describe('public register (signed out)', () => {
     const header = page.getByRole('columnheader', { name: 'Price' })
     await header.getByRole('button').click()
     await expect(header).toHaveAttribute('aria-sort', 'ascending')
-    const prices = (await page.locator('tbody tr td:nth-child(5)').allTextContents()).map(text =>
+    // Column 1 is the attendee disclosure; price is the sixth cell.
+    const prices = (await page.locator('tbody tr td:nth-child(6)').allTextContents()).map(text =>
       text === '—' ? null : Number(text.replace(/[^\d.]/g, ''))
     )
     const priced = prices.filter(p => p !== null)
     expect(priced).toEqual([...priced].sort((a, b) => a - b))
     expect(prices.slice(priced.length).every(p => p === null)).toBe(true)
+  })
+
+  test('overview cards open the list they count, and the numbers agree', async ({ page }) => {
+    await setLocale(page, 'en')
+    await page.goto('/')
+    const card = page.getByRole('link', { name: /^Expired/ })
+    // The card's last line is "<n> people": the list behind it must hold exactly them.
+    const hint = (await card.locator('span').last().textContent()) ?? ''
+    const people = Number(/^(\d+)/.exec(hint)?.[1])
+    expect(people).toBeGreaterThan(0)
+    await card.click()
+    await expect(page).toHaveURL(/status=ACTIVE&compliance=EXPIRED/)
+    await expect(page.getByText(`${String(people)} employees`, { exact: true })).toBeVisible()
+  })
+
+  test('an employee row opens to their trainings and expiry', async ({ page }) => {
+    await setLocale(page, 'en')
+    await page.goto('/employees?q=E0153')
+    const toggle = page.getByRole('button', { name: 'Details for Malá Alena' })
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const detail = page.locator(`#${(await toggle.getAttribute('aria-controls')) ?? ''}`)
+    await expect(detail.getByRole('columnheader', { name: 'Valid until' })).toBeVisible()
+    await expect(detail.getByText(/in \d+ days|ago/).first()).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Valid trainings' })).toBeVisible()
+  })
+
+  test('back links return to the page the visitor came from, filters included', async ({
+    page,
+  }) => {
+    await setLocale(page, 'en')
+    await page.goto('/employees?department=Laborato%C5%99e&sort=compliance')
+    await page.locator('tbody tr').first().locator('td').nth(1).locator('a').click()
+    const back = page.getByRole('link', { name: 'Back to Employees' })
+    await expect(back).toHaveAttribute('href', /department=Laborato.*sort=compliance/)
+    await back.click()
+    await expect(page).toHaveURL(/department=Laborato.*sort=compliance/)
+
+    // Opened directly, the link falls back to the parent list; from a course, it names the course.
+    await page.goto('/courses/BOZP-Z')
+    await page.getByRole('link', { name: /Čern/ }).first().click()
+    await expect(
+      page.getByRole('link', { name: 'Back to BOZP – základní školení' })
+    ).toHaveAttribute('href', '/courses/BOZP-Z')
+  })
+
+  test('the advisor plans, explains and shows overbooking, read-only for visitors', async ({
+    page,
+  }) => {
+    await setLocale(page, 'en')
+    await page.goto('/advisor')
+    await expect(page.getByRole('heading', { level: 1, name: 'Advisor' })).toBeVisible()
+    await expect(page.getByText(/Sign in to save bookings/)).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Save/ })).toHaveCount(0)
+
+    const firstRow = () => page.getByRole('tabpanel').locator('tbody tr').first()
+    await firstRow().getByRole('button', { name: /^Why:/ }).click()
+    await expect(page.getByRole('table', { name: 'Score, term by term' })).toBeVisible()
+
+    const slider = page.getByRole('slider', { name: 'Never completed' })
+    await slider.focus()
+    await page.keyboard.press('End')
+    await expect(page).toHaveURL(/weightMissing=200/)
+
+    await page.getByRole('tab', { name: /Overbooked/ }).click()
+    for (const id of ['T016', 'T030'])
+      await expect(page.getByRole('tabpanel').getByText(new RegExp(id)).first()).toBeVisible()
+  })
+
+  test('footer, and tab strips without a scrollbar', async ({ page }) => {
+    await setLocale(page, 'en')
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/sessions')
+      await expect(page.getByRole('contentinfo')).toContainText('Data as of')
+      for (const strip of await page
+        .locator('nav[aria-label="Sessions"], nav[aria-label="Main navigation"]')
+        .all()) {
+        const { scrollHeight, clientHeight } = await strip.evaluate(e => ({
+          scrollHeight: e.scrollHeight,
+          clientHeight: e.clientHeight,
+        }))
+        expect(scrollHeight, `${String(width)}px`).toBe(clientHeight)
+      }
+    }
   })
 
   test('protected routes are not reachable without auth', async ({ page }) => {

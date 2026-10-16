@@ -17,7 +17,7 @@ export function getPolicy(): SanitizePolicy {
   return policy
 }
 
-function complianceOptions(asOf = todayIn()): ComplianceOptions {
+export function complianceOptions(asOf = todayIn()): ComplianceOptions {
   const raw = Number(process.env.MUNI_EXPIRING_DAYS)
   return {
     asOf,

@@ -1,6 +1,7 @@
 import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react'
 
 import { cn } from '../cn'
+import { surfaceClass } from './card'
 
 /**
  * The scroll box around a table. `relative` makes it the containing block of absolutely
@@ -8,15 +9,7 @@ import { cn } from '../cn'
  * without it they sit outside the box and stretch the page sideways on phones.
  */
 export function TableContainer({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn(
-        'relative overflow-x-auto rounded-lg border border-border-default bg-surface-elevated',
-        className
-      )}
-      {...props}
-    />
-  )
+  return <div className={cn('relative overflow-x-auto', surfaceClass, className)} {...props} />
 }
 
 export function Table({

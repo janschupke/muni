@@ -4,6 +4,7 @@ import { todayIn } from '@muni/utils/dates'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
+import { BackLink } from '@/components/back-link'
 import { CompletionForm } from '@/components/form/entity-forms'
 import { recordCompletion } from '@/server/actions/edit'
 import { requirePageUser } from '@/server/auth'
@@ -26,7 +27,14 @@ export default async function NewCompletionPage({
     <>
       <PageHeader
         title={t('title', { name: `${employee.firstName} ${employee.lastName}` })}
-        eyebrow={externalId}
+        eyebrow={
+          <BackLink
+            fallback={{
+              href: `/employees/${externalId}`,
+              label: `${employee.firstName} ${employee.lastName}`,
+            }}
+          />
+        }
       />
       <CompletionForm
         action={recordCompletion.bind(null, externalId)}

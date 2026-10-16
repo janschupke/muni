@@ -10,6 +10,8 @@ export interface DashboardData {
   activeEmployees: number
   parentalLeave: number
   counts: ComplianceCounts
+  /** Active people with at least one training in each state (the lists the cards link to). */
+  people: Record<'EXPIRING' | 'EXPIRED' | 'MISSING', number>
   rate: number
   byDepartment: { department: string; rate: number; counts: ComplianceCounts }[]
   upcomingSessions: SessionListItem[]
@@ -27,6 +29,8 @@ export async function getDashboard(options?: RepoOptions): Promise<DashboardData
   const departmentOf = new Map(compliance.employees.map(e => [e.id, e.departmentId]))
   const cellsByDepartment = Map.groupBy(activeCells, c => departmentOf.get(c.employeeId) ?? null)
   const counts = countStatuses(activeCells)
+  const peopleWith = (status: 'EXPIRING' | 'EXPIRED' | 'MISSING') =>
+    new Set(activeCells.filter(c => c.status === status).map(c => c.employeeId)).size
 
   return {
     asOf: compliance.options.asOf,
@@ -34,6 +38,11 @@ export async function getDashboard(options?: RepoOptions): Promise<DashboardData
     activeEmployees: active.size,
     parentalLeave: compliance.employees.filter(e => e.status === 'PARENTAL_LEAVE').length,
     counts,
+    people: {
+      EXPIRING: peopleWith('EXPIRING'),
+      EXPIRED: peopleWith('EXPIRED'),
+      MISSING: peopleWith('MISSING'),
+    },
     rate: complianceRate(counts),
     byDepartment: departments
       .map(d => {

@@ -26,6 +26,7 @@ function employee(
     status: 'ACTIVE',
     compliance: null,
     counts: counts(0, 0),
+    requirements: [],
     ...extra,
   }
 }

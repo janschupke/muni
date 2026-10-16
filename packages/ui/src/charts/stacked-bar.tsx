@@ -1,4 +1,5 @@
 import { cn } from '../cn'
+import { barFillClass, barTrackClass } from '../components/meter'
 
 export interface StackedSegment {
   key: string
@@ -28,14 +29,18 @@ export function StackedBar({
     <div
       role="img"
       aria-label={`${label}: ${segments.map(s => `${s.label} ${s.value}`).join(', ')}`}
-      className={cn('flex h-3 w-full gap-0.5 overflow-hidden rounded-sm bg-chart-track', className)}
+      className={cn(barTrackClass, 'flex h-3 gap-0.5', className)}
     >
       {total > 0 &&
         visible.map(segment => (
           <span
             key={segment.key}
             title={`${segment.label}: ${segment.value}`}
-            className={cn('h-full first:rounded-l-sm last:rounded-r-sm', segment.fillClass)}
+            className={cn(
+              barFillClass,
+              'first:rounded-l-full last:rounded-r-full',
+              segment.fillClass
+            )}
             style={{ width: `${(segment.value / total) * 100}%` }}
           />
         ))}

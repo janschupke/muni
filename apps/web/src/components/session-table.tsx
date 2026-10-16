@@ -3,6 +3,7 @@
 import type { SessionListItem } from '@muni/db/repositories'
 import { Button } from '@muni/ui/button'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { BarRow } from '@muni/ui/bar-row'
 import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
@@ -86,18 +87,27 @@ export function SessionTable({
           sortFn: 'basic',
           meta: { headerClassName: 'w-48' },
           cell: ({ row }) => (
-            <div className="flex items-center gap-2">
-              <Meter
-                value={row.original.bookedCount}
-                max={row.original.capacity}
-                label={t('columns.capacity')}
-                className="w-20"
-              />
-              <span className="text-xs whitespace-nowrap tabular-nums">
-                {t('booked', { booked: row.original.bookedCount, capacity: row.original.capacity })}
-              </span>
-              <OccupancyBadge booked={row.original.bookedCount} capacity={row.original.capacity} />
-            </div>
+            <BarRow
+              layout="inline"
+              barClassName="w-20 flex-none"
+              bar={
+                <Meter
+                  value={row.original.bookedCount}
+                  max={row.original.capacity}
+                  label={t('columns.capacity')}
+                />
+              }
+              value={t('booked', {
+                booked: row.original.bookedCount,
+                capacity: row.original.capacity,
+              })}
+              after={
+                <OccupancyBadge
+                  booked={row.original.bookedCount}
+                  capacity={row.original.capacity}
+                />
+              }
+            />
           ),
         }),
         ...(compact
@@ -147,6 +157,33 @@ export function SessionTable({
       getRowId={s => s.externalId}
       enableSorting={!compact}
       rowClassName={s => (s.status === 'CANCELLED' ? 'text-fg-subtle' : undefined)}
+      {...(!compact && {
+        renderExpanded: (s: SessionListItem) => <AttendeeList session={s} />,
+        getRowCanExpand: (s: SessionListItem) => s.assigned.length > 0,
+        expandLabel: (s: SessionListItem) => t('attendees.toggle', { id: s.externalId }),
+        expandHeader: t('attendees.header'),
+      })}
     />
+  )
+}
+
+/** Who is booked by name, and how many seats are booked without one. */
+function AttendeeList({ session }: { session: SessionListItem }) {
+  const t = useTranslations('sessions.attendees')
+  return (
+    <div className="flex flex-col gap-2 text-sm">
+      <p className="text-fg-muted">
+        {t('summary', { named: session.assigned.length, unnamed: session.unnamedBookings })}
+      </p>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1">
+        {session.assigned.map(a => (
+          <li key={a.externalId}>
+            <TextLink asChild>
+              <Link href={`/employees/${a.externalId}`}>{a.name}</Link>
+            </TextLink>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }

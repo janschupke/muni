@@ -2,6 +2,20 @@
 // personal fields have already been passed through the sanitisation policy for the viewer.
 import 'server-only'
 
+export { getAdvisorInput } from './advisor'
+export {
+  applyAssignments,
+  ASSIGNMENT_FAILURES,
+  listEmployeeBookings,
+  MOVE_FAILURES,
+  moveSeats,
+  removeAssignment,
+  type AssignmentFailure,
+  type AssignmentOutcome,
+  type AssignmentRequest,
+  type EmployeeBooking,
+  type MoveFailure,
+} from './assignments'
 export { getPolicy, type RepoOptions } from './context'
 export {
   getCourse,
@@ -26,6 +40,7 @@ export {
   type EmployeeDetail,
   type EmployeeFilters,
   type EmployeeListItem,
+  type EmployeeListRequirement,
   type Page,
 } from './employees'
 export { EMPLOYEE_SORT_KEYS, type EmployeeSortKey } from './employee-sort'

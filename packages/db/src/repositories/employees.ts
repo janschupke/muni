@@ -7,7 +7,7 @@ import {
 import type { ComplianceStatus, EmploymentStatus, Viewer } from '@muni/domain/enums'
 import { sanitizeRecord } from '@muni/domain/sanitize'
 import { fold } from '@muni/utils/text'
-import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
+import { diffInDays, isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
 import { dbOf, getPolicy, loadCompliance, type RepoOptions } from './context'
 import { sortEmployees, type EmployeeSortKey } from './employee-sort'
@@ -22,12 +22,27 @@ export interface EmployeeListItem {
   /** Worst requirement status; null when nothing is required (or terminated). */
   compliance: ComplianceStatus | null
   counts: ComplianceCounts
+  /** Every required course with its state, for the row's detail panel. */
+  requirements: EmployeeListRequirement[]
+}
+
+export interface EmployeeListRequirement {
+  courseCode: string
+  courseName: string
+  status: ComplianceStatus
+  completedOn: IsoDate | null
+  validUntil: IsoDate | null
+  /** Days from today to `validUntil` (negative once expired); null without an expiry. */
+  daysLeft: number | null
+  /** The person's next named booking for this course, if any. */
+  booked: { sessionExternalId: string; startsAt: string } | null
 }
 
 export interface EmployeeFilters {
   q?: string
   department?: string
   status?: EmploymentStatus
+  /** People with at least one required training in this state. */
   compliance?: ComplianceStatus
   /** Defaults to name, ascending. */
   sort?: { by: EmployeeSortKey; desc: boolean }
@@ -48,7 +63,8 @@ export async function listEmployees(
   options?: RepoOptions
 ): Promise<Page<EmployeeListItem>> {
   const db = dbOf(options)
-  const [employees, compliance] = await Promise.all([
+  const now = new Date()
+  const [employees, compliance, courses, bookings] = await Promise.all([
     db.employee.findMany({
       where: {
         ...(filters.department && { department: { name: filters.department } }),
@@ -66,8 +82,29 @@ export async function listEmployees(
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     }),
     loadCompliance(options),
+    db.course.findMany({ select: { id: true, code: true, name: true } }),
+    db.sessionAssignment.findMany({
+      where: { session: { startsAt: { gt: now }, status: 'PLANNED' } },
+      select: {
+        employeeId: true,
+        session: { select: { externalId: true, startsAt: true, courseId: true } },
+      },
+      orderBy: { session: { startsAt: 'asc' } },
+    }),
   ])
 
+  const courseById = new Map(courses.map(c => [c.id, c]))
+  // First (soonest) booking per person and course.
+  const nextBooking = new Map<string, { sessionExternalId: string; startsAt: string }>()
+  for (const b of bookings) {
+    const key = `${b.employeeId}|${b.session.courseId}`
+    if (!nextBooking.has(key))
+      nextBooking.set(key, {
+        sessionExternalId: b.session.externalId,
+        startsAt: b.session.startsAt.toISOString(),
+      })
+  }
+  const { asOf } = compliance.options
   const cellsByEmployee = Map.groupBy(compliance.cells, c => c.employeeId)
   const q = filters.q ? fold(filters.q) : ''
   const items = employees
@@ -82,10 +119,27 @@ export async function listEmployees(
         status: e.status,
         compliance: worstStatus(cells.map(c => c.status)),
         counts: countStatuses(cells),
+        requirements: cells
+          .map(c => {
+            const course = courseById.get(c.courseId)
+            const validUntil = c.basis?.validUntil ?? null
+            return {
+              courseCode: course?.code ?? '',
+              courseName: course?.name ?? '',
+              status: c.status,
+              completedOn: c.basis?.completedOn ?? null,
+              validUntil,
+              daysLeft: validUntil === null ? null : diffInDays(asOf, validUntil),
+              booked: nextBooking.get(`${e.id}|${c.courseId}`) ?? null,
+            }
+          })
+          .sort((a, b) => a.courseCode.localeCompare(b.courseCode)),
       }
     })
     .filter(e => !q || fold(`${e.firstName} ${e.lastName} ${e.externalId}`).includes(q))
-    .filter(e => !filters.compliance || e.compliance === filters.compliance)
+    // "Has a training in this state", so the list matches the dashboard's counts of trainings:
+    // someone with one expired and one missing course appears under both.
+    .filter(e => !filters.compliance || e.counts[filters.compliance] > 0)
 
   // Postgres orders names by its own collation (Č after Z); re-sort by Czech rules, then by
   // the requested column. The sort is stable, so ties stay in name order.

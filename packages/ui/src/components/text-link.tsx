@@ -17,7 +17,7 @@ export function TextLink({
   return (
     <Comp
       className={cn(
-        'text-fg underline-offset-2 hover:underline',
+        'text-fg underline-offset-2 transition-colors hover:underline',
         emphasis && 'font-medium',
         className
       )}

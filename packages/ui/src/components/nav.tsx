@@ -9,12 +9,17 @@ import { cn } from '../cn'
  * components can use it.
  */
 export const tabTriggerClass = cn(
-  '-mb-px inline-flex items-center gap-2 border-b-2 border-transparent px-3 py-2 text-sm font-medium whitespace-nowrap text-fg-muted hover:text-fg',
+  'inline-flex items-center gap-2 border-b-2 border-transparent px-3 py-2 text-sm font-medium whitespace-nowrap text-fg-muted transition-colors hover:text-fg',
   'data-[state=active]:border-accent data-[state=active]:text-fg',
   'aria-[current=page]:border-accent aria-[current=page]:text-fg'
 )
 
-export const tabListClass = 'flex gap-1 overflow-x-auto border-b border-border-default'
+/**
+ * The baseline is an inset shadow, not a border: the triggers' underline then sits on it
+ * without the usual negative margin, which overflowed the strip by 1px and showed a scrollbar.
+ */
+export const tabListClass =
+  'scrollbar-none flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--color-border-default)]'
 
 type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & { asChild?: boolean; active?: boolean }
 

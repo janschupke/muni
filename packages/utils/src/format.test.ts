@@ -4,9 +4,11 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
+  formatDecimal,
   formatInteger,
   formatOptional,
   formatPercent,
+  formatRelativeDays,
   formatTime,
   formatTimeRange,
   PLACEHOLDER,
@@ -53,11 +55,30 @@ describe('numbers', () => {
     expect(plain(formatCurrency(450.5, 'en'))).toBe('CZK 450.50')
   })
 
+  it('formats scores, signed when asked', () => {
+    expect(formatDecimal(42.46, 'en')).toBe('42.5')
+    expect(formatDecimal(-3, 'en', { signed: true })).toBe('-3')
+    expect(formatDecimal(10, 'en', { signed: true })).toBe('+10')
+    expect(formatDecimal(0, 'en', { signed: true })).toBe('0')
+    expect(plain(formatDecimal(-3.25, 'cs', { signed: true }))).toBe('-3,3')
+  })
+
   it('formats counts and rates', () => {
     expect(plain(formatInteger(12345, 'cs'))).toBe('12 345')
     expect(formatInteger(12345, 'en')).toBe('12,345')
     expect(plain(formatPercent(0.873, 'cs'))).toBe('87 %')
     expect(formatPercent(0.873, 'en')).toBe('87%')
+  })
+})
+
+describe('formatRelativeDays', () => {
+  it('reads like speech in both languages', () => {
+    expect(formatRelativeDays(12, 'en')).toBe('in 12 days')
+    expect(formatRelativeDays(-3, 'en')).toBe('3 days ago')
+    expect(formatRelativeDays(1, 'en')).toBe('tomorrow')
+    expect(plain(formatRelativeDays(12, 'cs'))).toBe('za 12 dní')
+    expect(plain(formatRelativeDays(-3, 'cs'))).toBe('před 3 dny')
+    expect(formatRelativeDays(0, 'cs')).toBe('dnes')
   })
 })
 

@@ -105,8 +105,13 @@ export type CompletionInput = z.infer<typeof completionSchema>
 export const courseEditSchema = courseSchema.pick({ name: true, validityMonths: true })
 export type CourseEdit = z.infer<typeof courseEditSchema>
 
+/**
+ * Editing a session sets its anonymous seats; named bookings are assignment rows and are
+ * managed separately, so the form never overwrites them.
+ */
 export const sessionEditSchema = sessionBase
-  .omit({ externalId: true, courseCode: true })
+  .omit({ externalId: true, courseCode: true, bookedCount: true })
+  .extend({ unnamedBookings: z.int().min(0).max(10_000) })
   .refine(endAfterStart, endAfterStartIssue)
 export type SessionEdit = z.infer<typeof sessionEditSchema>
 

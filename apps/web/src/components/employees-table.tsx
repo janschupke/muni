@@ -1,7 +1,9 @@
 'use client'
 
 import type { EmployeeListItem } from '@muni/db/repositories'
+import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable, type SortingState } from '@muni/ui/data-table'
+import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { PLACEHOLDER } from '@muni/utils/format'
@@ -12,6 +14,7 @@ import { useMemo, useTransition } from 'react'
 
 import { withParams } from '@/lib/search-params'
 
+import { RequirementPanel } from './requirement-panel'
 import { ComplianceBadge, EmploymentBadge } from './status-badges'
 
 const col = createDataColumns<EmployeeListItem>()
@@ -79,15 +82,23 @@ export function EmployeesTable({
             />
           ),
         }),
+        // Held (valid or still valid but expiring) out of required: the share of the person's
+        // mandatory trainings in force. Sorting is by the same share, on the server.
         col.accessor(e => e.counts.total, {
           id: 'required',
-          header: t('columns.required'),
-          meta: { align: 'right' },
+          header: t('columns.valid'),
+          meta: { headerClassName: 'w-44' },
           cell: ({ row }) => {
             const { counts } = row.original
-            return counts.total > 0
-              ? `${String(counts.VALID + counts.EXPIRING)} / ${String(counts.total)}`
-              : PLACEHOLDER
+            if (counts.total === 0) return PLACEHOLDER
+            const held = counts.VALID + counts.EXPIRING
+            return (
+              <BarRow
+                layout="inline"
+                bar={<Meter value={held} max={counts.total} label={t('columns.valid')} />}
+                value={t('validOf', { valid: held, total: counts.total })}
+              />
+            )
           },
         }),
       ]),
@@ -102,6 +113,10 @@ export function EmployeesTable({
         getRowId={e => e.externalId}
         manualSorting
         sorting={sorting}
+        renderExpanded={e => <RequirementPanel requirements={e.requirements} />}
+        getRowCanExpand={e => e.requirements.length > 0}
+        expandLabel={e => t('panel.toggle', { name: `${e.lastName} ${e.firstName}` })}
+        expandHeader={t('panel.header')}
         onSortingChange={next => {
           const [first] = next
           startTransition(() => {

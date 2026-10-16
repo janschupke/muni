@@ -3,6 +3,7 @@ import type { RequirementScope, SessionStatus } from '@muni/domain/enums'
 import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
 import { dbOf, loadCompliance, type RepoOptions } from './context'
+import { sessionInclude, toSessionItem } from './sessions'
 
 export interface RequirementView {
   scope: RequirementScope
@@ -89,6 +90,11 @@ export interface SessionListItem {
   location: string
   isOnline: boolean
   capacity: number
+  /** Seats booked without a name (from the export). */
+  unnamedBookings: number
+  /** Named bookings (assignments), oldest first. */
+  assigned: { externalId: string; name: string }[]
+  /** Derived: unnamedBookings + assigned.length. */
   bookedCount: number
   pricePerPerson: number | null
   status: SessionStatus
@@ -111,7 +117,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     where: { code },
     include: {
       ...requirementInclude,
-      sessions: { orderBy: { startsAt: 'asc' } },
+      sessions: { orderBy: { startsAt: 'asc' }, include: sessionInclude },
       completions: {
         orderBy: { completedOn: 'desc' },
         take: 20,
@@ -135,19 +141,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     ).length,
     counts,
     rate: complianceRate(counts),
-    sessions: course.sessions.map(s => ({
-      externalId: s.externalId,
-      courseCode: course.code,
-      courseName: course.name,
-      startsAt: s.startsAt.toISOString(),
-      endsAt: s.endsAt.toISOString(),
-      location: s.location,
-      isOnline: s.isOnline,
-      capacity: s.capacity,
-      bookedCount: s.bookedCount,
-      pricePerPerson: s.pricePerPerson === null ? null : Number(s.pricePerPerson),
-      status: s.status,
-    })),
+    sessions: course.sessions.map(toSessionItem),
     recentCompletions: course.completions.map(c => ({
       externalId: c.externalId,
       employeeExternalId: c.employee.externalId,

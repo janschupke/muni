@@ -8,7 +8,9 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getTranslations } from 'next-intl/server'
 import type { ReactNode } from 'react'
 
+import { AppFooter } from '@/components/app-footer'
 import { AppHeader } from '@/components/app-header'
+import { NavigationHistory } from '@/components/navigation-history'
 import { getViewer } from '@/server/auth'
 import { clerkEnabled } from '@/server/clerk'
 
@@ -31,13 +33,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         {/* Applies the stored theme before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
-      <body className="min-h-dvh">
+      <body className="flex min-h-dvh flex-col">
         <NextIntlClientProvider>
           <TooltipProvider>
             <AppHeader viewer={viewer} />
-            <Container asChild className="py-8">
-              <main>{children}</main>
-            </Container>
+            <NavigationHistory>
+              <Container asChild className="flex-1 py-8">
+                <main>{children}</main>
+              </Container>
+            </NavigationHistory>
+            <AppFooter viewer={viewer} />
           </TooltipProvider>
         </NextIntlClientProvider>
       </body>

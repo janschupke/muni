@@ -37,7 +37,7 @@ describe('form helpers', () => {
       location: 'Aula A',
       isOnline: false,
       capacity: 10,
-      bookedCount: 0,
+      unnamedBookings: 0,
       pricePerPerson: null,
       status: 'PLANNED',
     }

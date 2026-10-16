@@ -5,6 +5,7 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
+    "./advisor": "./src/advisor.ts",
     "./enums": "./src/enums.ts",
     "./schemas": "./src/schemas.ts",
     "./compliance": "./src/compliance.ts",

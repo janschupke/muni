@@ -64,6 +64,7 @@ model Employee {
   status       EmploymentStatus
   note         String?
   completions  CourseCompletion[]
+  assignments  SessionAssignment[]
   createdAt    DateTime           @default(now()) @map("created_at")
   updatedAt    DateTime           @updatedAt @map("updated_at")
 
@@ -121,12 +122,16 @@ model CourseSession {
   endsAt         DateTime      @map("ends_at") @db.Timestamptz(3)
   location       String
   isOnline       Boolean       @default(false) @map("is_online")
-  capacity       Int
-  bookedCount    Int           @default(0) @map("booked_count")
-  pricePerPerson Decimal?      @map("price_per_person") @db.Decimal(10, 2)
-  status         SessionStatus @default(PLANNED)
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  /// CHECK (capacity >= 0) in the migration SQL; Prisma cannot model CHECK constraints.
+  capacity        Int
+  /// Seats booked without a name (from the source export). The booked total is derived:
+  /// unnamedBookings + assignments. CHECK (unnamed_bookings >= 0) in the migration SQL.
+  unnamedBookings Int                 @default(0) @map("unnamed_bookings")
+  pricePerPerson  Decimal?            @map("price_per_person") @db.Decimal(10, 2)
+  status          SessionStatus       @default(PLANNED)
+  assignments     SessionAssignment[]
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
 
   @@index([startsAt])
   @@index([courseId, startsAt])
@@ -155,4 +160,30 @@ model CourseCompletion {
   @@index([courseId])
   @@index([validUntil])
   @@map("course_completions")
+}
+
+enum AssignmentSource {
+  /// Applied from the advisor's plan.
+  ADVISOR
+  MANUAL
+}
+
+/// A named booking: this person attends this session. Counts toward the session's seats.
+model SessionAssignment {
+  id         String           @id @default(cuid())
+  sessionId  String           @map("session_id")
+  session    CourseSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  /// Restrict: removing a person must not silently erase their booking history.
+  employeeId String           @map("employee_id")
+  employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  source     AssignmentSource @default(MANUAL)
+  /// Advisor score when the assignment was applied (audit); null for manual bookings.
+  score      Decimal?         @db.Decimal(8, 2)
+  /// Clerk user id. Clerk owns users, so there is no user table to reference.
+  createdBy  String           @map("created_by")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  @@unique([sessionId, employeeId])
+  @@index([employeeId])
+  @@map("session_assignments")
 }

@@ -86,7 +86,31 @@ export function formatInteger(value: number, locale: string): string {
   return numberFormatter(locale, { maximumFractionDigits: 0 }).format(value)
 }
 
+/** A score or weight: `42.5`, `−3`; `signed` adds `+` to positives (score terms). */
+export function formatDecimal(
+  value: number,
+  locale: string,
+  { digits = 1, signed = false }: { digits?: number; signed?: boolean } = {}
+): string {
+  return numberFormatter(locale, {
+    maximumFractionDigits: digits,
+    signDisplay: signed ? 'exceptZero' : 'auto',
+  }).format(value)
+}
+
 /** `ratio` is 0–1. */
 export function formatPercent(ratio: number, locale: string): string {
   return numberFormatter(locale, { style: 'percent', maximumFractionDigits: 0 }).format(ratio)
+}
+
+const relativeCache = new Map<string, Intl.RelativeTimeFormat>()
+
+/** `in 12 days`, `3 days ago`, `tomorrow` (cs: `za 12 dní`, `před 3 dny`, `zítra`). */
+export function formatRelativeDays(days: number, locale: string): string {
+  let formatter = relativeCache.get(locale)
+  if (!formatter) {
+    formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+    relativeCache.set(locale, formatter)
+  }
+  return formatter.format(days, 'day')
 }

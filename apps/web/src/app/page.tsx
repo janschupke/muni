@@ -1,4 +1,7 @@
-import { getDashboard } from '@muni/db/repositories'
+import { getAdvisorInput, getDashboard } from '@muni/db/repositories'
+import { DEFAULT_ADVISOR_SETTINGS, planAssignments } from '@muni/domain/advisor'
+import { Alert } from '@muni/ui/alert'
+import { BarRow } from '@muni/ui/bar-row'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
@@ -14,13 +17,19 @@ import { SessionTable } from '@/components/session-table'
 import { getViewer } from '@/server/auth'
 
 export default async function DashboardPage() {
-  const [data, t, locale, viewer] = await Promise.all([
+  const [data, advisorInput, t, locale, viewer] = await Promise.all([
     getDashboard(),
+    getAdvisorInput(),
     getTranslations('dashboard'),
     getLocale(),
     getViewer(),
   ])
   const held = data.counts.VALID + data.counts.EXPIRING
+  const plan = planAssignments(advisorInput, DEFAULT_ADVISOR_SETTINGS)
+  const { overbookedBefore: overbooked, openBefore: open } = plan.metrics
+  const count = (n: number) => formatInteger(n, locale)
+  const employees = (compliance?: string) =>
+    `/employees?status=ACTIVE${compliance ? `&compliance=${compliance}` : ''}`
 
   return (
     <>
@@ -29,32 +38,56 @@ export default async function DashboardPage() {
         description={t('description', { date: formatDate(data.asOf, locale) })}
       />
 
+      {(overbooked > 0 || open > 0) && (
+        <Alert tone={overbooked > 0 ? 'warning' : 'info'} className="mb-4">
+          {t('advisor.summary', { overbooked, open })}{' '}
+          <TextLink asChild emphasis className="text-inherit underline">
+            <Link href="/advisor">{t('advisor.open')}</Link>
+          </TextLink>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <StatCard
+          href={employees()}
+          linkAs={Link}
           label={t('kpi.activeEmployees')}
-          value={formatInteger(data.activeEmployees, locale)}
+          value={count(data.activeEmployees)}
           hint={t('kpi.activeHint', { count: data.parentalLeave })}
         />
         <StatCard
+          href="/compliance"
+          linkAs={Link}
           label={t('kpi.complianceRate')}
           value={formatPercent(data.rate, locale)}
           hint={t('kpi.complianceHint', { held, total: data.counts.total })}
           tone="accent"
         />
         <StatCard
+          href={employees('EXPIRING')}
+          linkAs={Link}
           label={t('kpi.expiring')}
-          value={formatInteger(data.counts.EXPIRING, locale)}
-          hint={t('kpi.expiringHint', { days: data.expiringWithinDays })}
+          value={count(data.counts.EXPIRING)}
+          hint={t('kpi.expiringPeople', {
+            people: data.people.EXPIRING,
+            days: data.expiringWithinDays,
+          })}
           tone="warning"
         />
         <StatCard
+          href={employees('EXPIRED')}
+          linkAs={Link}
           label={t('kpi.expired')}
-          value={formatInteger(data.counts.EXPIRED, locale)}
-          tone="danger"
+          value={count(data.counts.EXPIRED)}
+          hint={t('kpi.trainingsPeople', { people: data.people.EXPIRED })}
+          tone="serious"
         />
         <StatCard
+          href={employees('MISSING')}
+          linkAs={Link}
           label={t('kpi.missing')}
-          value={formatInteger(data.counts.MISSING, locale)}
+          value={count(data.counts.MISSING)}
+          hint={t('kpi.trainingsPeople', { people: data.people.MISSING })}
           tone="danger"
         />
       </div>
@@ -67,17 +100,17 @@ export default async function DashboardPage() {
             <ul className="flex flex-col gap-3">
               {data.byDepartment.map(d => (
                 <li key={d.department}>
-                  <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
-                    <TextLink asChild>
-                      <Link href={`/employees?department=${encodeURIComponent(d.department)}`}>
-                        {d.department}
-                      </Link>
-                    </TextLink>
-                    <span className="font-medium text-fg tabular-nums">
-                      {formatPercent(d.rate, locale)}
-                    </span>
-                  </div>
-                  <ComplianceBar counts={d.counts} label={d.department} />
+                  <BarRow
+                    label={
+                      <TextLink asChild>
+                        <Link href={`/employees?department=${encodeURIComponent(d.department)}`}>
+                          {d.department}
+                        </Link>
+                      </TextLink>
+                    }
+                    value={formatPercent(d.rate, locale)}
+                    bar={<ComplianceBar counts={d.counts} label={d.department} />}
+                  />
                 </li>
               ))}
             </ul>

@@ -3,6 +3,10 @@ import type { HTMLAttributes, ReactNode } from 'react'
 
 import { cn } from '../cn'
 
+/** The raised surface every card-like box shares (cards, stat cards, table frames). */
+export const surfaceClass =
+  'rounded-lg border border-border-default bg-surface-elevated shadow-card'
+
 /** A raised surface; a `<section>`, or with `asChild` its child (`<li>` in a list). */
 export function Card({
   asChild = false,
@@ -10,15 +14,7 @@ export function Card({
   ...props
 }: HTMLAttributes<HTMLElement> & { asChild?: boolean }) {
   const Comp = asChild ? Slot.Root : 'section'
-  return (
-    <Comp
-      className={cn(
-        'rounded-lg border border-border-default bg-surface-elevated shadow-card',
-        className
-      )}
-      {...props}
-    />
-  )
+  return <Comp className={cn(surfaceClass, className)} {...props} />
 }
 
 export function CardHeader({

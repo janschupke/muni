@@ -20,6 +20,7 @@ export async function AppHeader({ viewer }: { viewer: Viewer }) {
     { href: '/courses', label: t('nav.courses') },
     { href: '/sessions', label: t('nav.sessions') },
     { href: '/compliance', label: t('nav.compliance') },
+    { href: '/advisor', label: t('nav.advisor') },
     ...(viewer === 'authenticated' ? [{ href: '/import', label: t('nav.import') }] : []),
   ]
 
@@ -32,7 +33,7 @@ export async function AppHeader({ viewer }: { viewer: Viewer }) {
         </Link>
         <nav
           aria-label={t('nav.primary')}
-          className="order-last -mx-1 flex w-full gap-1 overflow-x-auto md:order-none md:w-auto"
+          className="order-last -mx-1 scrollbar-none flex w-full gap-1 overflow-x-auto md:order-none md:w-auto"
         >
           {links.map(link => (
             <NavLink key={link.href} href={link.href}>

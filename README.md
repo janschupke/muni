@@ -49,6 +49,14 @@ means optional), `CourseSession`, `CourseCompletion` and `Provider`. Source IDs 
 updates records instead of duplicating them. Date-only values are Postgres `date` columns;
 session times are `timestamptz` converted from Europe/Prague wall-clock time.
 
+Bookings: a session's seats are `unnamedBookings` (anonymous seats from the export) plus
+`SessionAssignment` rows (a named person on a session, with FKs to both; deleting a session
+cascades, deleting a person with bookings is refused). The booked total is always derived,
+never stored twice. Saving a booking locks the session row (`SELECT … FOR UPDATE`) and
+re-checks seats, status, clashes and need, so two people can never take the last seat.
+`capacity >= 0` and `unnamed_bookings >= 0` are CHECK constraints in the migration SQL.
+Re-importing a session stores `max(0, exported total − named bookings)` as unnamed seats.
+
 Compliance is derived, not stored: for each active employee and each course a requirement
 applies to, the best completion decides `VALID`, `EXPIRING` (within `MUNI_EXPIRING_DAYS`,
 default 30), `EXPIRED` or `MISSING` (`packages/domain/src/compliance.ts`).
@@ -68,6 +76,59 @@ applied in `listEmployees` before the page is cut.
 
 Dates and times are formatted with luxon in Europe/Prague time (`@muni/utils/format`);
 date-only values are formatted as UTC so the day never shifts. Amounts use `Intl.NumberFormat`.
+
+Motion is centralised in `packages/ui/src/styles/tokens.css`: three durations, the easings,
+the named animations (`animate-fade-in`, `animate-pop-in`, …), and the default for every
+`transition-*` utility. `prefers-reduced-motion: reduce` turns all of it off in one rule.
+
+Back links ("← Employees") name the page the visitor actually came from, filters included,
+from a per-tab history in `sessionStorage`; forms are skipped, and a page opened directly
+links to its parent list.
+
+## Advisor
+
+`/advisor` shows overbooked sessions and everyone with an expired, missing or soon-expiring
+mandatory training, and plans who should attend which upcoming session. Visitors can explore
+and tune the plan; signed-in users can save it (as `ADVISOR` bookings, score kept for audit)
+and move anonymous seats out of overbooked sessions.
+
+The plan is `planAssignments` in `packages/domain/src/advisor.ts`: a pure, deterministic
+greedy algorithm that runs in the browser, so every change to the calculator re-plans
+instantly. It is meant to be explainable rather than optimal:
+
+1. **Overbooking first.** Each overbooked session moves its excess anonymous seats to the
+   earliest sessions of the same course with room. Named bookings never move. The seats
+   these moves use are not offered to the plan.
+2. **Priority per open training:** the status weight (expired 100, never completed 80,
+   expiring 50 by default), plus the urgency ramp × days closer to expiry for expiring ones.
+   Trainings already covered by a booking are left out.
+3. **Most urgent first.** Ties go to the more urgent status, then the sooner expiry, then
+   department and name (Czech collation), then ID. Input order never matters.
+4. **Best session for each.** Every session of the course that is planned, within the
+   look-ahead, under the fill limit, not clashing with the person's other sessions, and under
+   the per-person limit gets a score: priority − waiting cost × days until it −
+   late-after-expiry penalty (if it starts after the training expires) + fill preference ×
+   how full it would be. The highest score wins; ties go to the earlier session.
+5. **Explained.** Each suggestion carries the terms of its score (they always add up to it),
+   shown when a plan row is opened. Needs that stay open carry a reason (`NO_SESSION`,
+   `OUTSIDE_HORIZON`, `NO_SEATS`, `CONFLICT`, `LIMIT`), and courses short of seats are listed.
+
+| Setting                                     | Default           | Range                     |
+| ------------------------------------------- | ----------------- | ------------------------- |
+| Expired / never completed / expiring weight | 100 / 80 / 50     | 0–200                     |
+| Urgency ramp                                | 1 per day         | 0–5                       |
+| Waiting cost                                | 0.5 per day       | 0–3                       |
+| Late after expiry                           | 40                | 0–200                     |
+| Fill preference                             | +10               | −20 (spread) … +20 (pack) |
+| Plan up to                                  | 100 % of capacity | 50–100 %                  |
+| Look ahead                                  | 120 days          | 14–365                    |
+| Per person                                  | 2 sessions        | 1–5                       |
+| Include expiring / parental leave           | yes / no          |                           |
+
+Settings live in the URL (only those that differ from the defaults), so a tuned plan can be
+shared. The projected compliance, seat use, overbooking, open needs and cost are shown
+before and after the plan. Saving re-checks every pair on the server; the browser's plan is
+never trusted.
 
 ## Importing
 

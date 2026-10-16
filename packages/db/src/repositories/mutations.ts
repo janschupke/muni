@@ -35,7 +35,7 @@ export async function updateSession(externalId: string, input: SessionEdit, opti
       location: data.location,
       isOnline: data.isOnline,
       capacity: data.capacity,
-      bookedCount: data.bookedCount,
+      unnamedBookings: data.unnamedBookings,
       pricePerPerson: data.pricePerPerson,
       status: data.status,
     },

@@ -43,7 +43,8 @@
       "label": "Jazyk",
       "cs": "Čeština",
       "en": "English"
-    }
+    },
+    "advisor": "Poradce"
   },
   "status": {
     "employment": {
@@ -80,7 +81,9 @@
       "expiring": "Brzy vyprší",
       "expiringHint": "Do {days} dní",
       "expired": "Prošlé",
-      "missing": "Nikdy neabsolvováno"
+      "missing": "Nikdy neabsolvováno",
+      "trainingsPeople": "{people, plural, one {# osoba} few {# osoby} other {# osob}}",
+      "expiringPeople": "{people, plural, one {# osoba} few {# osoby} other {# osob}} · do {days} dní"
     },
     "byDepartment": {
       "title": "Plnění podle útvarů",
@@ -89,6 +92,10 @@
     "upcoming": {
       "title": "Nejbližší termíny",
       "empty": "Žádné termíny nejsou naplánované."
+    },
+    "advisor": {
+      "summary": "{overbooked, plural, =0 {Žádný termín není přeplněný} one {# termín je přeplněný} few {# termíny jsou přeplněné} other {# termínů je přeplněných}} a {open, plural, one {# školení vyžaduje} few {# školení vyžadují} other {# školení vyžaduje}} řešení.",
+      "open": "Otevřít poradce"
     }
   },
   "employees": {
@@ -99,7 +106,7 @@
     "filters": {
       "department": "Útvar",
       "status": "Pracovní poměr",
-      "compliance": "Plnění",
+      "compliance": "Má školení",
       "any": "Vše",
       "apply": "Filtrovat",
       "reset": "Zrušit filtry"
@@ -111,7 +118,7 @@
       "position": "Pozice",
       "status": "Pracovní poměr",
       "compliance": "Plnění",
-      "required": "Povinná školení"
+      "valid": "Platná školení"
     },
     "total": "{count, plural, one {# zaměstnanec} few {# zaměstnanci} other {# zaměstnanců}}",
     "empty": "Filtrům neodpovídá žádný zaměstnanec.",
@@ -129,7 +136,21 @@
       "history": "Absolvovaná školení",
       "noHistory": "Žádné absolvované školení.",
       "recordCompletion": "Zapsat absolvování",
-      "rate": "Splněno {rate} povinných školení"
+      "rate": "Splněno {rate} povinných školení",
+      "bookings": "Přihlášené termíny",
+      "noBookings": "Žádné nadcházející přihlášky.",
+      "cancelBooking": "Zrušit přihlášku na {course}"
+    },
+    "validOf": "{valid} z {total}",
+    "panel": {
+      "toggle": "Podrobnosti: {name}",
+      "header": "Podrobnosti",
+      "none": "Tato osoba nemá žádná povinná školení.",
+      "course": "Školení",
+      "status": "Stav",
+      "validUntil": "Platí do",
+      "completedOn": "Naposledy absolvováno",
+      "booked": "Přihlášený termín"
     }
   },
   "courses": {
@@ -176,7 +197,15 @@
     "overbooked": "Přeplněno",
     "full": "Plno",
     "empty": "Žádné termíny k zobrazení.",
-    "editTitle": "Upravit termín {id}"
+    "editTitle": "Upravit termín {id}",
+    "attendees": {
+      "toggle": "Kdo je přihlášen na {id}",
+      "header": "Účastníci",
+      "summary": "{named, plural, one {# osoba přihlášena} few {# osoby přihlášeny} other {# osob přihlášeno}} jménem, {unnamed, plural, one {# místo obsazeno} few {# místa obsazena} other {# míst obsazeno}} bez jména.",
+      "named": "{count, plural, =0 {Přihlášení jménem} other {Přihlášení jménem (#)}}",
+      "noneNamed": "Zatím nikdo není přihlášen jménem; poradce může navrhnout účastníky.",
+      "remove": "Zrušit přihlášku: {name}"
+    }
   },
   "compliance": {
     "title": "Matice plnění",
@@ -215,9 +244,10 @@
       "location": "Místo",
       "isOnline": "Online termín",
       "capacity": "Kapacita",
-      "bookedCount": "Obsazeno",
       "pricePerPerson": "Cena za osobu (Kč)",
-      "status": "Stav"
+      "status": "Stav",
+      "unnamedBookings": "Další obsazená místa (bez jména)",
+      "unnamedHelp": "{count, plural, =0 {Nikdo není přihlášen jménem.} one {A # osoba přihlášená jménem.} few {A # osoby přihlášené jménem.} other {A # osob přihlášených jménem.}}"
     },
     "employee": {
       "title": "Upravit: {name}",
@@ -393,5 +423,190 @@
     "errorBody": "Stránku se nepodařilo načíst.",
     "retry": "Zkusit znovu",
     "home": "Na přehled"
+  },
+  "back": {
+    "overview": "Přehled",
+    "to": "Zpět na {page}"
+  },
+  "footer": {
+    "appName": "Registr školení",
+    "asOf": "Data k {date}",
+    "privacy": "Osobní údaje jsou pro návštěvníky skryté. Pro úpravy se přihlaste.",
+    "signedIn": "Jste přihlášeni: změny se ukládají pro všechny.",
+    "nav": "Patička"
+  },
+  "advisor": {
+    "title": "Poradce",
+    "description": "Kdo má jít na který termín: přeplněné termíny, lidé s chybějícím nebo prošlým školením a plán, který můžete upravit a uložit.",
+    "settings": {
+      "title": "Kalkulačka",
+      "description": "Každé číslo níže ovlivňuje pořadí. Změny se projeví hned.",
+      "reset": "Výchozí",
+      "groups": {
+        "urgency": "Kdo dřív",
+        "choice": "Který termín",
+        "limits": "Omezení",
+        "scope": "Zahrnout"
+      },
+      "fields": {
+        "weightExpired": {
+          "label": "Prošlé školení",
+          "help": "Základní priorita školení, kterému skončila platnost."
+        },
+        "weightMissing": {
+          "label": "Nikdy neabsolvováno",
+          "help": "Základní priorita povinného školení, které chybí."
+        },
+        "weightExpiring": {
+          "label": "Brzy vyprší",
+          "help": "Základní priorita školení, kterému brzy skončí platnost."
+        },
+        "expiringRamp": {
+          "label": "Růst naléhavosti",
+          "help": "Priorita navíc za každý den blíž ke konci platnosti."
+        },
+        "waitPenalty": {
+          "label": "Cena čekání",
+          "help": "Body ubrané za každý den do termínu; zvýhodňuje dřívější termíny."
+        },
+        "lateAfterExpiryPenalty": {
+          "label": "Pozdě po vypršení",
+          "help": "Body ubrané, když termín začíná až po konci platnosti."
+        },
+        "fillPreference": {
+          "label": "Zaplňování",
+          "help": "Kladné hodnoty plní obsazené termíny, záporné rozkládají lidi rovnoměrně."
+        },
+        "maxFill": {
+          "label": "Plánovat do",
+          "help": "Rezerva míst v každém termínu jako podíl kapacity."
+        },
+        "horizonDays": {
+          "label": "Výhled",
+          "help": "Vzdálenější termíny se nepoužijí."
+        },
+        "maxPerEmployee": {
+          "label": "Na osobu",
+          "help": "Nejvíc termínů, do kolika se jedna osoba naplánuje."
+        },
+        "includeExpiring": "Brzy vypršující školení",
+        "includeParentalLeave": "Lidé na rodičovské dovolené"
+      },
+      "units": {
+        "perDay": "{value} / den",
+        "percent": "{value} %",
+        "days": "{count, plural, one {# den} few {# dny} other {# dní}}",
+        "sessions": "{count, plural, one {# termín} few {# termíny} other {# termínů}}",
+        "points": "{value} b."
+      }
+    },
+    "formula": {
+      "title": "Jak se návrhy řadí",
+      "priority": "Každé otevřené školení dostane prioritu: prošlé {expired}, nikdy neabsolvované {missing}, brzy vyprší {expiring} plus {ramp} za každý den blíž ke konci platnosti (v posledních {window} dnech).",
+      "order": "Lidé se obsluhují podle priority; při shodě rozhoduje naléhavější stav, dřívější konec platnosti, útvar a jméno.",
+      "score": "Každý dostane termín s volným místem a nejlepším skóre: priorita − {wait} za každý den čekání − {late}, když termín začíná po konci platnosti, + {fill} × zaplněnost termínu.",
+      "limits": "Termíny se plánují do {maxFill} % kapacity, do {horizon} dní, nejvýš {perPerson} na osobu a nikdy ve stejném čase.",
+      "overbooking": "Přeplněné termíny nejdřív přesunou místa bez jména do jiných termínů stejného školení; tato místa plán už nepoužije.",
+      "note": "Stejná data a nastavení dají vždy stejný plán. Rozbalte řádek plánu a uvidíte skóre po jednotlivých složkách."
+    },
+    "kpi": {
+      "compliance": "Plnění po plánu",
+      "utilisation": "Obsazenost po plánu",
+      "overbooked": "Přeplněno po plánu",
+      "open": "Zůstává otevřeno",
+      "cost": "Cena plánu",
+      "from": "z {value}",
+      "fromCovered": "z {value}; {covered} už přihlášeno",
+      "costHint": "{count, plural, one {# přihláška} few {# přihlášky} other {# přihlášek}}"
+    },
+    "tabs": {
+      "plan": "Plán",
+      "overbooked": "Přeplněné",
+      "unresolved": "Nevyřešené"
+    },
+    "plan": {
+      "applyAll": "Uložit {count, plural, one {# přihlášku} few {# přihlášky} other {# přihlášek}}",
+      "signInToApply": "Pro uložení přihlášek se přihlaste. Návštěvníci mohou plán procházet a měnit kalkulačku.",
+      "worker": "Osoba",
+      "course": "Školení",
+      "expiry": "Platí do",
+      "session": "Termín",
+      "fillAfter": "Obsazeno po",
+      "score": "Skóre",
+      "apply": "Uložit",
+      "applyOne": "Uložit přihlášku: {name} na {session}",
+      "pagination": "Stránky plánu",
+      "previous": "Předchozí",
+      "next": "Další",
+      "page": "Strana {page} z {pageCount}",
+      "why": "Proč: {name}",
+      "whyHeader": "Podrobnosti skóre"
+    },
+    "terms": {
+      "caption": "Skóre po složkách",
+      "term": "Složka",
+      "points": "Body",
+      "total": "Skóre",
+      "names": {
+        "urgency": "Priorita: {status, select, EXPIRED {prošlé} MISSING {nikdy neabsolvováno} other {brzy vyprší}}",
+        "expiryRamp": "Blíž ke konci platnosti",
+        "wait": "Čekání {days, plural, one {# den} few {# dny} other {# dní}}",
+        "lateAfterExpiry": "Začíná po konci platnosti",
+        "fill": "Zaplňování"
+      }
+    },
+    "overbooked": {
+      "none": "Žádný termín není přeplněný.",
+      "booked": "Obsazeno",
+      "over": "{booked} z {capacity} · o {excess} víc",
+      "move": "Přesunout {count, plural, one {# místo} few {# místa} other {# míst}} na {session} ({date})",
+      "remaining": "{count, plural, one {# místo zůstává} few {# místa zůstávají} other {# míst zůstává}} nad kapacitou: v jiných termínech není místo, nebo jde o přihlášky jménem. Vypište další termín, nebo přihlášky zrušte.",
+      "apply": "Přesunout {count, plural, one {# místo} few {# místa} other {# míst}}"
+    },
+    "unresolved": {
+      "worker": "Osoba",
+      "course": "Školení",
+      "status": "Stav",
+      "reason": "Proč ne",
+      "reasons": {
+        "NO_SESSION": "Žádný vypsaný termín",
+        "OUTSIDE_HORIZON": "Žádný termín do {days} dní",
+        "NO_SEATS": "Termíny jsou plné",
+        "CONFLICT": "Koliduje s jinou přihláškou",
+        "LIMIT": "Dosažen limit na osobu"
+      },
+      "none": "Každé otevřené školení má v plánu místo.",
+      "shortfallTitle": "Vypište další termíny",
+      "shortfall": "{course}: {people, plural, one {# osoba} few {# osoby} other {# osob}} bez místa do {days} dní.",
+      "pagination": "Stránky nevyřešených",
+      "previous": "Předchozí",
+      "next": "Další",
+      "page": "Strana {page} z {pageCount}"
+    },
+    "demand": {
+      "title": "Poptávka a místa",
+      "description": "Kdo které školení potřebuje a zda nabízená místa stačí.",
+      "people": "{count, plural, one {# osoba} few {# osoby} other {# osob}}",
+      "coverage": "{course}: potřebující proti volným místům",
+      "seats": "{seats, plural, one {# volné místo} few {# volná místa} other {# volných míst}} · {placed} v plánu"
+    },
+    "outcome": {
+      "error": "Uložení selhalo. Nic se nezměnilo; zkuste to znovu.",
+      "moved": "{moved, plural, one {Přesunuto # místo} few {Přesunuta # místa} other {Přesunuto # míst}}{failed, plural, =0 {.} other {; # nešlo přesunout (termíny se mezitím změnily).}}",
+      "applied": "{applied, plural, =0 {Žádná přihláška neuložena} one {Uložena # přihláška} few {Uloženy # přihlášky} other {Uloženo # přihlášek}}{failed, plural, =0 {.} other {; # odmítnuto:}}",
+      "failure": "{name} na {session}: {reason}",
+      "reasons": {
+        "SESSION_NOT_FOUND": "termín už neexistuje",
+        "EMPLOYEE_NOT_FOUND": "osoba už neexistuje",
+        "INACTIVE": "osoba odešla",
+        "NOT_PLANNED": "termín byl zrušen",
+        "PAST": "termín už začal",
+        "SESSION_FULL": "termín je plný",
+        "ALREADY_ASSIGNED": "už přihlášen",
+        "CONFLICT": "koliduje s jinou přihláškou",
+        "NOT_REQUIRED": "školení pro tuto osobu není povinné",
+        "NOT_NEEDED": "školení je už platné"
+      }
+    }
   }
 }

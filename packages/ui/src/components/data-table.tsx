@@ -6,6 +6,7 @@ import {
   createPaginatedRowModel,
   createSortedRowModel,
   metaHelper,
+  rowExpandingFeature,
   rowPaginationFeature,
   rowSortingFeature,
   sortFn_basic,
@@ -16,8 +17,8 @@ import {
   type RowData,
   type SortingState,
 } from '@tanstack/react-table'
-import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { ArrowDown, ArrowUp, ChevronRight, ChevronsUpDown } from 'lucide-react'
+import { Fragment, useId, useState, type ReactNode } from 'react'
 
 import { cn } from '../cn'
 import { Pagination } from './pagination'
@@ -39,6 +40,7 @@ const sortFn_text = constructSortFn({
 })
 
 const features = tableFeatures({
+  rowExpandingFeature,
   rowSortingFeature,
   rowPaginationFeature,
   sortedRowModel: createSortedRowModel(),
@@ -91,6 +93,10 @@ export function DataTable<TData extends RowData>({
   className,
   containerClassName,
   caption,
+  renderExpanded,
+  getRowCanExpand,
+  expandLabel,
+  expandHeader,
 }: {
   columns: Columns<TData>
   data: TData[]
@@ -118,6 +124,13 @@ export function DataTable<TData extends RowData>({
   containerClassName?: string
   /** Accessible table name, visually hidden. */
   caption?: string
+  /** A detail panel under the row, toggled by a disclosure button in a leading column. */
+  renderExpanded?: (row: TData) => ReactNode
+  getRowCanExpand?: (row: TData) => boolean
+  /** Accessible name of each row's disclosure button ("Details: Novák Jan"). */
+  expandLabel?: (row: TData) => string
+  /** Visually hidden header of the disclosure column ("Details"). */
+  expandHeader?: string
 }) {
   const [innerSorting, setInnerSorting] = useState<SortingState>(initialSorting)
   const [innerPagination, setInnerPagination] = useState<PaginationState>({
@@ -156,7 +169,13 @@ export function DataTable<TData extends RowData>({
     // Editing a row must not throw the reader back to page 1.
     autoResetPageIndex: false,
     defaultColumn: { sortUndefined: 'last' },
+    getRowCanExpand: row =>
+      renderExpanded !== undefined && (getRowCanExpand?.(row.original) ?? true),
+    // A new page of data (server sort, an edit) keeps what the reader had open.
+    autoResetExpanded: false,
   })
+  const idPrefix = useId()
+  const expandable = renderExpanded !== undefined
 
   const rows = paginated ? table.getRowModel().rows : table.getPrePaginatedRowModel().rows
   const pageCount = paginated ? table.getPageCount() : 1
@@ -169,6 +188,11 @@ export function DataTable<TData extends RowData>({
           <THead className="sticky top-0 z-10">
             {table.getHeaderGroups().map(group => (
               <tr key={group.id}>
+                {expandable && (
+                  <Th className="w-0 px-1">
+                    <span className="sr-only">{expandHeader}</span>
+                  </Th>
+                )}
                 {group.headers.map(header => {
                   const meta = header.column.columnDef.meta
                   const sorted = header.column.getIsSorted()
@@ -203,24 +227,65 @@ export function DataTable<TData extends RowData>({
             ))}
           </THead>
           <TBody>
-            {rows.map(row => (
-              <Tr key={row.id} className={rowClassName?.(row.original)}>
-                {row.getAllCells().map(cell => {
-                  const meta = cell.column.columnDef.meta
-                  return (
-                    <Td
-                      key={cell.id}
-                      align={meta?.align}
-                      nowrap={meta?.nowrap}
-                      sticky={meta?.sticky}
-                      className={cn(meta?.className, cellClassName?.(row.original, cell.column.id))}
-                    >
-                      <table.FlexRender cell={cell} />
-                    </Td>
-                  )
-                })}
-              </Tr>
-            ))}
+            {rows.map(row => {
+              const open = row.getIsExpanded()
+              const detailId = `${idPrefix}-${row.id}-detail`
+              const cells = row.getAllCells()
+              return (
+                <Fragment key={row.id}>
+                  <Tr className={cn(rowClassName?.(row.original), open && 'bg-state-hover')}>
+                    {expandable && (
+                      <Td className="w-0 px-1">
+                        {row.getCanExpand() && (
+                          <button
+                            type="button"
+                            aria-expanded={open}
+                            aria-controls={open ? detailId : undefined}
+                            aria-label={expandLabel?.(row.original)}
+                            onClick={row.getToggleExpandedHandler()}
+                            className="inline-flex size-7 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-state-active hover:text-fg"
+                          >
+                            <ChevronRight
+                              aria-hidden
+                              className={cn('size-4 transition-transform', open && 'rotate-90')}
+                            />
+                          </button>
+                        )}
+                      </Td>
+                    )}
+                    {cells.map(cell => {
+                      const meta = cell.column.columnDef.meta
+                      return (
+                        <Td
+                          key={cell.id}
+                          align={meta?.align}
+                          nowrap={meta?.nowrap}
+                          sticky={meta?.sticky}
+                          className={cn(
+                            meta?.className,
+                            cellClassName?.(row.original, cell.column.id)
+                          )}
+                        >
+                          <table.FlexRender cell={cell} />
+                        </Td>
+                      )
+                    })}
+                  </Tr>
+                  {open && renderExpanded && (
+                    <tr id={detailId} className="bg-surface-sunken">
+                      <td colSpan={cells.length + 1} className="p-0">
+                        {/* Opens from zero height: the grid row animates from its starting style. */}
+                        <div className="grid grid-rows-[1fr] transition-[grid-template-rows] duration-(--motion-normal) starting:grid-rows-[0fr]">
+                          <div className="overflow-hidden">
+                            <div className="px-4 py-3">{renderExpanded(row.original)}</div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
           </TBody>
         </Table>
       </TableContainer>

@@ -80,7 +80,7 @@ export function Select({
           aria-label={ariaLabel}
           className={cn(
             controlClass,
-            'flex items-center justify-between gap-2 text-left data-[placeholder]:text-fg-subtle',
+            'flex items-center justify-between gap-2 text-left transition-colors data-[placeholder]:text-fg-subtle',
             size === 'md' ? 'h-9 py-0' : 'h-8 py-0',
             className
           )}
@@ -96,7 +96,7 @@ export function Select({
           <SelectPrimitive.Content
             position="popper"
             sideOffset={4}
-            className="z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden rounded-md border border-border-default bg-surface-overlay text-sm text-fg shadow-overlay"
+            className="z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) origin-(--radix-select-content-transform-origin) overflow-hidden rounded-md border border-border-default bg-surface-overlay text-sm text-fg shadow-overlay data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in"
           >
             <SelectPrimitive.Viewport className="p-1">
               {hasEmptyOption && <SelectItem value={EMPTY}>{emptyLabel}</SelectItem>}
@@ -127,7 +127,7 @@ function SelectItem({
     <SelectPrimitive.Item
       value={value}
       disabled={disabled}
-      className="relative flex cursor-default items-center rounded-sm py-1.5 pr-8 pl-2 outline-none select-none data-[disabled]:opacity-50 data-[highlighted]:bg-state-hover"
+      className="relative flex cursor-default items-center rounded-sm py-1.5 pr-8 pl-2 transition-colors outline-none select-none data-[disabled]:opacity-50 data-[highlighted]:bg-state-hover"
     >
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator className="absolute right-2 inline-flex items-center">

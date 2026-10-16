@@ -23,7 +23,7 @@ export function ProgressStep({ job, onReset }: { job: ImportJob; onReset: () => 
     return (
       <Card className="max-w-2xl">
         <CardBody className="flex flex-col gap-2" aria-live="polite">
-          <Meter value={job.done} max={job.total} label={t('steps.done')} className="h-2" />
+          <Meter value={job.done} max={job.total} label={t('steps.done')} size="md" />
           <p className="text-sm text-fg-muted">
             {t('progress.running', { done: job.done, total: job.total })}
           </p>

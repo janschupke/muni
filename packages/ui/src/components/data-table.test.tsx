@@ -133,3 +133,57 @@ describe('DataTable sorting', () => {
     expect(within(header('Name')).queryByRole('button')).toBeNull()
   })
 })
+
+describe('DataTable detail rows', () => {
+  it('toggles a detail row under its row, several at once, wired for assistive tech', async () => {
+    const user = userEvent.setup()
+    render(
+      <DataTable
+        columns={columns}
+        data={PEOPLE}
+        getRowId={p => p.id}
+        renderExpanded={p => <p>Details of {p.name}</p>}
+        getRowCanExpand={p => p.price !== null}
+        expandLabel={p => `Details: ${p.name}`}
+        expandHeader="Details"
+      />
+    )
+    // Adámek has no price: no disclosure button for that row.
+    expect(screen.queryByRole('button', { name: 'Details: Adámek' })).toBeNull()
+
+    const zeleny = screen.getByRole('button', { name: 'Details: Zelený' })
+    expect(zeleny.getAttribute('aria-expanded')).toBe('false')
+    await user.click(zeleny)
+    expect(zeleny.getAttribute('aria-expanded')).toBe('true')
+    const panel = screen.getByText('Details of Zelený')
+    const detailRow = panel.closest('tr')
+    expect(detailRow?.id).toBe(zeleny.getAttribute('aria-controls'))
+    // The detail spans every column, including the disclosure column.
+    expect(detailRow?.querySelector('td')?.getAttribute('colspan')).toBe('3')
+
+    await user.click(screen.getByRole('button', { name: 'Details: Hora' }))
+    expect(screen.getByText('Details of Hora')).toBeTruthy()
+    expect(screen.getByText('Details of Zelený')).toBeTruthy()
+
+    await user.click(zeleny)
+    expect(screen.queryByText('Details of Zelený')).toBeNull()
+  })
+
+  it('keeps a detail open while sorting moves its row', async () => {
+    const user = userEvent.setup()
+    render(
+      <DataTable
+        columns={columns}
+        data={PEOPLE}
+        getRowId={p => p.id}
+        renderExpanded={p => <p>Details of {p.name}</p>}
+        expandLabel={p => `Details: ${p.name}`}
+      />
+    )
+    await user.click(screen.getByRole('button', { name: 'Details: Hora' }))
+    await user.click(within(header('Name')).getByRole('button'))
+    const rows = screen.getAllByRole('row').map(r => r.textContent)
+    const hora = rows.findIndex(text => text.startsWith('Hora'))
+    expect(rows[hora + 1]).toBe('Details of Hora')
+  })
+})

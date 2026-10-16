@@ -215,17 +215,21 @@ async function writeSessions(tx: Tx, records: SessionInput[]): Promise<CommitRes
     tx,
     records.map(r => r.courseCode)
   )
-  const toData = (r: SessionInput) => ({
+  // The export's booked count is the session's total. Named bookings (assignments) are part of
+  // it, so only the remainder is stored as unnamed seats; a total below the named count keeps
+  // the named bookings and stores no unnamed ones.
+  const toData = (r: SessionInput, assigned: number) => ({
     courseId: lookup(courses, r.courseCode, 'course'),
     startsAt: zonedTimeToUtc(r.date, r.startTime),
     endsAt: zonedTimeToUtc(r.date, r.endTime),
     location: r.location,
     isOnline: r.isOnline,
     capacity: r.capacity,
-    bookedCount: r.bookedCount,
+    unnamedBookings: Math.max(0, r.bookedCount - assigned),
     pricePerPerson: r.pricePerPerson,
     status: r.status,
   })
+  const assignedBySession = new Map<string, number>()
   const { fresh, existing } = await partition(
     records,
     r => r.externalId,
@@ -233,15 +237,21 @@ async function writeSessions(tx: Tx, records: SessionInput[]): Promise<CommitRes
       (
         await tx.courseSession.findMany({
           where: { externalId: { in: keys } },
-          select: { id: true, externalId: true },
+          select: { id: true, externalId: true, _count: { select: { assignments: true } } },
         })
-      ).map(e => ({ key: e.externalId, id: e.id }))
+      ).map(e => {
+        assignedBySession.set(e.id, e._count.assignments)
+        return { key: e.externalId, id: e.id }
+      })
   )
   await tx.courseSession.createMany({
-    data: fresh.map(r => ({ externalId: r.externalId, ...toData(r) })),
+    data: fresh.map(r => ({ externalId: r.externalId, ...toData(r, 0) })),
   })
   for (const { record, id } of existing)
-    await tx.courseSession.update({ where: { id }, data: toData(record) })
+    await tx.courseSession.update({
+      where: { id },
+      data: toData(record, assignedBySession.get(id) ?? 0),
+    })
   return { created: fresh.length, updated: existing.length }
 }
 

@@ -62,7 +62,7 @@ export async function saveSession(
     location: text(form, 'location'),
     isOnline: checkbox(form, 'isOnline'),
     capacity: number(form, 'capacity'),
-    bookedCount: number(form, 'bookedCount') ?? 0,
+    unnamedBookings: number(form, 'unnamedBookings') ?? 0,
     pricePerPerson: number(form, 'pricePerPerson'),
     status: text(form, 'status'),
   }

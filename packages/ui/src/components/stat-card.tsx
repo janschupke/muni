@@ -1,12 +1,14 @@
-import type { ReactNode } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 
 import { cn } from '../cn'
+import { surfaceClass } from './card'
 
 const toneBar = {
   neutral: 'before:bg-border-emphasis',
   accent: 'before:bg-accent',
   success: 'before:bg-success-fill',
   warning: 'before:bg-warning-fill',
+  serious: 'before:bg-serious-fill',
   danger: 'before:bg-danger-fill',
 } as const
 
@@ -15,13 +17,20 @@ export interface StatCardProps {
   value: ReactNode
   hint?: ReactNode
   tone?: keyof typeof toneBar
-  /** When given, the card is a toggle button (used as a filter). */
+  /** A toggle button (used as a filter). */
   onClick?: () => void
   pressed?: boolean
+  /** Makes the card a link to what it counts (the filtered list behind the number). */
+  href?: string
+  /** The link component for `href`, e.g. Next's `Link`; ui never imports Next. */
+  linkAs?: ComponentType<{ href: string; className?: string; children: ReactNode }>
   className?: string
 }
 
-/** A headline number. Rendered as a toggle button when it doubles as a filter. */
+const interactive =
+  'transition-[background-color,border-color,box-shadow,translate] hover:-translate-y-px hover:bg-state-hover hover:shadow-overlay'
+
+/** A headline number: static, a filter toggle, or a link to what it counts. */
 export function StatCard({
   label,
   value,
@@ -29,21 +38,32 @@ export function StatCard({
   tone = 'neutral',
   onClick,
   pressed,
+  href,
+  linkAs: LinkAs,
   className,
 }: StatCardProps) {
   const body = (
     <>
       <span className="block text-sm text-fg-muted">{label}</span>
-      <span className="mt-1 block text-2xl font-semibold text-fg">{value}</span>
+      <span className="mt-1 block text-2xl font-semibold text-fg tabular-nums">{value}</span>
       {hint && <span className="mt-0.5 block text-xs text-fg-subtle">{hint}</span>}
     </>
   )
   const base = cn(
-    'relative overflow-hidden rounded-lg border border-border-default bg-surface-elevated px-4 py-3 text-left shadow-card',
+    surfaceClass,
+    'relative block overflow-hidden px-4 py-3 text-left',
     'before:absolute before:inset-y-0 before:left-0 before:w-1',
     toneBar[tone],
     className
   )
+  if (href !== undefined) {
+    const Anchor = LinkAs ?? 'a'
+    return (
+      <Anchor href={href} className={cn(base, interactive)}>
+        {body}
+      </Anchor>
+    )
+  }
   if (!onClick) return <div className={base}>{body}</div>
   return (
     <button
@@ -52,7 +72,7 @@ export function StatCard({
       onClick={onClick}
       className={cn(
         base,
-        'transition-colors hover:bg-state-hover',
+        interactive,
         pressed && 'border-accent bg-state-selected ring-1 ring-accent'
       )}
     >

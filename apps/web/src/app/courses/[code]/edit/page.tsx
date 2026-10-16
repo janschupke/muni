@@ -3,6 +3,7 @@ import { PageHeader } from '@muni/ui/page-header'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
+import { BackLink } from '@/components/back-link'
 import { CourseForm } from '@/components/form/entity-forms'
 import { saveCourse } from '@/server/actions/edit'
 import { requirePageUser } from '@/server/auth'
@@ -14,7 +15,10 @@ export default async function EditCoursePage({ params }: { params: Promise<{ cod
   if (!course) notFound()
   return (
     <>
-      <PageHeader title={t('title', { code })} />
+      <PageHeader
+        title={t('title', { code })}
+        eyebrow={<BackLink fallback={{ href: `/courses/${code}`, label: course.name }} />}
+      />
       <CourseForm
         action={saveCourse.bind(null, code)}
         cancelHref={`/courses/${code}`}
