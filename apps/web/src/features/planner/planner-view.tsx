@@ -1,43 +1,38 @@
 'use client'
 
-import type { Capability } from '@muni/domain/enums'
-import { PLAN_HORIZON_DAYS, type SessionOffer } from '@muni/domain/planner'
+import {
+  DEFAULT_SESSION_MINUTES,
+  PLAN_HORIZON_DAYS,
+  type OfferCourse,
+  type SessionOffer,
+} from '@muni/domain/planner'
 import { Alert } from '@muni/ui/alert'
 import { Badge } from '@muni/ui/badge'
 import { Button } from '@muni/ui/button'
+import { IconButton } from '@muni/ui/icon-button'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDate, formatInteger, formatMonth, formatTimeRange } from '@muni/utils/format'
-import { ArrowRight, CalendarPlus, Clock, TriangleAlert } from 'lucide-react'
+import { ArrowRight, CalendarPlus, Clock, TriangleAlert, X } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 
 import { RoomLink } from '@/components/session-links'
-import { createOfferedSession } from '@/server/actions/sessions'
+import { createOfferedSession, type CreateOutcome } from '@/server/actions/sessions'
 
 export interface PlannerGroup {
-  course: {
-    code: string
-    name: string
-    sessionMinutes: number | null
-    groupSize: number | null
-    onlineAllowed: boolean
-    capabilities: Capability[]
-  }
+  course: OfferCourse
   offers: SessionOffer[]
 }
 
 const col = createDataColumns<SessionOffer>()
 
-type Created = { course: string; externalId: string } | { course: string; failed: true }
-
 export function PlannerView({ groups, canCreate }: { groups: PlannerGroup[]; canCreate: boolean }) {
   const t = useTranslations('planner')
-  const [created, setCreated] = useState<Created | null>(null)
+  const [result, setResult] = useState<CreateOutcome | null>(null)
   return (
     <div className="flex flex-col gap-8">
       {!canCreate && (
@@ -45,38 +40,71 @@ export function PlannerView({ groups, canCreate }: { groups: PlannerGroup[]; can
           {t('signIn')}
         </Alert>
       )}
-      {created &&
-        ('failed' in created ? (
-          <Alert tone="danger">{t('failed')}</Alert>
-        ) : (
-          <Alert tone="success">
-            {t('created', { id: created.externalId })}{' '}
-            <TextLink asChild tone="inherit">
-              <Link href={`/sessions/${created.externalId}`}>{t('openSession')}</Link>
-            </TextLink>{' '}
-            ·{' '}
-            <TextLink asChild tone="inherit">
-              <Link href="/advisor?view=action" className="inline-flex items-center gap-1">
-                {t('bookInAdvisor')}
-                <ArrowRight aria-hidden className="size-3.5" />
-              </Link>
-            </TextLink>
-          </Alert>
-        ))}
       {groups.map(group => (
         <section key={group.course.code} aria-label={group.course.name}>
           <CourseHeading course={group.course} />
-          <OfferTable group={group} canCreate={canCreate} onCreated={setCreated} />
+          <OfferTable group={group} canCreate={canCreate} onResult={setResult} />
         </section>
       ))}
+      {result && (
+        <ResultPanel
+          result={result}
+          onClose={() => {
+            setResult(null)
+          }}
+        />
+      )}
     </div>
   )
 }
 
-function CourseHeading({ course }: { course: PlannerGroup['course'] }) {
+/**
+ * What creating a session did. Created, the offer leaves the refreshed plan (often its whole
+ * course with it), so the result stays in view at the screen's foot, focused, until closed.
+ */
+function ResultPanel({ result, onClose }: { result: CreateOutcome; onClose: () => void }) {
+  const t = useTranslations('planner')
+  const tc = useTranslations('common')
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    ref.current?.focus()
+  }, [result])
+  return (
+    <div
+      ref={ref}
+      tabIndex={-1}
+      className="fixed inset-x-4 bottom-4 z-40 flex items-start gap-2 rounded-md bg-surface-overlay shadow-overlay outline-none sm:left-auto sm:w-[28rem]"
+    >
+      {result.ok ? (
+        <Alert tone="success" className="flex-1">
+          {t('created', { id: result.externalId })}{' '}
+          <TextLink asChild tone="inherit">
+            <Link href={`/sessions/${result.externalId}`}>{t('openSession')}</Link>
+          </TextLink>{' '}
+          ·{' '}
+          <TextLink asChild tone="inherit">
+            <Link href="/advisor?view=action" className="inline-flex items-center gap-1">
+              {t('bookInAdvisor')}
+              <ArrowRight aria-hidden className="size-3.5" />
+            </Link>
+          </TextLink>
+        </Alert>
+      ) : (
+        <Alert tone="danger" className="flex-1">
+          {t(`refused.${result.reason}`)}
+        </Alert>
+      )}
+      <IconButton label={tc('close')} onClick={onClose} className="mt-1 mr-1">
+        <X aria-hidden />
+      </IconButton>
+    </div>
+  )
+}
+
+function CourseHeading({ course }: { course: OfferCourse }) {
   const t = useTranslations('planner')
   const tc = useTranslations('status.capability')
-  const length = course.sessionMinutes ?? 180
+  const length = course.sessionMinutes ?? DEFAULT_SESSION_MINUTES
   const facts = [
     course.groupSize === null
       ? t('needsAny', { length })
@@ -98,11 +126,11 @@ function CourseHeading({ course }: { course: PlannerGroup['course'] }) {
 function OfferTable({
   group,
   canCreate,
-  onCreated,
+  onResult,
 }: {
   group: PlannerGroup
   canCreate: boolean
-  onCreated: (created: Created) => void
+  onResult: (result: CreateOutcome) => void
 }) {
   const t = useTranslations('planner')
   const locale = useLocale()
@@ -179,12 +207,12 @@ function OfferTable({
                 id: 'action',
                 header: t('columns.action'),
                 meta: { headerClassName: 'sr-only' },
-                cell: ({ row }) => <CreateButton offer={row.original} onCreated={onCreated} />,
+                cell: ({ row }) => <CreateButton offer={row.original} onResult={onResult} />,
               }),
             ]
           : []),
       ]),
-    [canCreate, locale, onCreated, t]
+    [canCreate, locale, onResult, t]
   )
   return (
     <DataTable
@@ -202,15 +230,21 @@ function OfferTable({
 function ProblemText({ offer }: { offer: SessionOffer }) {
   const t = useTranslations('planner.problems')
   const tc = useTranslations('status.capability')
-  const problem = offer.problem ?? { kind: 'NO_FREE_SLOT' as const }
-  const text =
-    problem.kind === 'NO_ROOM_WITH'
-      ? t('NO_ROOM_WITH', { missing: problem.missing.map(c => tc(c)).join(', ') })
-      : problem.kind === 'NO_ROOM_LARGE_ENOUGH'
-        ? t('NO_ROOM_LARGE_ENOUGH', { size: offer.size, largest: problem.largest })
-        : problem.kind === 'NO_FREE_SLOT'
-          ? t('NO_FREE_SLOT', { days: PLAN_HORIZON_DAYS })
-          : t('NO_ONLINE_OR_ROOM')
+  const problem = offer.problem ?? { kind: 'NO_FREE_SLOT' }
+  let text: string
+  switch (problem.kind) {
+    case 'NO_ROOM_WITH':
+      text = t('NO_ROOM_WITH', { missing: problem.missing.map(c => tc(c)).join(', ') })
+      break
+    case 'NO_ROOM_LARGE_ENOUGH':
+      text = t('NO_ROOM_LARGE_ENOUGH', { size: offer.size, largest: problem.largest })
+      break
+    case 'NO_FREE_SLOT':
+      text = t('NO_FREE_SLOT', { days: PLAN_HORIZON_DAYS })
+      break
+    default:
+      text = t(problem.kind)
+  }
   return (
     <span className="inline-flex items-center gap-1.5 text-sm text-danger-fg">
       <TriangleAlert aria-hidden className="size-4 shrink-0" />
@@ -239,13 +273,12 @@ function PeopleList({ offer }: { offer: SessionOffer }) {
 
 function CreateButton({
   offer,
-  onCreated,
+  onResult,
 }: {
   offer: SessionOffer
-  onCreated: (created: Created) => void
+  onResult: (result: CreateOutcome) => void
 }) {
   const t = useTranslations('planner')
-  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const { slot, room, capacity } = offer
   if (!slot || !room || capacity === null) return null
@@ -266,12 +299,8 @@ function CreateButton({
             pricePerPerson: null,
             status: 'PLANNED',
           })
-          onCreated(
-            outcome.ok
-              ? { course: offer.course.code, externalId: outcome.externalId }
-              : { course: offer.course.code, failed: true }
-          )
-          if (outcome.ok) router.refresh()
+          // The action revalidates: a created session leaves the refreshed plan by itself.
+          onResult(outcome)
         })
       }}
     >

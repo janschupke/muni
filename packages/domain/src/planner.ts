@@ -1,4 +1,10 @@
-import { addDays, toZonedParts, zonedTimeToUtc, type IsoDate } from '@muni/utils/dates'
+import {
+  addDays,
+  isWorkingDay,
+  toZonedParts,
+  zonedTimeToUtc,
+  type IsoDate,
+} from '@muni/utils/dates'
 
 import { needsNewSession, NOW, type PlanItem } from './advisor'
 import type { Capability } from './enums'
@@ -13,13 +19,16 @@ import { roomMismatch, type RoomFacts, type RoomRef } from './rooms'
  *   (due within PLAN_NOW_DAYS), then one group per month in which trainings lapse (due the
  *   day before the first of them lapses).
  * - A group needs ceil(people / group size) sessions; people go into them earliest lapse first.
- * - Each session takes the first working day from tomorrow on which a valid room is free at
- *   the course's usual start time, for the course's usual length. Valid: online if the
- *   course allows it; otherwise a physical room with every capability the course needs and
- *   enough seats. Rooms the course was held in before come first, then the smallest that
- *   fits. Sessions already planned and offers made earlier both block a room.
- * - A slot past the due date is offered anyway, marked late; with no valid room, or no free
- *   slot within PLAN_HORIZON_DAYS, the offer says why.
+ *   A course without a group size fills the largest room that suits it (online: everyone).
+ * - Each session takes the first working day (Czech holidays are not) from tomorrow on which
+ *   a valid room is free at the course's usual start time, for the course's usual length.
+ *   Valid: online if the course allows it; otherwise a physical room with every capability
+ *   the course needs and enough seats. Rooms the course was held in before come first, then
+ *   the smallest that fits. Sessions already planned and offers made earlier both block a
+ *   physical room; an online room is never taken.
+ * - A slot past the due date is offered anyway, marked late; with no valid room, a session
+ *   that would run past midnight, or no free slot within PLAN_HORIZON_DAYS, the offer says
+ *   why.
  */
 
 /** Already lapsed or never held: wanted within this many days. */
@@ -75,22 +84,30 @@ export interface Slot {
 }
 
 export type OfferProblem =
+  /** No room has all the equipment: what the best-equipped one still lacks. */
   | { kind: 'NO_ROOM_WITH'; missing: Capability[] }
+  /** The equipped rooms all seat fewer than the group: the largest of them. */
   | { kind: 'NO_ROOM_LARGE_ENOUGH'; largest: number }
+  /** The course is on site and there is no physical room at all. */
   | { kind: 'NO_ONLINE_OR_ROOM' }
+  /** Its usual start and length end after midnight. */
+  | { kind: 'RUNS_PAST_MIDNIGHT' }
   | { kind: 'NO_FREE_SLOT' }
+
+/** The course an offer is for, with what its sessions need. */
+export type OfferCourse = Omit<PlannerCourse, 'usualStart' | 'heldIn'>
 
 export interface SessionOffer {
   /** Stable within one plan: course, group and index. */
   id: string
-  course: { code: string; name: string }
+  course: OfferCourse
   /** `now`, or the month the group's trainings lapse in. */
   bucket: string
   /** The last day the session should be held by. */
   deadline: IsoDate
   /** People the session is for. */
   size: number
-  /** Seats to open: the course's group size, as far as the room allows; null without a room. */
+  /** Seats to open: the group size (or the people) as far as the room allows; null without a room. */
   capacity: number | null
   people: PlannedPerson[]
   slot: Slot | null
@@ -99,11 +116,6 @@ export interface SessionOffer {
   alternatives: RoomRef[]
   late: boolean
   problem: OfferProblem | null
-}
-
-const isWorkingDay = (date: IsoDate) => {
-  const day = new Date(`${date}T00:00:00Z`).getUTCDay()
-  return day !== 0 && day !== 6
 }
 
 const overlaps = (
@@ -126,18 +138,27 @@ function slotOn(date: IsoDate, start: string, minutes: number): Slot | null {
   }
 }
 
-/** Why no room at all can hold the course's sessions. */
+/** Why no room can hold a session of the course for `size` people. */
 function noRoomProblem(
   course: PlannerCourse,
   rooms: readonly RoomFacts[],
   size: number
 ): OfferProblem {
   const physical = rooms.filter(r => r.kind !== 'ONLINE')
-  const missing = course.capabilities.filter(c => !physical.some(r => r.capabilities.includes(c)))
-  if (missing.length > 0) return { kind: 'NO_ROOM_WITH', missing }
-  const largest = Math.max(0, ...physical.map(r => r.capacity ?? Number.POSITIVE_INFINITY))
-  if (physical.length > 0 && largest < size) return { kind: 'NO_ROOM_LARGE_ENOUGH', largest }
-  return { kind: 'NO_ONLINE_OR_ROOM' }
+  if (physical.length === 0) return { kind: 'NO_ONLINE_OR_ROOM' }
+  const lacking = (room: RoomFacts) =>
+    course.capabilities.filter(c => !room.capabilities.includes(c))
+  const equipped = physical.filter(r => lacking(r).length === 0)
+  if (equipped.length === 0) {
+    const closest = physical.toSorted(
+      (a, b) => lacking(a).length - lacking(b).length || a.name.localeCompare(b.name, 'cs')
+    )[0] as RoomFacts
+    return { kind: 'NO_ROOM_WITH', missing: lacking(closest) }
+  }
+  return {
+    kind: 'NO_ROOM_LARGE_ENOUGH',
+    largest: Math.max(...equipped.map(r => r.capacity ?? size)),
+  }
 }
 
 const toRef = (room: RoomFacts): RoomRef => ({ id: room.id, name: room.name, kind: room.kind })
@@ -183,7 +204,6 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
     const people = group.people.toSorted(
       (a, b) => (a.lapses ?? '').localeCompare(b.lapses ?? '') || a.name.localeCompare(b.name, 'cs')
     )
-    const groupSize = course.groupSize ?? people.length
     const minutes = course.sessionMinutes ?? DEFAULT_SESSION_MINUTES
     const start = course.usualStart ?? DEFAULT_START
     const needs = {
@@ -191,19 +211,41 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
       onlineAllowed: course.onlineAllowed,
       capabilities: course.capabilities,
     }
+    // Rooms that suit the course, seats aside. Without a group size a session fills the
+    // largest of them; an online one takes everyone.
+    const suitable = input.rooms.filter(r => roomMismatch(r, needs, null) === null)
+    const roomSeats = suitable.map(r => r.capacity ?? people.length)
+    const groupSize = course.groupSize ?? Math.max(1, ...roomSeats)
+    const { code, name, sessionMinutes, onlineAllowed, capabilities } = course
     for (let i = 0; i * groupSize < people.length; i++) {
       const chunk = people.slice(i * groupSize, (i + 1) * groupSize)
       const size = chunk.length
       const base = {
         id: `${course.code}|${group.bucket}|${String(i + 1)}`,
-        course: { code: course.code, name: course.name },
+        course: {
+          code,
+          name,
+          sessionMinutes,
+          groupSize: course.groupSize,
+          onlineAllowed,
+          capabilities,
+        },
         bucket: group.bucket,
         deadline: group.deadline,
         size,
         people: chunk,
       }
+      const unplaced = (problem: OfferProblem): SessionOffer => ({
+        ...base,
+        slot: null,
+        room: null,
+        capacity: null,
+        alternatives: [],
+        late: false,
+        problem,
+      })
       // Rooms the course has used before first, then the smallest that fits, then by name.
-      const valid = input.rooms
+      const valid = suitable
         .filter(r => roomMismatch(r, needs, size) === null)
         .toSorted(
           (a, b) =>
@@ -212,45 +254,35 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
             a.name.localeCompare(b.name, 'cs')
         )
       if (valid.length === 0) {
-        offers.push({
-          ...base,
-          slot: null,
-          room: null,
-          capacity: null,
-          alternatives: [],
-          late: false,
-          problem: noRoomProblem(course, input.rooms, size),
-        })
+        offers.push(unplaced(noRoomProblem(course, input.rooms, size)))
+        continue
+      }
+      if (!slotOn(tomorrow, start, minutes)) {
+        offers.push(unplaced({ kind: 'RUNS_PAST_MIDNIGHT' }))
         continue
       }
       let placed: { slot: Slot; free: RoomFacts[] } | null = null
       for (let day = 0; day < PLAN_HORIZON_DAYS && !placed; day++) {
         const date = addDays(tomorrow, day)
-        if (!isWorkingDay(date)) continue
-        const slot = slotOn(date, start, minutes)
-        if (!slot) break
-        const free = valid.filter(r => !busy.some(s => s.roomId === r.id && overlaps(s, slot)))
+        const slot = isWorkingDay(date) ? slotOn(date, start, minutes) : null
+        if (!slot) continue
+        const free = valid.filter(
+          r => r.kind === 'ONLINE' || !busy.some(s => s.roomId === r.id && overlaps(s, slot))
+        )
         if (free.length > 0) placed = { slot, free }
       }
       if (!placed) {
-        offers.push({
-          ...base,
-          slot: null,
-          room: null,
-          capacity: null,
-          alternatives: [],
-          late: false,
-          problem: { kind: 'NO_FREE_SLOT' },
-        })
+        offers.push(unplaced({ kind: 'NO_FREE_SLOT' }))
         continue
       }
       const [room, ...others] = placed.free as [RoomFacts, ...RoomFacts[]]
       busy.push({ roomId: room.id, startsAt: placed.slot.startsAt, endsAt: placed.slot.endsAt })
+      const wanted = Math.max(course.groupSize ?? size, size)
       offers.push({
         ...base,
         slot: placed.slot,
         room: toRef(room),
-        capacity: Math.min(room.capacity ?? Number.POSITIVE_INFINITY, Math.max(groupSize, size)),
+        capacity: room.capacity === null ? wanted : Math.min(room.capacity, wanted),
         alternatives: others.map(toRef),
         late: placed.slot.date > group.deadline,
         problem: null,

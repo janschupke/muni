@@ -832,7 +832,7 @@
     "description": "Nové termíny pro školení, která žádný stávající termín nepojme: kdy, kde a pro koho, od nejnaléhavějších.",
     "empty": "Každé školení, které termín potřebuje, ho má.",
     "needs": "{length, plural, other {# min}} · skupiny po {size}",
-    "needsAny": "{length, plural, other {# min}} · jedna skupina",
+    "needsAny": "{length, plural, other {# min}} · tolik lidí, kolik místnost pojme",
     "online": "lze online",
     "capabilities": "potřebuje {list}",
     "columns": {
@@ -855,14 +855,23 @@
     "created": "Vytvořen termín {id}.",
     "openSession": "Otevřít",
     "bookInAdvisor": "Přihlásit lidi v poradci",
-    "failed": "Termín se nepodařilo vytvořit. Zkuste to znovu.",
+    "refused": {
+      "unauthorized": "Už nejste přihlášeni. Přihlaste se a zkuste to znovu.",
+      "invalid": "Tento návrh už neplatí. Načtěte plánovač znovu.",
+      "failed": "Termín se nepodařilo vytvořit. Zkuste to znovu.",
+      "ROOM_BUSY": "Místnost mezitím někdo v tu dobu obsadil. Obnovený plán nabízí jiný termín.",
+      "ROOM_ONLINE_NOT_ALLOWED": "Tento kurz se online nekoná. Obnovený plán nabízí jinou místnost.",
+      "ROOM_TOO_SMALL": "Místnost má méně míst, než termín otevírá. Obnovený plán nabízí jinou místnost.",
+      "ROOM_MISSING_CAPABILITIES": "Místnosti chybí vybavení, které kurz potřebuje. Obnovený plán nabízí jinou místnost."
+    },
     "signIn": "Pro vytváření termínů se přihlaste.",
     "problems": {
-      "NO_ROOM_WITH": "Žádná místnost nemá {missing}.",
-      "NO_ROOM_LARGE_ENOUGH": "Žádná místnost nepojme {size} osob; největší má {largest} míst.",
-      "NO_ONLINE_OR_ROOM": "Žádná místnost se nehodí.",
+      "NO_ROOM_WITH": "I nejlépe vybavené místnosti chybí {missing}.",
+      "NO_ROOM_LARGE_ENOUGH": "{size, plural, one {Žádná vybavená místnost nepojme # osobu} few {Žádná vybavená místnost nepojme # osoby} other {Žádná vybavená místnost nepojme # osob}}; největší má {largest, plural, one {# místo} few {# místa} other {# míst}}.",
+      "NO_ONLINE_OR_ROOM": "Kurz se koná prezenčně a žádná místnost není.",
+      "RUNS_PAST_MIDNIGHT": "V obvyklý čas a délce by termín skončil po půlnoci.",
       "NO_FREE_SLOT": "V příštích {days} dnech není volný termín."
     },
-    "rule": "Školení, která žádný termín nepojme, se seskupí podle kurzu a termínu splnění (propadlá do dvou týdnů, ostatní den před propadnutím) a rozdělí podle velikosti skupiny kurzu. Každý termín dostane první pracovní den od zítřka, kdy je v obvyklý čas kurzu volná vhodná místnost: online, pokud to kurz dovoluje, jinak místnost se vším, co kurz potřebuje, a s dostatkem míst; dříve použité místnosti mají přednost."
+    "rule": "Školení, která žádný termín nepojme, se seskupí podle kurzu a termínu splnění (propadlá do dvou týdnů, ostatní den před propadnutím) a rozdělí podle velikosti skupiny kurzu, případně podle největší vhodné místnosti. Každý termín dostane první pracovní den od zítřka (víkendy a státní svátky se nepočítají), kdy je v obvyklý čas kurzu volná vhodná místnost: online, pokud to kurz dovoluje, jinak místnost se vším, co kurz potřebuje, a s dostatkem míst; dříve použité místnosti mají přednost."
   }
 }

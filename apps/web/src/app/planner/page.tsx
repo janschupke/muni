@@ -26,27 +26,12 @@ export default async function PlannerPage() {
     ...planner,
   })
   // One section per course, in the order of its most urgent offer.
-  const groups: PlannerGroup[] = []
-  for (const offer of offers) {
-    let group = groups.find(g => g.course.code === offer.course.code)
-    if (!group) {
-      const course = planner.courses.find(c => c.code === offer.course.code)
-      if (!course) continue
-      group = {
-        course: {
-          code: course.code,
-          name: course.name,
-          sessionMinutes: course.sessionMinutes,
-          groupSize: course.groupSize,
-          onlineAllowed: course.onlineAllowed,
-          capabilities: [...course.capabilities],
-        },
-        offers: [],
-      }
-      groups.push(group)
-    }
-    group.offers.push(offer)
-  }
+  const groups = [...Map.groupBy(offers, o => o.course.code).values()].map(
+    (courseOffers): PlannerGroup => ({
+      course: (courseOffers[0] as (typeof offers)[number]).course,
+      offers: courseOffers,
+    })
+  )
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />

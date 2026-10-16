@@ -8,7 +8,6 @@ import { createOfferedSession } from '@/server/actions/sessions'
 import { getViewer } from '@/server/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { advisorInput, plannerInput } from '@/test/fixtures'
-import { router } from '@/test/next'
 import { renderClient, renderServer } from '@/test/render'
 import { PlannerView } from '@/features/planner/planner-view'
 import type { SessionOffer } from '@muni/domain/planner'
@@ -71,7 +70,7 @@ describe('session planner', () => {
       })
     )
     await renderServer(PlannerPage())
-    expect(screen.getByText('No room has Projector.')).toBeTruthy()
+    expect(screen.getByText('Even the best-equipped room lacks Projector.')).toBeTruthy()
   })
 
   it('says when nothing needs a new session', async () => {
@@ -80,10 +79,10 @@ describe('session planner', () => {
     expect(screen.getByText('Every training that needs a session has one.')).toBeTruthy()
   })
 
-  it('lets signed-in users create the offered session, and says when it fails', async () => {
+  it('lets signed-in users create the offered session, and says why when it cannot', async () => {
     const user = userEvent.setup()
     vi.mocked(getViewer).mockResolvedValue('authenticated')
-    vi.mocked(createOfferedSession).mockResolvedValueOnce({ ok: true, externalId: 'T035' })
+    vi.mocked(createOfferedSession).mockResolvedValueOnce({ ok: true, externalId: 'S001' })
     await renderServer(PlannerPage())
     await user.click(screen.getByRole('button', { name: 'Create session' }))
     expect(createOfferedSession).toHaveBeenCalledWith({
@@ -96,24 +95,38 @@ describe('session planner', () => {
       pricePerPerson: null,
       status: 'PLANNED',
     })
-    expect(await screen.findByText(/Created session T035\./)).toBeTruthy()
+    // The result stays in view, focused, whatever happens to the offer's row.
+    const result = await screen.findByText(/Created session S001\./)
     expect(screen.getByRole('link', { name: 'Open it' }).getAttribute('href')).toBe(
-      '/sessions/T035'
+      '/sessions/S001'
     )
-    expect(router.refresh).toHaveBeenCalled()
+    expect(result.closest('[tabindex="-1"]')).toBe(document.activeElement)
 
-    vi.mocked(createOfferedSession).mockResolvedValueOnce({ ok: false, reason: 'failed' })
+    vi.mocked(createOfferedSession).mockResolvedValueOnce({ ok: false, reason: 'ROOM_BUSY' })
     await act(async () => {
       await user.click(screen.getByRole('button', { name: 'Create session' }))
     })
-    expect(await screen.findByText('The session could not be created. Try again.')).toBeTruthy()
+    expect(
+      await screen.findByText(
+        'The room has been taken at that time meanwhile. The refreshed plan offers another slot.'
+      )
+    ).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })
 
 describe('planner offers', () => {
   const offer = (over: Partial<SessionOffer>): SessionOffer => ({
     id: 'GDPR|2026-12|1',
-    course: { code: 'GDPR', name: 'Ochrana osobních údajů' },
+    course: {
+      code: 'GDPR',
+      name: 'Ochrana osobních údajů',
+      sessionMinutes: null,
+      groupSize: null,
+      onlineAllowed: true,
+      capabilities: [],
+    },
     bucket: '2026-12',
     deadline: '2026-12-02',
     size: 12,
@@ -164,20 +177,24 @@ describe('planner offers', () => {
               }),
               offer({ id: '3', problem: { kind: 'NO_FREE_SLOT' }, capacity: null }),
               offer({ id: '4', problem: { kind: 'NO_ONLINE_OR_ROOM' }, capacity: null }),
+              offer({ id: '5', problem: { kind: 'RUNS_PAST_MIDNIGHT' }, capacity: null }),
             ],
           },
         ]}
       />
     )
-    expect(screen.getByText('180 min · one group · can be online')).toBeTruthy()
-    expect(screen.getAllByText('Lapsing in December 2026')).toHaveLength(4)
+    expect(screen.getByText('180 min · as many as the room seats · can be online')).toBeTruthy()
+    expect(screen.getAllByText('Lapsing in December 2026')).toHaveLength(5)
     expect(screen.getByText('After the due date')).toBeTruthy()
     expect(screen.getByText('or 2 other rooms')).toBeTruthy()
-    expect(screen.getByText('No room seats 12; the largest takes 8.')).toBeTruthy()
+    expect(screen.getByText('No equipped room seats 12 people; the largest takes 8.')).toBeTruthy()
     expect(screen.getByText('No free slot in the next 120 days.')).toBeTruthy()
-    expect(screen.getByText('No room can hold it.')).toBeTruthy()
+    expect(screen.getByText('The course is held on site, and there is no room.')).toBeTruthy()
+    expect(
+      screen.getByText('At its usual time and length a session would end after midnight.')
+    ).toBeTruthy()
     // Only the offer with a slot can be created.
     expect(screen.getAllByRole('button', { name: 'Create session' })).toHaveLength(1)
-    expect(screen.getAllByText('12')).toHaveLength(3)
+    expect(screen.getAllByText('12')).toHaveLength(4)
   })
 })

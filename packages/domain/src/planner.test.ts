@@ -163,18 +163,34 @@ describe('planSessions: demand', () => {
     expect(offers).toEqual([])
   })
 
-  it('puts a whole group in one session when the course has no group size', () => {
-    const offers = planSessions(
-      input({
-        courses: [course({ groupSize: null, sessionMinutes: null, usualStart: null })],
-        items: [unplaced('A'), unplaced('B'), unplaced('C')],
-      })
-    )
-    expect(offers).toHaveLength(1)
-    expect(offers[0]?.size).toBe(3)
-    // The default start and length.
+  it('fills the largest suitable room when the course has no group size', () => {
+    const noGroup = course({ groupSize: null, sessionMinutes: null, usualStart: null })
+    const items = [unplaced('A'), unplaced('B'), unplaced('C')]
+    const offers = planSessions(input({ courses: [noGroup], items }))
+    expect(offers.map(o => o.size)).toEqual([3])
+    // The default start and length; the offer carries what the course's sessions need.
     expect(offers[0]?.slot).toMatchObject({ startTime: '09:00', endTime: '12:00' })
     expect(DEFAULT_SESSION_MINUTES).toBe(180)
+    expect(offers[0]?.course).toEqual({
+      code: 'BOZP-Z',
+      name: 'BOZP – základní školení',
+      sessionMinutes: null,
+      groupSize: null,
+      onlineAllowed: false,
+      capabilities: [],
+    })
+    // Rooms of two: two sessions, not one that fits nowhere.
+    const small = [room({ id: 'a', capacity: 2 }), room({ id: 'b', capacity: 1 })]
+    expect(
+      planSessions(input({ courses: [noGroup], items, rooms: small })).map(o => o.size)
+    ).toEqual([2, 1])
+    // Online takes everyone at once, and opens a seat for each.
+    const online = room({ id: 'o', kind: 'ONLINE', capacity: null })
+    expect(
+      planSessions(
+        input({ courses: [{ ...noGroup, onlineAllowed: true }], items, rooms: [online] })
+      ).map(o => [o.size, o.capacity])
+    ).toEqual([[3, 3]])
   })
 })
 
@@ -240,6 +256,27 @@ describe('planSessions: rooms', () => {
     expect(offers.map(o => o.slot?.date)).toEqual(['2026-10-19', '2026-10-20'])
   })
 
+  it('skips Czech holidays, and never counts an online room as taken', () => {
+    // Busy 19-27 October; the 28th is a holiday, so the 29th.
+    const sessions = [19, 20, 21, 22, 23, 26, 27].map(d =>
+      busyAllDay('aula', `2026-10-${String(d)}`)
+    )
+    expect(planSessions(input({ items: [unplaced('A')], sessions }))[0]?.slot?.date).toBe(
+      '2026-10-29'
+    )
+    const online = room({ id: 'o', kind: 'ONLINE', capacity: null })
+    expect(
+      planSessions(
+        input({
+          courses: [course({ onlineAllowed: true })],
+          rooms: [online],
+          items: [unplaced('A')],
+          sessions: [busyAllDay('o', '2026-10-19')],
+        })
+      )[0]
+    ).toMatchObject({ slot: { date: '2026-10-19' }, room: { id: 'o' }, capacity: 2 })
+  })
+
   it('offers a late slot when the room is taken until after the due date', () => {
     const sessions = Array.from({ length: 12 }, (_, i) => {
       const date = new Date(Date.UTC(2026, 9, 19 + i)).toISOString().slice(0, 10)
@@ -255,11 +292,16 @@ describe('planSessions: rooms', () => {
 })
 
 describe('planSessions: when it cannot', () => {
-  it('names the capability no room has', () => {
+  it('names what the best-equipped room still lacks', () => {
     const [offer] = planSessions(
       input({
-        courses: [course({ capabilities: ['VEHICLE', 'PROJECTOR'] })],
-        rooms: [room({ id: 'a', capabilities: ['PROJECTOR'] })],
+        courses: [course({ capabilities: ['VEHICLE', 'PROJECTOR', 'COMPUTERS'] })],
+        // Each room has some; none has all.
+        rooms: [
+          room({ id: 'a', capabilities: ['PROJECTOR'] }),
+          room({ id: 'b', capabilities: ['PROJECTOR', 'COMPUTERS'] }),
+          room({ id: 'c', capabilities: ['VEHICLE'] }),
+        ],
         items: [unplaced('A')],
       })
     )
@@ -270,9 +312,16 @@ describe('planSessions: when it cannot', () => {
     })
   })
 
-  it('says when every room is too small', () => {
+  it('says when every equipped room is too small, whatever the others seat', () => {
     const [offer] = planSessions(
-      input({ rooms: [room({ id: 'a', capacity: 1 })], items: [unplaced('A'), unplaced('B')] })
+      input({
+        courses: [course({ capabilities: ['PROJECTOR'] })],
+        rooms: [
+          room({ id: 'a', capacity: 1, capabilities: ['PROJECTOR'] }),
+          room({ id: 'big', capacity: 80 }),
+        ],
+        items: [unplaced('A'), unplaced('B')],
+      })
     )
     expect(offer?.problem).toEqual({ kind: 'NO_ROOM_LARGE_ENOUGH', largest: 1 })
   })
@@ -290,7 +339,7 @@ describe('planSessions: when it cannot', () => {
     })
   })
 
-  it('says when no slot is free in the horizon, or a session would run past midnight', () => {
+  it('says when no slot is free in the horizon, and when a session would run past midnight', () => {
     const always: PlannerSession = {
       roomId: 'aula',
       startsAt: '2026-01-01T00:00:00.000Z',
@@ -306,6 +355,6 @@ describe('planSessions: when it cannot', () => {
           items: [unplaced('A')],
         })
       )[0]?.problem
-    ).toEqual({ kind: 'NO_FREE_SLOT' })
+    ).toEqual({ kind: 'RUNS_PAST_MIDNIGHT' })
   })
 })

@@ -1,4 +1,5 @@
 import { getCourseForEdit, listRoomOptions } from '@muni/db/repositories'
+import { DEFAULT_SESSION_MINUTES, DEFAULT_START } from '@muni/domain/planner'
 import { PageHeader } from '@muni/ui/page-header'
 import { addDays, todayIn, toZonedParts, zonedTimeToUtc } from '@muni/utils/dates'
 import { notFound } from 'next/navigation'
@@ -9,8 +10,6 @@ import { SessionForm } from '@/components/form/entity-forms'
 import { saveNewSession } from '@/server/actions/sessions'
 import { requirePageUser } from '@/server/auth'
 
-const START = '09:00'
-
 export default async function NewSessionPage({ params }: { params: Promise<{ code: string }> }) {
   await requirePageUser()
   const { code } = await params
@@ -20,10 +19,12 @@ export default async function NewSessionPage({ params }: { params: Promise<{ cod
     getTranslations('courses'),
   ])
   if (!course) notFound()
-  // Tomorrow at nine, for the course's usual length and group.
+  // Tomorrow at the planner's default start, for the course's usual length and group. A
+  // course's length is at most 12 hours, so the session ends the same day.
   const date = addDays(todayIn(), 1)
   const ends = new Date(
-    zonedTimeToUtc(date, START).getTime() + (course.sessionMinutes ?? 180) * 60_000
+    zonedTimeToUtc(date, DEFAULT_START).getTime() +
+      (course.sessionMinutes ?? DEFAULT_SESSION_MINUTES) * 60_000
   )
   return (
     <>
@@ -38,10 +39,10 @@ export default async function NewSessionPage({ params }: { params: Promise<{ cod
         rooms={rooms}
         defaults={{
           date,
-          startTime: START,
+          startTime: DEFAULT_START,
           endTime: toZonedParts(ends).time,
           roomId: '',
-          capacity: course.groupSize ?? 0,
+          capacity: course.groupSize,
           unnamedBookings: 0,
           assignedCount: 0,
           pricePerPerson: null,

@@ -196,14 +196,19 @@ course ahead, or every one full), with one fixed rule (`packages/domain/src/plan
 
 - Demand is grouped by course and due date: everything already lapsed is due within two
   weeks; the rest is due the day before the first of a month's trainings lapses.
-- A group needs `ceil(people ÷ group size)` sessions, earliest lapse first.
-- Each session takes the first working day from tomorrow on which a valid room is free at the
-  course's usual start time, for its usual length. Valid: online if the course allows it,
-  otherwise every capability the course needs and enough seats. Rooms the course used before
-  come first, then the smallest that fits. Planned sessions and earlier offers both block a
-  room.
-- A slot after the due date is offered and marked late; no valid room, or no free slot in
-  120 days, is explained. Signed-in users create the session from an offer.
+- A group needs `ceil(people ÷ group size)` sessions, earliest lapse first. A course without
+  a group size fills the largest room that suits it (online: everyone at once).
+- Each session takes the first working day (weekends and Czech public holidays are not) from
+  tomorrow on which a valid room is free at the course's usual start time, for its usual
+  length. Valid: online if the course allows it, otherwise every capability the course needs
+  and enough seats. Rooms the course used before come first, then the smallest that fits.
+  Planned sessions and earlier offers both block a physical room; an online room is never
+  taken.
+- A slot after the due date is offered and marked late. Otherwise the offer says why: what
+  even the best-equipped room lacks, that the equipped rooms are too small, that a session
+  would end after midnight, or that no slot is free in 120 days.
+- Signed-in users create the session from an offer. The server checks the room again (it
+  may have been taken meanwhile), and the result stays at the screen's foot.
 
 ## Importing
 

@@ -104,7 +104,8 @@ export function SessionForm({
     startTime: string
     endTime: string
     roomId: string
-    capacity: number
+    /** null on a new session of a course with no group size: the seats are for the user to set. */
+    capacity: number | null
     unnamedBookings: number
     /** Named bookings, shown next to the unnamed ones (managed as assignments). */
     assignedCount: number
@@ -152,7 +153,7 @@ export function SessionForm({
           inputMode="numeric"
           label={t('capacity')}
           required
-          defaultValue={defaults.capacity}
+          defaultValue={defaults.capacity ?? ''}
         />
         {mode === 'edit' && (
           <TextField

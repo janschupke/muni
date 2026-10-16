@@ -832,7 +832,7 @@
     "description": "New sessions for the training no existing session can take: when, where and for whom, most urgent first.",
     "empty": "Every training that needs a session has one.",
     "needs": "{length, plural, other {# min}} · groups of {size}",
-    "needsAny": "{length, plural, other {# min}} · one group",
+    "needsAny": "{length, plural, other {# min}} · as many as the room seats",
     "online": "can be online",
     "capabilities": "needs {list}",
     "columns": {
@@ -855,14 +855,23 @@
     "created": "Created session {id}.",
     "openSession": "Open it",
     "bookInAdvisor": "Book people in the advisor",
-    "failed": "The session could not be created. Try again.",
+    "refused": {
+      "unauthorized": "You are no longer signed in. Sign in and try again.",
+      "invalid": "This offer is no longer valid. Reload the planner.",
+      "failed": "The session could not be created. Try again.",
+      "ROOM_BUSY": "The room has been taken at that time meanwhile. The refreshed plan offers another slot.",
+      "ROOM_ONLINE_NOT_ALLOWED": "This course is not held online. The refreshed plan offers another room.",
+      "ROOM_TOO_SMALL": "The room has fewer seats than the session opens. The refreshed plan offers another room.",
+      "ROOM_MISSING_CAPABILITIES": "The room lacks equipment the course needs. The refreshed plan offers another room."
+    },
     "signIn": "Sign in to create sessions.",
     "problems": {
-      "NO_ROOM_WITH": "No room has {missing}.",
-      "NO_ROOM_LARGE_ENOUGH": "No room seats {size}; the largest takes {largest}.",
-      "NO_ONLINE_OR_ROOM": "No room can hold it.",
+      "NO_ROOM_WITH": "Even the best-equipped room lacks {missing}.",
+      "NO_ROOM_LARGE_ENOUGH": "{size, plural, one {No equipped room seats # person} other {No equipped room seats # people}}; the largest takes {largest}.",
+      "NO_ONLINE_OR_ROOM": "The course is held on site, and there is no room.",
+      "RUNS_PAST_MIDNIGHT": "At its usual time and length a session would end after midnight.",
       "NO_FREE_SLOT": "No free slot in the next {days} days."
     },
-    "rule": "Trainings no session can take are grouped by course and due date (lapsed ones within two weeks, the rest the day before they lapse) and split by the course's group size. Each session gets the first working day from tomorrow with a valid room free at the course's usual time: online if the course allows it, otherwise a room with everything the course needs and enough seats, rooms used before first."
+    "rule": "Trainings no session can take are grouped by course and due date (lapsed ones within two weeks, the rest the day before they lapse) and split by the course's group size, or by the largest room that suits it. Each session gets the first working day from tomorrow (weekends and public holidays are not) with a valid room free at the course's usual time: online if the course allows it, otherwise a room with everything the course needs and enough seats, rooms used before first."
   }
 }
