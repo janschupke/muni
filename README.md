@@ -43,8 +43,22 @@ Internal packages ship TypeScript source (`exports` point at `src/`); Next compi
 ## Data model
 
 `Department`, `Position`, `Employee` (with a manager self-relation), `Course`,
-`CourseRequirement` (who must hold a course: everyone, a department or a position; no rows
-means optional), `CourseSession`, `CourseCompletion` and `Provider`. Source IDs (`E0001`,
+`CourseSession`, `CourseCompletion`, `Provider` and `Room`, all normalised:
+
+- **Who must hold a course:** `Course.requiredForAll`, plus one link table per audience
+  (`course_department_requirements`, `course_position_requirements`). No flag and no links
+  means optional.
+- **Rooms:** a session points at a `Room` (kind: classroom, lab, online, external, outdoor;
+  seats; note). What a room offers and what a course needs are link tables of one
+  `Capability` enum (projector, computers, lab equipment, vehicle, practice area, video
+  conferencing, wheelchair access). "Online" is the room's kind, not a session flag.
+- **What a session needs:** `Course.sessionMinutes`, `groupSize`, `onlineAllowed` and its
+  capabilities. Set in the course form; until then derived from the course's sessions (usual
+  length, median size, online if ever held online). An import never overwrites them.
+- **Department heads** are not stored: the head is the person most of the department's
+  members report to.
+
+Source IDs (`E0001`,
 `T001`, `Z000001`) are kept as `externalId`, and imports upsert on them, so re-importing a file
 updates records instead of duplicating them. Date-only values are Postgres `date` columns;
 session times are `timestamptz` converted from Europe/Prague wall-clock time.
@@ -92,9 +106,22 @@ One palette, defined once in `packages/ui/src/styles/tokens.css`:
   80 % booked or full), orange = lapsed, red = action needed (missing, overbooked). Blue is
   the brand and never a state. A signal colour always comes with an icon and a label.
 - **Compliance rates** are coloured by band (`complianceBand` in `@muni/domain`): 100 %,
-  90–99 %, 75–89 %, 50–74 % and under 50 %. The matrix uses the green → yellow → red heat
-  scale (`bg-heat-*`, lightness running one way so the order survives colour blindness);
-  rate meters and the overview card use green, yellow or red. The rate is always printed too.
+  90–99 %, 75–89 %, 50–74 % and under 50 %, in plain sentiment colours: solid green, light
+  green, yellow, orange, red (`bg-heat-*`). Adjacent bands are checked to stay apart for
+  colour-blind readers, and every band has an ink with at least 4.8:1 contrast. Rate meters
+  and the overview card use the same bands. The rate is always printed too.
+
+### Layout
+
+From `lg` (1024px) the navigation is a left sidebar in groups (Register, Training,
+Planning). It collapses to an icon rail with tooltips; the choice is a cookie the server
+reads, so the first paint is right. Below `lg` a top bar's menu opens the same navigation in
+a drawer. Content runs full width up to 1920px (`max-w-page`, breakpoint `3xl`). Tooltips are
+Radix (`Tooltip`, `IconButton`); a lint rule bans native `title` attributes.
+
+Errors: `error.tsx` logs the error, shows its digest as a reference and retries with fresh
+data; `global-error.tsx` draws its own page when the root layout fails. Every record route
+has its own not-found page naming the missing record.
 
 The compliance matrix opens each department into one row per person, under the course
 columns, and each cell into a dialog listing its people, most urgent first.
@@ -147,6 +174,22 @@ Saving re-checks every pair on the server (seats under a row lock, clashes, the 
 and that the training has lapsed or lapses within the forecast); the browser's plan is never
 trusted.
 
+## Session planner
+
+`/planner` proposes new sessions for training the advisor cannot place (no session of the
+course ahead, or every one full), with one fixed rule (`packages/domain/src/planner.ts`):
+
+- Demand is grouped by course and due date: everything already lapsed is due within two
+  weeks; the rest is due the day before the first of a month's trainings lapses.
+- A group needs `ceil(people ÷ group size)` sessions, earliest lapse first.
+- Each session takes the first working day from tomorrow on which a valid room is free at the
+  course's usual start time, for its usual length. Valid: online if the course allows it,
+  otherwise every capability the course needs and enough seats. Rooms the course used before
+  come first, then the smallest that fits. Planned sessions and earlier offers both block a
+  room.
+- A slot after the due date is offered and marked late; no valid room, or no free slot in
+  120 days, is explained. Signed-in users create the session from an offer.
+
 ## Importing
 
 The wizard at `/import` follows the same flow as ceum: upload, review, confirm, progress.
@@ -156,7 +199,12 @@ The wizard at `/import` follows the same flow as ceum: upload, review, confirm, 
 - **Review:** rows with an **error** are skipped. Rows with a **warning** are imported with the
   fix described. Cells can be edited inline, rows removed, restored or reverted, and every
   change re-validates the whole batch, including references between files.
-- **Commit:** in dependency order (courses, employees, sessions, completions), in chunks of 500.
+- **Rooms:** an optional `mistnosti.csv` (`nazev`, `typ`, `kapacita`, `vybaveni`; equipment
+  as codes or Czech labels, `;`- or `,`-separated). Without one, each place the sessions name
+  becomes a room (`ROOM_DERIVED`, once per room), sized by the largest session held there;
+  spelling variants of a known room are unified.
+- **Commit:** in dependency order (rooms, courses, employees, sessions, completions), in
+  chunks of 500.
   The server re-validates every record with the domain schemas before writing.
 
 What the importer does with the defects in `data/`:
