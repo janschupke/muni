@@ -8,6 +8,7 @@ import {
   employeeEditSchema,
   employeeSchema,
   requirementScopeSchema,
+  providerSchema,
   roomSchema,
   sessionCreateSchema,
   sessionEditSchema,
@@ -193,5 +194,50 @@ describe('rooms and new sessions', () => {
     ])
     // A new session opens at least one seat.
     expect(sessionCreateSchema.safeParse({ ...create, capacity: 0 }).success).toBe(false)
+  })
+})
+
+describe('providers', () => {
+  const provider = {
+    name: ' Vzorový školicí ústav ',
+    companyId: '002 16 224',
+    email: 'kurzy@vzor.example',
+    phone: '+420 549 49 1111',
+    website: 'www.vzor.example',
+    note: null,
+  }
+
+  it('take a name and optional, checked details', () => {
+    expect(providerSchema.parse(provider)).toEqual({
+      ...provider,
+      name: 'Vzorový školicí ústav',
+      companyId: '00216224',
+      website: 'https://www.vzor.example',
+    })
+    expect(
+      providerSchema.parse({
+        name: 'Interní školitel',
+        companyId: null,
+        email: null,
+        phone: null,
+        website: null,
+        note: null,
+      }).name
+    ).toBe('Interní školitel')
+    expect(
+      providerSchema.parse({ ...provider, website: 'http://vzor.example/kurzy' }).website
+    ).toBe('http://vzor.example/kurzy')
+  })
+
+  it('refuse a bad IČO, email, phone or website', () => {
+    expect(issues(providerSchema.safeParse({ ...provider, companyId: '00216225' }))).toEqual([
+      'companyId: company_id',
+    ])
+    expect(providerSchema.safeParse({ ...provider, email: 'kurzy' }).success).toBe(false)
+    expect(providerSchema.safeParse({ ...provider, phone: 'call us' }).success).toBe(false)
+    expect(providerSchema.safeParse({ ...provider, website: 'ftp://vzor.example' }).success).toBe(
+      false
+    )
+    expect(providerSchema.safeParse({ ...provider, name: ' ' }).success).toBe(false)
   })
 })

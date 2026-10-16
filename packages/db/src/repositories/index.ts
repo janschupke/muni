@@ -51,7 +51,7 @@ export {
   getPersonName,
   listDepartments,
   listPositions,
-  listProviders,
+  listProviderNames,
   listRoomOptions,
   type RoomOption,
 } from './lookups'
@@ -80,5 +80,18 @@ export {
   type PositionSummary,
 } from './org'
 export { getPlannerInput } from './planner'
+export {
+  createProvider,
+  deleteProvider,
+  getProvider,
+  getProviderForEdit,
+  listProviders,
+  updateProvider,
+  type ProviderDetail,
+  type ProviderList,
+  type ProviderListItem,
+  type ProviderTotals,
+  type ProviderWrite,
+} from './providers'
 export { getRoom, getRoomForEdit, listRooms, type RoomDetail, type RoomListItem } from './rooms'
 export { getSession, listSessions, type SessionWindow } from './sessions'

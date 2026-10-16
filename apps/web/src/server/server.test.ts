@@ -2,10 +2,13 @@ import { auth } from '@clerk/nextjs/server'
 import {
   applyAssignments,
   createCompletion,
+  createProvider,
   createRoom,
   createSession,
+  deleteProvider,
   deleteRoom,
   getCourseForEdit,
+  updateProvider,
   updateRoom,
   moveSeats,
   removeAssignment,
@@ -34,6 +37,7 @@ import {
   removeAssignmentAction,
 } from './actions/assignments'
 import { recordCompletion, saveCourse, saveEmployee, saveSession } from './actions/edit'
+import { removeProvider, saveProvider } from './actions/providers'
 import { removeRoom, saveRoom } from './actions/rooms'
 import { createOfferedSession, saveNewSession } from './actions/sessions'
 import { setLocale } from './actions/locale'
@@ -52,9 +56,12 @@ vi.mock('@clerk/nextjs/server', () => ({
 vi.mock('@muni/db/repositories', () => ({
   applyAssignments: vi.fn(),
   createCompletion: vi.fn(),
+  createProvider: vi.fn(),
   createRoom: vi.fn(),
   createSession: vi.fn(),
+  deleteProvider: vi.fn(),
   deleteRoom: vi.fn(),
+  updateProvider: vi.fn(),
   updateRoom: vi.fn(),
   getCourseForEdit: vi.fn(),
   moveSeats: vi.fn(),
@@ -457,16 +464,85 @@ describe('room actions', () => {
 
   it('delete a room only while nothing is held there', async () => {
     vi.mocked(deleteRoom).mockResolvedValueOnce('IN_USE')
-    expect(await removeRoom('room_aula_a', idle)).toMatchObject({ formError: 'in_use' })
+    expect(await removeRoom('room_aula_a', idle)).toEqual({ status: 'refused', reason: 'in_use' })
     vi.mocked(deleteRoom).mockResolvedValueOnce('DELETED')
     expect(await redirectOf(removeRoom('room_new', idle))).toBe('/rooms')
     vi.mocked(deleteRoom).mockRejectedValueOnce({ code: 'P2025' })
-    expect(await removeRoom('gone', idle)).toMatchObject({ formError: 'not_found' })
+    expect(await removeRoom('gone', idle)).toEqual({ status: 'refused', reason: 'not_found' })
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     vi.mocked(deleteRoom).mockRejectedValueOnce(new Error('down'))
-    expect(await removeRoom('room_new', idle)).toMatchObject({ formError: 'generic' })
+    expect(await removeRoom('room_new', idle)).toEqual({ status: 'refused', reason: 'generic' })
     signedIn(null)
     await expect(removeRoom('room_new', idle)).rejects.toMatchObject({ name: 'UnauthorizedError' })
+  })
+})
+
+describe('provider actions', () => {
+  const providerForm = {
+    name: 'Vzorový školicí ústav',
+    companyId: '002 16 224',
+    email: '',
+    phone: '+420 549 49 1111',
+    website: 'www.vzor.example',
+    note: '',
+  }
+
+  it('save a provider with its details read and normalised, then show it', async () => {
+    vi.mocked(createProvider).mockResolvedValueOnce({ ok: true, id: 'prov_new' })
+    expect(await redirectOf(saveProvider(null, idle, form(providerForm)))).toBe(
+      '/providers/prov_new'
+    )
+    expect(createProvider).toHaveBeenCalledWith({
+      name: 'Vzorový školicí ústav',
+      companyId: '00216224',
+      email: null,
+      phone: '+420 549 49 1111',
+      website: 'https://www.vzor.example',
+      note: null,
+    })
+    vi.mocked(updateProvider).mockResolvedValueOnce({ ok: true, id: 'prov_1' })
+    expect(await redirectOf(saveProvider('prov_1', idle, form(providerForm)))).toBe(
+      '/providers/prov_1'
+    )
+    expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
+  })
+
+  it('name what is wrong: the IČO, the email, a taken name or IČO, a provider that is gone', async () => {
+    expect(
+      await saveProvider(null, idle, form({ ...providerForm, companyId: '00216225', email: 'x' }))
+    ).toEqual({
+      status: 'error',
+      fieldErrors: { companyId: 'company_id', email: 'invalid_format' },
+    })
+    expect(createProvider).not.toHaveBeenCalled()
+    vi.mocked(createProvider).mockResolvedValueOnce({ ok: false, taken: 'companyId' })
+    expect(await saveProvider(null, idle, form(providerForm))).toEqual({
+      status: 'error',
+      fieldErrors: { companyId: 'taken' },
+    })
+    vi.mocked(updateProvider).mockRejectedValueOnce({ code: 'P2025' })
+    expect(await saveProvider('gone', idle, form(providerForm))).toMatchObject({
+      formError: 'not_found',
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(updateProvider).mockRejectedValueOnce(new Error('down'))
+    expect(await saveProvider('prov_1', idle, form(providerForm))).toMatchObject({
+      formError: 'generic',
+    })
+  })
+
+  it('delete a provider only while no completion names it, for signed-in users', async () => {
+    vi.mocked(deleteProvider).mockResolvedValueOnce('IN_USE')
+    expect(await removeProvider('prov_1', idle)).toEqual({ status: 'refused', reason: 'in_use' })
+    vi.mocked(deleteProvider).mockResolvedValueOnce('DELETED')
+    expect(await redirectOf(removeProvider('prov_new', idle))).toBe('/providers')
+    signedIn(null)
+    await expect(saveProvider(null, idle, form(providerForm))).rejects.toMatchObject({
+      name: 'UnauthorizedError',
+    })
+    await expect(removeProvider('prov_1', idle)).rejects.toMatchObject({
+      name: 'UnauthorizedError',
+    })
   })
 })
 

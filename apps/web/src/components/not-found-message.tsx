@@ -8,7 +8,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
-const ENTITIES = ['employees', 'courses', 'sessions', 'rooms', 'departments', 'positions'] as const
+const ENTITIES = [
+  'employees',
+  'courses',
+  'sessions',
+  'rooms',
+  'providers',
+  'departments',
+  'positions',
+] as const
 type Entity = (typeof ENTITIES)[number]
 
 /** "Page not found" naming the address, or, under a record's route, which record is missing. */

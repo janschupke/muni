@@ -172,10 +172,20 @@ model RoomCapability {
   @@map("room_capabilities")
 }
 
+/// Who delivers training. Imports and the completion form create one by name; its details
+/// are filled in the app.
 model Provider {
   id          String             @id @default(cuid())
   name        String             @unique
+  /// IČO: 8 digits (CHECK in the migration SQL); the schema checks its checksum.
+  companyId   String?            @unique @map("company_id")
+  email       String?
+  phone       String?
+  website     String?
+  note        String?
   completions CourseCompletion[]
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
 
   @@map("providers")
 }

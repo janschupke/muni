@@ -18,7 +18,8 @@ export async function listPositions(options?: RepoOptions): Promise<string[]> {
   return rows.map(r => r.name)
 }
 
-export async function listProviders(options?: RepoOptions): Promise<string[]> {
+/** Every provider's name, for the completion form to suggest. */
+export async function listProviderNames(options?: RepoOptions): Promise<string[]> {
   const rows = await dbOf(options).provider.findMany({
     select: { name: true },
     orderBy: { name: 'asc' },

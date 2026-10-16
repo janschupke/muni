@@ -5,8 +5,17 @@ import { roomSchema } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { fieldErrors, formError, list, number, text, type FormState } from '@/lib/form'
+import {
+  fieldErrors,
+  formError,
+  list,
+  number,
+  text,
+  type DeleteState,
+  type FormState,
+} from '@/lib/form'
 import { requireUser } from '@/server/auth'
+import { deleteRecord } from '@/server/delete-record'
 
 const codeOf = (error: unknown) => (error as { code?: unknown } | null)?.code
 
@@ -41,15 +50,6 @@ export async function saveRoom(
 }
 
 /** Deletes a room nobody uses; a room with sessions stays and says why. */
-export async function removeRoom(id: string, _state: FormState): Promise<FormState> {
-  await requireUser()
-  try {
-    if ((await deleteRoom(id)) === 'IN_USE') return formError('in_use')
-  } catch (error) {
-    if (codeOf(error) === 'P2025') return formError('not_found')
-    console.error(error)
-    return formError('generic')
-  }
-  revalidatePath('/', 'layout')
-  redirect('/rooms')
+export async function removeRoom(id: string, _state: DeleteState): Promise<DeleteState> {
+  return deleteRecord(() => deleteRoom(id), '/rooms')
 }

@@ -353,13 +353,16 @@ describe('tables', () => {
         courseName: 'BOZP – základní školení',
         completedOn: '2024-09-01',
         validUntil: '2026-09-01',
-        provider: 'Bezpečná firma s.r.o.',
+        provider: { id: 'prov_bezpecna', name: 'Bezpečná firma s.r.o.' },
         price: null,
       },
     ]
     renderClient(<CompletionHistoryTable completions={completions} showNotes />)
     expect(screen.getByText('online')).toBeTruthy()
     expect(screen.getByText('No expiry')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Bezpečná firma s.r.o.' }).getAttribute('href')).toBe(
+      '/providers/prov_bezpecna'
+    )
     for (const header of ['Course', 'Completed', 'Valid until', 'Provider', 'Price'])
       await user.click(screen.getByRole('button', { name: header }))
     expect(screen.getAllByRole('row')).toHaveLength(3)

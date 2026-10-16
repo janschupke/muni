@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
 import { BackLink } from '@/components/back-link'
-import { DeleteRoomButton } from '@/features/rooms/delete-room-button'
+import { ConfirmDeleteButton } from '@/components/confirm-delete-button'
 import { RoomForm } from '@/features/rooms/room-form'
 import { removeRoom, saveRoom } from '@/server/actions/rooms'
 import { requirePageUser } from '@/server/auth'
@@ -22,7 +22,11 @@ export default async function EditRoomPage({ params }: { params: Promise<{ id: s
       />
       <RoomForm action={saveRoom.bind(null, id)} cancelHref={`/rooms/${id}`} defaults={room} />
       <hr className="my-8 max-w-2xl border-border-muted" />
-      <DeleteRoomButton name={room.name} action={removeRoom.bind(null, id)} />
+      <ConfirmDeleteButton
+        name={room.name}
+        messages="rooms.form"
+        action={removeRoom.bind(null, id)}
+      />
     </>
   )
 }

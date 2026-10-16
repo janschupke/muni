@@ -29,8 +29,11 @@ export function EmployeesTable({
   items,
   query,
   sort,
+  omit,
 }: {
   items: EmployeeListItem[]
+  /** A column every row shares, left out: the department on a department's page. */
+  omit?: 'department' | 'position'
   /** The list page's filters: sorting rewrites the URL. Without them the table sorts itself. */
   query?: Record<string, string | undefined>
   sort?: { by: string; desc: boolean } | undefined
@@ -64,22 +67,34 @@ export function EmployeesTable({
             />
           ),
         }),
-        col.accessor('department', {
-          header: t('columns.department'),
-          cell: ({ row }) => (
-            <OrgLink
-              kind="departments"
-              id={row.original.departmentId}
-              name={row.original.department}
-            />
-          ),
-        }),
-        col.accessor('position', {
-          header: t('columns.position'),
-          cell: ({ row }) => (
-            <OrgLink kind="positions" id={row.original.positionId} name={row.original.position} />
-          ),
-        }),
+        ...(omit === 'department'
+          ? []
+          : [
+              col.accessor('department', {
+                header: t('columns.department'),
+                cell: ({ row }) => (
+                  <OrgLink
+                    kind="departments"
+                    id={row.original.departmentId}
+                    name={row.original.department}
+                  />
+                ),
+              }),
+            ]),
+        ...(omit === 'position'
+          ? []
+          : [
+              col.accessor('position', {
+                header: t('columns.position'),
+                cell: ({ row }) => (
+                  <OrgLink
+                    kind="positions"
+                    id={row.original.positionId}
+                    name={row.original.position}
+                  />
+                ),
+              }),
+            ]),
         col.accessor('status', {
           header: t('columns.status'),
           cell: ({ getValue }) => <EmploymentBadge status={getValue()} />,
@@ -119,7 +134,7 @@ export function EmployeesTable({
           },
         }),
       ]),
-    [t]
+    [omit, t]
   )
 
   return (

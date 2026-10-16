@@ -10,6 +10,7 @@ import {
   CalendarRange,
   DoorOpen,
   Grid3x3,
+  Handshake,
   LayoutDashboard,
   Lightbulb,
   LogIn,
@@ -50,6 +51,7 @@ export async function AppShell({ viewer, children }: { viewer: Viewer; children:
         item('/courses', t('nav.courses'), BookOpen),
         item('/sessions', t('nav.sessions'), CalendarDays),
         item('/rooms', t('nav.rooms'), DoorOpen),
+        item('/providers', t('nav.providers'), Handshake),
       ],
     },
     {

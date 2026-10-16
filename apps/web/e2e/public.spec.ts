@@ -252,6 +252,24 @@ test.describe('public register (signed out)', () => {
     await expect(page).toHaveURL(/\/rooms\//)
   })
 
+  test('providers: the list, one provider, and the way there from a completion', async ({
+    page,
+  }) => {
+    await setLocale(page, 'en')
+    await page.goto('/employees/E0153')
+    const provider = page.locator('main a[href^="/providers/"]').first()
+    const name = (await provider.textContent()) ?? ''
+    await provider.click()
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
+    await expect(page.getByText(/\d+ completions · \d+ people · \d+ courses/)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'By course' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Latest completions' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Edit' })).toHaveCount(0)
+    await page.getByRole('link', { name: 'Providers' }).first().click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Providers' })).toBeVisible()
+    await expect(page.locator('tbody a[href^="/providers/"]')).toHaveCount(4)
+  })
+
   test('footer, and tab strips without a scrollbar', async ({ page }) => {
     await setLocale(page, 'en')
     for (const width of [1280, 390]) {
@@ -304,7 +322,15 @@ test.describe('public register (signed out)', () => {
     await setLocale(page, 'en')
     for (const width of [360, 390, 1024, 1920]) {
       await page.setViewportSize({ width, height: 900 })
-      for (const path of ['/', '/employees', '/compliance', '/advisor', '/planner', '/rooms']) {
+      for (const path of [
+        '/',
+        '/employees',
+        '/compliance',
+        '/advisor',
+        '/planner',
+        '/rooms',
+        '/providers',
+      ]) {
         await page.goto(path)
         const { scrollWidth, clientWidth } = await page.evaluate(() => ({
           scrollWidth: document.documentElement.scrollWidth,
@@ -333,6 +359,7 @@ test.describe('public register (signed out)', () => {
       '/courses/BOZP-Z/edit',
       '/sessions/T001/edit',
       '/employees/E0001/edit',
+      '/providers/new',
     ]) {
       const response = await page.goto(path)
       expect(response?.status(), path).toBe(404)

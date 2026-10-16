@@ -21,6 +21,8 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   { name: 'session', path: '/sessions/T016' },
   { name: 'rooms', path: '/rooms' },
   { name: 'room', via: '/rooms', prefix: '/rooms/' },
+  { name: 'providers', path: '/providers' },
+  { name: 'provider', via: '/providers', prefix: '/providers/' },
   { name: 'compliance', path: '/compliance' },
   { name: 'planner', path: '/planner' },
   { name: 'advisor', path: '/advisor' },

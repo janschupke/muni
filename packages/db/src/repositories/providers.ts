@@ -1,0 +1,254 @@
+import type { Viewer } from '@muni/domain/enums'
+import { providerSchema, type ProviderInput } from '@muni/domain/schemas'
+import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
+import { cleanFreeText } from '@muni/utils/text'
+
+import { Prisma } from '../generated/prisma/client'
+import { dbOf, getPolicy, toAmount, type RepoOptions } from './context'
+
+// Training providers: who delivered the completions on record, with their contact details
+// and what was done with them. Prices follow the sanitisation policy for `completion.price`:
+// a viewer who may not see a completion's price sees no sums of them either.
+
+/** What was done with a provider, across all its completions or one course's. */
+export interface ProviderTotals {
+  completions: number
+  people: number
+  /** Sum of the recorded prices; null when none was recorded or the viewer may not see prices. */
+  spend: number | null
+  lastCompletedOn: IsoDate | null
+}
+
+export interface ProviderListItem extends ProviderTotals {
+  id: string
+  name: string
+  companyId: string | null
+  courses: number
+}
+
+export interface ProviderList {
+  providers: ProviderListItem[]
+  /** Whether the viewer may see prices; the spend column shows only then. */
+  prices: boolean
+}
+
+export interface ProviderDetail extends ProviderListItem {
+  email: string | null
+  phone: string | null
+  website: string | null
+  note: string | null
+  prices: boolean
+  /** Per course, most completions first. */
+  byCourse: (ProviderTotals & { code: string; name: string })[]
+  /** The newest completions, newest first. */
+  recentCompletions: {
+    externalId: string
+    employeeExternalId: string
+    employeeName: string
+    courseCode: string
+    courseName: string
+    completedOn: IsoDate
+    validUntil: IsoDate | null
+    price: number | null
+  }[]
+}
+
+const RECENT_COMPLETIONS = 20
+
+const pricesVisible = (viewer: Viewer) => getPolicy()['completion.price'][viewer].mode === 'show'
+
+interface TotalsRow {
+  completions: number
+  people: number
+  courses: number
+  spend: Prisma.Decimal | null
+  last: Date | null
+}
+
+/** A provider no completion names yet. */
+const NONE: TotalsRow = { completions: 0, people: 0, courses: 0, spend: null, last: null }
+
+const TOTALS = Prisma.sql`
+  count(*)::int AS completions,
+  count(DISTINCT cc.employee_id)::int AS people,
+  count(DISTINCT cc.course_id)::int AS courses,
+  sum(cc.price) AS spend,
+  max(cc.completed_on) AS last`
+
+function totalsOf(row: TotalsRow, prices: boolean): ProviderTotals {
+  return {
+    completions: row.completions,
+    people: row.people,
+    spend: prices ? toAmount(row.spend) : null,
+    lastCompletedOn: row.last ? isoDateFromUtc(row.last) : null,
+  }
+}
+
+/** Completion totals per provider; only `providerId`'s when given. */
+function totalsByProvider(options: RepoOptions | undefined, providerId?: string) {
+  const where = providerId
+    ? Prisma.sql`cc.provider_id = ${providerId}`
+    : Prisma.sql`cc.provider_id IS NOT NULL`
+  return dbOf(options).$queryRaw<(TotalsRow & { id: string })[]>`
+    SELECT cc.provider_id AS id, ${TOTALS}
+      FROM course_completions cc
+     WHERE ${where}
+     GROUP BY cc.provider_id`
+}
+
+/** One provider's completion totals per course, most completions first. */
+function totalsByCourse(options: RepoOptions | undefined, providerId: string) {
+  return dbOf(options).$queryRaw<(TotalsRow & { code: string; name: string })[]>`
+    SELECT c.code, c.name, ${TOTALS}
+      FROM course_completions cc
+      JOIN courses c ON c.id = cc.course_id
+     WHERE cc.provider_id = ${providerId}
+     GROUP BY c.code, c.name
+     ORDER BY completions DESC, c.code`
+}
+
+export async function listProviders(viewer: Viewer, options?: RepoOptions): Promise<ProviderList> {
+  const prices = pricesVisible(viewer)
+  const [providers, totals] = await Promise.all([
+    dbOf(options).provider.findMany({
+      select: { id: true, name: true, companyId: true },
+      orderBy: { name: 'asc' },
+    }),
+    totalsByProvider(options),
+  ])
+  const byId = new Map(totals.map(t => [t.id, t]))
+  return {
+    prices,
+    providers: providers.map(p => {
+      const row = byId.get(p.id) ?? NONE
+      return { ...p, ...totalsOf(row, prices), courses: row.courses }
+    }),
+  }
+}
+
+export async function getProvider(
+  id: string,
+  viewer: Viewer,
+  options?: RepoOptions
+): Promise<ProviderDetail | null> {
+  const db = dbOf(options)
+  const prices = pricesVisible(viewer)
+  const [provider, [total = NONE], perCourse, recent] = await Promise.all([
+    db.provider.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        companyId: true,
+        email: true,
+        phone: true,
+        website: true,
+        note: true,
+      },
+    }),
+    totalsByProvider(options, id),
+    totalsByCourse(options, id),
+    db.courseCompletion.findMany({
+      where: { providerId: id },
+      orderBy: [{ completedOn: 'desc' }, { externalId: 'desc' }],
+      take: RECENT_COMPLETIONS,
+      select: {
+        externalId: true,
+        completedOn: true,
+        validUntil: true,
+        price: true,
+        employee: { select: { externalId: true, firstName: true, lastName: true } },
+        course: { select: { code: true, name: true } },
+      },
+    }),
+  ])
+  if (!provider) return null
+  return {
+    ...provider,
+    ...totalsOf(total, prices),
+    courses: total.courses,
+    prices,
+    byCourse: perCourse.map(row => ({ code: row.code, name: row.name, ...totalsOf(row, prices) })),
+    recentCompletions: recent.map(c => ({
+      externalId: c.externalId,
+      employeeExternalId: c.employee.externalId,
+      employeeName: `${c.employee.lastName} ${c.employee.firstName}`,
+      courseCode: c.course.code,
+      courseName: c.course.name,
+      completedOn: isoDateFromUtc(c.completedOn),
+      validUntil: c.validUntil ? isoDateFromUtc(c.validUntil) : null,
+      price: prices ? toAmount(c.price) : null,
+    })),
+  }
+}
+
+export function getProviderForEdit(id: string, options?: RepoOptions) {
+  return dbOf(options).provider.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      companyId: true,
+      email: true,
+      phone: true,
+      website: true,
+      note: true,
+    },
+  })
+}
+
+/** A saved provider, or the unique field another provider already holds. */
+export type ProviderWrite = { ok: true; id: string } | { ok: false; taken: 'name' | 'companyId' }
+
+async function writeProvider(
+  id: string | null,
+  input: ProviderInput,
+  options: RepoOptions | undefined
+): Promise<ProviderWrite> {
+  const parsed = providerSchema.parse(input)
+  const data = { ...parsed, note: cleanFreeText(parsed.note) }
+  const db = dbOf(options)
+  try {
+    const saved = id
+      ? await db.provider.update({ where: { id }, data, select: { id: true } })
+      : await db.provider.create({ data, select: { id: true } })
+    return { ok: true, id: saved.id }
+  } catch (error) {
+    if ((error as { code?: unknown }).code !== 'P2002') throw error
+    // Name and IČO are the unique fields: the IČO is taken when someone else holds it.
+    const holder =
+      data.companyId &&
+      (await db.provider.findFirst({
+        where: { companyId: data.companyId, id: { not: id ?? '' } },
+        select: { id: true },
+      }))
+    return { ok: false, taken: holder ? 'companyId' : 'name' }
+  }
+}
+
+export const createProvider = (input: ProviderInput, options?: RepoOptions) =>
+  writeProvider(null, input, options)
+
+/**
+ * Saves a provider's details; a new name renames it everywhere its completions show. An
+ * unknown id throws P2025.
+ */
+export const updateProvider = (id: string, input: ProviderInput, options?: RepoOptions) =>
+  writeProvider(id, input, options)
+
+/**
+ * Deletes a provider no completion names. The key would only clear the provider from its
+ * completions, so the check is ours: the row lock holds off a completion naming it meanwhile.
+ * An unknown id throws P2025, as an update does.
+ */
+export async function deleteProvider(
+  id: string,
+  options?: RepoOptions
+): Promise<'DELETED' | 'IN_USE'> {
+  return dbOf(options).$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM providers WHERE id = ${id} FOR UPDATE`
+    if ((await tx.courseCompletion.count({ where: { providerId: id } })) > 0) return 'IN_USE'
+    await tx.provider.delete({ where: { id } })
+    return 'DELETED'
+  })
+}

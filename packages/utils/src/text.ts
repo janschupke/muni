@@ -44,3 +44,17 @@ export function cleanFreeText(value: string | null | undefined): string | null {
     .join('\n')
   return cleaned === '' ? null : cleaned
 }
+
+const COMPANY_ID_WEIGHTS = [8, 7, 6, 5, 4, 3, 2]
+
+/**
+ * Whether `value` is a Czech company ID (IČO): 8 digits, the last a mod-11 check digit of
+ * the first seven weighted 8 down to 2 (a remainder of 0 gives 1, of 1 gives 0).
+ */
+export function isCompanyId(value: string): boolean {
+  if (!/^\d{8}$/.test(value)) return false
+  const sum = COMPANY_ID_WEIGHTS.reduce((n, w, i) => n + w * Number(value[i]), 0)
+  const remainder = sum % 11
+  const check = remainder === 0 ? 1 : remainder === 1 ? 0 : 11 - remainder
+  return Number(value[7]) === check
+}

@@ -13,8 +13,8 @@ import { CapabilityFitList } from '@/components/room-badges'
 /**
  * Every course beside this room: what a session of it needs next to what the room provides,
  * then whether it fits and, when not, the first reason in numbers. An online room is judged
- * only on whether the course may be held online, so it shows that instead of seats and
- * equipment.
+ * only on whether the course may be held online, which the verdict says: it has no seats or
+ * equipment to set beside the needs.
  */
 export function RoomFitTable({ room }: { room: Pick<RoomDetail, 'name' | 'kind' | 'courses'> }) {
   const t = useTranslations('rooms.detail.fit')
@@ -25,9 +25,7 @@ export function RoomFitTable({ room }: { room: Pick<RoomDetail, 'name' | 'kind' 
         <THead>
           <tr>
             <Th>{t('course')}</Th>
-            {online ? (
-              <Th>{t('online')}</Th>
-            ) : (
+            {!online && (
               <>
                 <Th align="right">{t('seatsNeeded')}</Th>
                 <Th align="right">{t('seatsHere')}</Th>
@@ -45,9 +43,7 @@ export function RoomFitTable({ room }: { room: Pick<RoomDetail, 'name' | 'kind' 
                   <Link href={`/courses/${c.code}`}>{c.name}</Link>
                 </TextLink>
               </Td>
-              {c.fit.online ? (
-                <Td>{c.fit.allowed ? t('allowed') : t('notAllowed')}</Td>
-              ) : (
+              {!c.fit.online && (
                 <>
                   <Td align="right">
                     <Seats value={c.fit.seats.needed} empty={t('splitByRoom')} />

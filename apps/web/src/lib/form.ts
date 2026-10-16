@@ -18,9 +18,10 @@ export type FieldErrorKey =
   | 'room_online_not_allowed'
   | 'room_too_small'
   | 'room_missing_capabilities'
+  | 'company_id'
 
 /** What can go wrong with the whole form: i18n keys under forms.errors. */
-export type FormErrorKey = 'not_found' | 'generic' | 'in_use'
+export type FormErrorKey = 'not_found' | 'generic'
 
 /** What a form action returns when it does not redirect. */
 export type FormState =
@@ -32,6 +33,15 @@ export type FormState =
     }
 
 export const IDLE: FormState = { status: 'idle' }
+
+/** What a delete action returns when it does not leave the page: why the record stays. */
+export type DeleteState =
+  { status: 'idle' } | { status: 'refused'; reason: 'in_use' | FormErrorKey }
+
+export const refused = (reason: 'in_use' | FormErrorKey): DeleteState => ({
+  status: 'refused',
+  reason,
+})
 
 /** Trimmed text; empty → null. */
 export function text(form: FormData, key: string): string | null {
@@ -80,6 +90,7 @@ const KNOWN = new Set<string>([
   'before_hired',
   'before_completed',
   'duplicate',
+  'company_id',
 ] satisfies FieldErrorKey[])
 
 /**

@@ -23,7 +23,7 @@ import {
   listDepartments,
   listEmployeeBookings,
   listPositions,
-  listProviders,
+  listProviderNames,
   listRoomOptions,
   listRooms,
   listSessions,
@@ -87,7 +87,7 @@ describe('lookups and edit loaders', () => {
     for (const list of [
       await listDepartments(options),
       await listPositions(options),
-      await listProviders(options),
+      await listProviderNames(options),
     ]) {
       expect(list.length).toBeGreaterThan(0)
       expect(list).toEqual(list.toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0)))
@@ -222,14 +222,14 @@ describe('edits', () => {
     expect(withProvider.externalId).toMatch(/^A[0-9A-Z]+$/)
     const completions = (await getEmployee('E0153', 'authenticated', options))?.completions ?? []
     expect(completions.find(c => c.externalId === withProvider.externalId)).toMatchObject({
-      provider: CREATED.provider,
+      provider: { name: CREATED.provider },
       validUntil: '2028-10-01',
     })
     expect(completions.find(c => c.externalId === bare.externalId)).toMatchObject({
       provider: null,
       validUntil: null,
     })
-    expect(await listProviders(options)).toContain(CREATED.provider)
+    expect(await listProviderNames(options)).toContain(CREATED.provider)
   })
 })
 

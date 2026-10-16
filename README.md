@@ -43,7 +43,8 @@ Internal packages ship TypeScript source (`exports` point at `src/`); Next compi
 ## Data model
 
 `Department`, `Position`, `Employee` (with a manager self-relation), `Course`,
-`CourseSession`, `CourseCompletion`, `Provider` and `Room`, all normalised:
+`CourseSession`, `CourseCompletion`, `Provider` (a name plus IČO and contact details) and
+`Room`, all normalised:
 
 - **Who must hold a course:** `Course.requiredForAll`, plus one link table per audience
   (`course_department_requirements`, `course_position_requirements`). No flag and no links
@@ -158,7 +159,8 @@ and position lists open each row to its people's records: position or department
 employment, the share held, and every training that needs attention with its booking.
 
 A detail page has its facts card beside the main section (`SplitLayout`). Long tables follow it
-at full width: the people of a department or position, a course's sessions and completions.
+at full width: the people of a department or position, a course's sessions and completions,
+a room's course fit, a provider's latest completions.
 
 Motion is centralised in `packages/ui/src/styles/tokens.css`: three durations, the easings,
 the named animations (`animate-fade-in`, `animate-pop-in`, …), and the default for every
@@ -166,6 +168,14 @@ the named animations (`animate-fade-in`, `animate-pop-in`, …), and the default
 
 Every session has a public page (`/sessions/T016`) with its seats and who is booked by name,
 and every location links to the sessions held there (`/sessions?location=Aula A`).
+
+Providers (`/providers`) list who delivered the completions on record:
+
+- **Each provider shows:** its IČO, its completions, people and courses, what was spent and the last completion.
+- **Its page adds:** contact details, a breakdown by course and the latest 20 completions; the employee's completion history links to it.
+- **Records:** imports and the completion form still create a provider by name. Its details (IČO with its check digit, email, phone, website, note) are entered in the app, and imports leave them alone.
+- **Rename and delete:** renaming changes the name on every completion. A provider can be deleted only while no completion names it.
+- **Prices:** the spend follows the `completion.price` policy. A viewer who may not see prices sees no sums of them either.
 
 Back links ("← Employees") name the page the visitor actually came from, filters included,
 from a per-tab history in `sessionStorage`; forms are skipped, and a page opened directly

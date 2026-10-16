@@ -1,4 +1,4 @@
-import { getEmployeeForEdit, listCourseOptions, listProviders } from '@muni/db/repositories'
+import { getEmployeeForEdit, listCourseOptions, listProviderNames } from '@muni/db/repositories'
 import { PageHeader } from '@muni/ui/page-header'
 import { todayIn } from '@muni/utils/dates'
 import { notFound } from 'next/navigation'
@@ -19,7 +19,7 @@ export default async function NewCompletionPage({
   const [employee, courses, providers, t] = await Promise.all([
     getEmployeeForEdit(externalId),
     listCourseOptions(),
-    listProviders(),
+    listProviderNames(),
     getTranslations('forms.completion'),
   ])
   if (!employee) notFound()

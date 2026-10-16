@@ -7,19 +7,28 @@ import { Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useActionState, useState } from 'react'
 
-import { IDLE, type FormState } from '@/lib/form'
+import type { DeleteState } from '@/lib/form'
 
-/** Deleting a room asks first; a room still in use stays, and the page says why. */
-export function DeleteRoomButton({
+const IDLE: DeleteState = { status: 'idle' }
+
+/**
+ * Deleting a record asks first; a record still in use stays, and the page says why. The
+ * strings come from the record's form messages (`rooms.form`, `providers.form`): `delete`,
+ * `deleteHint`, `confirmTitle`, `confirmBody`, `confirm` and `inUse`.
+ */
+export function ConfirmDeleteButton({
   name,
+  messages,
   action,
 }: {
   name: string
-  action: (state: FormState) => Promise<FormState>
+  messages: 'rooms.form' | 'providers.form'
+  action: (state: DeleteState) => Promise<DeleteState>
 }) {
   const t = useTranslations()
+  const tm = useTranslations(messages)
   const [open, setOpen] = useState(false)
-  const [state, formAction, pending] = useActionState(async (previous: FormState) => {
+  const [state, formAction, pending] = useActionState(async (previous: DeleteState) => {
     // Deleted, the action leaves the page; refused, the reason shows below the button.
     const next = await action(previous)
     setOpen(false)
@@ -27,8 +36,10 @@ export function DeleteRoomButton({
   }, IDLE)
   return (
     <div className="flex max-w-2xl flex-col gap-2">
-      {state.status === 'error' && state.formError && (
-        <Alert tone="danger">{t(`forms.errors.${state.formError}`)}</Alert>
+      {state.status === 'refused' && (
+        <Alert tone="danger">
+          {state.reason === 'in_use' ? tm('inUse') : t(`forms.errors.${state.reason}`)}
+        </Alert>
       )}
       <div className="flex flex-wrap items-center gap-3">
         <Button
@@ -39,15 +50,15 @@ export function DeleteRoomButton({
           }}
         >
           <Trash2 aria-hidden />
-          {t('rooms.form.delete')}
+          {tm('delete')}
         </Button>
-        <span className="text-xs text-fg-muted">{t('rooms.form.deleteHint')}</span>
+        <span className="text-xs text-fg-muted">{tm('deleteHint')}</span>
       </div>
       <Dialog
         open={open}
         onOpenChange={setOpen}
-        title={t('rooms.form.confirmTitle', { name })}
-        description={t('rooms.form.confirmBody')}
+        title={tm('confirmTitle', { name })}
+        description={tm('confirmBody')}
         closeLabel={t('common.close')}
       >
         <form action={formAction} className="flex justify-end gap-2">
@@ -62,7 +73,7 @@ export function DeleteRoomButton({
           </Button>
           <Button type="submit" variant="danger" disabled={pending}>
             <Trash2 aria-hidden />
-            {t('rooms.form.confirm')}
+            {tm('confirm')}
           </Button>
         </form>
       </Dialog>

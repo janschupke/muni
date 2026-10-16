@@ -39,6 +39,17 @@ function expectPeopleBelowTheSplit(facts: string) {
   expect(courses.compareDocumentPosition(people) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 }
 
+/** The people list: the table after the "People" heading. */
+function peopleTable(): HTMLElement {
+  const tables = screen.getAllByRole('table')
+  const people = screen.getByRole('heading', { name: 'People' })
+  const table = tables.find(
+    t => people.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING
+  )
+  if (!table) throw new Error('no people table')
+  return table
+}
+
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
   getDepartment: vi.fn(),
@@ -151,7 +162,10 @@ describe('departments', () => {
     expect(
       screen.getByRole('link', { name: 'Open in the employee list' }).getAttribute('href')
     ).toBe('/employees?department=Laborato%C5%99e')
-    expect(screen.getByText(/people who have not left, most urgent first/)).toBeTruthy()
+    expect(screen.getByText(/people who have not left\./)).toBeTruthy()
+    // Every row is in this department: the column would only repeat it.
+    expect(within(peopleTable()).queryByRole('columnheader', { name: /Department/ })).toBeNull()
+    expect(within(peopleTable()).getByRole('columnheader', { name: /Position/ })).toBeTruthy()
     expectPeopleBelowTheSplit('Department')
     await expectNoAxeViolations()
   })
@@ -212,6 +226,8 @@ describe('positions', () => {
     ).toBe('/employees?position=Laborant')
     expect(screen.getAllByRole('link', { name: 'Laboratoře' }).length).toBeGreaterThan(0)
     expectPeopleBelowTheSplit('Position')
+    expect(within(peopleTable()).queryByRole('columnheader', { name: /Position/ })).toBeNull()
+    expect(within(peopleTable()).getByRole('columnheader', { name: /Department/ })).toBeTruthy()
     await expectNoAxeViolations()
   })
 

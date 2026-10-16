@@ -184,7 +184,7 @@ interface EmployeeCompletionRow {
   courseName: string
   completedOn: IsoDate
   validUntil: IsoDate | null
-  provider: string | null
+  provider: { id: string; name: string } | null
   price?: number | null
   note?: string | null
 }
@@ -249,7 +249,7 @@ export async function getEmployee(
       completions: {
         include: {
           course: { select: { code: true, name: true } },
-          provider: { select: { name: true } },
+          provider: { select: { id: true, name: true } },
         },
         orderBy: { completedOn: 'desc' },
       },
@@ -328,7 +328,7 @@ export async function getEmployee(
           courseName: c.course.name,
           completedOn: isoDateFromUtc(c.completedOn),
           validUntil: c.validUntil ? isoDateFromUtc(c.validUntil) : null,
-          provider: c.provider?.name ?? null,
+          provider: c.provider,
           price: toAmount(c.price),
           note: c.note,
         },

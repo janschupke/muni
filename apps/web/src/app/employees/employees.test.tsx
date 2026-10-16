@@ -8,7 +8,7 @@ import {
   listEmployeeBookings,
   listEmployees,
   listPositions,
-  listProviders,
+  listProviderNames,
 } from '@muni/db/repositories'
 import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -35,7 +35,7 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   listEmployeeBookings: vi.fn(),
   listEmployees: vi.fn(),
   listPositions: vi.fn(),
-  listProviders: vi.fn(),
+  listProviderNames: vi.fn(),
 }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/edit', () => ({
@@ -50,7 +50,7 @@ beforeEach(() => {
   vi.mocked(listEmployees).mockResolvedValue(employeePage())
   vi.mocked(listDepartments).mockResolvedValue(['Knihovna', 'Laboratoře'])
   vi.mocked(listPositions).mockResolvedValue(['Laborantka', 'Referent'])
-  vi.mocked(listProviders).mockResolvedValue(['Bezpečná firma s.r.o.'])
+  vi.mocked(listProviderNames).mockResolvedValue(['Bezpečná firma s.r.o.'])
   vi.mocked(listCourseOptions).mockResolvedValue([
     { code: 'BOZP-Z', name: 'BOZP – základní školení', validityMonths: 24 },
     { code: 'LEAD', name: 'Základy vedení lidí', validityMonths: null },

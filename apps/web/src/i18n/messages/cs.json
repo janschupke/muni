@@ -48,6 +48,7 @@
     },
     "advisor": "Poradce",
     "rooms": "Místnosti",
+    "providers": "Dodavatelé",
     "departments": "Útvary",
     "positions": "Pozice",
     "planner": "Plánovač",
@@ -322,13 +323,13 @@
       "before_completed": "Platnost nemůže skončit před datem absolvování.",
       "not_found": "Záznam už neexistuje.",
       "generic": "Uložení se nepovedlo. Zkuste to znovu.",
-      "in_use": "Místnost má termíny, proto ji nelze smazat.",
       "taken": "Tento název už se používá.",
       "duplicate": "Každá hodnota smí být uvedena jen jednou.",
       "room_busy": "V tu dobu místnost využívá jiný plánovaný termín.",
       "room_online_not_allowed": "Tento kurz se online nekoná.",
       "room_too_small": "Místnost má méně míst, než termín otevírá.",
-      "room_missing_capabilities": "Místnosti chybí vybavení, které kurz potřebuje."
+      "room_missing_capabilities": "Místnosti chybí vybavení, které kurz potřebuje.",
+      "company_id": "Zadejte osmimístné IČO; u tohoto nesedí kontrolní číslice."
     },
     "course": {
       "title": "Upravit kurz {code}",
@@ -565,6 +566,11 @@
         "title": "Pozice nenalezena",
         "body": "Tato pozice neexistuje.",
         "back": "Všechny pozice"
+      },
+      "providers": {
+        "title": "Dodavatel nenalezen",
+        "body": "Tento dodavatel neexistuje nebo byl smazán.",
+        "back": "Všichni dodavatelé"
       }
     }
   },
@@ -741,15 +747,12 @@
         "seatsNeeded": "Potřebná místa",
         "seatsHere": "Míst zde",
         "equipment": "Potřebné vybavení",
-        "online": "Výuka online",
         "verdict": "Vyhovuje",
         "splitByRoom": "Dělí se podle místnosti",
         "unlimited": "Bez omezení",
         "noEquipment": "Žádné",
         "has": "(v této místnosti je)",
         "lacks": "(v této místnosti chybí)",
-        "allowed": "Povolena",
-        "notAllowed": "Nepovolena",
         "fits": "Vyhovuje",
         "TOO_SMALL": "{needed, plural, one {Potřebuje # místo} few {Potřebuje # místa} other {Potřebuje # míst}}, má {capacity}",
         "MISSING_CAPABILITIES": "Chybí {missing}",
@@ -769,7 +772,73 @@
       "deleteHint": "Místnost lze smazat, jen dokud ji nepoužívá žádný termín.",
       "confirmTitle": "Smazat místnost {name}?",
       "confirmBody": "Místnost i s vybavením se natrvalo odstraní.",
-      "confirm": "Smazat"
+      "confirm": "Smazat",
+      "inUse": "Místnost má termíny, proto ji nelze smazat."
+    }
+  },
+  "providers": {
+    "title": "Dodavatelé",
+    "description": "Kdo zajišťuje evidovaná školení: jejich údaje a co se s nimi absolvovalo.",
+    "new": "Nový dodavatel",
+    "empty": "Zatím žádní dodavatelé. Importy a zapsaná absolvování je přidávají podle názvu.",
+    "columns": {
+      "name": "Dodavatel",
+      "companyId": "IČO",
+      "completions": "Absolvování",
+      "people": "Lidé",
+      "courses": "Kurzy",
+      "spend": "Utraceno",
+      "last": "Poslední absolvování"
+    },
+    "detail": {
+      "facts": "Dodavatel",
+      "companyId": "IČO",
+      "email": "E-mail",
+      "phone": "Telefon",
+      "website": "Web",
+      "note": "Poznámka",
+      "noDetails": "Zatím bez kontaktních údajů.",
+      "totals": "Absolvování",
+      "completions": "{count, plural, one {# absolvování} few {# absolvování} other {# absolvování}}",
+      "people": "{count, plural, one {# člověk} few {# lidé} other {# lidí}}",
+      "courses": "{count, plural, one {# kurz} few {# kurzy} other {# kurzů}}",
+      "spend": "Utraceno",
+      "last": "Poslední absolvování",
+      "byCourse": "Podle kurzů",
+      "byCourseDescription": "Co se u tohoto dodavatele absolvovalo, nejčastější první.",
+      "noCompletions": "Tohoto dodavatele zatím neuvádí žádné absolvování.",
+      "recent": "Poslední absolvování",
+      "recentDescription": "Nejnovějších {count} absolvování u tohoto dodavatele.",
+      "columns": {
+        "course": "Kurz",
+        "completions": "Absolvování",
+        "people": "Lidé",
+        "spend": "Utraceno",
+        "last": "Poslední absolvování",
+        "employee": "Zaměstnanec",
+        "completedOn": "Absolvováno",
+        "validUntil": "Platnost do",
+        "price": "Cena"
+      }
+    },
+    "form": {
+      "newTitle": "Nový dodavatel",
+      "editTitle": "Upravit {name}",
+      "name": "Název",
+      "nameHelp": "Přejmenování změní název u všech absolvování s tímto dodavatelem.",
+      "companyId": "IČO",
+      "companyIdHelp": "8 číslic; mezery nevadí.",
+      "email": "E-mail",
+      "phone": "Telefon",
+      "website": "Web",
+      "websiteHelp": "Adresa bez protokolu, např. www.example.cz, se čte jako https.",
+      "note": "Poznámka",
+      "delete": "Smazat dodavatele",
+      "deleteHint": "Dodavatele lze smazat, jen dokud ho neuvádí žádné absolvování.",
+      "confirmTitle": "Smazat dodavatele {name}?",
+      "confirmBody": "Dodavatel i s údaji se natrvalo odstraní.",
+      "confirm": "Smazat",
+      "inUse": "Dodavatele uvádějí absolvování, proto ho nelze smazat."
     }
   },
   "org": {
@@ -788,7 +857,7 @@
       "courses": "Povinné kurzy",
       "coursesDescription": "Podíl splněných školení po kurzech, jen aktivní zaměstnanci.",
       "people": "Lidé",
-      "peopleDescription": "{count, plural, =0 {Zatím tu nikdo nepracuje.} one {# člověk, který neodešel, nejnaléhavější první.} few {# lidé, kteří neodešli, nejnaléhavější první.} other {# lidí, kteří neodešli, nejnaléhavější první.}}"
+      "peopleDescription": "{count, plural, =0 {Zatím tu nikdo nepracuje.} one {# člověk, který neodešel.} few {# lidé, kteří neodešli.} other {# lidí, kteří neodešli.}}"
     },
     "courseColumns": {
       "course": "Kurz",

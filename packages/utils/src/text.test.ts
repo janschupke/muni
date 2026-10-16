@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { cleanFreeText, fold, isFormulaLike, titleCase } from './text'
+import { cleanFreeText, fold, isCompanyId, isFormulaLike, titleCase } from './text'
 
 describe('fold', () => {
   it('folds the department variants in zamestnanci.csv to one key', () => {
@@ -35,5 +35,15 @@ describe('formula neutralisation', () => {
     expect(cleanFreeText('  ')).toBeNull()
     expect(cleanFreeText(null)).toBeNull()
     expect(cleanFreeText(' řádek  1 \r\n\nřádek 2')).toBe('řádek 1\nřádek 2')
+  })
+})
+
+describe('isCompanyId', () => {
+  it('takes 8 digits whose last is the check digit', () => {
+    // Masarykova univerzita, ČEZ; remainders 0 and 1 give check digits 1 and 0.
+    for (const id of ['00216224', '45274649', '00000001', '00000060'])
+      expect(isCompanyId(id)).toBe(true)
+    for (const id of ['00216225', '0021622', '002162245', '0021622a', ''])
+      expect(isCompanyId(id)).toBe(false)
   })
 })

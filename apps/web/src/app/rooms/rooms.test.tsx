@@ -26,9 +26,7 @@ vi.mock('@/server/auth')
 vi.mock('@/server/actions/edit', () => ({ saveSession: vi.fn() }))
 vi.mock('@/server/actions/rooms', () => ({
   saveRoom: vi.fn(),
-  removeRoom: vi.fn(() =>
-    Promise.resolve({ status: 'error', fieldErrors: {}, formError: 'in_use' })
-  ),
+  removeRoom: vi.fn(() => Promise.resolve({ status: 'refused', reason: 'in_use' })),
 }))
 
 beforeEach(() => {
@@ -179,13 +177,13 @@ describe('room fit online', () => {
       within(fit)
         .getAllByRole('columnheader')
         .map(h => h.textContent)
-    ).toEqual(['Course', 'Held online', 'Fits'])
+    ).toEqual(['Course', 'Fits'])
     const row = (name: RegExp) =>
       within(within(fit).getByRole('row', { name }))
         .getAllByRole('cell')
         .map(c => c.textContent)
-    expect(row(/osobních/)).toEqual(['Ochrana osobních údajů', 'Allowed', 'Fits'])
-    expect(row(/BOZP/)).toEqual(['BOZP – základní školení', 'Not allowed', 'Not held online'])
+    expect(row(/osobních/)).toEqual(['Ochrana osobních údajů', 'Fits'])
+    expect(row(/BOZP/)).toEqual(['BOZP – základní školení', 'Not held online'])
     await expectNoAxeViolations()
   })
 })

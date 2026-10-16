@@ -48,6 +48,7 @@
     },
     "advisor": "Advisor",
     "rooms": "Rooms",
+    "providers": "Providers",
     "departments": "Departments",
     "positions": "Positions",
     "planner": "Planner",
@@ -322,13 +323,13 @@
       "before_completed": "Validity cannot end before the completion date.",
       "not_found": "The record no longer exists.",
       "generic": "Saving failed. Please try again.",
-      "in_use": "The room still has sessions, so it cannot be deleted.",
       "taken": "This name is already used.",
       "duplicate": "Each value may appear only once.",
       "room_busy": "Another planned session uses this room at that time.",
       "room_online_not_allowed": "This course is not held online.",
       "room_too_small": "The room has fewer seats than this session opens.",
-      "room_missing_capabilities": "The room lacks equipment this course needs."
+      "room_missing_capabilities": "The room lacks equipment this course needs.",
+      "company_id": "Enter the 8-digit IČO; this one's check digit does not match."
     },
     "course": {
       "title": "Edit course {code}",
@@ -565,6 +566,11 @@
         "title": "Position not found",
         "body": "This position does not exist.",
         "back": "All positions"
+      },
+      "providers": {
+        "title": "Provider not found",
+        "body": "This provider does not exist, or it was deleted.",
+        "back": "All providers"
       }
     }
   },
@@ -741,15 +747,12 @@
         "seatsNeeded": "Seats needed",
         "seatsHere": "Seats here",
         "equipment": "Equipment needed",
-        "online": "Held online",
         "verdict": "Fits",
         "splitByRoom": "Split by room",
         "unlimited": "No limit",
         "noEquipment": "None",
         "has": "(in this room)",
         "lacks": "(not in this room)",
-        "allowed": "Allowed",
-        "notAllowed": "Not allowed",
         "fits": "Fits",
         "TOO_SMALL": "{needed, plural, one {Needs # seat} other {Needs # seats}}, has {capacity}",
         "MISSING_CAPABILITIES": "Lacks {missing}",
@@ -769,7 +772,73 @@
       "deleteHint": "A room can be deleted only while no session uses it.",
       "confirmTitle": "Delete {name}?",
       "confirmBody": "The room and its equipment are removed for good.",
-      "confirm": "Delete"
+      "confirm": "Delete",
+      "inUse": "The room still has sessions, so it cannot be deleted."
+    }
+  },
+  "providers": {
+    "title": "Providers",
+    "description": "Who delivers the training on record: their details, and what was completed with them.",
+    "new": "New provider",
+    "empty": "No providers yet. Imports and recorded completions add them by name.",
+    "columns": {
+      "name": "Provider",
+      "companyId": "IČO",
+      "completions": "Completions",
+      "people": "People",
+      "courses": "Courses",
+      "spend": "Spent",
+      "last": "Last completion"
+    },
+    "detail": {
+      "facts": "Provider",
+      "companyId": "IČO",
+      "email": "Email",
+      "phone": "Phone",
+      "website": "Website",
+      "note": "Note",
+      "noDetails": "No contact details yet.",
+      "totals": "Completions",
+      "completions": "{count, plural, one {# completion} other {# completions}}",
+      "people": "{count, plural, one {# person} other {# people}}",
+      "courses": "{count, plural, one {# course} other {# courses}}",
+      "spend": "Spent",
+      "last": "Last completion",
+      "byCourse": "By course",
+      "byCourseDescription": "What was completed with this provider, most first.",
+      "noCompletions": "No completion names this provider yet.",
+      "recent": "Latest completions",
+      "recentDescription": "The newest {count} completions with this provider.",
+      "columns": {
+        "course": "Course",
+        "completions": "Completions",
+        "people": "People",
+        "spend": "Spent",
+        "last": "Last completion",
+        "employee": "Employee",
+        "completedOn": "Completed",
+        "validUntil": "Valid until",
+        "price": "Price"
+      }
+    },
+    "form": {
+      "newTitle": "New provider",
+      "editTitle": "Edit {name}",
+      "name": "Name",
+      "nameHelp": "Renaming changes the name on every completion with this provider.",
+      "companyId": "IČO",
+      "companyIdHelp": "8 digits; spaces are fine.",
+      "email": "Email",
+      "phone": "Phone",
+      "website": "Website",
+      "websiteHelp": "A bare address such as www.example.cz is read as https.",
+      "note": "Note",
+      "delete": "Delete provider",
+      "deleteHint": "A provider can be deleted only while no completion names it.",
+      "confirmTitle": "Delete {name}?",
+      "confirmBody": "The provider and its details are removed for good.",
+      "confirm": "Delete",
+      "inUse": "Completions name this provider, so it cannot be deleted."
     }
   },
   "org": {
@@ -788,7 +857,7 @@
       "courses": "Mandatory courses",
       "coursesDescription": "Share held per course, active people only.",
       "people": "People",
-      "peopleDescription": "{count, plural, =0 {Nobody works here yet.} one {# person who has not left, most urgent first.} other {# people who have not left, most urgent first.}}"
+      "peopleDescription": "{count, plural, =0 {Nobody works here yet.} one {# person who has not left.} other {# people who have not left.}}"
     },
     "courseColumns": {
       "course": "Course",

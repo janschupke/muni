@@ -12,6 +12,8 @@ import type {
   Page,
   PositionDetail,
   PositionSummary,
+  ProviderDetail,
+  ProviderListItem,
   RoomDetail,
   RoomListItem,
   SessionListItem,
@@ -144,7 +146,7 @@ export const employeeDetail = (over: Partial<EmployeeDetail> = {}): EmployeeDeta
       courseName: 'Ochrana osobních údajů',
       completedOn: '2025-11-05',
       validUntil: '2027-11-05',
-      provider: 'Bezpečná firma s.r.o.',
+      provider: { id: 'prov_bezpecna', name: 'Bezpečná firma s.r.o.' },
     },
   ],
   ...over,
@@ -398,6 +400,68 @@ export const courseForEdit = (over: Partial<CourseForEdit> = {}): CourseForEdit 
   ...over,
 })
 type CourseForEdit = NonNullable<Awaited<ReturnType<typeof getCourseForEdit>>>
+
+export const providerRow = (over: Partial<ProviderListItem> = {}): ProviderListItem => ({
+  id: 'prov_vzor',
+  name: 'Vzorový školicí ústav',
+  companyId: '00216224',
+  completions: 718,
+  people: 161,
+  courses: 10,
+  spend: 390840,
+  lastCompletedOn: '2026-09-30',
+  ...over,
+})
+
+export const providerDetail = (over: Partial<ProviderDetail> = {}): ProviderDetail => ({
+  ...providerRow(),
+  email: 'kurzy@vzor.example',
+  phone: '+420 549 49 1111',
+  website: 'https://www.vzor.example',
+  note: 'Smlouva do 2027',
+  prices: true,
+  byCourse: [
+    {
+      code: 'BOZP-Z',
+      name: 'BOZP – základní školení',
+      completions: 80,
+      people: 75,
+      spend: 36000,
+      lastCompletedOn: '2026-09-30',
+    },
+    {
+      code: 'LEAD',
+      name: 'Vedení lidí',
+      completions: 12,
+      people: 12,
+      spend: null,
+      lastCompletedOn: null,
+    },
+  ],
+  recentCompletions: [
+    {
+      externalId: 'Z002801',
+      employeeExternalId: 'E0153',
+      employeeName: 'Černá Marie',
+      courseCode: 'BOZP-Z',
+      courseName: 'BOZP – základní školení',
+      completedOn: '2026-09-30',
+      validUntil: '2028-09-30',
+      price: 450.5,
+    },
+    {
+      externalId: 'Z002790',
+      employeeExternalId: 'E0154',
+      employeeName: 'Adámek Petr',
+      courseCode: 'LEAD',
+      courseName: 'Vedení lidí',
+      completedOn: '2026-09-12',
+      validUntil: null,
+      price: null,
+    },
+  ],
+  ...over,
+})
 
 export const roomRow = (over: Partial<RoomListItem> = {}): RoomListItem => ({
   ...AULA_A,

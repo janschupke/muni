@@ -1,3 +1,4 @@
+import { isCompanyId } from '@muni/utils/text'
 import * as z from 'zod'
 
 import {
@@ -73,6 +74,32 @@ export const roomSchema = z
   // An online room has no seat limit: whatever was entered is dropped.
   .transform(r => (r.kind === 'ONLINE' ? { ...r, capacity: null } : r))
 export type RoomInput = z.infer<typeof roomSchema>
+
+/** Who delivers training; only the name is required. */
+export const providerSchema = z.object({
+  name: trimmed(200),
+  /** IČO, written with or without spaces. */
+  companyId: z
+    .string()
+    .transform(v => v.replace(/\s/g, ''))
+    .refine(isCompanyId, { error: 'company_id' })
+    .nullable(),
+  email: z.email().max(254).nullable(),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\+?[\d\s()/-]{6,30}$/)
+    .nullable(),
+  /** A bare domain (`www.example.cz`) is read as https. */
+  website: z
+    .string()
+    .trim()
+    .transform(v => (/^[a-z][a-z\d+.-]*:/i.test(v) ? v : `https://${v}`))
+    .pipe(z.url({ protocol: /^https?$/ }).max(500))
+    .nullable(),
+  note: optionalText(2000),
+})
+export type ProviderInput = z.infer<typeof providerSchema>
 
 export const employeeSchema = z
   .object({

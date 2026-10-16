@@ -44,7 +44,7 @@ export function GroupPeople({ kind, group }: { kind: Kind; group: Group }) {
       <SectionHeading description={t('peopleDescription', { count: group.members.length })}>
         {t('people')}
       </SectionHeading>
-      <EmployeesTable items={group.members} />
+      <EmployeesTable items={group.members} omit={filter} />
       <p className="mt-3 text-sm">
         <TextLink asChild>
           <Link

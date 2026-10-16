@@ -4,7 +4,7 @@ import type { CourseDetail, EmployeeDetail } from '@muni/db/repositories'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
-import { formatCurrency, formatDate, formatOptional } from '@muni/utils/format'
+import { formatCurrency, formatDate, PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
@@ -63,11 +63,20 @@ export function CompletionHistoryTable({
             return value === undefined ? t('common.noExpiry') : formatDate(value, locale)
           },
         }),
-        history.accessor(c => c.provider ?? undefined, {
+        history.accessor(c => c.provider?.name, {
           id: 'provider',
           header: t('forms.completion.provider'),
           sortFn: 'text',
-          cell: ({ getValue }) => formatOptional(getValue(), String),
+          cell: ({ row }) => {
+            const { provider } = row.original
+            return provider ? (
+              <TextLink asChild>
+                <Link href={`/providers/${provider.id}`}>{provider.name}</Link>
+              </TextLink>
+            ) : (
+              PLACEHOLDER
+            )
+          },
         }),
         history.accessor(c => c.price ?? undefined, {
           id: 'price',
