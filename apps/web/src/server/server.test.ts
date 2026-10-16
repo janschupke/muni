@@ -171,7 +171,11 @@ describe('edit actions', () => {
   }
 
   it('save a session and return to its course', async () => {
-    vi.mocked(updateSession).mockResolvedValue({ externalId: 'T016', course: { code: 'BOZP-Z' } })
+    vi.mocked(updateSession).mockResolvedValue({
+      ok: true,
+      externalId: 'T016',
+      courseCode: 'BOZP-Z',
+    })
     expect(await redirectOf(saveSession('T016', idle, form(sessionForm)))).toBe('/courses/BOZP-Z')
     expect(updateSession).toHaveBeenCalledWith(
       'T016',
@@ -183,6 +187,16 @@ describe('edit actions', () => {
     vi.mocked(updateSession).mockRejectedValueOnce({ code: 'P2025' })
     expect(await saveSession('T999', idle, form(sessionForm))).toMatchObject({
       formError: 'not_found',
+    })
+    // The room refuses it: the reason goes on the field to change.
+    vi.mocked(updateSession).mockResolvedValueOnce({ ok: false, problem: 'ROOM_BUSY' })
+    expect(await saveSession('T016', idle, form(sessionForm))).toEqual({
+      status: 'error',
+      fieldErrors: { roomId: 'room_busy' },
+    })
+    vi.mocked(updateSession).mockResolvedValueOnce({ ok: false, problem: 'ROOM_TOO_SMALL' })
+    expect(await saveSession('T016', idle, form(sessionForm))).toMatchObject({
+      fieldErrors: { capacity: 'room_too_small' },
     })
   })
 
@@ -464,20 +478,34 @@ describe('session creation', () => {
     status: 'PLANNED' as const,
   }
 
-  it('creates an offered session and reports its id, or that it failed', async () => {
-    vi.mocked(createSession).mockResolvedValue({ externalId: 'T035', course: { code: 'POZ-OCH' } })
-    expect(await createOfferedSession(create)).toEqual({ ok: true, externalId: 'T035' })
+  it('creates an offered session and reports its id, or why it could not', async () => {
+    vi.mocked(createSession).mockResolvedValue({
+      ok: true,
+      externalId: 'S001',
+      courseCode: 'POZ-OCH',
+    })
+    expect(await createOfferedSession(create)).toEqual({ ok: true, externalId: 'S001' })
     expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
-    expect(await createOfferedSession({ ...create, endTime: '09:00' })).toEqual({ ok: false })
+    expect(await createOfferedSession({ ...create, endTime: '09:00' })).toEqual({
+      ok: false,
+      reason: 'invalid',
+    })
+    vi.mocked(createSession).mockResolvedValueOnce({ ok: false, problem: 'ROOM_BUSY' })
+    expect(await createOfferedSession(create)).toEqual({ ok: false, reason: 'ROOM_BUSY' })
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     vi.mocked(createSession).mockRejectedValueOnce(new Error('down'))
-    expect(await createOfferedSession(create)).toEqual({ ok: false })
+    expect(await createOfferedSession(create)).toEqual({ ok: false, reason: 'failed' })
+    // Signed out meanwhile: a reason to show, not an error page.
     signedIn(null)
-    await expect(createOfferedSession(create)).rejects.toMatchObject({ name: 'UnauthorizedError' })
+    expect(await createOfferedSession(create)).toEqual({ ok: false, reason: 'unauthorized' })
   })
 
   it('creates a session from the course page form and opens it', async () => {
-    vi.mocked(createSession).mockResolvedValue({ externalId: 'T036', course: { code: 'POZ-OCH' } })
+    vi.mocked(createSession).mockResolvedValue({
+      ok: true,
+      externalId: 'S002',
+      courseCode: 'POZ-OCH',
+    })
     const fields = {
       date: '2026-11-02',
       startTime: '10:00',
@@ -487,7 +515,7 @@ describe('session creation', () => {
       pricePerPerson: '380',
       status: 'PLANNED',
     }
-    expect(await redirectOf(saveNewSession('POZ-OCH', idle, form(fields)))).toBe('/sessions/T036')
+    expect(await redirectOf(saveNewSession('POZ-OCH', idle, form(fields)))).toBe('/sessions/S002')
     expect(createSession).toHaveBeenLastCalledWith(
       expect.objectContaining({ courseCode: 'POZ-OCH', capacity: 40, pricePerPerson: 380 })
     )
@@ -498,6 +526,13 @@ describe('session creation', () => {
     vi.mocked(createSession).mockRejectedValueOnce(new Error('down'))
     expect(await saveNewSession('POZ-OCH', idle, form(fields))).toMatchObject({
       formError: 'generic',
+    })
+    vi.mocked(createSession).mockResolvedValueOnce({
+      ok: false,
+      problem: 'ROOM_MISSING_CAPABILITIES',
+    })
+    expect(await saveNewSession('POZ-OCH', idle, form(fields))).toMatchObject({
+      fieldErrors: { roomId: 'room_missing_capabilities' },
     })
   })
 })

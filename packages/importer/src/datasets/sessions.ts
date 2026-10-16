@@ -3,9 +3,8 @@ import { sessionSchema, type SessionInput } from '@muni/domain/schemas'
 import { parseTimeRange } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 
-import type { RowBuilder } from '../fields'
+import { reservedId, type RowBuilder } from '../fields'
 import type { RowMapResult } from '../types'
-import { kindOfName } from './rooms'
 
 const STATUS_BY_FOLD: Record<string, SessionStatus> = {
   planovano: 'PLANNED',
@@ -24,7 +23,7 @@ function status(b: RowBuilder): SessionStatus | null {
 export function mapSession(b: RowBuilder): RowMapResult<SessionInput> {
   if (b.isSummaryRow('externalId')) return b.rejectSummary()
 
-  const externalId = b.required('externalId')?.toUpperCase() ?? null
+  const externalId = reservedId(b, b.required('externalId')?.toUpperCase() ?? null, 'session')
   const courseCode = b.code('courseCode')
   const date = b.date('date', { required: true })
 
@@ -49,7 +48,6 @@ export function mapSession(b: RowBuilder): RowMapResult<SessionInput> {
     startTime: time?.start ?? null,
     endTime: time?.end ?? null,
     location,
-    isOnline: location !== null && kindOfName(location) === 'ONLINE',
     capacity,
     bookedCount,
     pricePerPerson: b.price('price'),

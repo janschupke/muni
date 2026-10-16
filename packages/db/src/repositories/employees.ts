@@ -10,9 +10,9 @@ import { sanitizeRecord } from '@muni/domain/sanitize'
 import { fold } from '@muni/utils/text'
 import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
-import { dbOf, getPolicy, loadCompliance, type RepoOptions } from './context'
+import { countedCells, dbOf, getPolicy, loadCompliance, type RepoOptions } from './context'
 import { compareNames, sortEmployees, type EmployeeSortKey } from './employee-sort'
-import { loadNextBookings, requirementOf, type RequirementContext } from './requirements'
+import { courseOf, loadNextBookings, requirementOf, type RequirementContext } from './requirements'
 
 export interface EmployeeListItem {
   externalId: string
@@ -291,14 +291,17 @@ export async function getEmployee(
         }
       : null,
     reports,
-    teamCounts: countStatuses(employee.reports.flatMap(r => cellsByPerson.get(r.id) ?? [])),
+    // The team's rate counts its active people, like every other rate.
+    teamCounts: countStatuses(
+      countedCells(compliance).filter(c => employee.reports.some(r => r.id === c.employeeId))
+    ),
     hiredOn: isoDateFromUtc(employee.hiredOn),
     leftOn: employee.leftOn ? isoDateFromUtc(employee.leftOn) : null,
     status: employee.status,
     requirements: cells
       .map(c => ({
-        courseCode: courseById.get(c.courseId)?.code ?? '',
-        courseName: courseById.get(c.courseId)?.name ?? '',
+        courseCode: courseOf(courseById, c).code,
+        courseName: courseOf(courseById, c).name,
         status: c.status,
         completedOn: c.basis?.completedOn ?? null,
         validUntil: c.basis?.validUntil ?? null,

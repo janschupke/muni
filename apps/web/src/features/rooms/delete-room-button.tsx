@@ -14,7 +14,7 @@ export function DeleteRoomButton({ action }: { action: (state: FormState) => Pro
   return (
     <form action={formAction} className="flex max-w-2xl flex-col gap-2">
       {state.status === 'error' && state.formError && (
-        <Alert tone="danger">{t(`forms.errors.${state.formError as 'generic'}`)}</Alert>
+        <Alert tone="danger">{t(`forms.errors.${state.formError}`)}</Alert>
       )}
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" variant="danger" disabled={pending}>

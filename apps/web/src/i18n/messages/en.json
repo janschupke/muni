@@ -322,7 +322,12 @@
       "not_found": "The record no longer exists.",
       "generic": "Saving failed. Please try again.",
       "in_use": "The room still has sessions, so it cannot be deleted.",
-      "taken": "This name is already used."
+      "taken": "This name is already used.",
+      "duplicate": "Each value may appear only once.",
+      "room_busy": "Another planned session uses this room at that time.",
+      "room_online_not_allowed": "This course is not held online.",
+      "room_too_small": "The room has fewer seats than this session opens.",
+      "room_missing_capabilities": "The room lacks equipment this course needs."
     },
     "course": {
       "title": "Edit course {code}",
@@ -477,6 +482,7 @@
       "TOO_MANY_CELLS": "The row has {actual} cells but the header has {expected}.",
       "DUPLICATE_ID": "This ID already appears on line {firstRow}.",
       "DUPLICATE_PERSON": "Same person as {otherId} (same email or birth number). Their records are moved to {otherId}.",
+      "RESERVED_ID": "The ID {raw} has the prefix the app gives records created here, so an import may not overwrite it.",
       "REQUIRED": "Required value is missing.",
       "INVALID_VALUE": "The value is not valid.",
       "INVALID_DATE": "“{raw}” is not a valid date.",
@@ -710,7 +716,7 @@
       "capacity": "Seats",
       "capabilities": "Equipment",
       "upcoming": "Upcoming sessions",
-      "utilisation": "Booked, next 30 days"
+      "utilisation": "{days, plural, one {Booked, next day} other {Booked, next # days}}"
     },
     "unlimited": "No limit",
     "noCapabilities": "No equipment listed",
@@ -721,7 +727,7 @@
       "capacity": "Seats",
       "capabilities": "Equipment",
       "note": "Note",
-      "utilisation": "Booked over the next 30 days",
+      "utilisation": "{days, plural, one {Booked over the next day} other {Booked over the next # days}}",
       "upcoming": "Upcoming sessions",
       "noUpcoming": "Nothing is scheduled here.",
       "past": "{count, plural, =0 {No past sessions} one {# past session} other {# past sessions}}",

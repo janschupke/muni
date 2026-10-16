@@ -3,6 +3,20 @@ import type { RoomRef } from '@muni/domain/rooms'
 import type { SessionListItem } from './courses'
 import { dbOf, type RepoOptions } from './context'
 
+/**
+ * What "upcoming" means wherever sessions are shown or counted: planned and not yet ended,
+ * so a session under way still counts. (Taking a booking is stricter: a session that has
+ * started takes nobody new; see assignments.)
+ */
+export const upcomingSessionWhere = (now: Date) => ({
+  status: 'PLANNED' as const,
+  endsAt: { gte: now },
+})
+
+/** The same test in memory. */
+export const isUpcoming = (s: { status: string; endsAt: Date }, now: Date) =>
+  s.status === 'PLANNED' && s.endsAt >= now
+
 /** Select this to read a session's room as a `RoomRef`. */
 export const roomRefSelect = { id: true, name: true, kind: true } as const
 
@@ -57,16 +71,25 @@ export async function listSessions(
     window = 'upcoming',
     course,
     room,
+    status,
     limit,
-  }: { window?: SessionWindow; course?: string; room?: string; limit?: number } = {},
-  options?: RepoOptions
+  }: {
+    window?: SessionWindow
+    course?: string
+    room?: string
+    /** Only sessions in this state; both by default (the lists show cancelled ones marked). */
+    status?: SessionListItem['status']
+    limit?: number
+  } = {},
+  options?: RepoOptions & { now?: Date }
 ): Promise<SessionListItem[]> {
-  const now = new Date()
+  const now = options?.now ?? new Date()
   const sessions = await dbOf(options).courseSession.findMany({
     where: {
       ...(window === 'upcoming' ? { endsAt: { gte: now } } : { endsAt: { lt: now } }),
       ...(course && { course: { code: course } }),
       ...(room && { roomId: room }),
+      ...(status && { status }),
     },
     include: sessionInclude,
     orderBy: { startsAt: window === 'upcoming' ? 'asc' : 'desc' },

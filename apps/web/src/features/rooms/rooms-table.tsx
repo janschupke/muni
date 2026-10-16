@@ -1,6 +1,7 @@
 'use client'
 
 import type { RoomListItem } from '@muni/db/repositories'
+import { UTILISATION_DAYS } from '@muni/domain/rooms'
 import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
 import { Meter } from '@muni/ui/meter'
@@ -63,7 +64,7 @@ export function RoomsTable({ rooms }: { rooms: RoomListItem[] }) {
         }),
         col.accessor(r => r.utilisation ?? undefined, {
           id: 'utilisation',
-          header: t('columns.utilisation'),
+          header: t('columns.utilisation', { days: UTILISATION_DAYS }),
           sortFn: 'basic',
           meta: { headerClassName: 'w-52' },
           cell: ({ row }) => {
@@ -76,7 +77,7 @@ export function RoomsTable({ rooms }: { rooms: RoomListItem[] }) {
                   <Meter
                     value={Math.round(utilisation * 100)}
                     max={100}
-                    label={t('columns.utilisation')}
+                    label={t('columns.utilisation', { days: UTILISATION_DAYS })}
                   />
                 }
                 value={formatPercent(utilisation, locale)}

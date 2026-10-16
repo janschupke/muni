@@ -1,13 +1,22 @@
 import type { Capability, RoomKind } from '@muni/domain/enums'
-import { roomMismatch, type RoomMismatch } from '@muni/domain/rooms'
+import {
+  roomMismatch,
+  UTILISATION_DAYS,
+  WORKING_HOURS,
+  type RoomMismatch,
+} from '@muni/domain/rooms'
+import {
+  addDays,
+  isWorkingDay,
+  todayIn,
+  toZonedParts,
+  zonedTimeToUtc,
+  type IsoDate,
+} from '@muni/utils/dates'
 
 import { dbOf, type RepoOptions } from './context'
 import type { SessionListItem } from './courses'
-import { listSessions } from './sessions'
-
-/** Utilisation is measured over this many days ahead, against 8-hour working days. */
-export const UTILISATION_DAYS = 30
-const WORKING_HOURS = 8
+import { listSessions, upcomingSessionWhere } from './sessions'
 
 export interface RoomListItem {
   id: string
@@ -16,65 +25,96 @@ export interface RoomListItem {
   capacity: number | null
   capabilities: Capability[]
   upcomingSessions: number
-  /** Booked hours ÷ working hours over the next UTILISATION_DAYS; null for online rooms. */
+  /**
+   * Booked hours ÷ working hours over the UTILISATION_DAYS from tomorrow: Czech working
+   * days of WORKING_HOURS each, sessions on other days not counted. Null for online rooms.
+   */
   utilisation: number | null
 }
 
 export interface RoomDetail extends RoomListItem {
   note: string | null
+  /** Planned sessions still ahead (cancelled ones free the room, so they are not listed). */
   upcoming: SessionListItem[]
+  /** Sessions held here (cancelled ones not counted). */
   pastCount: number
-  /** Courses with what a session needs set, and whether this room can hold one. */
+  /** Every course, and whether a session of it fits this room by what the course needs. */
   courses: { code: string; name: string; groupSize: number | null; mismatch: RoomMismatch | null }[]
 }
 
-const roomSelect = {
-  id: true,
-  name: true,
-  kind: true,
-  capacity: true,
-  note: true,
-  capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
-} as const
-
-/** Weekdays (Mon–Fri) from `from` for `days` days. */
-function workingDays(from: Date, days: number): number {
-  let count = 0
-  for (let i = 0; i < days; i++) {
-    const day = new Date(from.getTime() + i * 86_400_000).getUTCDay()
-    if (day !== 0 && day !== 6) count++
+/** The days utilisation is measured over, and their bounds as instants. */
+function utilisationWindow(now: Date) {
+  const first = addDays(todayIn(undefined, now), 1)
+  const days: IsoDate[] = Array.from({ length: UTILISATION_DAYS }, (_, i) => addDays(first, i))
+  return {
+    from: zonedTimeToUtc(first, '00:00'),
+    until: zonedTimeToUtc(addDays(first, UTILISATION_DAYS), '00:00'),
+    workingHours: days.filter(isWorkingDay).length * WORKING_HOURS,
   }
-  return count
+}
+
+type Window = ReturnType<typeof utilisationWindow>
+
+/** Hours booked within the window, on working days only (a session never spans midnight). */
+function bookedHours(sessions: { startsAt: Date; endsAt: Date }[], window: Window): number {
+  let hours = 0
+  for (const s of sessions) {
+    const start = Math.max(s.startsAt.getTime(), window.from.getTime())
+    const end = Math.min(s.endsAt.getTime(), window.until.getTime())
+    if (end > start && isWorkingDay(toZonedParts(new Date(start)).date))
+      hours += (end - start) / 3_600_000
+  }
+  return hours
+}
+
+/** A room's list facts: everything is read for these rooms in one query. */
+function roomQuery(now: Date, window: Window) {
+  return {
+    id: true,
+    name: true,
+    kind: true,
+    capacity: true,
+    note: true,
+    capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
+    _count: { select: { sessions: { where: upcomingSessionWhere(now) } } },
+    sessions: {
+      where: { status: 'PLANNED', startsAt: { lt: window.until }, endsAt: { gt: window.from } },
+      select: { startsAt: true, endsAt: true },
+    },
+  } as const
+}
+
+type RoomRow = {
+  id: string
+  name: string
+  kind: RoomKind
+  capacity: number | null
+  capabilities: { capability: Capability }[]
+  _count: { sessions: number }
+  sessions: { startsAt: Date; endsAt: Date }[]
+}
+
+function toListItem(room: RoomRow, window: Window): RoomListItem {
+  return {
+    id: room.id,
+    name: room.name,
+    kind: room.kind,
+    capacity: room.capacity,
+    capabilities: room.capabilities.map(c => c.capability),
+    upcomingSessions: room._count.sessions,
+    utilisation:
+      room.kind === 'ONLINE' ? null : bookedHours(room.sessions, window) / window.workingHours,
+  }
 }
 
 export async function listRooms(options?: RepoOptions & { now?: Date }): Promise<RoomListItem[]> {
   const now = options?.now ?? new Date()
-  const until = new Date(now.getTime() + UTILISATION_DAYS * 86_400_000)
+  const window = utilisationWindow(now)
   const rooms = await dbOf(options).room.findMany({
-    select: {
-      ...roomSelect,
-      sessions: {
-        where: { status: 'PLANNED', endsAt: { gte: now } },
-        select: { startsAt: true, endsAt: true },
-      },
-    },
+    select: roomQuery(now, window),
     orderBy: { name: 'asc' },
   })
-  const available = workingDays(now, UTILISATION_DAYS) * WORKING_HOURS
-  return rooms.map(room => {
-    const booked = room.sessions
-      .filter(s => s.startsAt < until)
-      .reduce((hours, s) => hours + (s.endsAt.getTime() - s.startsAt.getTime()) / 3_600_000, 0)
-    return {
-      id: room.id,
-      name: room.name,
-      kind: room.kind,
-      capacity: room.capacity,
-      capabilities: room.capabilities.map(c => c.capability),
-      upcomingSessions: room.sessions.length,
-      utilisation: room.kind === 'ONLINE' ? null : booked / available,
-    }
-  })
+  return rooms.map(room => toListItem(room, window))
 }
 
 export async function getRoom(
@@ -83,13 +123,12 @@ export async function getRoom(
 ): Promise<RoomDetail | null> {
   const db = dbOf(options)
   const now = options?.now ?? new Date()
-  const [room, listed, upcoming, pastCount, courses] = await Promise.all([
-    db.room.findUnique({ where: { id }, select: roomSelect }),
-    listRooms(options),
-    listSessions({ window: 'upcoming', room: id }, options),
-    db.courseSession.count({ where: { roomId: id, endsAt: { lt: now } } }),
+  const window = utilisationWindow(now)
+  const [room, upcoming, pastCount, courses] = await Promise.all([
+    db.room.findUnique({ where: { id }, select: roomQuery(now, window) }),
+    listSessions({ window: 'upcoming', room: id, status: 'PLANNED' }, { ...options, now }),
+    db.courseSession.count({ where: { roomId: id, status: 'PLANNED', endsAt: { lt: now } } }),
     db.course.findMany({
-      where: { sessionMinutes: { not: null } },
       select: {
         code: true,
         name: true,
@@ -100,20 +139,11 @@ export async function getRoom(
       orderBy: { code: 'asc' },
     }),
   ])
-  const summary = listed.find(r => r.id === id)
-  if (!room || !summary) return null
-  const facts = {
-    id: room.id,
-    name: room.name,
-    kind: room.kind,
-    capacity: room.capacity,
-    capabilities: room.capabilities.map(c => c.capability),
-  }
+  if (!room) return null
+  const listed = toListItem(room, window)
   return {
-    ...facts,
+    ...listed,
     note: room.note,
-    upcomingSessions: summary.upcomingSessions,
-    utilisation: summary.utilisation,
     upcoming,
     pastCount,
     courses: courses.map(c => ({
@@ -121,19 +151,29 @@ export async function getRoom(
       name: c.name,
       groupSize: c.groupSize,
       mismatch: roomMismatch(
-        facts,
+        listed,
         {
           groupSize: c.groupSize,
           onlineAllowed: c.onlineAllowed,
           capabilities: c.capabilities.map(x => x.capability),
         },
-        c.groupSize ?? 1
+        c.groupSize
       ),
     })),
   }
 }
 
 export async function getRoomForEdit(id: string, options?: RepoOptions) {
-  const room = await dbOf(options).room.findUnique({ where: { id }, select: roomSelect })
+  const room = await dbOf(options).room.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      kind: true,
+      capacity: true,
+      note: true,
+      capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
+    },
+  })
   return room && { ...room, capabilities: room.capabilities.map(c => c.capability) }
 }

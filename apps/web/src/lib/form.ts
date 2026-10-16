@@ -1,8 +1,34 @@
+import type { SessionProblem } from '@muni/db/repositories'
 import type * as z from 'zod'
 
-/** What a form action returns when it does not redirect. Errors are i18n keys under forms.errors. */
+/** What a field can be wrong with: i18n keys under forms.errors. */
+export type FieldErrorKey =
+  | 'required'
+  | 'invalid_type'
+  | 'invalid_format'
+  | 'too_small'
+  | 'too_big'
+  | 'before_start'
+  | 'before_hired'
+  | 'before_completed'
+  | 'duplicate'
+  | 'taken'
+  | 'room_busy'
+  | 'room_online_not_allowed'
+  | 'room_too_small'
+  | 'room_missing_capabilities'
+
+/** What can go wrong with the whole form: i18n keys under forms.errors. */
+export type FormErrorKey = 'not_found' | 'generic' | 'in_use'
+
+/** What a form action returns when it does not redirect. */
 export type FormState =
-  { status: 'idle' } | { status: 'error'; fieldErrors: Record<string, string>; formError?: string }
+  | { status: 'idle' }
+  | {
+      status: 'error'
+      fieldErrors: Partial<Record<string, FieldErrorKey>>
+      formError?: FormErrorKey
+    }
 
 export const IDLE: FormState = { status: 'idle' }
 
@@ -31,7 +57,7 @@ export function list(form: FormData, key: string): string[] {
   return form.getAll(key).filter(v => typeof v === 'string')
 }
 
-const KNOWN = new Set([
+const KNOWN = new Set<string>([
   'invalid_type',
   'invalid_format',
   'too_small',
@@ -39,7 +65,8 @@ const KNOWN = new Set([
   'before_start',
   'before_hired',
   'before_completed',
-])
+  'duplicate',
+] satisfies FieldErrorKey[])
 
 /**
  * zod issues → { field: i18n key }. Custom refinements carry their key as the message.
@@ -47,17 +74,27 @@ const KNOWN = new Set([
  * empty (null) field is recognised from it and reported as "required".
  */
 export function fieldErrors(error: z.ZodError, input: Record<string, unknown>): FormState {
-  const fieldErrors: Record<string, string> = {}
+  const fieldErrors: Record<string, FieldErrorKey> = {}
   for (const issue of error.issues) {
     const field = String(issue.path[0] ?? 'form')
     if (field in fieldErrors) continue
     const isMissing = issue.code === 'invalid_type' && input[field] == null
     const key = isMissing ? 'required' : issue.code === 'custom' ? issue.message : issue.code
-    fieldErrors[field] = KNOWN.has(key) || key === 'required' ? key : 'invalid_format'
+    fieldErrors[field] =
+      key === 'required' || KNOWN.has(key) ? (key as FieldErrorKey) : 'invalid_format'
   }
   return { status: 'error', fieldErrors }
 }
 
-export function formError(key: 'not_found' | 'generic' | 'in_use'): FormState {
+export function formError(key: FormErrorKey): FormState {
   return { status: 'error', fieldErrors: {}, formError: key }
+}
+
+/** A session the room cannot take: the reason goes on the field to change. */
+export function sessionProblem(problem: SessionProblem): FormState {
+  const field = problem === 'ROOM_TOO_SMALL' ? 'capacity' : 'roomId'
+  return {
+    status: 'error',
+    fieldErrors: { [field]: problem.toLowerCase() as Lowercase<SessionProblem> },
+  }
 }

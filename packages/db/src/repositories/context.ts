@@ -72,3 +72,12 @@ export async function loadCompliance(options?: RepoOptions): Promise<ComplianceS
   )
   return { options: complianceOpts, cells, employees }
 }
+
+/**
+ * The cells that count toward a rate: active people's. People on parental leave are listed
+ * with their trainings but not counted, here as on the matrix and the department pages.
+ */
+export function countedCells(snapshot: ComplianceSnapshot): ComplianceCell[] {
+  const active = new Set(snapshot.employees.filter(e => e.status === 'ACTIVE').map(e => e.id))
+  return snapshot.cells.filter(c => active.has(c.employeeId))
+}

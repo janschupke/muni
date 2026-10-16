@@ -223,11 +223,12 @@ describe('rooms', () => {
   const ROOMS = [
     'nazev;typ;kapacita;vybaveni',
     'Laboratoř 3;laboratoř;20;Laboratorní vybavení, projektor',
-    'Online;;0;videokonference',
+    'Online;;12;videokonference',
     'Učebna 1;;40;',
     'laborator 3;LAB;10;',
     'Garáž;hangár;5;',
     'Dvůr;venkovní;8;teleport',
+    'Učebna 2;;;video conference',
   ]
 
   it('reads kinds, seats and equipment, Czech labels included', () => {
@@ -241,7 +242,7 @@ describe('rooms', () => {
         capabilities: ['LAB_EQUIPMENT', 'PROJECTOR'],
         note: null,
       },
-      // No kind given: online by its name; no fixed seat count.
+      // No kind given: online by its name; no seat limit, whatever the file says.
       {
         name: 'Online',
         kind: 'ONLINE',
@@ -253,9 +254,39 @@ describe('rooms', () => {
       { name: 'laborator 3', kind: 'LAB', capacity: 10, capabilities: [], note: null },
       null,
       null,
+      null,
     ])
     expect(codesOf(rooms.rows[4])).toEqual(['kind:INVALID_VALUE'])
     expect(codesOf(rooms.rows[5])).toEqual(['capabilities:INVALID_VALUE'])
+    // A classroom needs seats; a code with a space still reads.
+    expect(codesOf(rooms.rows[6])).toEqual(['capacity:REQUIRED'])
+  })
+
+  it('takes the kind from the name, and leaves equipment alone when the file has no column', () => {
+    const rooms = file('mistnosti.csv', ['nazev;kapacita', 'Laboratoř 4;16'])
+    expect(rooms.rows[0]?.base.data).toEqual({
+      name: 'Laboratoř 4',
+      kind: 'LAB',
+      capacity: 16,
+      capabilities: null,
+      note: null,
+    })
+    expect(
+      file('mistnosti.csv', ['nazev;kapacita;vybaveni', 'Učebna 3;20;Video conference']).rows[0]
+        ?.base.data
+    ).toMatchObject({ capabilities: ['VIDEO_CONFERENCE'] })
+  })
+
+  it('keeps the spelling of a room the register already has', () => {
+    const batch = validateBatch(
+      {
+        rooms: file('mistnosti.csv', ['nazev;kapacita', 'UCEBNA 1;42'])
+          .rows as ImportBatch['rooms'],
+      },
+      { ...EMPTY_REFERENCE, rooms: ['Učebna 1'] }
+    )
+    expect(batch.rooms?.[0]?.data?.name).toBe('Učebna 1')
+    expect(codesOf(batch.rooms?.[0])).toEqual(['name:VALUE_NORMALIZED'])
   })
 
   it('rejects a second room of the same name, and lets sessions use the listed rooms', () => {

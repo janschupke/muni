@@ -1,9 +1,11 @@
 import { PrismaPg } from '@prisma/adapter-pg'
 
-import { PrismaClient } from './generated/prisma/client'
+import { PrismaClient, type Prisma } from './generated/prisma/client'
 
 export type { Prisma } from './generated/prisma/client'
 export type Db = PrismaClient
+/** The client inside `$transaction`. */
+export type Tx = Prisma.TransactionClient
 
 /**
  * One client per process. In serverless (Vercel) each function instance keeps a small

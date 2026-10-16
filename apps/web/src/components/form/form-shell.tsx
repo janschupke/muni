@@ -17,9 +17,9 @@ import {
   type ReactNode,
 } from 'react'
 
-import { IDLE, type FormState } from '@/lib/form'
+import { IDLE, type FieldErrorKey, type FormState } from '@/lib/form'
 
-const ErrorsContext = createContext<Record<string, string>>({})
+const ErrorsContext = createContext<Partial<Record<string, FieldErrorKey>>>({})
 
 /** A form bound to a server action. Field components read their error from context. */
 export function FormShell({
@@ -37,7 +37,7 @@ export function FormShell({
   return (
     <form action={formAction} className="flex max-w-2xl flex-col gap-5" noValidate>
       {state.status === 'error' && state.formError && (
-        <Alert tone="danger">{t(`forms.errors.${state.formError as 'generic'}`)}</Alert>
+        <Alert tone="danger">{t(`forms.errors.${state.formError}`)}</Alert>
       )}
       <ErrorsContext value={errors}>{children}</ErrorsContext>
       <div className="flex gap-2">
@@ -59,7 +59,7 @@ export function FormShell({
 function useFieldError(name: string): string | undefined {
   const t = useTranslations('forms.errors')
   const key = useContext(ErrorsContext)[name]
-  return key ? t(key as 'generic') : undefined
+  return key ? t(key) : undefined
 }
 
 type BaseProps = {

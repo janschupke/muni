@@ -210,12 +210,21 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
   // ---- rooms ------------------------------------------------------------------------------
   const roomRows = batch.rooms ?? []
   const firstRoom = firstRowByKey(roomRows, d => fold(d.name))
+  // A room the database already has keeps its spelling: "Ucebna 1" updates "Učebna 1".
+  const roomSpelling = new Canonicalizer(
+    roomRows.filter(usable).map(r => r.base.data.name),
+    reference.rooms
+  )
   out.rooms = roomRows.map(row => {
     const extra: Extra = []
     if (!usable(row)) return finalize(row, null, extra)
-    const owner = duplicateOf(row, firstRoom, fold(row.base.data.name))
+    const data = row.base.data
+    const owner = duplicateOf(row, firstRoom, fold(data.name))
     if (owner) extra.push(issue('name', 'DUPLICATE_ID', 'error', { firstRow: owner.rowNumber }))
-    return finalize<RoomInput>(row, row.base.data, extra)
+    const name = roomSpelling.canonical(data.name)
+    if (!owner && name !== data.name)
+      extra.push(issue('name', 'VALUE_NORMALIZED', 'warning', { raw: data.name, value: name }))
+    return finalize<RoomInput>(row, { ...data, name }, extra)
   })
   const roomNames = out.rooms.flatMap(r =>
     r.isValid && !r.isRemoved && r.data ? [r.data.name] : []
@@ -228,7 +237,7 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
   const knownRooms = new Canonicalizer(roomNames, reference.rooms)
   const rooms = new Canonicalizer(
     sessionRows.filter(usable).map(r => r.base.data.location),
-    [...reference.rooms, ...roomNames]
+    [...roomNames, ...reference.rooms]
   )
   // The first session held in an unknown room says it will be created; the rest just use it.
   const firstInRoom = firstRowByKey(sessionRows, d => rooms.keyOf(d.location))

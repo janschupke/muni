@@ -3,6 +3,7 @@ import { diffInDays, type IsoDate } from '@muni/utils/dates'
 
 import type { Db } from '../client'
 import type { EmployeeListRequirement } from './employees'
+import { upcomingSessionWhere } from './sessions'
 
 /** Soonest named booking per `${employeeId}|${courseId}`. */
 export type NextBookings = Map<string, { sessionExternalId: string; startsAt: string }>
@@ -10,7 +11,7 @@ export type NextBookings = Map<string, { sessionExternalId: string; startsAt: st
 /** Each person's soonest named booking per course, among planned sessions still ahead. */
 export async function loadNextBookings(db: Db, now = new Date()): Promise<NextBookings> {
   const bookings = await db.sessionAssignment.findMany({
-    where: { session: { startsAt: { gt: now }, status: 'PLANNED' } },
+    where: { session: upcomingSessionWhere(now) },
     select: {
       employeeId: true,
       session: { select: { externalId: true, startsAt: true, courseId: true } },
@@ -37,14 +38,19 @@ export interface RequirementContext {
   bookings: NextBookings
 }
 
+/** The course a cell is about. Cells come from the mandatory courses, which callers load. */
+export function courseOf<C>(courses: ReadonlyMap<string, C>, cell: ComplianceCell): C {
+  const course = courses.get(cell.courseId)
+  if (!course) throw new Error(`No course ${cell.courseId} for a compliance cell`)
+  return course
+}
+
 /** One required course of one person, as the lists and the matrix show it. */
 export function requirementOf(
   cell: ComplianceCell,
   context: RequirementContext
 ): EmployeeListRequirement {
-  const course = context.courses.get(cell.courseId)
-  // Cells come from the mandatory courses, which the context always carries.
-  if (!course) throw new Error(`No course ${cell.courseId} for a compliance cell`)
+  const course = courseOf(context.courses, cell)
   const validUntil = cell.basis?.validUntil ?? null
   return {
     courseCode: course.code,

@@ -29,6 +29,12 @@ export const externalIdSchema = z
   .trim()
   .regex(/^[A-Z]\d{3,8}$/)
 
+/**
+ * ID prefixes for records created in the app. Imports refuse them, so a source export can
+ * never overwrite something entered here.
+ */
+export const APP_ID_PREFIX = { session: 'S', completion: 'A' } as const
+
 export const requirementSchema = z.discriminatedUnion('scope', [
   z.object({ scope: z.literal('ALL') }),
   z.object({ scope: z.literal('DEPARTMENT'), department: trimmed(120) }),
@@ -46,17 +52,26 @@ export const courseSchema = z.object({
 })
 export type CourseInput = z.infer<typeof courseSchema>
 
-const capabilities = z.array(z.enum(CAPABILITIES)).max(CAPABILITIES.length)
-/** Seats; null = no fixed limit (an online room). */
-const roomCapacity = z.int().min(0).max(10_000).nullable()
+const capabilities = z
+  .array(z.enum(CAPABILITIES))
+  .refine(list => new Set(list).size === list.length, { error: 'duplicate' })
 
-export const roomSchema = z.object({
-  name: trimmed(200),
-  kind: z.enum(ROOM_KINDS),
-  capacity: roomCapacity,
-  capabilities,
-  note: optionalText(2000),
-})
+export const roomSchema = z
+  .object({
+    name: trimmed(200),
+    kind: z.enum(ROOM_KINDS),
+    /** Seats; null = no fixed limit, which only an online room may have. */
+    capacity: z.int().min(1).max(10_000).nullable(),
+    /** null = leave the equipment as it is (a rooms file without that column); none for a new room. */
+    capabilities: capabilities.nullable(),
+    note: optionalText(2000),
+  })
+  .refine(r => r.kind === 'ONLINE' || r.capacity !== null, {
+    path: ['capacity'],
+    error: 'required',
+  })
+  // An online room has no seat limit: whatever was entered is dropped.
+  .transform(r => (r.kind === 'ONLINE' ? { ...r, capacity: null } : r))
 export type RoomInput = z.infer<typeof roomSchema>
 
 export const employeeSchema = z
@@ -94,15 +109,14 @@ const sessionTimes = {
 
 /**
  * An imported session names its room (`location`, the export's "místo"); the writer
- * resolves it to a room, creating one when the batch has no such room (`isOnline` then
- * decides its kind).
+ * resolves it to a room, creating one when there is no such room yet (its kind then follows
+ * from the name).
  */
 const sessionBase = z.object({
   externalId: externalIdSchema,
   courseCode: courseCodeSchema,
   ...sessionTimes,
   location: trimmed(200),
-  isOnline: z.boolean(),
   bookedCount: z.int().min(0).max(10_000),
 })
 const endAfterStart = (s: { startTime: string; endTime: string }) => s.endTime > s.startTime
@@ -132,7 +146,8 @@ export type CompletionInput = z.infer<typeof completionSchema>
 
 export const courseEditSchema = courseSchema.pick({ name: true, validityMonths: true }).extend({
   /** What one session needs: the planner's input. */
-  sessionMinutes: z.int().min(15).max(1440).nullable(),
+  /** At most 12 hours: from the usual 09:00 start, a session ends the same day. */
+  sessionMinutes: z.int().min(15).max(720).nullable(),
   groupSize: z.int().min(1).max(10_000).nullable(),
   onlineAllowed: z.boolean(),
   capabilities,
@@ -152,7 +167,12 @@ export type SessionEdit = z.infer<typeof sessionEditSchema>
 
 /** A new session (from the planner or the course page); it starts with no bookings. */
 export const sessionCreateSchema = z
-  .object({ courseCode: courseCodeSchema, ...sessionTimes, roomId })
+  .object({
+    courseCode: courseCodeSchema,
+    ...sessionTimes,
+    capacity: z.int().min(1).max(10_000),
+    roomId,
+  })
   .refine(endAfterStart, endAfterStartIssue)
 export type SessionCreate = z.infer<typeof sessionCreateSchema>
 

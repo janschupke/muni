@@ -322,7 +322,12 @@
       "not_found": "Záznam už neexistuje.",
       "generic": "Uložení se nepovedlo. Zkuste to znovu.",
       "in_use": "Místnost má termíny, proto ji nelze smazat.",
-      "taken": "Tento název už se používá."
+      "taken": "Tento název už se používá.",
+      "duplicate": "Každá hodnota smí být uvedena jen jednou.",
+      "room_busy": "V tu dobu místnost využívá jiný plánovaný termín.",
+      "room_online_not_allowed": "Tento kurz se online nekoná.",
+      "room_too_small": "Místnost má méně míst, než termín otevírá.",
+      "room_missing_capabilities": "Místnosti chybí vybavení, které kurz potřebuje."
     },
     "course": {
       "title": "Upravit kurz {code}",
@@ -477,6 +482,7 @@
       "TOO_MANY_CELLS": "Řádek má {actual} buněk, hlavička {expected}.",
       "DUPLICATE_ID": "Toto ID už je na řádku {firstRow}.",
       "DUPLICATE_PERSON": "Stejná osoba jako {otherId} (stejný e-mail nebo rodné číslo). Její záznamy se přiřadí k {otherId}.",
+      "RESERVED_ID": "ID {raw} má předponu, kterou aplikace dává záznamům vytvořeným v ní; import je nesmí přepsat.",
       "REQUIRED": "Chybí povinná hodnota.",
       "INVALID_VALUE": "Neplatná hodnota.",
       "INVALID_DATE": "„{raw}“ není platné datum.",
@@ -710,7 +716,7 @@
       "capacity": "Místa",
       "capabilities": "Vybavení",
       "upcoming": "Nadcházející termíny",
-      "utilisation": "Obsazenost, příštích 30 dní"
+      "utilisation": "{days, plural, one {Obsazenost, příští den} few {Obsazenost, příští # dny} other {Obsazenost, příštích # dní}}"
     },
     "unlimited": "Bez omezení",
     "noCapabilities": "Bez uvedeného vybavení",
@@ -721,7 +727,7 @@
       "capacity": "Místa",
       "capabilities": "Vybavení",
       "note": "Poznámka",
-      "utilisation": "Obsazenost v příštích 30 dnech",
+      "utilisation": "{days, plural, one {Obsazenost příští den} few {Obsazenost v příštích # dnech} other {Obsazenost v příštích # dnech}}",
       "upcoming": "Nadcházející termíny",
       "noUpcoming": "Nic tu není naplánováno.",
       "past": "{count, plural, =0 {Žádné proběhlé termíny} one {# proběhlý termín} few {# proběhlé termíny} other {# proběhlých termínů}}",

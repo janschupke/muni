@@ -88,16 +88,16 @@ describe('sessions', () => {
       date: '2026-11-04',
       startTime: '08:00',
       endTime: '11:00',
-      isOnline: false,
       pricePerPerson: 450,
       status: 'PLANNED',
     })
   })
 
-  it('reads statuses, online venues and a missing booked count', () => {
+  it('reads statuses and a missing booked count; refuses the app’s own IDs', () => {
     expect(session({ status: '' }).data?.status).toBe('PLANNED')
     expect(session({ status: 'Zrušeno' }).data?.status).toBe('CANCELLED')
-    expect(session({ location: 'Online' }).data?.isOnline).toBe(true)
+    // S… sessions were created in the app: an export may not overwrite them.
+    expect(codes(session({ externalId: 'S001' }))).toEqual(['externalId:RESERVED_ID'])
     expect(session({ bookedCount: '' }).data?.bookedCount).toBe(0)
     expect(codes(session({ status: 'odloženo' }))).toEqual(['status:INVALID_STATUS'])
   })

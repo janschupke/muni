@@ -98,11 +98,14 @@ model Course {
   requiredForAll         Boolean                       @default(false) @map("required_for_all")
   departmentRequirements CourseDepartmentRequirement[]
   positionRequirements   CoursePositionRequirement[]
-  /// What one session needs (the planner's input). null = not set yet.
+  /// What one session needs (the planner's input). null = not known yet.
   sessionMinutes         Int?                          @map("session_minutes")
   groupSize              Int?                          @map("group_size")
   onlineAllowed          Boolean                       @default(false) @map("online_allowed")
   capabilities           CourseCapability[]
+  /// The needs were set in the app, so imports leave them alone. Otherwise every sessions
+  /// import derives them again from the course's sessions.
+  needsManual            Boolean                       @default(false) @map("needs_manual")
   sessions               CourseSession[]
   completions            CourseCompletion[]
   createdAt              DateTime                      @default(now()) @map("created_at")
@@ -149,7 +152,7 @@ model Room {
   id           String           @id @default(cuid())
   name         String           @unique
   kind         RoomKind
-  /// Seats. null = no fixed limit (e.g. an online room). CHECK (capacity >= 0) in the SQL.
+  /// Seats. null = no fixed limit, which an online room has and only it (CHECK in the SQL).
   capacity     Int?
   note         String?
   capabilities RoomCapability[]

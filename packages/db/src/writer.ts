@@ -10,15 +10,13 @@ import {
   type RoomInput,
   type SessionInput,
 } from '@muni/domain/schemas'
+import { roomKindOfName } from '@muni/domain/rooms'
 import type { DatasetKind, DatasetRecord } from '@muni/importer'
 import { isoDateToUtc, zonedTimeToUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
 import type * as z from 'zod'
 
-import type { Db } from './client'
-import type { Prisma } from './generated/prisma/client'
-
-type Tx = Prisma.TransactionClient
+import type { Db, Tx } from './client'
 
 export const COMMIT_CHUNK_SIZE = 500
 const TX_OPTIONS = { timeout: 60_000, maxWait: 10_000 }
@@ -113,9 +111,11 @@ async function writeRooms(tx: Tx, records: RoomInput[]): Promise<CommitResult> {
     })
     if (existing) updated++
     else created++
+    if (record.capabilities === null) continue
     await tx.roomCapability.deleteMany({ where: { roomId: room.id } })
     await tx.roomCapability.createMany({
       data: record.capabilities.map(capability => ({ roomId: room.id, capability })),
+      skipDuplicates: true,
     })
   }
   return { created, updated }
@@ -259,8 +259,9 @@ function lookup<T>(map: Map<string, T>, key: string, what: string): T {
 }
 
 /**
- * The room of each session, by name. A place no rooms file listed becomes a room: online by
- * its name, otherwise a classroom, seating the largest session held there in this chunk.
+ * The room of each session, by name. A place no rooms file listed becomes a room of the kind
+ * its name implies (see roomKindOfName), seating the largest session held there in this
+ * chunk; an online room has no seat limit.
  */
 async function resolveRooms(tx: Tx, records: SessionInput[]): Promise<Map<string, string>> {
   const names = [...new Set(records.map(r => r.location))]
@@ -271,12 +272,13 @@ async function resolveRooms(tx: Tx, records: SessionInput[]): Promise<Map<string
   const ids = new Map(existing.map(r => [r.name, r.id]))
   for (const name of names) {
     if (ids.has(name)) continue
+    const kind = roomKindOfName(name)
     const held = records.filter(r => r.location === name)
     const room = await tx.room.create({
       data: {
         name,
-        kind: held.some(r => r.isOnline) ? 'ONLINE' : 'CLASSROOM',
-        capacity: Math.max(...held.map(r => r.capacity)),
+        kind,
+        capacity: kind === 'ONLINE' ? null : Math.max(1, ...held.map(r => r.capacity)),
       },
       select: { id: true },
     })
@@ -286,13 +288,14 @@ async function resolveRooms(tx: Tx, records: SessionInput[]): Promise<Map<string
 }
 
 /**
- * Fills in what a session of each course needs from the sessions held so far, for courses
- * where nobody has set it: the usual length, the median group size, online if ever held
- * online. A course already configured is left alone.
+ * Derives what a session of each course needs from all its planned sessions so far: the
+ * usual length, the median group size, online if ever held online. Every sessions import
+ * derives them again, so they follow the history; a course whose needs were set in the
+ * app (needsManual) is left alone.
  */
 async function deriveSessionNeeds(tx: Tx, courseIdList: string[]): Promise<void> {
   const courses = await tx.course.findMany({
-    where: { id: { in: courseIdList }, sessionMinutes: null },
+    where: { id: { in: courseIdList }, needsManual: false },
     select: {
       id: true,
       sessions: {

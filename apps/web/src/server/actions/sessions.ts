@@ -1,27 +1,34 @@
 'use server'
 
-import { createSession } from '@muni/db/repositories'
+import { createSession, type SessionProblem, type SessionWrite } from '@muni/db/repositories'
 import { sessionCreateSchema, type SessionCreate } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { fieldErrors, formError, number, text, type FormState } from '@/lib/form'
-import { requireUser } from '@/server/auth'
+import { fieldErrors, formError, number, sessionProblem, text, type FormState } from '@/lib/form'
+import { getViewer, requireUser } from '@/server/auth'
 
-export type CreateOutcome = { ok: true; externalId: string } | { ok: false }
+export type CreateOutcome =
+  | { ok: true; externalId: string }
+  | { ok: false; reason: 'unauthorized' | 'invalid' | 'failed' | SessionProblem }
 
-/** Creates the session a planner offer describes; the planner stays open for the next one. */
+/**
+ * Creates the session a planner offer describes; the planner stays open for the next one.
+ * Every way it can fail comes back as a reason the planner shows next to the offer.
+ */
 export async function createOfferedSession(input: SessionCreate): Promise<CreateOutcome> {
-  await requireUser()
+  // Signed out meanwhile (an expired session): say so, rather than throwing into the page.
+  if ((await getViewer()) !== 'authenticated') return { ok: false, reason: 'unauthorized' }
   const parsed = sessionCreateSchema.safeParse(input)
-  if (!parsed.success) return { ok: false }
+  if (!parsed.success) return { ok: false, reason: 'invalid' }
   try {
-    const { externalId } = await createSession(parsed.data)
+    const result = await createSession(parsed.data)
+    if (!result.ok) return { ok: false, reason: result.problem }
     revalidatePath('/', 'layout')
-    return { ok: true, externalId }
+    return { ok: true, externalId: result.externalId }
   } catch (error) {
     console.error(error)
-    return { ok: false }
+    return { ok: false, reason: 'failed' }
   }
 }
 
@@ -44,13 +51,14 @@ export async function saveNewSession(
   }
   const parsed = sessionCreateSchema.safeParse(input)
   if (!parsed.success) return fieldErrors(parsed.error, input)
-  let externalId: string
+  let result: SessionWrite
   try {
-    externalId = (await createSession(parsed.data)).externalId
+    result = await createSession(parsed.data)
   } catch (error) {
     console.error(error)
     return formError('generic')
   }
+  if (!result.ok) return sessionProblem(result.problem)
   revalidatePath('/', 'layout')
-  redirect(`/sessions/${externalId}`)
+  redirect(`/sessions/${result.externalId}`)
 }

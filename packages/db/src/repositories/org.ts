@@ -16,6 +16,7 @@ import { dbOf, loadCompliance, type RepoOptions } from './context'
 import { compareNames, sortEmployees } from './employee-sort'
 import { employeeRecord, type EmployeeListItem } from './employees'
 import { loadNextBookings } from './requirements'
+import { upcomingSessionWhere } from './sessions'
 
 // Departments and positions as the register sees them: who is in them, who leads them,
 // what they must hold and how much of it they hold. Active people count toward compliance;
@@ -104,7 +105,7 @@ async function loadOrg(options?: RepoOptions & { now?: Date }) {
       },
     }),
     db.sessionAssignment.findMany({
-      where: { session: { startsAt: { gt: now }, status: 'PLANNED' } },
+      where: { session: upcomingSessionWhere(now) },
       select: { employeeId: true },
     }),
     db.course.findMany({

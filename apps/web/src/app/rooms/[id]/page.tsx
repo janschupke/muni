@@ -1,4 +1,5 @@
 import { getRoom } from '@muni/db/repositories'
+import { UTILISATION_DAYS } from '@muni/domain/rooms'
 import { Badge } from '@muni/ui/badge'
 import { BarRow } from '@muni/ui/bar-row'
 import { Button } from '@muni/ui/button'
@@ -81,13 +82,13 @@ export default async function RoomPage({ params }: Props) {
                 </DescriptionList>
                 {room.utilisation !== null && (
                   <BarRow
-                    label={t('detail.utilisation')}
+                    label={t('detail.utilisation', { days: UTILISATION_DAYS })}
                     value={t('utilisationOf', { share: formatPercent(room.utilisation, locale) })}
                     bar={
                       <Meter
                         value={Math.round(room.utilisation * 100)}
                         max={100}
-                        label={t('detail.utilisation')}
+                        label={t('detail.utilisation', { days: UTILISATION_DAYS })}
                         size="md"
                       />
                     }

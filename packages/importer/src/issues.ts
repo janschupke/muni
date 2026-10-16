@@ -8,6 +8,7 @@ export const ISSUE_CODES = [
   'TOO_MANY_CELLS',
   'DUPLICATE_ID',
   'DUPLICATE_PERSON',
+  'RESERVED_ID',
   // generic field problems (errors)
   'REQUIRED',
   'INVALID_VALUE',

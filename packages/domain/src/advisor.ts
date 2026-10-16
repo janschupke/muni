@@ -326,10 +326,19 @@ function breakdownOf(items: PlanItem[], asOf: IsoDate): BreakdownRow[] {
   })
 }
 
+/**
+ * A training no session can take: nothing of the course is ahead, or every session is full.
+ * New sessions would place it (the shortfall, the planner); a clash with the person's other
+ * bookings would not.
+ */
+export const needsNewSession = (item: PlanItem): boolean =>
+  item.proposal?.kind === 'NONE' && item.proposal.reason !== 'CONFLICT'
+
 function shortfallOf(queued: PlanItem[]): AdvisorPlan['shortfall'] {
   const byCourse = new Map<string, { courseCode: string; courseName: string; people: number }>()
-  for (const { need, proposal } of queued) {
-    if (proposal?.kind !== 'NONE' || proposal.reason === 'CONFLICT') continue
+  for (const item of queued) {
+    if (!needsNewSession(item)) continue
+    const { need } = item
     const entry = byCourse.get(need.course.code) ?? {
       courseCode: need.course.code,
       courseName: need.course.name,

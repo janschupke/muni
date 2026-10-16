@@ -51,17 +51,26 @@ Internal packages ship TypeScript source (`exports` point at `src/`); Next compi
 - **Rooms:** a session points at a `Room` (kind: classroom, lab, online, external, outdoor;
   seats; note). What a room offers and what a course needs are link tables of one
   `Capability` enum (projector, computers, lab equipment, vehicle, practice area, video
-  conferencing, wheelchair access). "Online" is the room's kind, not a session flag.
+  conferencing, wheelchair access). "Online" is the room's kind, not a session flag; an
+  online room has no seat limit and every other room has seats (a CHECK). A room's
+  utilisation is its booked hours over the next 30 days from tomorrow, against Czech working
+  days (weekends and public holidays, Easter included, are out) of 8 hours.
 - **What a session needs:** `Course.sessionMinutes`, `groupSize`, `onlineAllowed` and its
-  capabilities. Set in the course form; until then derived from the course's sessions (usual
-  length, median size, online if ever held online). An import never overwrites them.
+  capabilities. Every sessions import derives them from the course's sessions (usual length,
+  median size, online if ever held online) until someone sets them in the course form
+  (`needsManual`); after that imports leave them alone.
+- **Sessions created in the app** are checked on the server, under a lock: the room must suit
+  the course (online allowed, its equipment, a seat for every place the session opens) and
+  no other planned session may hold it then (online rooms never clash).
 - **Department heads** are not stored: the head is the member with the most other members
   anywhere beneath them in the reporting chain (so a head over two team leads outranks
   either lead); when no member manages another, the outside manager most members report to.
 
 Source IDs (`E0001`,
 `T001`, `Z000001`) are kept as `externalId`, and imports upsert on them, so re-importing a file
-updates records instead of duplicating them. Date-only values are Postgres `date` columns;
+updates records instead of duplicating them. Records created in the app get their own prefix
+(`S001` sessions, `A…` completions), which imports refuse (`RESERVED_ID`), so an export can
+never overwrite them. Date-only values are Postgres `date` columns;
 session times are `timestamptz` converted from Europe/Prague wall-clock time.
 
 Bookings: a session's seats are `unnamedBookings` (anonymous seats from the export) plus
@@ -207,8 +216,10 @@ The wizard at `/import` follows the same flow as ceum: upload, review, confirm, 
   change re-validates the whole batch, including references between files.
 - **Rooms:** an optional `mistnosti.csv` (`nazev`, `typ`, `kapacita`, `vybaveni`; equipment
   as codes or Czech labels, `;`- or `,`-separated). Without one, each place the sessions name
-  becomes a room (`ROOM_DERIVED`, once per room), sized by the largest session held there;
-  spelling variants of a known room are unified.
+  becomes a room (`ROOM_DERIVED`, once per room) of the kind its name implies ("Laboratoř 3"
+  is a lab), sized by the largest session held there; spelling variants of a known room are
+  unified, in a rooms file too. A rooms file without an equipment column leaves equipment as
+  it is.
 - **Commit:** in dependency order (rooms, courses, employees, sessions, completions), in
   chunks of 500.
   The server re-validates every record with the domain schemas before writing.

@@ -53,15 +53,15 @@ describe('seed', () => {
     expect(await db.courseSession.count()).toBe(32)
     expect(await importedCompletions()).toBe(2822)
     expect(await db.department.count()).toBe(9)
-    // No rooms file in data/: one room per place the sessions are held, sized by the
-    // largest session there; "Online" is online.
+    // No rooms file in data/: one room per place the sessions are held, of the kind its name
+    // implies and sized by the largest session there; online has no seat limit.
     const rooms = await db.room.findMany({ orderBy: { name: 'asc' } })
     expect(rooms.map(r => [r.name, r.kind, r.capacity])).toEqual([
       ['Aula A', 'CLASSROOM', 40],
       ['Autoškola Vzor', 'CLASSROOM', 12],
       ['Dvůr – sklad', 'CLASSROOM', 8],
-      ['Laboratoř 3', 'CLASSROOM', 20],
-      ['Online', 'ONLINE', 100],
+      ['Laboratoř 3', 'LAB', 20],
+      ['Online', 'ONLINE', null],
       ['Seminární místnost', 'CLASSROOM', 12],
       ['Učebna 1', 'CLASSROOM', 40],
       ['Učebna 2', 'CLASSROOM', 15],
@@ -395,6 +395,14 @@ describe('course list', () => {
       true
     )
     expect((await getCourse('BOZP-Z', options))?.byDepartment).toEqual(bozp?.byDepartment)
+    // A course's rate counts active people, as its department rows do: the rows add up to
+    // it, but for the few people with no department, whom the dashboard counts the same way.
+    const dashboard = await getDashboard(options)
+    const outsideDepartments = (total: number, rows: { counts: { total: number } }[]) =>
+      total - rows.reduce((n, d) => n + d.counts.total, 0)
+    expect(
+      courses.reduce((n, c) => n + outsideDepartments(c.counts.total, c.byDepartment), 0)
+    ).toBe(outsideDepartments(dashboard.counts.total, dashboard.byDepartment))
   })
 })
 
@@ -463,7 +471,10 @@ describe('departments and positions', () => {
   it('show a manager’s team, and filter the list by manager, department and position', async () => {
     const manager = await getEmployee('E0001', 'anonymous', options)
     expect(manager?.reports.map(r => r.externalId)).toContain('E0002')
-    expect(manager?.teamCounts.total).toBe(manager?.reports.reduce((n, r) => n + r.counts.total, 0))
+    // The team's rate counts its active people only.
+    expect(manager?.teamCounts.total).toBe(
+      manager?.reports.filter(r => r.status === 'ACTIVE').reduce((n, r) => n + r.counts.total, 0)
+    )
     const team = await listEmployees({ manager: 'E0001', pageSize: 100 }, options)
     expect(team.items.map(e => e.externalId).toSorted()).toEqual(
       (
@@ -519,8 +530,10 @@ describe('rooms', () => {
     ])
     const aula = rooms.find(r => r.name === 'Aula A')
     expect(aula?.upcomingSessions).toBeGreaterThan(0)
-    expect(aula?.utilisation).toBeGreaterThan(0)
-    expect(aula?.utilisation).toBeLessThan(1)
+    // 17 Oct – 15 Nov: 19 working days once 28 October (a holiday) is out, 8 hours each.
+    // Held on working days: T003, T009 (11 Nov) and T016 (4 Nov), 3 hours each; T002 falls
+    // on the holiday and does not count.
+    expect(aula?.utilisation).toBeCloseTo(9 / (19 * 8))
     // Online rooms have no working hours to fill.
     expect(rooms.find(r => r.name === 'Online')?.utilisation).toBeNull()
   })

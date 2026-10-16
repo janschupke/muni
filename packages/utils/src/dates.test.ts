@@ -4,8 +4,10 @@ import {
   addDays,
   addMonths,
   diffInDays,
+  isCzechHoliday,
   isoDateFromUtc,
   isoDateToUtc,
+  isWorkingDay,
   parseDate,
   parseTimeRange,
   todayIn,
@@ -122,5 +124,25 @@ describe('bad input fails loudly', () => {
     expect(() => todayIn('Europe/Atlantis')).toThrow(/Invalid time zone/)
     expect(() => zonedTimeToUtc('2026-10-14', '9am')).toThrow('Not a time: 9am')
     expect(() => toZonedParts('not a date')).toThrow(/Invalid instant/)
+  })
+})
+
+describe('working days', () => {
+  it('knows the fixed Czech holidays and Easter, which moves', () => {
+    for (const date of ['2026-01-01', '2026-05-08', '2026-10-28', '2026-12-24'])
+      expect(isCzechHoliday(date), date).toBe(true)
+    // Easter 2026 is 5 April; 2027, 28 March.
+    expect(['2026-04-03', '2026-04-06', '2027-03-26', '2027-03-29'].every(isCzechHoliday)).toBe(
+      true
+    )
+    expect(isCzechHoliday('2026-04-05')).toBe(false)
+    expect(isCzechHoliday('2026-10-27')).toBe(false)
+  })
+
+  it('is a weekday that is not a holiday', () => {
+    expect(isWorkingDay('2026-10-16')).toBe(true) // Friday
+    expect(isWorkingDay('2026-10-17')).toBe(false) // Saturday
+    expect(isWorkingDay('2026-10-18')).toBe(false) // Sunday
+    expect(isWorkingDay('2026-10-28')).toBe(false) // Wednesday, a holiday
   })
 })

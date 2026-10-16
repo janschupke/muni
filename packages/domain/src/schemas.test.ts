@@ -44,7 +44,6 @@ const session = {
   startTime: '08:00',
   endTime: '11:00',
   location: 'Aula A',
-  isOnline: false,
   capacity: 30,
   bookedCount: 31,
   pricePerPerson: 450,
@@ -123,7 +122,6 @@ describe('edit forms', () => {
       courseCode: _code,
       bookedCount: _booked,
       location: _location,
-      isOnline: _online,
       ...edit
     } = { ...session, roomId: 'room_aula_a' }
     expect(sessionEditSchema.parse({ ...edit, unnamedBookings: 3 })).not.toHaveProperty(
@@ -163,9 +161,19 @@ describe('rooms and new sessions', () => {
       note: null,
     }
     expect(roomSchema.parse(room).name).toBe('Laboratoř 3')
-    expect(roomSchema.safeParse({ ...room, capacity: null, kind: 'ONLINE' }).success).toBe(true)
     expect(roomSchema.safeParse({ ...room, kind: 'GARAGE' }).success).toBe(false)
     expect(roomSchema.safeParse({ ...room, capabilities: ['TELEPORT'] }).success).toBe(false)
+    expect(
+      issues(roomSchema.safeParse({ ...room, capabilities: ['PROJECTOR', 'PROJECTOR'] }))
+    ).toEqual(['capabilities: duplicate'])
+    // Only an online room goes without seats, and it has no limit whatever was entered.
+    expect(issues(roomSchema.safeParse({ ...room, capacity: null }))).toEqual([
+      'capacity: required',
+    ])
+    expect(roomSchema.parse({ ...room, kind: 'ONLINE', capacity: 300 }).capacity).toBeNull()
+    expect(roomSchema.safeParse({ ...room, capacity: 0 }).success).toBe(false)
+    // null equipment: leave it as it is (a rooms file without the column).
+    expect(roomSchema.parse({ ...room, capabilities: null }).capabilities).toBeNull()
   })
 
   it('create a session for a course in a room, ending after it starts', () => {
@@ -183,5 +191,7 @@ describe('rooms and new sessions', () => {
     expect(issues(sessionCreateSchema.safeParse({ ...create, endTime: '07:00' }))).toEqual([
       'endTime: before_start',
     ])
+    // A new session opens at least one seat.
+    expect(sessionCreateSchema.safeParse({ ...create, capacity: 0 }).success).toBe(false)
   })
 })

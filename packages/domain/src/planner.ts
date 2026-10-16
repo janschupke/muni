@@ -1,6 +1,6 @@
 import { addDays, toZonedParts, zonedTimeToUtc, type IsoDate } from '@muni/utils/dates'
 
-import { NOW, type PlanItem } from './advisor'
+import { needsNewSession, NOW, type PlanItem } from './advisor'
 import type { Capability } from './enums'
 import { roomMismatch, type RoomFacts, type RoomRef } from './rooms'
 
@@ -153,8 +153,7 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
     { course: PlannerCourse; bucket: string; deadline: IsoDate; people: PlannedPerson[] }
   >()
   for (const item of input.items) {
-    const proposal = item.proposal
-    if (proposal?.kind !== 'NONE' || proposal.reason === 'CONFLICT') continue
+    if (!needsNewSession(item)) continue
     const course = courses.get(item.need.course.code)
     if (!course) continue
     const due =

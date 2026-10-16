@@ -63,6 +63,8 @@ export {
   updateEmployee,
   updateRoom,
   updateSession,
+  type SessionProblem,
+  type SessionWrite,
 } from './mutations'
 export {
   getDepartment,
@@ -77,12 +79,5 @@ export {
   type PositionSummary,
 } from './org'
 export { getPlannerInput } from './planner'
-export {
-  getRoom,
-  getRoomForEdit,
-  listRooms,
-  UTILISATION_DAYS,
-  type RoomDetail,
-  type RoomListItem,
-} from './rooms'
+export { getRoom, getRoomForEdit, listRooms, type RoomDetail, type RoomListItem } from './rooms'
 export { getSession, listSessions, type SessionWindow } from './sessions'

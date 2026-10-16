@@ -102,7 +102,7 @@ describe('session planner', () => {
     )
     expect(router.refresh).toHaveBeenCalled()
 
-    vi.mocked(createOfferedSession).mockResolvedValueOnce({ ok: false })
+    vi.mocked(createOfferedSession).mockResolvedValueOnce({ ok: false, reason: 'failed' })
     await act(async () => {
       await user.click(screen.getByRole('button', { name: 'Create session' }))
     })

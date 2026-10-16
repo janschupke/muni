@@ -82,6 +82,53 @@ export function diffInDays(from: IsoDate, to: IsoDate): number {
 }
 
 /** ISO date → `Date` at UTC midnight (the shape Postgres `date` columns round-trip as). */
+/** Easter Sunday of a Gregorian year (the anonymous Gregorian computus). */
+function easterSunday(year: number): IsoDate {
+  const a = year % 19
+  const b = Math.floor(year / 100)
+  const c = year % 100
+  const d = Math.floor(b / 4)
+  const e = b % 4
+  const f = Math.floor((b + 8) / 25)
+  const g = Math.floor((b - f + 1) / 3)
+  const h = (19 * a + b - d - g + 15) % 30
+  const i = Math.floor(c / 4)
+  const k = c % 4
+  const l = (32 + 2 * e + 2 * i - h - k) % 7
+  const m = Math.floor((a + 11 * h + 22 * l) / 451)
+  const month = Math.floor((h + l - 7 * m + 114) / 31)
+  const day = ((h + l - 7 * m + 114) % 31) + 1
+  return toIsoDate(year, month, day)
+}
+
+// Czech public holidays on fixed dates (zákon č. 245/2000 Sb.), as MM-DD.
+const FIXED_HOLIDAYS = new Set([
+  '01-01',
+  '05-01',
+  '05-08',
+  '07-05',
+  '07-06',
+  '09-28',
+  '10-28',
+  '11-17',
+  '12-24',
+  '12-25',
+  '12-26',
+])
+
+/** A Czech public holiday: a fixed date, Good Friday or Easter Monday. */
+export function isCzechHoliday(date: IsoDate): boolean {
+  if (FIXED_HOLIDAYS.has(date.slice(5))) return true
+  const easter = easterSunday(Number(date.slice(0, 4)))
+  return date === addDays(easter, -2) || date === addDays(easter, 1)
+}
+
+/** Monday to Friday, and not a Czech public holiday. */
+export function isWorkingDay(date: IsoDate): boolean {
+  const weekday = isoDateToUtc(date).getUTCDay()
+  return weekday !== 0 && weekday !== 6 && !isCzechHoliday(date)
+}
+
 export function isoDateToUtc(date: IsoDate): Date {
   return utcDay(date).toJSDate()
 }

@@ -1,3 +1,4 @@
+import { APP_ID_PREFIX } from '@muni/domain/schemas'
 import { parseDate, type IsoDate } from '@muni/utils/dates'
 import { parseCount, parseCzk } from '@muni/utils/money'
 import { cleanFreeText, collapseWhitespace, isFormulaLike } from '@muni/utils/text'
@@ -30,6 +31,11 @@ export class RowBuilder {
 
   warn(field: string, code: IssueCode, params?: ValidationIssue['params']): void {
     this.issues.push({ field, code, severity: 'warning', ...(params && { params }) })
+  }
+
+  /** Whether the file has the column at all (a blank cell still counts). */
+  has(field: string): boolean {
+    return Object.hasOwn(this.cells, field)
   }
 
   cell(field: string): string {
@@ -136,4 +142,17 @@ export class RowBuilder {
     }
     return { data: null, issues: this.issues }
   }
+}
+
+/**
+ * A source ID, unless it carries a prefix the app gives the records it creates (S… for
+ * sessions, A… for completions): an import must never overwrite those, so the row is refused.
+ */
+export function reservedId(
+  b: RowBuilder,
+  id: string | null,
+  kind: keyof typeof APP_ID_PREFIX
+): string | null {
+  if (id?.startsWith(APP_ID_PREFIX[kind])) return b.error('externalId', 'RESERVED_ID', { raw: id })
+  return id
 }

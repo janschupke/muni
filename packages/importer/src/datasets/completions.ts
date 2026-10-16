@@ -1,7 +1,7 @@
 import { completionSchema, type CompletionInput } from '@muni/domain/schemas'
 import type { IsoDate } from '@muni/utils/dates'
 
-import type { RowBuilder } from '../fields'
+import { reservedId, type RowBuilder } from '../fields'
 import type { RowMapResult } from '../types'
 
 export function mapCompletion(
@@ -10,7 +10,7 @@ export function mapCompletion(
 ): RowMapResult<CompletionInput> {
   if (b.isSummaryRow('externalId')) return b.rejectSummary()
 
-  const externalId = b.required('externalId')?.toUpperCase() ?? null
+  const externalId = reservedId(b, b.required('externalId')?.toUpperCase() ?? null, 'completion')
   const employeeExternalId = b.required('employeeExternalId')?.toUpperCase() ?? null
   const courseCode = b.code('courseCode')
   const completedOn = b.date('completedOn', { required: true })

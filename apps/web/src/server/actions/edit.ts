@@ -6,6 +6,7 @@ import {
   updateCourse,
   updateEmployee,
   updateSession,
+  type SessionWrite,
 } from '@muni/db/repositories'
 import {
   completionCreateSchema,
@@ -17,7 +18,16 @@ import { addMonths } from '@muni/utils/dates'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { checkbox, fieldErrors, formError, list, number, text, type FormState } from '@/lib/form'
+import {
+  checkbox,
+  fieldErrors,
+  formError,
+  list,
+  number,
+  sessionProblem,
+  text,
+  type FormState,
+} from '@/lib/form'
 import { requireUser } from '@/server/auth'
 
 /** Prisma "record not found" (P2025) vs. anything else. */
@@ -71,14 +81,15 @@ export async function saveSession(
   }
   const parsed = sessionEditSchema.safeParse(input)
   if (!parsed.success) return fieldErrors(parsed.error, input)
-  let courseCode: string
+  let result: SessionWrite
   try {
-    courseCode = (await updateSession(externalId, parsed.data)).course.code
+    result = await updateSession(externalId, parsed.data)
   } catch (error) {
     return failure(error)
   }
+  if (!result.ok) return sessionProblem(result.problem)
   revalidatePath('/', 'layout')
-  redirect(`/courses/${courseCode}`)
+  redirect(`/courses/${result.courseCode}`)
 }
 
 export async function saveEmployee(

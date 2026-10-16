@@ -9,8 +9,14 @@ import type { RoomRef } from '@muni/domain/rooms'
 import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
 import { audienceInclude, requirementViews, type RequirementView } from './audience'
-import { dbOf, loadCompliance, type ComplianceSnapshot, type RepoOptions } from './context'
-import { sessionInclude, toSessionItem } from './sessions'
+import {
+  countedCells,
+  dbOf,
+  loadCompliance,
+  type ComplianceSnapshot,
+  type RepoOptions,
+} from './context'
+import { isUpcoming, sessionInclude, toSessionItem, upcomingSessionWhere } from './sessions'
 
 export type { RequirementView } from './audience'
 
@@ -45,7 +51,7 @@ export async function listCourses(options?: RepoOptions): Promise<CourseListItem
         ...audienceInclude,
         capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
         sessions: {
-          where: { endsAt: { gte: now }, status: 'PLANNED' },
+          where: upcomingSessionWhere(now),
           include: sessionInclude,
           orderBy: { startsAt: 'asc' },
         },
@@ -56,7 +62,7 @@ export async function listCourses(options?: RepoOptions): Promise<CourseListItem
     loadCompliance(options),
     db.department.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
   ])
-  const cellsByCourse = Map.groupBy(compliance.cells, c => c.courseId)
+  const cellsByCourse = Map.groupBy(countedCells(compliance), c => c.courseId)
   return courses.map(course => {
     const cells = cellsByCourse.get(course.id) ?? []
     const counts = countStatuses(cells)
@@ -81,19 +87,14 @@ export async function listCourses(options?: RepoOptions): Promise<CourseListItem
   })
 }
 
-/** A course's cells per department, active people only; departments it does not apply to drop. */
+/** A course's counted cells per department; departments it does not apply to drop. */
 function byDepartment(
   cells: ComplianceCell[],
   compliance: ComplianceSnapshot,
   departments: { id: string; name: string }[]
 ): CourseListItem['byDepartment'] {
-  const activeDepartment = new Map(
-    compliance.employees.filter(e => e.status === 'ACTIVE').map(e => [e.id, e.departmentId])
-  )
-  const grouped = Map.groupBy(
-    cells.filter(c => activeDepartment.has(c.employeeId)),
-    c => activeDepartment.get(c.employeeId)
-  )
+  const departmentOf = new Map(compliance.employees.map(e => [e.id, e.departmentId]))
+  const grouped = Map.groupBy(cells, c => departmentOf.get(c.employeeId))
   return departments.flatMap(d => {
     const own = grouped.get(d.id)
     if (!own) return []
@@ -152,18 +153,17 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     loadCompliance(options),
     db.department.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
   ])
-  const cells = compliance.cells.filter(c => c.courseId === course.id)
+  const cells = countedCells(compliance).filter(c => c.courseId === course.id)
   const counts = countStatuses(cells)
-  const now = Date.now()
+  const now = new Date()
+  const upcoming = course.sessions.filter(s => isUpcoming(s, now))
   return {
     code: course.code,
     name: course.name,
     validityMonths: course.validityMonths,
     requirements: requirementViews(course),
     completionCount: course._count.completions,
-    upcomingSessions: course.sessions.filter(
-      s => s.endsAt.getTime() >= now && s.status === 'PLANNED'
-    ).length,
+    upcomingSessions: upcoming.length,
     counts,
     rate: complianceRate(counts),
     sessionNeeds: {
@@ -172,9 +172,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
       onlineAllowed: course.onlineAllowed,
       capabilities: course.capabilities.map(c => c.capability),
     },
-    upcoming: course.sessions
-      .filter(s => s.endsAt.getTime() >= now && s.status === 'PLANNED')
-      .map(toSessionItem),
+    upcoming: upcoming.map(toSessionItem),
     byDepartment: byDepartment(cells, compliance, departments),
     sessions: course.sessions.map(toSessionItem),
     recentCompletions: course.completions.map(c => ({

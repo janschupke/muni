@@ -179,7 +179,7 @@ describe('sessions', () => {
       startTime: '07:30',
       endTime: '15:30',
     })
-    expect(byId(batch.sessions, 'T006').data?.isOnline).toBe(true)
+    expect(byId(batch.sessions, 'T006').data?.location).toBe('Online')
     expect(byId(batch.sessions, 'T017').data?.status).toBe('CANCELLED')
   })
 })
