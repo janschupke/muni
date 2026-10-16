@@ -20,7 +20,7 @@ const ENTITIES = [
 type Entity = (typeof ENTITIES)[number]
 
 /** "Page not found" naming the address, or, under a record's route, which record is missing. */
-export function NotFoundMessage({ entity }: { entity?: Entity }) {
+export function NotFoundMessage({ entity }: { entity?: Entity | undefined }) {
   const t = useTranslations('errors')
   const tn = useTranslations('nav')
   const pathname = usePathname()

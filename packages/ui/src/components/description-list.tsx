@@ -8,7 +8,7 @@ export function DescriptionList({
   className,
 }: {
   children: ReactNode
-  className?: string
+  className?: string | undefined
 }) {
   return (
     <dl className={cn('grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm', className)}>
@@ -27,7 +27,13 @@ export function DescriptionItem({ label, children }: { label: ReactNode; childre
 }
 
 /** Small labelled figures in a grid (two per row on phones, four from `sm`). */
-export function StatList({ children, className }: { children: ReactNode; className?: string }) {
+export function StatList({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string | undefined
+}) {
   return (
     <dl className={cn('grid grid-cols-2 gap-2 text-sm sm:grid-cols-4', className)}>{children}</dl>
   )

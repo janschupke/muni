@@ -28,10 +28,10 @@ beforeAll(() => {
   ) as typeof files
   batch = validateBatch(
     {
-      courses: files.courses.rows as ImportBatch['courses'],
-      employees: files.employees.rows as ImportBatch['employees'],
-      sessions: files.sessions.rows as ImportBatch['sessions'],
-      completions: files.completions.rows as ImportBatch['completions'],
+      courses: files.courses.rows as NonNullable<ImportBatch['courses']>,
+      employees: files.employees.rows as NonNullable<ImportBatch['employees']>,
+      sessions: files.sessions.rows as NonNullable<ImportBatch['sessions']>,
+      completions: files.completions.rows as NonNullable<ImportBatch['completions']>,
     },
     EMPTY_REFERENCE
   )
@@ -59,7 +59,7 @@ describe('file detection', () => {
   })
 
   it('decodes Windows-1250 names correctly', () => {
-    expect(byId(batch.completions, 'Z000001').raw.employeeName).toBe('Vacková Hana')
+    expect(byId(batch.completions, 'Z000001').raw['employeeName']).toBe('Vacková Hana')
   })
 
   it('skips blank lines, the repeated header and the comment line', () => {
@@ -186,25 +186,25 @@ describe('sessions', () => {
 
 describe('completions', () => {
   it('rejects the second copy of a duplicated record ID', () => {
-    const copies = batch.completions?.filter(r => r.raw.externalId === 'Z000052') ?? []
+    const copies = batch.completions?.filter(r => r.raw['externalId'] === 'Z000052') ?? []
     expect(copies.map(r => r.isValid)).toEqual([true, false])
     expect(copies[1]?.errors).toMatchObject([{ code: 'DUPLICATE_ID', params: { firstRow: 53 } }])
   })
 
   it('rejects unknown employees and unknown course codes', () => {
     const unknown =
-      batch.completions?.filter(r => (r.raw.employeeExternalId ?? '').startsWith('E9')) ?? []
+      batch.completions?.filter(r => (r.raw['employeeExternalId'] ?? '').startsWith('E9')) ?? []
     expect(unknown).toHaveLength(9)
     expect(unknown.every(r => codesOf(r).includes('EMPLOYEE_NOT_FOUND'))).toBe(true)
 
     const codes = batch.completions
       ?.filter(r => codesOf(r).includes('COURSE_NOT_FOUND'))
-      .map(r => r.data?.courseCode ?? (r.raw.courseCode ?? '').trim())
+      .map(r => r.data?.courseCode ?? (r.raw['courseCode'] ?? '').trim())
     expect(new Set(codes)).toEqual(new Set(['BOZP-X', 'GDPR-2', 'KYB3R']))
   })
 
   it("remaps a duplicate person's records to the survivor", () => {
-    const remapped = batch.completions?.filter(r => r.raw.employeeExternalId === 'E1000') ?? []
+    const remapped = batch.completions?.filter(r => r.raw['employeeExternalId'] === 'E1000') ?? []
     expect(remapped.length).toBeGreaterThan(0)
     for (const row of remapped) {
       expect(row.data?.employeeExternalId).toBe('E0155')
@@ -214,7 +214,7 @@ describe('completions', () => {
 
   it('normalises course code variants', () => {
     const variants = batch.completions?.filter(r =>
-      ['BOZP_Z', 'bozp-z', 'BOZP Z', ' BOZP-Z'].includes(r.raw.courseCode ?? '')
+      ['BOZP_Z', 'bozp-z', 'BOZP Z', ' BOZP-Z'].includes(r.raw['courseCode'] ?? '')
     )
     expect(variants?.length).toBeGreaterThan(0)
     expect(variants?.every(r => r.data?.courseCode === 'BOZP-Z')).toBe(true)
@@ -226,7 +226,7 @@ describe('completions', () => {
       isValid: true,
       data: { completedOn: '2019-03-28' },
     })
-    const negative = batch.completions?.filter(r => (r.raw.price ?? '').startsWith('-')) ?? []
+    const negative = batch.completions?.filter(r => (r.raw['price'] ?? '').startsWith('-')) ?? []
     expect(negative.every(r => codesOf(r).includes('NEGATIVE_PRICE'))).toBe(true)
   })
 
@@ -289,7 +289,7 @@ describe('regression baseline', () => {
 
 describe('row operations', () => {
   it('re-validates the whole batch after an inline edit', () => {
-    const index = batch.sessions?.findIndex(r => r.raw.externalId === 'T010') ?? -1
+    const index = batch.sessions?.findIndex(r => r.raw['externalId'] === 'T010') ?? -1
     const fixed = editCell(batch, 'sessions', index, 'courseCode', 'KYBER', ctx, EMPTY_REFERENCE)
     const row = fixed.sessions?.[index]
     expect(row).toMatchObject({ isValid: true, isEdited: true })
@@ -299,11 +299,11 @@ describe('row operations', () => {
   })
 
   it('removing an employee invalidates their completions', () => {
-    const index = batch.employees?.findIndex(r => r.raw.externalId === 'E0131') ?? -1
+    const index = batch.employees?.findIndex(r => r.raw['externalId'] === 'E0131') ?? -1
     const next = setRemoved(batch, 'employees', index, true, EMPTY_REFERENCE)
     const theirs =
       next.completions?.filter(
-        r => r.data?.employeeExternalId === 'E0131' || r.raw.employeeExternalId === 'E0131'
+        r => r.data?.employeeExternalId === 'E0131' || r.raw['employeeExternalId'] === 'E0131'
       ) ?? []
     expect(theirs.length).toBeGreaterThan(0)
     expect(theirs.every(r => codesOf(r).includes('EMPLOYEE_NOT_FOUND') || !r.isValid)).toBe(true)
@@ -311,7 +311,7 @@ describe('row operations', () => {
 
   it('resolves references against the database snapshot', () => {
     const completionsOnly = validateBatch(
-      { completions: files.completions.rows as ImportBatch['completions'] },
+      { completions: files.completions.rows as NonNullable<ImportBatch['completions']> },
       {
         ...EMPTY_REFERENCE,
         courses: [{ code: 'GDPR', validityMonths: 36 }],

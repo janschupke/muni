@@ -12,12 +12,12 @@ export function PageMessage({
   children,
 }: {
   title: ReactNode
-  description?: ReactNode
-  icon?: ReactNode
-  tone?: 'neutral' | 'danger'
-  actions?: ReactNode
+  description?: ReactNode | undefined
+  icon?: ReactNode | undefined
+  tone?: 'neutral' | 'danger' | undefined
+  actions?: ReactNode | undefined
   /** Extra content under the actions (a reference, a list of links). */
-  children?: ReactNode
+  children?: ReactNode | undefined
 }) {
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center py-16 text-center">

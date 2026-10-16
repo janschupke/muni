@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.base.json",
+  // The repo-root config files; every package has its own tsconfig for its sources.
+  "compilerOptions": { "allowJs": true, "checkJs": true },
+  "include": ["env.d.ts", "*.ts", "*.js"]
+}

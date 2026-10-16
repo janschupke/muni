@@ -12,7 +12,15 @@ import { SegmentedControl } from './segmented-control'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs'
 import { Tooltip } from './tooltip'
 
-function FakeLink({ href, rel, children }: { href: string; rel?: string; children: ReactNode }) {
+function FakeLink({
+  href,
+  rel,
+  children,
+}: {
+  href: string
+  rel?: string | undefined
+  children: ReactNode
+}) {
   return (
     <a href={href} rel={rel}>
       {children}
@@ -145,7 +153,7 @@ describe('theme', () => {
 
   afterEach(() => {
     localStorage.clear()
-    delete document.documentElement.dataset.theme
+    document.documentElement.removeAttribute('data-theme')
     vi.restoreAllMocks()
   })
 
@@ -159,23 +167,23 @@ describe('theme', () => {
     }
     localStorage.setItem(THEME_STORAGE_KEY, 'dark')
     boot()
-    expect(document.documentElement.dataset.theme).toBe('dark')
-    delete document.documentElement.dataset.theme
+    expect(document.documentElement.dataset['theme']).toBe('dark')
+    document.documentElement.removeAttribute('data-theme')
     localStorage.setItem(THEME_STORAGE_KEY, 'neon')
     boot()
-    expect(document.documentElement.dataset.theme).toBeUndefined()
+    expect(document.documentElement.dataset['theme']).toBeUndefined()
   })
 
   it('starts from the choice the boot script applied, and stores a new one', async () => {
     const user = userEvent.setup()
-    document.documentElement.dataset.theme = 'light'
+    document.documentElement.dataset['theme'] = 'light'
     render(<ThemeToggle labels={themeLabels} groupLabel="Motiv" />)
     expect(screen.getByRole('radio', { name: 'Světlý' }).getAttribute('aria-checked')).toBe('true')
     await user.click(screen.getByRole('radio', { name: 'Tmavý' }))
-    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(document.documentElement.dataset['theme']).toBe('dark')
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
     await user.click(screen.getByRole('radio', { name: 'Systémový' }))
-    expect(document.documentElement.dataset.theme).toBeUndefined()
+    expect(document.documentElement.dataset['theme']).toBeUndefined()
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBeNull()
   })
 
@@ -205,6 +213,6 @@ describe('theme', () => {
       'true'
     )
     await user.click(screen.getByRole('radio', { name: 'Tmavý' }))
-    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(document.documentElement.dataset['theme']).toBe('dark')
   })
 })

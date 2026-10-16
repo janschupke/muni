@@ -18,14 +18,14 @@ function subscribe(listener: () => void) {
 }
 
 function currentChoice(): ThemeChoice {
-  const theme = document.documentElement.dataset.theme
+  const theme = document.documentElement.dataset['theme']
   return theme === 'light' || theme === 'dark' ? theme : 'system'
 }
 
 function apply(choice: ThemeChoice) {
   const root = document.documentElement
-  if (choice === 'system') delete root.dataset.theme
-  else root.dataset.theme = choice
+  if (choice === 'system') root.removeAttribute('data-theme')
+  else root.dataset['theme'] = choice
   try {
     if (choice === 'system') localStorage.removeItem(THEME_STORAGE_KEY)
     else localStorage.setItem(THEME_STORAGE_KEY, choice)

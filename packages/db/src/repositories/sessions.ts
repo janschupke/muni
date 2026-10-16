@@ -74,12 +74,12 @@ export async function listSessions(
     status,
     limit,
   }: {
-    window?: SessionWindow
-    course?: string
-    room?: string
+    window?: SessionWindow | undefined
+    course?: string | undefined
+    room?: string | undefined
     /** Only sessions in this state; both by default (the lists show cancelled ones marked). */
-    status?: SessionListItem['status']
-    limit?: number
+    status?: SessionListItem['status'] | undefined
+    limit?: number | undefined
   } = {},
   options?: RepoOptions & { now?: Date }
 ): Promise<SessionListItem[]> {

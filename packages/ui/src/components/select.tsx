@@ -10,7 +10,7 @@ import { controlClass } from './field'
 export interface SelectOption {
   value: string
   label: ReactNode
-  disabled?: boolean
+  disabled?: boolean | undefined
 }
 
 // Radix reserves '' (it clears the selection), so the "none" option carries this value inside
@@ -42,20 +42,20 @@ export function Select({
   'aria-label': ariaLabel,
 }: {
   options: readonly SelectOption[]
-  value?: string
-  defaultValue?: string
-  onValueChange?: (value: string) => void
-  name?: string
-  placeholder?: ReactNode
-  emptyLabel?: ReactNode
-  disabled?: boolean
-  required?: boolean
-  id?: string
-  className?: string
-  size?: 'md' | 'sm'
-  'aria-describedby'?: string
-  'aria-invalid'?: boolean
-  'aria-label'?: string
+  value?: string | undefined
+  defaultValue?: string | undefined
+  onValueChange?: ((value: string) => void) | undefined
+  name?: string | undefined
+  placeholder?: ReactNode | undefined
+  emptyLabel?: ReactNode | undefined
+  disabled?: boolean | undefined
+  required?: boolean | undefined
+  id?: string | undefined
+  className?: string | undefined
+  size?: 'md' | 'sm' | undefined
+  'aria-describedby'?: string | undefined
+  'aria-invalid'?: boolean | undefined
+  'aria-label'?: string | undefined
 }) {
   const [uncontrolled, setUncontrolled] = useState(defaultValue)
   const current = value ?? uncontrolled
@@ -120,7 +120,7 @@ function SelectItem({
   children,
 }: {
   value: string
-  disabled?: boolean
+  disabled?: boolean | undefined
   children: ReactNode
 }) {
   return (

@@ -18,7 +18,7 @@ export function SessionDateLink({
   emphasis = false,
 }: {
   session: { externalId: string; startsAt: string; endsAt: string }
-  emphasis?: boolean
+  emphasis?: boolean | undefined
 }) {
   const locale = useLocale()
   return (

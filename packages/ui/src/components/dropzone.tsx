@@ -13,11 +13,11 @@ export function Dropzone({
   title,
   hint,
 }: {
-  accept?: string
-  multiple?: boolean
+  accept?: string | undefined
+  multiple?: boolean | undefined
   onFiles: (files: File[]) => void
   title: ReactNode
-  hint?: ReactNode
+  hint?: ReactNode | undefined
 }) {
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)

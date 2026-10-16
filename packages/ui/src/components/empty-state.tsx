@@ -10,8 +10,8 @@ export function EmptyState({
   variant = 'box',
 }: {
   title: ReactNode
-  children?: ReactNode
-  variant?: 'box' | 'inline'
+  children?: ReactNode | undefined
+  variant?: 'box' | 'inline' | undefined
 }) {
   if (variant === 'inline') return <p className="text-sm text-fg-muted">{title}</p>
   return (

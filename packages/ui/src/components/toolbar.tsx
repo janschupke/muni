@@ -11,7 +11,7 @@ export function Toolbar({
   asChild = false,
   className,
   ...props
-}: HTMLAttributes<HTMLElement> & { asChild?: boolean }) {
+}: HTMLAttributes<HTMLElement> & { asChild?: boolean | undefined }) {
   const Comp = asChild ? Slot.Root : 'div'
   return <Comp className={cn('mb-4 flex flex-wrap items-end gap-3', className)} {...props} />
 }

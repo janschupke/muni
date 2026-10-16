@@ -26,9 +26,9 @@ export function SessionTable({
 }: {
   sessions: SessionListItem[]
   canEdit: boolean
-  showCourse?: boolean
+  showCourse?: boolean | undefined
   /** Course, time and occupancy only, not sortable (dashboard). */
-  compact?: boolean
+  compact?: boolean | undefined
 }) {
   const t = useTranslations('sessions')
   const tc = useTranslations('common')

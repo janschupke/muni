@@ -8,7 +8,7 @@ export function Legend({
   className,
 }: {
   items: { key: string; label: ReactNode; swatchClassName: string }[]
-  className?: string
+  className?: string | undefined
 }) {
   return (
     <ul className={cn('flex flex-wrap gap-x-4 gap-y-1 text-xs text-fg-muted', className)}>

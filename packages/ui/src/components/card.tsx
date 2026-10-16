@@ -12,7 +12,7 @@ export function Card({
   asChild = false,
   className,
   ...props
-}: HTMLAttributes<HTMLElement> & { asChild?: boolean }) {
+}: HTMLAttributes<HTMLElement> & { asChild?: boolean | undefined }) {
   const Comp = asChild ? Slot.Root : 'section'
   return <Comp className={cn(surfaceClass, className)} {...props} />
 }
@@ -24,9 +24,9 @@ export function CardHeader({
   className,
 }: {
   title: ReactNode
-  description?: ReactNode
-  actions?: ReactNode
-  className?: string
+  description?: ReactNode | undefined
+  actions?: ReactNode | undefined
+  className?: string | undefined
 }) {
   return (
     <header className={cn('flex flex-wrap items-start justify-between gap-3 px-5 pt-4', className)}>

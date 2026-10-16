@@ -21,7 +21,10 @@ export const tabTriggerClass = cn(
 export const tabListClass =
   'scrollbar-none flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--color-border-default)]'
 
-type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & { asChild?: boolean; active?: boolean }
+type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
+  asChild?: boolean | undefined
+  active?: boolean | undefined
+}
 
 /** Tabs that are routes: each tab is a link, the current one marked `aria-current="page"`. */
 export function LinkTabs({ className, ...props }: HTMLAttributes<HTMLElement>) {

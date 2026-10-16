@@ -17,12 +17,12 @@ export function BarRow({
 }: {
   bar: ReactNode
   value: ReactNode
-  label?: ReactNode
+  label?: ReactNode | undefined
   /** Inline only: something after the value (an "Overbooked" badge). */
-  after?: ReactNode
-  layout?: 'stacked' | 'inline'
-  barClassName?: string
-  className?: string
+  after?: ReactNode | undefined
+  layout?: 'stacked' | 'inline' | undefined
+  barClassName?: string | undefined
+  className?: string | undefined
 }) {
   if (layout === 'inline') {
     return (

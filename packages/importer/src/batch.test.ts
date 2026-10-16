@@ -35,15 +35,15 @@ const EMPLOYEES = [
 
 function parsed(): ImportBatch {
   return {
-    courses: file('katalog.csv', COURSES).rows as ImportBatch['courses'],
-    employees: file('zamestnanci.csv', EMPLOYEES).rows as ImportBatch['employees'],
+    courses: file('katalog.csv', COURSES).rows as NonNullable<ImportBatch['courses']>,
+    employees: file('zamestnanci.csv', EMPLOYEES).rows as NonNullable<ImportBatch['employees']>,
     sessions: file('terminy.csv', [
       'id_terminu;kod_skoleni;datum;cas;misto;kapacita;obsazeno',
       'T001;BOZP-Z;2026-11-04;08:00-11:00;Aula A;30;12',
       'T001;BOZP-Z;2026-11-05;08:00-11:00;Aula A;30;12',
       'T002;BOZP-Z;2026-11-04;08:00-11:00;aula a;30;0',
       'T003;KYB3R;2026-11-04;08:00-11:00;Aula B;30;0',
-    ]).rows as ImportBatch['sessions'],
+    ]).rows as NonNullable<ImportBatch['sessions']>,
     completions: file('absolvovana.csv', [
       'id_zaznamu;id_zamestnance;zamestnanec;kod_skoleni;datum_absolvovani;platnost_do;poskytovatel',
       'Z000001;E0001;Černá Marie;BOZP-Z;2024-11-05;;Bezpečná firma s.r.o.',
@@ -53,7 +53,7 @@ function parsed(): ImportBatch {
       'Z000005;E0001;;KYB3R;2024-11-05;;',
       'Z000001;E0001;;ANGL;2024-11-05;;',
       'Z000006;E0500;Šimková Eva;GDPR;2024-11-05;;',
-    ]).rows as ImportBatch['completions'],
+    ]).rows as NonNullable<ImportBatch['completions']>,
   }
 }
 
@@ -107,9 +107,11 @@ describe('parseFile', () => {
 describe('validateBatch', () => {
   const batch = validateBatch(parsed(), reference)
   const course = (code: string) =>
-    batch.courses?.find(r => r.data?.code === code || r.raw.code === code)
+    batch.courses?.find(r => r.data?.code === code || r.raw['code'] === code)
   const row = (kind: 'employees' | 'sessions' | 'completions', id: string, n = 0) =>
-    batch[kind]?.filter(r => (r.raw.externalId ?? r.raw.id_zaznamu) === id)[n] as ParsedRow<unknown>
+    batch[kind]?.filter(r => (r.raw['externalId'] ?? r.raw['id_zaznamu']) === id)[
+      n
+    ] as ParsedRow<unknown>
 
   it('warns about requirement targets nobody belongs to, and unifies spellings', () => {
     expect(codesOf(course('LAB-BEZ'))).toEqual(['requiredFor:UNKNOWN_DEPARTMENT'])
@@ -173,7 +175,7 @@ describe('validateBatch', () => {
         employees: file('zamestnanci.csv', [
           EMPLOYEES[0] ?? '',
           'E0900,Eva,Šimková,eva.simkova@vzorova.example,Archiv,Archivářka,,2022-01-01,aktivní',
-        ]).rows as ImportBatch['employees'],
+        ]).rows as NonNullable<ImportBatch['employees']>,
       },
       reference
     )
@@ -190,7 +192,7 @@ describe('row operations', () => {
     expect(edited.sessions?.[3]).toMatchObject({ isEdited: true, isValid: true })
     const reverted = revertRow(edited, 'sessions', 3, ctx, reference)
     expect(reverted.sessions?.[3]).toMatchObject({ isEdited: false, isValid: false })
-    expect(reverted.sessions?.[3]?.raw.courseCode).toBe('KYB3R')
+    expect(reverted.sessions?.[3]?.raw['courseCode']).toBe('KYB3R')
   })
 
   it('an edit back to the original value is no longer an edit', () => {
@@ -280,8 +282,9 @@ describe('rooms', () => {
   it('keeps the spelling of a room the register already has', () => {
     const batch = validateBatch(
       {
-        rooms: file('mistnosti.csv', ['nazev;kapacita', 'UCEBNA 1;42'])
-          .rows as ImportBatch['rooms'],
+        rooms: file('mistnosti.csv', ['nazev;kapacita', 'UCEBNA 1;42']).rows as NonNullable<
+          ImportBatch['rooms']
+        >,
       },
       { ...EMPTY_REFERENCE, rooms: ['Učebna 1'] }
     )
@@ -292,12 +295,12 @@ describe('rooms', () => {
   it('rejects a second room of the same name, and lets sessions use the listed rooms', () => {
     const batch = validateBatch(
       {
-        rooms: file('mistnosti.csv', ROOMS).rows as ImportBatch['rooms'],
-        courses: file('katalog.csv', COURSES).rows as ImportBatch['courses'],
+        rooms: file('mistnosti.csv', ROOMS).rows as NonNullable<ImportBatch['rooms']>,
+        courses: file('katalog.csv', COURSES).rows as NonNullable<ImportBatch['courses']>,
         sessions: file('terminy.csv', [
           'id_terminu;kod_skoleni;datum;cas;misto;kapacita',
           'T100;LAB-BEZ;2026-11-04;08:00-11:00;LABORATOŘ 3;12',
-        ]).rows as ImportBatch['sessions'],
+        ]).rows as NonNullable<ImportBatch['sessions']>,
       },
       EMPTY_REFERENCE
     )

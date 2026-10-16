@@ -1,9 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { baseUrlOf } from './support/server'
+
 const setLocale = (page: Page, locale: 'cs' | 'en') =>
   page
     .context()
-    .addCookies([{ name: 'NEXT_LOCALE', value: locale, url: test.info().project.use.baseURL }])
+    .addCookies([
+      { name: 'NEXT_LOCALE', value: locale, url: baseUrlOf(test.info().project.use.baseURL) },
+    ])
 
 test.describe('Czech browser', () => {
   test.use({ locale: 'cs-CZ' })
@@ -377,7 +381,7 @@ test.describe('public register (signed out)', () => {
     await page.keyboard.up('ArrowRight')
     await expect(page.getByRole('radio', { name: 'Dark' })).toBeFocused()
     await expect(page.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true')
-    expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark')
+    expect(await page.evaluate(() => document.documentElement.dataset['theme'])).toBe('dark')
   })
 
   test('dark theme persists without a flash', async ({ page }) => {
@@ -386,7 +390,7 @@ test.describe('public register (signed out)', () => {
     await page.getByRole('radio', { name: 'Dark' }).click()
     await page.reload()
     // The boot script sets data-theme before first paint; read it from the first response's DOM.
-    expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark')
+    expect(await page.evaluate(() => document.documentElement.dataset['theme'])).toBe('dark')
     const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
     expect(bg).toBe('rgb(13, 13, 13)')
   })

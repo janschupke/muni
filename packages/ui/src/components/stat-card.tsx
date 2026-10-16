@@ -15,16 +15,16 @@ const toneBar = {
 export interface StatCardProps {
   label: ReactNode
   value: ReactNode
-  hint?: ReactNode
-  tone?: keyof typeof toneBar
+  hint?: ReactNode | undefined
+  tone?: keyof typeof toneBar | undefined
   /** A toggle button (used as a filter). */
-  onClick?: () => void
-  pressed?: boolean
+  onClick?: (() => void) | undefined
+  pressed?: boolean | undefined
   /** Makes the card a link to what it counts (the filtered list behind the number). */
-  href?: string
+  href?: string | undefined
   /** The link component for `href`, e.g. Next's `Link`; ui never imports Next. */
-  linkAs?: ComponentType<{ href: string; className?: string; children: ReactNode }>
-  className?: string
+  linkAs?: ComponentType<{ href: string; className?: string; children: ReactNode }> | undefined
+  className?: string | undefined
 }
 
 const interactive =

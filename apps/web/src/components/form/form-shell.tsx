@@ -65,9 +65,9 @@ function useFieldError(name: string): string | undefined {
 type BaseProps = {
   name: string
   label: string
-  help?: string
-  required?: boolean
-  className?: string
+  help?: string | undefined
+  required?: boolean | undefined
+  className?: string | undefined
 }
 
 export function TextField({
@@ -91,7 +91,7 @@ export function TextAreaField({
   label,
   help,
   defaultValue,
-}: BaseProps & { defaultValue?: string }) {
+}: BaseProps & { defaultValue?: string | undefined }) {
   const error = useFieldError(name)
   return (
     <Field label={label} help={help} error={error}>
@@ -109,9 +109,9 @@ export function SelectField({
   options,
   allowEmpty,
 }: BaseProps & {
-  defaultValue?: string
+  defaultValue?: string | undefined
   options: { value: string; label: string }[]
-  allowEmpty?: boolean
+  allowEmpty?: boolean | undefined
 }) {
   const error = useFieldError(name)
   const t = useTranslations('common')
@@ -141,7 +141,7 @@ export function CheckboxGroupField({
 }: {
   name: string
   label: string
-  help?: string
+  help?: string | undefined
   options: readonly { value: string; label: string }[]
   defaultValue: readonly string[]
 }) {
@@ -177,7 +177,7 @@ export function CheckboxField({
 }: {
   name: string
   label: string
-  defaultChecked?: boolean
+  defaultChecked?: boolean | undefined
 }) {
   return <Checkbox name={name} label={label} defaultChecked={defaultChecked} />
 }

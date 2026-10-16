@@ -44,7 +44,7 @@ export function HeatCell({
   /** What the cell stands for, shown on hover (and on focus for a button). */
   tooltip: string
   children: ReactNode
-  className?: string
+  className?: string | undefined
 } & Omit<ComponentProps<'button'>, 'title' | 'children' | 'className'>) {
   const classes = cn(cellClass, band === null ? 'text-fg-subtle' : BAND_CLASS[band], className)
   return (

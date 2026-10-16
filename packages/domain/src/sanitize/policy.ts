@@ -86,7 +86,10 @@ export function loadPolicy(overrideJson?: string | null): SanitizePolicy {
     }
     for (const [field, rules] of Object.entries(parsed.data)) {
       const key = field as SensitiveField
-      merged[key] = { ...merged[key], ...rules }
+      merged[key] = {
+        anonymous: rules.anonymous ?? merged[key].anonymous,
+        authenticated: rules.authenticated ?? merged[key].authenticated,
+      }
     }
   }
 

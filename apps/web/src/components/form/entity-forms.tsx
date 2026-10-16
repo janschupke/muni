@@ -99,7 +99,7 @@ export function SessionForm({
   cancelHref: string
   rooms: readonly { id: string; name: string }[]
   /** A new session starts empty: no other bookings to state. */
-  mode?: 'edit' | 'create'
+  mode?: 'edit' | 'create' | undefined
   defaults: {
     date: string
     startTime: string

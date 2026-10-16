@@ -33,7 +33,7 @@ export function EmployeesTable({
 }: {
   items: EmployeeListItem[]
   /** A column every row shares, left out: the department on a department's page. */
-  omit?: 'department' | 'position'
+  omit?: 'department' | 'position' | undefined
   /** The list page's filters: sorting rewrites the URL. Without them the table sorts itself. */
   query?: Record<string, string | undefined>
   sort?: { by: string; desc: boolean } | undefined

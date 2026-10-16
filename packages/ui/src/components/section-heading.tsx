@@ -11,9 +11,9 @@ export function SectionHeading({
 }: {
   children: ReactNode
   /** A line under the heading saying what the section shows. */
-  description?: ReactNode
-  actions?: ReactNode
-  className?: string
+  description?: ReactNode | undefined
+  actions?: ReactNode | undefined
+  className?: string | undefined
 }) {
   return (
     <div className={cn('mt-8 mb-3 flex flex-wrap items-end justify-between gap-2', className)}>

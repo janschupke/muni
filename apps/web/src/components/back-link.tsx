@@ -69,12 +69,12 @@ function Arrow({
 }: {
   href: string
   label: string
-  onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void
+  onClick?: ((event: React.MouseEvent<HTMLAnchorElement>) => void) | undefined
 }) {
   const t = useTranslations('back')
   return (
     <TextLink asChild tone="muted" className="inline-flex items-center gap-1">
-      <Link href={href} onClick={onClick} aria-label={t('to', { page: label })}>
+      <Link href={href} {...(onClick && { onClick })} aria-label={t('to', { page: label })}>
         <ArrowLeft aria-hidden className="size-3.5" />
         {label}
       </Link>

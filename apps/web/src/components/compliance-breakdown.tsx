@@ -23,7 +23,7 @@ export function ComplianceBar({ counts, label }: { counts: ComplianceCounts; lab
 }
 
 /** Legend for every chart that uses the compliance colours. */
-export function ComplianceLegend({ className }: { className?: string }) {
+export function ComplianceLegend({ className }: { className?: string | undefined }) {
   const t = useTranslations('status.compliance')
   return (
     <Legend

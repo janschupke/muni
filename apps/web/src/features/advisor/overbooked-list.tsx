@@ -23,7 +23,7 @@ export function OverbookedList({
 }: {
   overbooked: OverbookedSession[]
   /** Signed-in only: applies all moves proposed for one session. */
-  onMove?: (item: OverbookedSession) => void
+  onMove?: ((item: OverbookedSession) => void) | undefined
   pending: boolean
 }) {
   const t = useTranslations('advisor.overbooked')

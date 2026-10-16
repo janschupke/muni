@@ -18,7 +18,7 @@ export function IconButton({
   ...props
 }: Omit<ComponentProps<typeof Button>, 'aria-label' | 'title'> & {
   label: string
-  side?: 'top' | 'right' | 'bottom' | 'left'
+  side?: 'top' | 'right' | 'bottom' | 'left' | undefined
 }) {
   return (
     <Tooltip content={label} side={side}>

@@ -4,7 +4,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { cn } from '../cn'
 import { Button } from './button'
 
-type LinkComponent = ComponentType<{ href: string; children: ReactNode; rel?: string }>
+type LinkComponent = ComponentType<{ href: string; children: ReactNode; rel?: string | undefined }>
 
 interface PaginationLabels {
   /** Accessible name of the navigation landmark. */
@@ -33,11 +33,11 @@ export function Pagination({
   pageCount: number
   labels: PaginationLabels
   /** Link mode: where each page lives, rendered with `linkAs`. */
-  hrefFor?: (page: number) => string
-  linkAs?: LinkComponent
+  hrefFor?: ((page: number) => string) | undefined
+  linkAs?: LinkComponent | undefined
   /** Button mode. */
-  onPageChange?: (page: number) => void
-  className?: string
+  onPageChange?: ((page: number) => void) | undefined
+  className?: string | undefined
 }) {
   if (pageCount <= 1) return null
 

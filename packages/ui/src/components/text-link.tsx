@@ -27,9 +27,9 @@ export function TextLink({
   className,
   ...props
 }: AnchorHTMLAttributes<HTMLAnchorElement> & {
-  asChild?: boolean
-  emphasis?: boolean
-  tone?: keyof typeof TONE
+  asChild?: boolean | undefined
+  emphasis?: boolean | undefined
+  tone?: keyof typeof TONE | undefined
 }) {
   const Comp = asChild ? Slot.Root : 'a'
   return (

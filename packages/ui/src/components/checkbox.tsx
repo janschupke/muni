@@ -18,13 +18,13 @@ export function Checkbox({
   disabled,
 }: {
   label: ReactNode
-  name?: string
+  name?: string | undefined
   /** Posted when checked (default `on`); a group posts one value per checked box. */
-  value?: string
-  defaultChecked?: boolean
-  checked?: boolean
-  onCheckedChange?: (checked: boolean) => void
-  disabled?: boolean
+  value?: string | undefined
+  defaultChecked?: boolean | undefined
+  checked?: boolean | undefined
+  onCheckedChange?: ((checked: boolean) => void) | undefined
+  disabled?: boolean | undefined
 }) {
   const id = useId()
   return (

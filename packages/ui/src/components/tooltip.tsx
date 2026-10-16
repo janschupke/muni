@@ -18,7 +18,7 @@ export function Tooltip({
 }: {
   content: ReactNode
   children: ReactNode
-  side?: 'top' | 'right' | 'bottom' | 'left'
+  side?: 'top' | 'right' | 'bottom' | 'left' | undefined
 }) {
   return (
     <TooltipPrimitive.Root>

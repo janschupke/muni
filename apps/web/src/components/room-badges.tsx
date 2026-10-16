@@ -53,7 +53,7 @@ export function CapabilityList({
   empty,
 }: {
   capabilities: readonly Capability[]
-  empty?: string
+  empty?: string | undefined
 }) {
   const t = useTranslations('status.capability')
   if (capabilities.length === 0)

@@ -38,7 +38,7 @@ export function ActionTable({
   cost: number
   asOf: string
   /** Signed-in only: saves proposals as bookings. */
-  onSave?: (items: ProposedItem[]) => void
+  onSave?: ((items: ProposedItem[]) => void) | undefined
   pending: boolean
 }) {
   const t = useTranslations('advisor')

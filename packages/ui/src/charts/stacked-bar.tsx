@@ -22,7 +22,7 @@ export function StackedBar({
 }: {
   segments: StackedSegment[]
   label: string
-  className?: string
+  className?: string | undefined
 }) {
   const total = segments.reduce((sum, s) => sum + s.value, 0)
   const visible = segments.filter(s => s.value > 0)

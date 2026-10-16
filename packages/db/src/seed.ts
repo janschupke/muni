@@ -13,6 +13,7 @@ import {
   parseFile,
   summarize,
   validateBatch,
+  type DatasetKind,
   type ImportBatch,
   type ParsedRow,
 } from '@muni/importer'
@@ -40,7 +41,9 @@ export async function seedFromDirectory(db: Db, dir: string, today = todayIn()) 
   }
 
   const validated = validateBatch(batch, await loadReferenceSnapshot(db))
-  const results: Record<string, { created: number; updated: number; skipped: number }> = {}
+  const results: Partial<
+    Record<DatasetKind, { created: number; updated: number; skipped: number }>
+  > = {}
   for (const kind of COMMIT_ORDER) {
     const rows = (validated[kind] ?? []) as ParsedRow<unknown>[]
     if (rows.length === 0) continue

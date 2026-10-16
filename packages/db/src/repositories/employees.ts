@@ -83,20 +83,20 @@ export function employeeRecord(
 }
 
 export interface EmployeeFilters {
-  q?: string
+  q?: string | undefined
   /** Department name (the list's URL filter). */
-  department?: string
+  department?: string | undefined
   /** Position name. */
-  position?: string
+  position?: string | undefined
   /** Direct reports of this person (external ID); people who left are not reports. */
-  manager?: string
-  status?: EmploymentStatus
+  manager?: string | undefined
+  status?: EmploymentStatus | undefined
   /** People with at least one required training in this state. */
-  compliance?: ComplianceStatus
+  compliance?: ComplianceStatus | undefined
   /** Defaults to name, ascending. */
-  sort?: { by: EmployeeSortKey; desc: boolean }
-  page?: number
-  pageSize?: number
+  sort?: { by: EmployeeSortKey; desc: boolean } | undefined
+  page?: number | undefined
+  pageSize?: number | undefined
 }
 
 export interface Page<T> {

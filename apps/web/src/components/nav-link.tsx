@@ -26,8 +26,8 @@ export function NavLink({
   href: string
   icon: ReactNode
   label: string
-  collapsed?: boolean
-  onNavigate?: () => void
+  collapsed?: boolean | undefined
+  onNavigate?: (() => void) | undefined
 }) {
   const pathname = usePathname()
   const link = (
@@ -36,7 +36,12 @@ export function NavLink({
       active={isActive(href, pathname)}
       className={cn('w-full', collapsed ? 'justify-center px-0' : 'justify-start')}
     >
-      <Link href={href} onClick={onNavigate} aria-label={collapsed ? label : undefined}>
+      <Link
+        href={href}
+        // Next's Link types `onClick` without `undefined`: pass it only when there is one.
+        {...(onNavigate && { onClick: onNavigate })}
+        aria-label={collapsed ? label : undefined}
+      >
         {icon}
         {!collapsed && label}
       </Link>

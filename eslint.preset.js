@@ -13,6 +13,10 @@ const IGNORES = [
   '**/*.d.ts',
 ]
 
+/**
+ * @param {string} tsconfigRootDir
+ * @returns {import('typescript-eslint').ConfigWithExtends[]}
+ */
 const base = tsconfigRootDir => [
   { ignores: IGNORES },
   js.configs.recommended,
@@ -37,14 +41,21 @@ const base = tsconfigRootDir => [
   },
 ]
 
-/** Node-only packages (no JSX). */
+/**
+ * Node-only packages (no JSX).
+ * @param {string} tsconfigRootDir
+ */
 export function node(tsconfigRootDir) {
   return tseslint.config(...base(tsconfigRootDir), {
     languageOptions: { globals: { ...globals.node } },
   })
 }
 
-/** React packages. Pass { next: true } for the Next app. */
+/**
+ * React packages. Pass { next: true } for the Next app.
+ * @param {string} tsconfigRootDir
+ * @param {{ next?: boolean }} [options]
+ */
 export function react(tsconfigRootDir, { next = false } = {}) {
   return tseslint.config(
     ...base(tsconfigRootDir),

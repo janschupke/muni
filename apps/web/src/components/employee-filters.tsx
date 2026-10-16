@@ -65,10 +65,10 @@ export function EmployeeFilters({
               <Input
                 {...control}
                 // Remount when the URL's query changes (reset, back) so the field follows it.
-                key={query.q ?? ''}
+                key={query['q'] ?? ''}
                 type="search"
                 name="q"
-                defaultValue={query.q}
+                defaultValue={query['q']}
                 placeholder={t('searchPlaceholder')}
                 className="pl-8"
               />
@@ -79,7 +79,7 @@ export function EmployeeFilters({
           {control => (
             <Select
               {...control}
-              value={query.department ?? ''}
+              value={query['department'] ?? ''}
               onValueChange={department => {
                 apply({ department })
               }}
@@ -92,7 +92,7 @@ export function EmployeeFilters({
           {control => (
             <Select
               {...control}
-              value={query.position ?? ''}
+              value={query['position'] ?? ''}
               onValueChange={position => {
                 apply({ position })
               }}
@@ -105,7 +105,7 @@ export function EmployeeFilters({
           {control => (
             <Select
               {...control}
-              value={query.status ?? ''}
+              value={query['status'] ?? ''}
               onValueChange={status => {
                 apply({ status })
               }}
@@ -118,7 +118,7 @@ export function EmployeeFilters({
           {control => (
             <Select
               {...control}
-              value={query.compliance ?? ''}
+              value={query['compliance'] ?? ''}
               onValueChange={compliance => {
                 apply({ compliance })
               }}

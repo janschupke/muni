@@ -16,7 +16,7 @@ export function Table({
   className,
   density = 'default',
   ...props
-}: HTMLAttributes<HTMLTableElement> & { density?: 'default' | 'compact' }) {
+}: HTMLAttributes<HTMLTableElement> & { density?: 'default' | 'compact' | undefined }) {
   return (
     <table
       className={cn(
@@ -49,10 +49,10 @@ export function Tr({ className, ...props }: HTMLAttributes<HTMLTableRowElement>)
 
 export interface CellLayout {
   /** `right` also switches to tabular figures, for numbers and amounts. */
-  align?: 'left' | 'right'
-  nowrap?: boolean
+  align?: 'left' | 'right' | undefined
+  nowrap?: boolean | undefined
   /** Pins the column while the table scrolls sideways. */
-  sticky?: 'left' | 'right'
+  sticky?: 'left' | 'right' | undefined
 }
 
 function cellLayout({ align, nowrap, sticky }: CellLayout) {
@@ -108,7 +108,7 @@ export function Td({
 }
 
 /** A cell's primary content with a quieter line under it (`Name` / `E0001`). */
-export function CellStack({ title, meta }: { title: ReactNode; meta?: ReactNode }) {
+export function CellStack({ title, meta }: { title: ReactNode; meta?: ReactNode | undefined }) {
   return (
     <div className="min-w-0">
       {title}

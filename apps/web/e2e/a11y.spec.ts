@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 
 import { pathOf, PUBLIC_PAGES } from './support/pages'
+import { baseUrlOf } from './support/server'
 
 // WCAG 2.2 A/AA plus axe's best practices; any violation fails.
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']
@@ -24,7 +25,9 @@ test.use({ reducedMotion: 'reduce' })
 for (const theme of ['light', 'dark'] as const) {
   test.describe(`accessibility, ${theme} theme`, () => {
     test.beforeEach(async ({ page, baseURL }) => {
-      await page.context().addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: baseURL }])
+      await page
+        .context()
+        .addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: baseUrlOf(baseURL) }])
       await page.addInitScript(value => {
         localStorage.setItem('muni.theme', value)
       }, theme)

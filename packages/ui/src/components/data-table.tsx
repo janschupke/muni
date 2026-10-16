@@ -26,8 +26,8 @@ import { Table, TableContainer, TBody, Td, Th, THead, Tr, type CellLayout } from
 
 /** Per-column layout, read by the renderer. */
 interface DataColumnMeta extends CellLayout {
-  headerClassName?: string
-  className?: string
+  headerClassName?: string | undefined
+  className?: string | undefined
 }
 
 // Czech data in either UI language: collate as Czech (č after c, ch after h), numbers naturally.
@@ -101,16 +101,16 @@ export function DataTable<TData extends RowData>({
   columns: Columns<TData>
   data: TData[]
   getRowId: (row: TData) => string
-  initialSorting?: SortingState
+  initialSorting?: SortingState | undefined
   /** Controlled sorting; with `manualSorting` the caller sorts `data` (e.g. on the server). */
-  sorting?: SortingState
-  onSortingChange?: (sorting: SortingState) => void
-  manualSorting?: boolean
-  enableSorting?: boolean
+  sorting?: SortingState | undefined
+  onSortingChange?: ((sorting: SortingState) => void) | undefined
+  manualSorting?: boolean | undefined
+  enableSorting?: boolean | undefined
   /** Paginates in the browser, after sorting. Omit to show every row. */
-  pageSize?: number
-  pagination?: PaginationState
-  onPaginationChange?: (pagination: PaginationState) => void
+  pageSize?: number | undefined
+  pagination?: PaginationState | undefined
+  onPaginationChange?: ((pagination: PaginationState) => void) | undefined
   paginationLabels?: {
     nav: string
     previous: string
@@ -119,18 +119,18 @@ export function DataTable<TData extends RowData>({
   }
   rowClassName?: (row: TData) => string | undefined
   cellClassName?: (row: TData, columnId: string) => string | undefined
-  density?: 'default' | 'compact'
-  className?: string
-  containerClassName?: string
+  density?: 'default' | 'compact' | undefined
+  className?: string | undefined
+  containerClassName?: string | undefined
   /** Accessible table name, visually hidden. */
-  caption?: string
+  caption?: string | undefined
   /** A detail panel under the row, toggled by a disclosure button in a leading column. */
-  renderExpanded?: (row: TData) => ReactNode
-  getRowCanExpand?: (row: TData) => boolean
+  renderExpanded?: ((row: TData) => ReactNode) | undefined
+  getRowCanExpand?: ((row: TData) => boolean) | undefined
   /** Accessible name of each row's disclosure button ("Details: Novák Jan"). */
-  expandLabel?: (row: TData) => string
+  expandLabel?: ((row: TData) => string) | undefined
   /** Visually hidden header of the disclosure column ("Details"). */
-  expandHeader?: string
+  expandHeader?: string | undefined
 }) {
   const [innerSorting, setInnerSorting] = useState<SortingState>(initialSorting)
   const [innerPagination, setInnerPagination] = useState<PaginationState>({

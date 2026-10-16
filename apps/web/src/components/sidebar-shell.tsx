@@ -53,8 +53,8 @@ function Nav({
 }: {
   groups: NavGroup[]
   label: string
-  collapsed?: boolean
-  onNavigate?: () => void
+  collapsed?: boolean | undefined
+  onNavigate?: (() => void) | undefined
 }) {
   return (
     <nav aria-label={label} className="flex flex-col gap-4 px-3 py-4">

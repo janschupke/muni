@@ -36,7 +36,7 @@ describe('StatCard', () => {
     )
     const link = screen.getByRole('link', { name: /Expired\s*12\s*9 people/ })
     expect(link.getAttribute('href')).toBe('/employees?compliance=EXPIRED')
-    expect(link.dataset.router).toBe('yes')
+    expect(link.dataset['router']).toBe('yes')
   })
 
   it('is a toggle button when it filters, and plain otherwise', () => {

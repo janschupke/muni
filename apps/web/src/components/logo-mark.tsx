@@ -4,7 +4,7 @@ import { cn } from '@muni/ui/cn'
  * The app's logo: a graduation cap on a rounded accent square. `app/icon.svg` (the favicon)
  * draws the same mark in fixed colours; here it follows the theme's accent.
  */
-export function LogoMark({ className }: { className?: string }) {
+export function LogoMark({ className }: { className?: string | undefined }) {
   return (
     <svg viewBox="0 0 32 32" aria-hidden className={cn('size-7 shrink-0', className)}>
       <rect width="32" height="32" rx="7" className="fill-accent" />

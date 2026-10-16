@@ -26,16 +26,16 @@ export function Field({
   className,
 }: {
   label: ReactNode
-  help?: ReactNode
-  error?: ReactNode
-  required?: boolean
+  help?: ReactNode | undefined
+  error?: ReactNode | undefined
+  required?: boolean | undefined
   children: (props: {
     id: string
-    'aria-describedby'?: string
-    'aria-invalid'?: boolean
-    required?: boolean
+    'aria-describedby'?: string | undefined
+    'aria-invalid'?: boolean | undefined
+    required?: boolean | undefined
   }) => ReactNode
-  className?: string
+  className?: string | undefined
 }) {
   const id = useId()
   const helpId = `${id}-help`

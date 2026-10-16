@@ -450,7 +450,6 @@ export async function commitChunk(
       case 'completions':
         return writeCompletions(tx, records as CompletionInput[])
     }
-    throw new Error(`Unknown dataset ${String(kind)}`)
   }, TX_OPTIONS)
 }
 

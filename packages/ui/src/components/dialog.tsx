@@ -25,10 +25,10 @@ export function Dialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   title: ReactNode
-  description?: ReactNode
+  description?: ReactNode | undefined
   closeLabel: string
-  returnFocusTo?: () => HTMLElement | null | undefined
-  className?: string
+  returnFocusTo?: (() => HTMLElement | null | undefined) | undefined
+  className?: string | undefined
   children: ReactNode
 }) {
   return (

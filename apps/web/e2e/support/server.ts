@@ -7,7 +7,7 @@ const TEST_DB = 'postgresql://muni:muni@localhost:5439/muni_test'
  * The production build (`next build` first) on the test database, signed out: no Clerk keys,
  * so the public read-only register.
  */
-export function productionServer(port: number): PlaywrightTestConfig['webServer'] {
+export function productionServer(port: number): NonNullable<PlaywrightTestConfig['webServer']> {
   return {
     command: `next start --port ${String(port)}`,
     url: `http://localhost:${String(port)}`,
@@ -19,4 +19,10 @@ export function productionServer(port: number): PlaywrightTestConfig['webServer'
       CLERK_SECRET_KEY: '',
     },
   }
+}
+
+/** The configured base URL; every project sets one, so a missing one is a config error. */
+export function baseUrlOf(url: string | undefined): string {
+  if (!url) throw new Error('playwright: use.baseURL is not set')
+  return url
 }

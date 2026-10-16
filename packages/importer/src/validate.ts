@@ -314,7 +314,7 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
       )
     } else {
       const expected = nameById.get(data.employeeExternalId)
-      const given = row.raw.employeeName?.trim() ?? ''
+      const given = row.raw['employeeName']?.trim() ?? ''
       if (expected && given !== '' && !sameName(given, expected)) {
         extra.push(
           issue('employeeName', 'NAME_MISMATCH', 'warning', { raw: given, value: expected })

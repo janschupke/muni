@@ -50,11 +50,11 @@ export function Alert({
   className,
 }: {
   tone: AlertTone
-  variant?: 'box' | 'inline'
-  title?: ReactNode
-  children?: ReactNode
-  role?: 'alert' | 'status' | 'none'
-  className?: string
+  variant?: 'box' | 'inline' | undefined
+  title?: ReactNode | undefined
+  children?: ReactNode | undefined
+  role?: 'alert' | 'status' | 'none' | undefined
+  className?: string | undefined
 }) {
   const Icon = ICONS[tone]
   return (

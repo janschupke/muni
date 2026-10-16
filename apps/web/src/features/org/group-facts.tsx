@@ -20,7 +20,7 @@ export function GroupFacts({
     counts: { VALID: number; EXPIRING: number; EXPIRED: number; MISSING: number; total: number }
     rate: number
   }
-  children?: ReactNode
+  children?: ReactNode | undefined
 }) {
   const t = useTranslations('org.columns')
   const td = useTranslations('org.detail')

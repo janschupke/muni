@@ -7,9 +7,9 @@ export function PageHeader({
   actions,
 }: {
   title: ReactNode
-  description?: ReactNode
-  eyebrow?: ReactNode
-  actions?: ReactNode
+  description?: ReactNode | undefined
+  eyebrow?: ReactNode | undefined
+  actions?: ReactNode | undefined
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">

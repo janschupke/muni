@@ -11,7 +11,7 @@ export interface SegmentedItem<T extends string> {
   /** Accessible name; also the tooltip when `content` is an icon. */
   label: string
   /** What the segment shows; defaults to `label`. */
-  content?: ReactNode
+  content?: ReactNode | undefined
 }
 
 /**
@@ -31,8 +31,8 @@ export function SegmentedControl<T extends string>({
   items: readonly SegmentedItem<T>[]
   /** Accessible name of the group. */
   label: string
-  disabled?: boolean
-  className?: string
+  disabled?: boolean | undefined
+  className?: string | undefined
 }) {
   return (
     <RadioGroup.Root

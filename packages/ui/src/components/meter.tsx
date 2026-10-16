@@ -31,9 +31,9 @@ export function Meter({
   value: number
   max: number
   label: string
-  size?: keyof typeof SIZE
-  tone?: MeterTone
-  className?: string
+  size?: keyof typeof SIZE | undefined
+  tone?: MeterTone | undefined
+  className?: string | undefined
 }) {
   const ratio = max > 0 ? value / max : value > 0 ? Infinity : 0
   const over = ratio > 1
