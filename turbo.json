@@ -40,6 +40,11 @@
       "dependsOn": ["@muni/db#generate"],
       "outputs": []
     },
+    "test:coverage": {
+      "dependsOn": ["@muni/db#generate"],
+      "outputs": ["coverage/**"],
+      "cache": false
+    },
     "dev": {
       "dependsOn": ["@muni/db#generate"],
       "cache": false,

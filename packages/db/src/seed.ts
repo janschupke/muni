@@ -2,9 +2,7 @@
  * Seeds the database from the CSV exports in /data, through the same importer and writer
  * the web import wizard uses. Errors skip the row, warnings import it with the fix applied;
  * both are summarised per code. Safe to run repeatedly (upsert by source ID).
- *
- *   pnpm db:seed               # ../../data
- *   pnpm db:seed -- <dir>      # another export directory
+ * The command line is `scripts/seed.ts`.
  */
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -20,7 +18,7 @@ import {
 } from '@muni/importer'
 import { todayIn } from '@muni/utils/dates'
 
-import { createDb, type Db } from './client'
+import type { Db } from './client'
 import { loadReferenceSnapshot } from './reference'
 import { chunk, commitChunk } from './writer'
 
@@ -69,18 +67,4 @@ export async function seedFromDirectory(db: Db, dir: string, today = todayIn()) 
     for (const [key, count] of [...codes].sort()) log(`  ${key}: ${count}`)
   }
   return results
-}
-
-const isMain =
-  process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename)
-if (isMain) {
-  const dir = path.resolve(process.argv[2] ?? path.join(import.meta.dirname, '../../../data'))
-  const db = createDb()
-  seedFromDirectory(db, dir)
-    .then(() => db.$disconnect())
-    .catch(async (error: unknown) => {
-      console.error(error)
-      await db.$disconnect()
-      process.exit(1)
-    })
 }

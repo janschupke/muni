@@ -157,8 +157,3 @@ export function sanitizeRecord<
   }
   return out as Sanitized<T, SensitiveFieldOf<E>>
 }
-
-/** True when the viewer may see the field in any form (shown or masked). */
-export function isVisible(policy: SanitizePolicy, field: SensitiveField, viewer: Viewer): boolean {
-  return policy[field][viewer].mode !== 'omit'
-}

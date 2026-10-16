@@ -32,6 +32,14 @@ describe('default policy', () => {
   it('keeps null values null unless omitted', () => {
     const out = sanitizeRecord(policy, 'employee', { ...employee, email: null }, 'anonymous')
     expect(out.email).toBeNull()
+    // An omitted field is omitted even when empty: its absence must not depend on the value.
+    const anonymous = sanitizeRecord(
+      policy,
+      'employee',
+      { ...employee, nationalId: null },
+      'anonymous'
+    )
+    expect(anonymous).not.toHaveProperty('nationalId')
   })
 })
 

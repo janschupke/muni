@@ -63,6 +63,18 @@ describe('sortEmployees', () => {
     expect(ids(items)).toEqual(['E1', 'E4', 'E3', 'E2'])
   })
 
+  it('sorts by position, and by employment status in a fixed order', () => {
+    const items = [
+      employee('E1', 'A', 'a', { position: 'Referent', status: 'TERMINATED' }),
+      employee('E2', 'B', 'b', { position: 'Asistent', status: 'PARENTAL_LEAVE' }),
+      employee('E3', 'C', 'c', { position: null, status: 'ACTIVE' }),
+    ]
+    sortEmployees(items, 'position', false)
+    expect(ids(items)).toEqual(['E2', 'E1', 'E3'])
+    sortEmployees(items, 'status', false)
+    expect(ids(items)).toEqual(['E3', 'E2', 'E1'])
+  })
+
   it('sorts compliance by urgency and treats people who left as blank', () => {
     const items = [
       employee('E1', 'A', 'a', { compliance: 'VALID' }),

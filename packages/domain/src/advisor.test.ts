@@ -306,10 +306,11 @@ describe('session choice', () => {
 describe('overbooking', () => {
   it('moves anonymous seats to sessions of the same course with room, earliest first', () => {
     const over = session('BOZP', '2026-11-02', { capacity: 30, unnamedBookings: 33 })
+    const full = session('BOZP', '2026-11-05', { capacity: 10, unnamedBookings: 10 })
     const soon = session('BOZP', '2026-11-09', { capacity: 10, unnamedBookings: 9 })
     const later = session('BOZP', '2026-12-09', { capacity: 10 })
     const other = session('GDPR', '2026-11-05')
-    const p = plan([], [later, other, over, soon])
+    const p = plan([], [later, other, over, full, soon])
     expect(p.overbooked).toHaveLength(1)
     const [o] = p.overbooked
     expect(o).toMatchObject({ excess: 3, remaining: 0 })

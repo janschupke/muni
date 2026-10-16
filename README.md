@@ -178,16 +178,24 @@ Prisma models directly.
 
 ## Commands
 
-| Command                 | What it does                                                     |
-| ----------------------- | ---------------------------------------------------------------- |
-| `pnpm check`            | format check, lint, typecheck, knip, unit tests, build           |
-| `pnpm test`             | unit tests in every package                                      |
-| `pnpm test:integration` | repositories and seed against the test database (port 5439)      |
-| `pnpm test:e2e`         | Playwright smoke tests against `next start` on the test database |
-| `pnpm db:studio`        | Prisma Studio on the dev database                                |
+| Command                 | What it does                                                         |
+| ----------------------- | -------------------------------------------------------------------- |
+| `pnpm check`            | format check, lint, typecheck, knip, coverage, build (needs `db:up`) |
+| `pnpm test`             | unit tests in every package                                          |
+| `pnpm coverage`         | tests with coverage in every package; fails below 90 %               |
+| `pnpm test:integration` | repositories and seed against the test database (port 5439)          |
+| `pnpm test:e2e`         | Playwright smoke tests against `next start` on the test database     |
+| `pnpm db:studio`        | Prisma Studio on the dev database                                    |
 
 The integration tests apply migrations and seed the test database; run them before
 `pnpm test:e2e`, which also needs `pnpm --filter @muni/web build` first.
+
+Coverage has one standard for every package (`vitest.preset.ts`): at least 90 % of lines,
+statements, functions and branches of everything under `src/`, files without tests included.
+Only tests, test helpers and the generated Prisma client are left out. `@muni/db` is measured
+over its unit and integration tests together, against the test database, so `pnpm coverage`
+needs `pnpm db:up`. In the web app, pages and server actions are unit-tested too: the tests
+render async server components with mocked repositories (`apps/web/src/test/`).
 
 ## Deployment (Vercel + Supabase)
 

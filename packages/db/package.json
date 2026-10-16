@@ -15,12 +15,13 @@
     "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
     "migrate:deploy": "tsx scripts/migrate-deploy.ts",
     "migrate:reset": "dotenv -e ../../.env -- prisma migrate reset",
-    "seed": "dotenv -e ../../.env -- tsx src/seed.ts",
+    "seed": "dotenv -e ../../.env -- tsx scripts/seed.ts",
     "studio": "dotenv -e ../../.env -- prisma studio",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:integration": "dotenv -e .env.test -- vitest run --config vitest.integration.config.ts"
+    "test:integration": "dotenv -e .env.test -- vitest run --config vitest.integration.config.ts",
+    "test:coverage": "dotenv -e .env.test -- vitest run --coverage --config vitest.coverage.config.ts"
   },
   "dependencies": {
     "@muni/domain": "workspace:*",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
     "dotenv-cli": "catalog:",
     "prisma": "catalog:",
     "tsx": "catalog:",

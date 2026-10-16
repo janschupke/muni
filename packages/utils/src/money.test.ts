@@ -23,6 +23,7 @@ describe('parseCzk', () => {
   it('rejects negatives, blanks and garbage', () => {
     expect(parseCzk('-450,00')).toEqual({ ok: false, reason: 'negative' })
     expect(parseCzk('')).toEqual({ ok: false, reason: 'empty' })
+    expect(parseCzk(null)).toEqual({ ok: false, reason: 'empty' })
     expect(parseCzk('zkontrolovat"')).toEqual({ ok: false, reason: 'unparseable' })
   })
 })
@@ -33,5 +34,6 @@ describe('parseCount', () => {
     expect(parseCount('0')).toBe(0)
     expect(parseCount('-1')).toBeNull()
     expect(parseCount('2 roky')).toBeNull()
+    expect(parseCount(undefined)).toBeNull()
   })
 })

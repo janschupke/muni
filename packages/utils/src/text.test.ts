@@ -33,6 +33,7 @@ describe('formula neutralisation', () => {
   it('keeps the text but drops the trigger', () => {
     expect(cleanFreeText('=HYPERLINK("x";"y")')).toBe('HYPERLINK("x";"y")')
     expect(cleanFreeText('  ')).toBeNull()
+    expect(cleanFreeText(null)).toBeNull()
     expect(cleanFreeText(' řádek  1 \r\n\nřádek 2')).toBe('řádek 1\nřádek 2')
   })
 })

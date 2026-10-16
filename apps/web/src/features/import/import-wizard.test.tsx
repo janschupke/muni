@@ -164,4 +164,115 @@ describe('ImportWizard', () => {
     )
     expect(screen.getByRole('button', { name: 'Review rows' }).hasAttribute('disabled')).toBe(true)
   })
+
+  const upload = async (
+    user: ReturnType<typeof userEvent.setup>,
+    container: HTMLElement,
+    files: File[]
+  ) => {
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')
+    if (!input) throw new Error('file input missing')
+    await user.upload(input, files)
+  }
+  const file = (name: string, lines: string[]) =>
+    new File([lines.join('\n')], name, { type: 'text/csv' })
+
+  it('rejects oversized, empty and incomplete files, and drops one on request', async () => {
+    const user = userEvent.setup()
+    const { container } = renderWizard()
+    await upload(user, container, [
+      new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'obri.csv', { type: 'text/csv' }),
+      file('prazdny.csv', ['']),
+      file('terminy.csv', [
+        'id_terminu;kod_skoleni;datum;cas',
+        'T001;BOZP-Z;2026-11-04;08:00-11:00',
+      ]),
+      file('katalog.tsv', ['kod\tnazev\tbarva', 'GDPR\tOchrana osobních údajů\tmodrá']),
+    ])
+    const alerts = (await screen.findAllByRole('alert')).map(a => a.textContent)
+    expect(alerts).toEqual([
+      'obri.csv is larger than 10 MB.',
+      'prazdny.csv: the file is empty.',
+      'terminy.csv: required columns are missing: Location, Capacity.',
+    ])
+    expect(screen.getByText(/delimiter “TAB” · 1 row/)).toBeTruthy()
+    expect(screen.getByText('Ignored columns: barva')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Remove katalog.tsv' }))
+    expect(screen.queryByText('katalog.tsv')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Review rows' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('filters rows, removes and restores them, and undoes an edit', async () => {
+    const user = userEvent.setup()
+    const { container } = renderWizard()
+    await upload(user, container, [
+      file('katalog.csv', [
+        'kod,nazev,platnost_mesicu,povinne_pro',
+        'BOZP-Z,BOZP – základní školení,2 roky,VSICHNI',
+        'GDPR,Ochrana osobních údajů,24,VSICHNI',
+        'XX,,24,VSICHNI',
+      ]),
+    ])
+    await user.click(await screen.findByRole('button', { name: 'Review rows' }))
+    const panel = screen.getByRole('tabpanel')
+    const rows = () => within(panel).getAllByRole('row').length - 1
+
+    await user.click(within(panel).getByRole('button', { name: /Warnings/ }))
+    expect(rows()).toBe(1)
+    // Clicking the active filter again shows everything.
+    await user.click(within(panel).getByRole('button', { name: /Warnings/ }))
+    expect(rows()).toBe(3)
+
+    // A cell edit cancelled with Escape changes nothing; a real one can be undone.
+    await user.click(within(panel).getByRole('button', { name: 'Edit Name on line 3' }))
+    await user.type(within(panel).getByRole('textbox'), ' navíc{Escape}')
+    expect(within(panel).queryByRole('button', { name: 'Undo edits' })).toBeNull()
+    await user.click(within(panel).getByRole('button', { name: 'Edit Name on line 3' }))
+    await user.type(within(panel).getByRole('textbox'), ' navíc{Enter}')
+    await user.click(within(panel).getByRole('button', { name: 'Undo edits' }))
+    expect(within(panel).getByRole('button', { name: 'Edit Name on line 3' }).textContent).toBe(
+      'Ochrana osobních údajů'
+    )
+
+    const [remove] = within(panel).getAllByRole('button', { name: 'Remove row' })
+    if (!remove) throw new Error('no row to remove')
+    await user.click(remove)
+    await user.click(within(panel).getByRole('button', { name: /Removed/ }))
+    expect(rows()).toBe(1)
+    await user.click(within(panel).getByRole('button', { name: 'Restore row' }))
+    expect(within(panel).getByRole('button', { name: /Removed/ }).textContent).toContain('0')
+
+    await user.click(within(panel).getByRole('button', { name: /Ready/ }))
+    expect(rows()).toBe(2)
+    await user.click(screen.getByRole('button', { name: 'Back to files' }))
+    expect(screen.getByText('katalog.csv')).toBeTruthy()
+  })
+
+  it('stops at a failed chunk, says how much was written, and starts over', async () => {
+    const user = userEvent.setup()
+    commitImportChunk
+      .mockResolvedValueOnce({ ok: true, created: 2, updated: 0 })
+      .mockResolvedValueOnce({ ok: false, error: 'failed' } as never)
+    const { container } = renderWizard()
+    await upload(user, container, [
+      file('katalog.csv', [
+        'kod,nazev,platnost_mesicu,povinne_pro',
+        'BOZP-Z,BOZP – základní školení,24,VSICHNI',
+        'GDPR,Ochrana osobních údajů,24,VSICHNI',
+      ]),
+      file('zamestnanci.csv', [
+        'id_zamestnance,jmeno,prijmeni,datum_nastupu,stav',
+        'E0153,Marie,Černá,2019-03-01,aktivní',
+      ]),
+    ])
+    await user.click(await screen.findByRole('button', { name: 'Review rows' }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(screen.getByRole('button', { name: 'Back to review' }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(screen.getByRole('button', { name: 'Import 3 records' }))
+    expect(await screen.findByText('The import failed: failed')).toBeTruthy()
+    expect(screen.getByText('2 records were written before the failure.')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Import more files' }))
+    expect(screen.getByRole('button', { name: 'Review rows' }).hasAttribute('disabled')).toBe(true)
+  })
 })

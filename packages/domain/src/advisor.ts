@@ -177,33 +177,39 @@ function compareQueue(a: AdvisorNeed, b: AdvisorNeed): number {
 export function planAssignments(input: AdvisorInput): AdvisorPlan {
   const { asOf } = input
   const end = forecastEnd(asOf)
+  // Each upcoming session with its seats taken, updated as moves and proposals fill it.
   const upcoming = input.sessions
     .filter(s => s.status === 'PLANNED' && startDay(s) >= asOf)
     .toSorted(byStart)
-  const booked = new Map(upcoming.map(s => [s.externalId, s.unnamedBookings + s.assigned.length]))
-  const seatsTaken = (s: AdvisorSession) => booked.get(s.externalId) ?? 0
+    .map(session => ({ session, taken: session.unnamedBookings + session.assigned.length }))
 
   // 1. Overbooking first: moving anonymous seats out takes room the plan must not reuse.
   const overbooked: OverbookedSession[] = []
   for (const source of upcoming) {
-    const before = seatsTaken(source)
-    const excess = before - source.capacity
+    const before = source.taken
+    const excess = before - source.session.capacity
     if (excess <= 0) continue
-    let movable = Math.min(excess, source.unnamedBookings)
+    let movable = Math.min(excess, source.session.unnamedBookings)
     const moves: SeatMove[] = []
     for (const target of upcoming) {
       if (movable === 0) break
-      if (target === source || target.courseCode !== source.courseCode) continue
-      const room = target.capacity - seatsTaken(target)
+      if (target === source || target.session.courseCode !== source.session.courseCode) continue
+      const room = target.session.capacity - target.taken
       if (room <= 0) continue
       const count = Math.min(room, movable)
-      moves.push({ to: target, count })
-      booked.set(target.externalId, seatsTaken(target) + count)
-      booked.set(source.externalId, seatsTaken(source) - count)
+      moves.push({ to: target.session, count })
+      target.taken += count
+      source.taken -= count
       movable -= count
     }
     const moved = moves.reduce((n, m) => n + m.count, 0)
-    overbooked.push({ session: source, booked: before, excess, moves, remaining: excess - moved })
+    overbooked.push({
+      session: source.session,
+      booked: before,
+      excess,
+      moves,
+      remaining: excess - moved,
+    })
   }
 
   // 2. What is in scope, and what is already remedied by a named booking.
@@ -214,8 +220,9 @@ export function planAssignments(input: AdvisorInput): AdvisorPlan {
     const lapses = lapsesOn(need)
     if (!isNonCompliant(need) && (lapses === null || lapses > end)) continue
     const booking = upcoming.find(
-      s => s.courseCode === need.course.code && s.assigned.includes(need.employee.externalId)
-    )
+      ({ session: s }) =>
+        s.courseCode === need.course.code && s.assigned.includes(need.employee.externalId)
+    )?.session
     if (!booking) {
       queue.push(need)
       continue
@@ -234,7 +241,8 @@ export function planAssignments(input: AdvisorInput): AdvisorPlan {
 
   // 3. The queue, most overdue first; each takes a session or says why it cannot.
   const busy = new Map<string, AdvisorSession[]>()
-  for (const s of upcoming) for (const id of s.assigned) busy.set(id, [...(busy.get(id) ?? []), s])
+  for (const { session } of upcoming)
+    for (const id of session.assigned) busy.set(id, [...(busy.get(id) ?? []), session])
 
   const queued: PlanItem[] = queue.toSorted(compareQueue).map((need, index) => {
     const rank = index + 1
@@ -249,22 +257,31 @@ export function planAssignments(input: AdvisorInput): AdvisorPlan {
       proposal,
     })
 
-    const ofCourse = upcoming.filter(s => s.courseCode === need.course.code)
+    const ofCourse = upcoming.filter(({ session }) => session.courseCode === need.course.code)
     if (ofCourse.length === 0) return item({ kind: 'NONE', rank, reason: 'NO_SESSION' })
-    const withSeats = ofCourse.filter(s => seatsTaken(s) < s.capacity)
+    const withSeats = ofCourse.filter(slot => slot.taken < slot.session.capacity)
     if (withSeats.length === 0) return item({ kind: 'NONE', rank, reason: 'NO_SEATS' })
-    const free = withSeats.filter(s => !(busy.get(person) ?? []).some(b => overlaps(b, s)))
+    const free = withSeats.filter(
+      ({ session }) => !(busy.get(person) ?? []).some(b => overlaps(b, session))
+    )
     const [earliest] = free
     if (earliest === undefined) return item({ kind: 'NONE', rank, reason: 'CONFLICT' })
 
     // Lapsed: as soon as possible. Not yet: the last session that still ends in time.
-    const inTime = isNonCompliant(need)
-      ? []
-      : free.filter(s => need.validUntil !== null && endDay(s) <= need.validUntil)
-    const session = inTime.at(-1) ?? earliest
-    booked.set(session.externalId, seatsTaken(session) + 1)
-    busy.set(person, [...(busy.get(person) ?? []), session])
-    return item({ kind: 'SESSION', rank, session, window: windowFor(need, session) })
+    const lastDay = need.validUntil
+    const inTime =
+      isNonCompliant(need) || lastDay === null
+        ? []
+        : free.filter(({ session }) => endDay(session) <= lastDay)
+    const slot = inTime.at(-1) ?? earliest
+    slot.taken += 1
+    busy.set(person, [...(busy.get(person) ?? []), slot.session])
+    return item({
+      kind: 'SESSION',
+      rank,
+      session: slot.session,
+      window: windowFor(need, slot.session),
+    })
   })
 
   const items = [...queued, ...remedied.toSorted((a, b) => compareQueue(a.need, b.need))]

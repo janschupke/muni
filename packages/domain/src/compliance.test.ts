@@ -73,6 +73,17 @@ describe('bestCompletion', () => {
     )
     expect(best?.validUntil).toBeNull()
   })
+
+  it('between two never-expiring completions, keeps the later one', () => {
+    const older = done('e1', 'LEAD', '2020-01-01', null)
+    const newer = done('e1', 'LEAD', '2023-05-01', null)
+    expect(bestCompletion([older, newer], options.asOf)).toBe(newer)
+    expect(bestCompletion([newer, older], options.asOf)).toBe(newer)
+    // A dated completion never replaces a never-expiring one.
+    expect(
+      bestCompletion([older, done('e1', 'LEAD', '2025-01-01', '2030-01-01')], options.asOf)
+    ).toBe(older)
+  })
 })
 
 describe('computeCompliance', () => {
@@ -81,6 +92,8 @@ describe('computeCompliance', () => {
       [lab, it_],
       requirements,
       [
+        // Two records for one pair: the newer, longer-valid one decides.
+        done('e1', 'BOZP', '2023-06-01', '2025-06-01'),
         done('e1', 'BOZP', '2025-06-01', '2027-06-01'),
         done('e1', 'LAB', '2023-01-01', '2025-01-01'),
       ],

@@ -6,48 +6,27 @@ import {
   type AdvisorSession,
 } from '@muni/domain/advisor'
 import { TooltipProvider } from '@muni/ui/tooltip'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import en from '@/i18n/messages/en.json'
 
 import { AdvisorWorkbench } from './advisor-workbench'
 
-const applyAssignmentsAction = vi.fn((pairs: unknown[]) =>
-  Promise.resolve({ applied: pairs.length, failed: [] })
-)
-const moveSeatsAction = vi.fn(() => Promise.resolve({ ok: true as const }))
-vi.mock('@/server/actions/assignments', () => ({
-  applyAssignmentsAction: (pairs: unknown[]) => applyAssignmentsAction(pairs),
-  moveSeatsAction: () => moveSeatsAction(),
+const actions = vi.hoisted(() => ({
+  applyAssignmentsAction: vi.fn((pairs: unknown[]) =>
+    Promise.resolve({ applied: pairs.length, failed: [] as unknown[] })
+  ),
+  moveSeatsAction: vi.fn((): Promise<{ ok: boolean }> => Promise.resolve({ ok: true })),
+  removeAssignmentAction: vi.fn(() => Promise.resolve(true)),
 }))
-
-beforeAll(() => {
-  // jsdom lacks what Radix (popper, scrolling) reaches for.
-  globalThis.ResizeObserver = class {
-    observe() {
-      return undefined
-    }
-    unobserve() {
-      return undefined
-    }
-    disconnect() {
-      return undefined
-    }
-  }
-  Object.assign(Element.prototype, {
-    hasPointerCapture: () => false,
-    releasePointerCapture: () => undefined,
-    scrollIntoView: () => undefined,
-  })
-})
+vi.mock('@/server/actions/assignments', () => actions)
+const { applyAssignmentsAction, moveSeatsAction, removeAssignmentAction } = actions
 
 afterEach(() => {
-  cleanup()
-  applyAssignmentsAction.mockClear()
-  moveSeatsAction.mockClear()
+  vi.clearAllMocks()
 })
 
 const session = (
@@ -102,16 +81,18 @@ function renderWorkbench({
   view = 'breakdown',
   bucket = 'now',
   canApply = false,
+  plan = PLAN,
 }: {
   view?: 'breakdown' | 'action' | 'planned' | 'overbooked'
   bucket?: string
   canApply?: boolean
+  plan?: ReturnType<typeof planAssignments>
 } = {}) {
   return render(
     <NextIntlClientProvider locale="en" messages={en} timeZone="Europe/Prague">
       <TooltipProvider>
         <AdvisorWorkbench
-          plan={PLAN}
+          plan={plan}
           asOf={INPUT.asOf}
           view={view}
           bucket={bucket}
@@ -209,5 +190,134 @@ describe('AdvisorWorkbench', () => {
     expect(screen.getByText('3 of 2 · 1 over')).toBeTruthy()
     const move = screen.getByText(/Move 1 seat to/)
     expect(hrefOf(/Nov 20, 2026/, move)).toBe('/sessions/T018')
+  })
+
+  it('lists what is already booked, with the gap each booking leaves', async () => {
+    const user = userEvent.setup()
+    renderWorkbench({ view: 'planned' })
+    const row = rowOf('Cibulka Ota')
+    expect(hrefOf(/Dec 10, 2026/, row)).toBe('/sessions/T019')
+    expect(within(row).getByText('Planned, with a gap')).toBeTruthy()
+    expect(within(row).queryByRole('button')).toBeNull()
+
+    renderWorkbench({ view: 'planned', canApply: true })
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Cancel the booking of Cibulka Ota on BOZP – základní školení',
+      })
+    )
+    expect(removeAssignmentAction).toHaveBeenCalledWith({
+      sessionExternalId: 'T019',
+      employeeExternalId: 'E0003',
+    })
+  })
+
+  it('moves seats out of an overbooked session and reports the outcome', async () => {
+    const user = userEvent.setup()
+    renderWorkbench({ view: 'overbooked', canApply: true })
+    await user.click(screen.getByRole('button', { name: 'Move 1 seat' }))
+    expect(moveSeatsAction).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('1 seat moved.')).toBeTruthy()
+
+    moveSeatsAction.mockResolvedValueOnce({ ok: false })
+    await user.click(screen.getByRole('button', { name: 'Move 1 seat' }))
+    expect(
+      await screen.findByText(
+        '0 seats moved; 1 could not be moved (the sessions changed meanwhile).'
+      )
+    ).toBeTruthy()
+
+    moveSeatsAction.mockRejectedValueOnce(new Error('offline'))
+    await user.click(screen.getByRole('button', { name: 'Move 1 seat' }))
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Saving failed. Nothing was changed; try again.'
+    )
+  })
+
+  it('saves every proposal at once and names each refusal', async () => {
+    const user = userEvent.setup()
+    applyAssignmentsAction.mockResolvedValueOnce({
+      applied: 0,
+      failed: [{ sessionExternalId: 'T018', employeeExternalId: 'E0001', reason: 'SESSION_FULL' }],
+    })
+    renderWorkbench({ view: 'action', canApply: true })
+    await user.click(screen.getByRole('button', { name: /^Save 1 proposed booking/ }))
+    expect(await screen.findByText('No booking saved; 1 refused:')).toBeTruthy()
+    expect(
+      screen.getByText('Adámek Petr on BOZP – základní školení (Nov 20, 2026): the session is full')
+    ).toBeTruthy()
+
+    applyAssignmentsAction.mockRejectedValueOnce(new Error('offline'))
+    await user.click(screen.getByRole('button', { name: /^Save 1 proposed booking/ }))
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Saving failed. Nothing was changed; try again.'
+    )
+  })
+
+  it('sorts the action list by any column', async () => {
+    const user = userEvent.setup()
+    renderWorkbench({ view: 'action' })
+    const names = () =>
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map(r => within(r).getAllByRole('link')[0]?.textContent)
+    expect(names()).toEqual(['Adámek Petr', 'Bílá Jana'])
+    for (const header of ['Person', 'Training', 'Lapses', 'Proposed session', 'Order']) {
+      await user.click(screen.getByRole('button', { name: header }))
+    }
+    await user.click(screen.getByRole('button', { name: 'Person' }))
+    await user.click(screen.getByRole('button', { name: 'Person' }))
+    expect(names()).toEqual(['Bílá Jana', 'Adámek Petr'])
+  })
+
+  it('says when there is nothing in a view', () => {
+    const empty = planAssignments({ asOf: INPUT.asOf, needs: [], sessions: [] })
+    renderWorkbench({ plan: empty, view: 'action' })
+    expect(screen.getByText('Every training in scope has a booking.')).toBeTruthy()
+    renderWorkbench({ plan: empty, view: 'planned' })
+    expect(screen.getByText('Nothing is booked yet.')).toBeTruthy()
+    renderWorkbench({ plan: empty, view: 'overbooked' })
+    expect(screen.getByText('No session is overbooked.')).toBeTruthy()
+    renderWorkbench({ plan: empty, view: 'breakdown', bucket: '2026-11' })
+    expect(screen.getByText('Nothing lapses in this month.')).toBeTruthy()
+    // With nothing lapsing, the forecast card points at "now".
+    const forecast = screen.getAllByRole('link', { name: /^Lapsing in the next/ })
+    expect(new Set(forecast.map(a => a.getAttribute('href')))).toEqual(new Set(['/advisor']))
+  })
+
+  it('shows the window of a training never held, booked or not', () => {
+    const plan = planAssignments({
+      ...INPUT,
+      needs: [
+        need('E0002', 'Bílá Jana', 'MISSING', null),
+        need('E0004', 'Dvořák Jan', 'MISSING', null),
+      ],
+      sessions: [
+        session('T018', '2026-11-20', { capacity: 2, assigned: ['E0004'] }),
+        session('T022', '2026-11-25', { capacity: 0, courseCode: 'X' }),
+      ],
+    })
+    renderWorkbench({ plan })
+    expect(within(rowOf('Bílá Jana')).getByText('Never held')).toBeTruthy()
+    expect(within(rowOf('Dvořák Jan')).getByText('Never held, until Nov 20, 2026')).toBeTruthy()
+  })
+
+  it('offers what to do when no session can take a training', () => {
+    const plan = planAssignments({
+      ...INPUT,
+      needs: [
+        {
+          ...need('E0005', 'Eliáš Karel', 'EXPIRED', '2026-08-01'),
+          course: { code: 'ANGL', name: 'Anglický jazyk – kurz' },
+        },
+      ],
+      sessions: [],
+    })
+    renderWorkbench({ plan, view: 'action' })
+    const row = rowOf('Eliáš Karel')
+    expect(within(row).getByText('No session scheduled')).toBeTruthy()
+    expect(hrefOf('Schedule a session', row)).toBe('/courses/ANGL')
+    expect(screen.getByRole('link', { name: /Anglický jazyk – kurz: 1 person/ })).toBeTruthy()
   })
 })

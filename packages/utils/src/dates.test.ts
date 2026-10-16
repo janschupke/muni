@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  addDays,
   addMonths,
   diffInDays,
   isoDateFromUtc,
@@ -101,5 +102,25 @@ describe('parseTimeRange', () => {
   it('rejects inverted or malformed ranges', () => {
     expect(parseTimeRange('12:00-09:00')).toBeNull()
     expect(parseTimeRange('dopoledne')).toBeNull()
+    expect(parseTimeRange('24:00-25:00')).toBeNull()
+    expect(parseTimeRange('09:60-10:00')).toBeNull()
+  })
+})
+
+describe('bad input fails loudly', () => {
+  it('adds days across a month end', () => {
+    expect(addDays('2026-10-31', 1)).toBe('2026-11-01')
+    expect(addDays('2026-03-01', -1)).toBe('2026-02-28')
+  })
+
+  it('throws on anything but an ISO date in date math', () => {
+    expect(() => addDays('16. 10. 2026', 1)).toThrow('Not an ISO date: 16. 10. 2026')
+    expect(() => diffInDays('2026-02-30', '2026-03-01')).toThrow('Not an ISO date')
+  })
+
+  it('throws on an unknown zone, a non-time and an invalid instant', () => {
+    expect(() => todayIn('Europe/Atlantis')).toThrow(/Invalid time zone/)
+    expect(() => zonedTimeToUtc('2026-10-14', '9am')).toThrow('Not a time: 9am')
+    expect(() => toZonedParts('not a date')).toThrow(/Invalid instant/)
   })
 })
