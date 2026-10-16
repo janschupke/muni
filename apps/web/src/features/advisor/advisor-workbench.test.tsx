@@ -6,7 +6,7 @@ import {
   type AdvisorSession,
 } from '@muni/domain/advisor'
 import { TooltipProvider } from '@muni/ui/tooltip'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -250,7 +250,13 @@ describe('AdvisorWorkbench', () => {
     ).toBeTruthy()
 
     applyAssignmentsAction.mockRejectedValueOnce(new Error('offline'))
-    await user.click(screen.getByRole('button', { name: /^Save 1 proposed booking/ }))
+    // The outcome can show before the save stops pending; until then the button is disabled
+    // and a click would do nothing.
+    const save = screen.getByRole('button', { name: /^Save 1 proposed booking/ })
+    await waitFor(() => {
+      expect(save).toHaveProperty('disabled', false)
+    })
+    await user.click(save)
     expect((await screen.findByRole('alert')).textContent).toBe(
       'Saving failed. Nothing was changed; try again.'
     )
