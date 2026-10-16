@@ -52,4 +52,8 @@ jobs:
       - run: pnpm check:schema
       - run: pnpm check:drift
       - run: pnpm coverage
+      # Clerk development keys, as repository secrets: the build inlines the publishable key.
       - run: pnpm build
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}

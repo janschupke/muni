@@ -1,6 +1,11 @@
-import { expect, type Page, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 import { baseUrlOf } from './support/server'
+import { expect, test } from './support/test'
+import { storageState } from './support/users'
+
+// The register as a viewer sees it: every page, read-only, personal data redacted.
+test.use({ storageState: storageState('viewer') })
 
 const setLocale = (page: Page, locale: 'cs' | 'en') =>
   page
@@ -18,12 +23,12 @@ test.describe('Czech browser', () => {
     await expect(page.getByText('Aktivní zaměstnanci', { exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Plnění podle útvarů' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Laboratoře' })).toBeVisible()
-    // No sign-in without Clerk keys, and no import link.
+    // Viewers get no administration: no import link.
     await expect(page.getByRole('link', { name: 'Import' })).toHaveCount(0)
   })
 })
 
-test.describe('public register (signed out)', () => {
+test.describe('register (viewer)', () => {
   test('language switch persists across navigation', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('radio', { name: 'English' }).click()
@@ -76,7 +81,7 @@ test.describe('public register (signed out)', () => {
     await expect(nameHeader).toHaveAttribute('aria-sort', 'descending')
   })
 
-  test('employee detail hides personal data from anonymous visitors', async ({ page }) => {
+  test('employee detail hides personal data from viewers', async ({ page }) => {
     await setLocale(page, 'en')
     await page.goto('/employees/E0153')
     await expect(page.getByRole('heading', { level: 1, name: 'Alena Malá' })).toBeVisible()
@@ -173,9 +178,7 @@ test.describe('public register (signed out)', () => {
     await expect(page.getByRole('columnheader', { name: 'Valid trainings' })).toBeVisible()
   })
 
-  test('back links return to the page the visitor came from, filters included', async ({
-    page,
-  }) => {
+  test('back links return to the page the reader came from, filters included', async ({ page }) => {
     await setLocale(page, 'en')
     await page.goto('/employees?department=Laborato%C5%99e&sort=compliance')
     await page.locator('tbody tr').first().locator('td').nth(1).locator('a').click()
@@ -192,7 +195,7 @@ test.describe('public register (signed out)', () => {
     ).toHaveAttribute('href', '/courses/BOZP-Z')
   })
 
-  test('the advisor breaks non-compliance down and links what it names, read-only for visitors', async ({
+  test('the advisor breaks non-compliance down and links what it names, read-only for viewers', async ({
     page,
   }) => {
     await setLocale(page, 'en')
@@ -209,13 +212,13 @@ test.describe('public register (signed out)', () => {
       page.getByRole('heading', { name: /^November 2026: \d+ trainings?$/ })
     ).toBeVisible()
 
-    // A count opens its view; visitors see the proposals but cannot save them.
+    // A count opens its view; viewers see the proposals but cannot save them.
     await page
       .getByRole('link', { name: /^Action required/ })
       .first()
       .click()
     await expect(page).toHaveURL(/view=action/)
-    await expect(page.getByText('Sign in to save bookings.')).toBeVisible()
+    await expect(page.getByText('Only admins can save bookings.')).toBeVisible()
     await expect(page.getByRole('button', { name: /^Save|^Book/ })).toHaveCount(0)
 
     // A room opens its page, which lists the sessions held there.
@@ -248,7 +251,7 @@ test.describe('public register (signed out)', () => {
     await setLocale(page, 'en')
     await page.goto('/planner')
     await expect(page.getByRole('heading', { level: 1, name: 'Session planner' })).toBeVisible()
-    await expect(page.getByText('Sign in to create sessions.')).toBeVisible()
+    await expect(page.getByText('Only admins can create sessions.')).toBeVisible()
     const room = page.locator('main table a[href^="/rooms/"]').first()
     await expect(room).toBeVisible()
     await expect(page.getByRole('button', { name: 'Create session' })).toHaveCount(0)
@@ -314,7 +317,7 @@ test.describe('public register (signed out)', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/')
     await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeHidden()
-    await page.getByRole('button', { name: 'Menu' }).click()
+    await page.getByRole('button', { name: 'Menu', exact: true }).click()
     const drawer = page.getByRole('dialog', { name: 'Menu' })
     await drawer.getByRole('link', { name: 'Rooms' }).click()
     await expect(page).toHaveURL(/\/rooms$/)
@@ -357,9 +360,10 @@ test.describe('public register (signed out)', () => {
     )
   })
 
-  test('protected routes are not reachable without auth', async ({ page }) => {
+  test('edit, import and user pages are 404 for viewers', async ({ page }) => {
     for (const path of [
       '/import',
+      '/users',
       '/courses/BOZP-Z/edit',
       '/sessions/T001/edit',
       '/employees/E0001/edit',

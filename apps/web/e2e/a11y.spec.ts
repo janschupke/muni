@@ -1,8 +1,11 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, type Page, test } from '@playwright/test'
+import { setupClerkTestingToken } from '@clerk/testing/playwright'
+import type { Page } from '@playwright/test'
 
-import { pathOf, PUBLIC_PAGES } from './support/pages'
+import { APP_PAGES, pathOf } from './support/pages'
 import { baseUrlOf } from './support/server'
+import { expect, test } from './support/test'
+import { storageState } from './support/users'
 
 // WCAG 2.2 A/AA plus axe's best practices; any violation fails.
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']
@@ -20,7 +23,8 @@ async function expectNoViolations(page: Page, label: string, within?: string) {
 }
 
 // Contrast is judged on the settled page: with motion reduced, the page fade-in is instant.
-test.use({ reducedMotion: 'reduce' })
+// An admin sees every page and every control.
+test.use({ reducedMotion: 'reduce', storageState: storageState('admin') })
 
 for (const theme of ['light', 'dark'] as const) {
   test.describe(`accessibility, ${theme} theme`, () => {
@@ -33,9 +37,27 @@ for (const theme of ['light', 'dark'] as const) {
       }, theme)
     })
 
-    for (const entry of PUBLIC_PAGES) {
-      test(`${entry.name} page`, async ({ page, request }) => {
-        const path = await pathOf(entry, async url => (await request.get(url)).text())
+    test('the introduction, signed out', async ({ browser, baseURL }) => {
+      // The runner applies this file's `use` options to new contexts too: clear the session.
+      const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+      await setupClerkTestingToken({ context })
+      await context.addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: baseUrlOf(baseURL) }])
+      const page = await context.newPage()
+      await page.addInitScript(value => {
+        localStorage.setItem('muni.theme', value)
+      }, theme)
+      await page.goto('/')
+      await expect(page.getByRole('link', { name: 'Create account' })).toBeVisible()
+      await expectNoViolations(page, 'introduction')
+      await context.close()
+    })
+
+    for (const entry of APP_PAGES) {
+      test(`${entry.name} page`, async ({ page }) => {
+        const path = await pathOf(entry, async url => {
+          await page.goto(url)
+          return page.content()
+        })
         await page.goto(path)
         await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
         await expectNoViolations(page, path)
@@ -74,7 +96,7 @@ for (const theme of ['light', 'dark'] as const) {
       await expectNoViolations(page, 'collapsed sidebar')
       await page.getByRole('button', { name: 'Expand sidebar' }).click()
       await page.setViewportSize({ width: 390, height: 844 })
-      await page.getByRole('button', { name: 'Menu' }).click()
+      await page.getByRole('button', { name: 'Menu', exact: true }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
       await expectNoViolations(page, 'navigation drawer')
     })

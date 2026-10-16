@@ -326,27 +326,37 @@ Prisma models directly.
 
 ## Commands
 
-| Command                 | What it does                                                          |
-| ----------------------- | --------------------------------------------------------------------- |
-| `pnpm check`            | every gate below except e2e and Lighthouse (needs `db:up`)            |
-| `pnpm test`             | unit tests in every package                                           |
-| `pnpm coverage`         | tests with coverage in every package; fails below 90 %                |
-| `pnpm test:integration` | repositories and seed against the test database (port 5439)           |
-| `pnpm test:e2e`         | Playwright smoke and axe tests against `next start` on the test DB    |
-| `pnpm test:lighthouse`  | Lighthouse on every public page; reports in `test-results/lighthouse` |
-| `pnpm db:studio`        | Prisma Studio on the dev database                                     |
+| Command                 | What it does                                                    |
+| ----------------------- | --------------------------------------------------------------- |
+| `pnpm check`            | every gate below except e2e and Lighthouse (needs `db:up`)      |
+| `pnpm test`             | unit tests in every package                                     |
+| `pnpm coverage`         | tests with coverage in every package; fails below 90 %          |
+| `pnpm test:integration` | repositories and seed against the test database (port 5439)     |
+| `pnpm test:e2e`         | Playwright access, smoke and axe tests on `next start`, test DB |
+| `pnpm test:lighthouse`  | Lighthouse on every page; reports in `test-results/lighthouse`  |
+| `pnpm db:studio`        | Prisma Studio on the dev database                               |
 
 The integration tests apply migrations and seed the test database; run them before
 `pnpm test:e2e` and `pnpm test:lighthouse`, which also need `pnpm --filter @muni/web build`
-first.
+first. Both sign in for real, through the Clerk development instance in `.env` (they refuse
+production keys): the setup project (`e2e/auth.setup.ts`) creates three users if missing,
+`muni-e2e-{viewer,full,admin}+clerk_test@example.com`, resets their roles (the viewer to
+none, so the first sign-in has to fill it in), signs each in with `@clerk/testing` and saves
+the session in `e2e/.auth/`. `e2e/access.spec.ts` checks what each role and a visitor get;
+`e2e/register.spec.ts` walks the register as a viewer. On this machine Playwright needs
+`NODE_OPTIONS=--no-network-family-autoselection` to reach Clerk.
 
 Accessibility is checked twice. `e2e/a11y.spec.ts` runs axe (WCAG 2.2 A/AA and best
-practices) on every public page in the light and dark theme, and on the open states (matrix
-row and dialog, employee row, an open select); any violation fails. Pages that need a
-signed-in user are checked by axe in their unit tests (`apps/web/src/test/axe.ts`, without
-contrast and target size, which jsdom cannot measure). `pnpm test:lighthouse` requires
-accessibility 100, best practices 95, SEO 90 and performance 90 (desktop) on every public
-page.
+practices) on every page as an admin (who sees every control) and on the introduction signed
+out, in the light and dark theme, and on the open states (matrix row and dialog, employee
+row, an open select); any violation fails. Unit tests also run axe on what they render
+(`apps/web/src/test/axe.ts`, without contrast and target size, which jsdom cannot measure).
+`pnpm test:lighthouse` requires accessibility 100, best practices 95, SEO 90 and performance
+90 (desktop) on every page as an admin and on the introduction. One exception: findings
+that name only Clerk's development domain (`*.clerk.accounts.dev`, whose Cloudflare cookies
+are third-party) do not fail it, and `summary.json` lists them under `clerkDevOnly`. A
+production Clerk instance on the app's own domain has none; with a development instance,
+best practices measures 77 on every page for that reason alone.
 
 Coverage has one standard for every package (`vitest.preset.ts`): at least 90 % of lines,
 statements, functions and branches of everything under `src/`, files without tests included.
@@ -391,7 +401,7 @@ What the gates enforce:
   - a key no source names fails.
 - **Git hooks**: `pnpm install` installs lefthook (`lefthook.yml`). A commit runs Prettier and each package's ESLint on the staged files only; everything else stays in `pnpm check` and CI.
 
-Playwright e2e and Lighthouse are not in `pnpm check` or CI: they need browsers, a production build and the seeded test database. Run them locally before a release (see Commands).
+Playwright e2e and Lighthouse are not in `pnpm check` or CI: they need browsers, a production build, the seeded test database and Clerk. Run them locally before a release (see Commands). CI's build needs the Clerk development keys as repository secrets, `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`.
 
 ## Deployment (Vercel + Supabase)
 

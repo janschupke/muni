@@ -1,13 +1,14 @@
-type PublicPage =
+type AppPage =
   | { name: string; path: string; status?: number }
   /** A page whose id the database picks: the first link under `prefix` on the `via` page. */
   | { name: string; via: string; prefix: string; status?: number }
 
 /**
- * Every page a signed-out visitor can reach, with seeded examples for the dynamic ones. The
- * not-found page answers 404, which Lighthouse refuses to audit; axe still checks it.
+ * Every page of the register, with seeded examples for the dynamic ones (an admin reaches all
+ * of them). The not-found page answers 404, which Lighthouse refuses to audit; axe still
+ * checks it.
  */
-export const PUBLIC_PAGES: readonly PublicPage[] = [
+export const APP_PAGES: readonly AppPage[] = [
   { name: 'overview', path: '/' },
   { name: 'employees', path: '/employees' },
   { name: 'employee', path: '/employees/E0153' },
@@ -29,12 +30,13 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   { name: 'advisor-action', path: '/advisor?view=action' },
   { name: 'advisor-planned', path: '/advisor?view=planned' },
   { name: 'advisor-overbooked', path: '/advisor?view=overbooked' },
+  { name: 'users', path: '/users' },
   { name: 'not-found', path: '/no-such-page', status: 404 },
 ]
 
 /** The page's path; for one reached through another page, the first matching link there. */
 export async function pathOf(
-  page: PublicPage,
+  page: AppPage,
   fetchHtml: (path: string) => Promise<string>
 ): Promise<string> {
   if ('path' in page) return page.path

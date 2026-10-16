@@ -3,10 +3,7 @@ import type { PlaywrightTestConfig } from '@playwright/test'
 /** The seeded test database (pnpm db:up && pnpm test:integration). */
 const TEST_DB = 'postgresql://muni:muni@localhost:5439/muni_test'
 
-/**
- * The production build (`next build` first) on the test database, signed out: no Clerk keys,
- * so the public read-only register.
- */
+/** The production build (`next build` first) on the test database, with the Clerk dev keys. */
 export function productionServer(port: number): NonNullable<PlaywrightTestConfig['webServer']> {
   return {
     command: `next start --port ${String(port)}`,
@@ -15,9 +12,18 @@ export function productionServer(port: number): NonNullable<PlaywrightTestConfig
     timeout: 60_000,
     env: {
       DATABASE_URL: TEST_DB,
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: '',
-      CLERK_SECRET_KEY: '',
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '',
+      CLERK_SECRET_KEY: process.env['CLERK_SECRET_KEY'] ?? '',
     },
+  }
+}
+
+/** Loads the repo's `.env` (Clerk keys), keeping whatever the environment already sets. */
+export function loadRootEnv(): void {
+  try {
+    process.loadEnvFile(new URL('../../../../.env', import.meta.url))
+  } catch {
+    // No .env (CI): the keys come from the environment.
   }
 }
 

@@ -96,6 +96,23 @@ export function node(tsconfigRootDir) {
 }
 
 /**
+ * Playwright's rules on the Next app's e2e tests.
+ * @type {import('typescript-eslint').ConfigWithExtends}
+ */
+const e2e = {
+  files: ['e2e/**/*.ts'],
+  ...playwright.configs['flat/recommended'],
+  rules: {
+    ...playwright.configs['flat/recommended'].rules,
+    // Helpers that assert on their own count as assertions.
+    'playwright/expect-expect': [
+      'warn',
+      { assertFunctionNames: ['expectNoViolations', 'expectScores'] },
+    ],
+  },
+}
+
+/**
  * React packages. Pass { next: true } for the Next app.
  * @param {string} tsconfigRootDir
  * @param {{ next?: boolean }} [options]
@@ -114,10 +131,7 @@ export function react(tsconfigRootDir, { next = false } = {}) {
               ...nextPlugin.configs['core-web-vitals'].rules,
             },
           },
-          {
-            files: ['e2e/**/*.ts'],
-            ...playwright.configs['flat/recommended'],
-          },
+          e2e,
         ]
       : []),
     { languageOptions: { globals: { ...globals.browser, ...globals.node } } },

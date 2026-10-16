@@ -1,4 +1,4 @@
-import { auth, clerkClient } from '@clerk/nextjs/server'
+import { auth, clerkClient, clerkMiddleware } from '@clerk/nextjs/server'
 import {
   applyAssignments,
   createCompletion,
@@ -580,14 +580,27 @@ describe('import commit', () => {
 describe('proxy', () => {
   it('sends visitors to sign-in everywhere but the home page and Clerk’s pages', async () => {
     const { default: handler, config, isPublicPath } = await import('@/proxy')
-    expect(config.matcher).toHaveLength(2)
+    expect(config.matcher).toEqual(['/((?!_next/static|_next/image).*)'])
+    // To the app's own sign-in page, not Clerk's hosted one.
+    expect(clerkMiddleware).toHaveBeenCalledWith(expect.any(Function), {
+      signInUrl: '/sign-in',
+      signUpUrl: '/sign-up',
+    })
     const protect = vi.fn()
     const run = (pathname: string) =>
       (handler as unknown as (auth: unknown, request: unknown) => Promise<void>)(
         { protect },
         { nextUrl: { pathname } }
       )
-    for (const path of ['/', '/sign-in', '/sign-in/factor-one', '/sign-up']) {
+    for (const path of [
+      '/',
+      '/sign-in',
+      '/sign-in/factor-one',
+      '/sign-up',
+      '/robots.txt',
+      '/icon.svg',
+      '/missing.png',
+    ]) {
       expect(isPublicPath(path), path).toBe(true)
       await run(path)
     }
