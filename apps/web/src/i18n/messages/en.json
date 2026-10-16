@@ -732,14 +732,28 @@
       "upcoming": "Upcoming sessions",
       "noUpcoming": "Nothing is scheduled here.",
       "past": "{count, plural, =0 {No past sessions} one {# past session} other {# past sessions}}",
-      "courses": "Courses",
-      "coursesDescription": "Whether a session of each course fits here, judged by what the course needs.",
-      "fits": "Fits",
-      "noCourses": "No course has its session needs set yet.",
-      "mismatch": {
-        "ONLINE_NOT_ALLOWED": "Not held online",
-        "TOO_SMALL": "Seats only {capacity}",
-        "MISSING_CAPABILITIES": "Missing {missing}"
+      "courses": "Course fit",
+      "coursesDescription": "What a session of each course needs, beside what this room provides.",
+      "noCourses": "There are no courses yet.",
+      "fit": {
+        "label": "Course fit in {name}",
+        "course": "Course",
+        "seatsNeeded": "Seats needed",
+        "seatsHere": "Seats here",
+        "equipment": "Equipment needed",
+        "online": "Held online",
+        "verdict": "Fits",
+        "splitByRoom": "Split by room",
+        "unlimited": "No limit",
+        "noEquipment": "None",
+        "has": "(in this room)",
+        "lacks": "(not in this room)",
+        "allowed": "Allowed",
+        "notAllowed": "Not allowed",
+        "fits": "Fits",
+        "TOO_SMALL": "{needed, plural, one {Needs # seat} other {Needs # seats}}, has {capacity}",
+        "MISSING_CAPABILITIES": "Lacks {missing}",
+        "ONLINE_NOT_ALLOWED": "Not held online"
       }
     },
     "form": {

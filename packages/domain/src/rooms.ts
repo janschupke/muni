@@ -63,24 +63,52 @@ export interface SessionNeeds {
 
 export type RoomMismatch =
   | { kind: 'ONLINE_NOT_ALLOWED' }
-  | { kind: 'TOO_SMALL'; capacity: number }
+  | { kind: 'TOO_SMALL'; needed: number; capacity: number }
   | { kind: 'MISSING_CAPABILITIES'; missing: Capability[] }
 
 /**
- * Why a room cannot hold a session of the course, or null when it can. An online room
- * needs the course to allow online delivery and nothing else; a physical room needs every
- * capability the course lists and a seat for each of `seats` people. With `seats` null
- * (a course with no group size, which the planner splits by the room) seats are no limit.
+ * What a session of a course needs from a room next to what the room provides, one measure
+ * at a time, and the first reason it cannot hold it (null when it can).
+ *
+ * An online room is judged only on whether the course may be held online: it has no seats
+ * to run out of and no equipment to lack. A physical room needs every capability the course
+ * lists and a seat for each of `seats` people. With `seats` null (a course with no group
+ * size, which the planner splits by the room) seats are no limit.
  */
+export type RoomFit =
+  | { online: true; allowed: boolean; mismatch: RoomMismatch | null }
+  | {
+      online: false
+      seats: { needed: number | null; provided: number | null; ok: boolean }
+      equipment: { needed: Capability[]; missing: Capability[]; ok: boolean }
+      mismatch: RoomMismatch | null
+    }
+
+export function roomFit(room: RoomFacts, needs: SessionNeeds, seats: number | null): RoomFit {
+  if (room.kind === 'ONLINE')
+    return {
+      online: true,
+      allowed: needs.onlineAllowed,
+      mismatch: needs.onlineAllowed ? null : { kind: 'ONLINE_NOT_ALLOWED' },
+    }
+  const missing = needs.capabilities.filter(c => !room.capabilities.includes(c))
+  const tooSmall: RoomMismatch | null =
+    seats !== null && room.capacity !== null && room.capacity < seats
+      ? { kind: 'TOO_SMALL', needed: seats, capacity: room.capacity }
+      : null
+  return {
+    online: false,
+    seats: { needed: seats, provided: room.capacity, ok: tooSmall === null },
+    equipment: { needed: [...needs.capabilities], missing, ok: missing.length === 0 },
+    mismatch: missing.length > 0 ? { kind: 'MISSING_CAPABILITIES', missing } : tooSmall,
+  }
+}
+
+/** Why a room cannot hold a session of the course, or null when it can (see `roomFit`). */
 export function roomMismatch(
   room: RoomFacts,
   needs: SessionNeeds,
   seats: number | null
 ): RoomMismatch | null {
-  if (room.kind === 'ONLINE') return needs.onlineAllowed ? null : { kind: 'ONLINE_NOT_ALLOWED' }
-  const missing = needs.capabilities.filter(c => !room.capabilities.includes(c))
-  if (missing.length > 0) return { kind: 'MISSING_CAPABILITIES', missing }
-  if (seats !== null && room.capacity !== null && room.capacity < seats)
-    return { kind: 'TOO_SMALL', capacity: room.capacity }
-  return null
+  return roomFit(room, needs, seats).mismatch
 }

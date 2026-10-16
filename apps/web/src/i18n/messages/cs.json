@@ -732,14 +732,28 @@
       "upcoming": "Nadcházející termíny",
       "noUpcoming": "Nic tu není naplánováno.",
       "past": "{count, plural, =0 {Žádné proběhlé termíny} one {# proběhlý termín} few {# proběhlé termíny} other {# proběhlých termínů}}",
-      "courses": "Kurzy",
-      "coursesDescription": "Zda se sem vejde termín každého kurzu podle toho, co kurz potřebuje.",
-      "fits": "Vyhovuje",
-      "noCourses": "Žádný kurz zatím nemá nastavené, co termín potřebuje.",
-      "mismatch": {
-        "ONLINE_NOT_ALLOWED": "Nekoná se online",
-        "TOO_SMALL": "{capacity, plural, one {Jen # místo} few {Jen # místa} other {Jen # míst}}",
-        "MISSING_CAPABILITIES": "Chybí {missing}"
+      "courses": "Vhodnost pro kurzy",
+      "coursesDescription": "Co potřebuje termín každého kurzu, vedle toho, co nabízí tato místnost.",
+      "noCourses": "Zatím tu nejsou žádné kurzy.",
+      "fit": {
+        "label": "Vhodnost místnosti {name} pro kurzy",
+        "course": "Kurz",
+        "seatsNeeded": "Potřebná místa",
+        "seatsHere": "Míst zde",
+        "equipment": "Potřebné vybavení",
+        "online": "Výuka online",
+        "verdict": "Vyhovuje",
+        "splitByRoom": "Dělí se podle místnosti",
+        "unlimited": "Bez omezení",
+        "noEquipment": "Žádné",
+        "has": "(v této místnosti je)",
+        "lacks": "(v této místnosti chybí)",
+        "allowed": "Povolena",
+        "notAllowed": "Nepovolena",
+        "fits": "Vyhovuje",
+        "TOO_SMALL": "{needed, plural, one {Potřebuje # místo} few {Potřebuje # místa} other {Potřebuje # míst}}, má {capacity}",
+        "MISSING_CAPABILITIES": "Chybí {missing}",
+        "ONLINE_NOT_ALLOWED": "Nekoná se online"
       }
     },
     "form": {

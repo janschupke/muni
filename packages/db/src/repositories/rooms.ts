@@ -1,10 +1,5 @@
 import type { Capability, RoomKind } from '@muni/domain/enums'
-import {
-  roomMismatch,
-  UTILISATION_DAYS,
-  WORKING_HOURS,
-  type RoomMismatch,
-} from '@muni/domain/rooms'
+import { roomFit, UTILISATION_DAYS, WORKING_HOURS, type RoomFit } from '@muni/domain/rooms'
 import {
   addDays,
   isWorkingDay,
@@ -38,8 +33,8 @@ export interface RoomDetail extends RoomListItem {
   upcoming: SessionListItem[]
   /** Sessions held here (cancelled ones not counted). */
   pastCount: number
-  /** Every course, and whether a session of it fits this room by what the course needs. */
-  courses: { code: string; name: string; groupSize: number | null; mismatch: RoomMismatch | null }[]
+  /** Every course, with what a session of it needs beside what this room provides. */
+  courses: { code: string; name: string; fit: RoomFit }[]
 }
 
 /** The days utilisation is measured over, and their bounds as instants. */
@@ -149,8 +144,7 @@ export async function getRoom(
     courses: courses.map(c => ({
       code: c.code,
       name: c.name,
-      groupSize: c.groupSize,
-      mismatch: roomMismatch(
+      fit: roomFit(
         listed,
         {
           groupSize: c.groupSize,

@@ -551,12 +551,21 @@ describe('rooms', () => {
     expect(room?.upcoming.length).toBeGreaterThan(0)
     expect(room?.upcoming.every(s => s.room.id === id)).toBe(true)
     const course = (code: string) => room?.courses.find(c => c.code === code)
-    expect(course('PRV-POM')?.mismatch).toBeNull()
-    expect(course('BOZP-Z')?.mismatch).toEqual({ kind: 'TOO_SMALL', capacity: 15 })
+    expect(course('PRV-POM')?.fit.mismatch).toBeNull()
+    // Each need beside what the room has, in numbers.
+    expect(course('BOZP-Z')?.fit).toMatchObject({
+      online: false,
+      seats: { needed: 30, provided: 15, ok: false },
+      mismatch: { kind: 'TOO_SMALL', needed: 30, capacity: 15 },
+    })
 
     const online = await getRoom(await roomId('Online'), { ...options, now })
-    expect(online?.courses.find(c => c.code === 'GDPR')?.mismatch).toBeNull()
-    expect(online?.courses.find(c => c.code === 'BOZP-Z')?.mismatch).toEqual({
+    expect(online?.courses.find(c => c.code === 'GDPR')?.fit).toEqual({
+      online: true,
+      allowed: true,
+      mismatch: null,
+    })
+    expect(online?.courses.find(c => c.code === 'BOZP-Z')?.fit.mismatch).toEqual({
       kind: 'ONLINE_NOT_ALLOWED',
     })
     expect(await getRoom('nope', options)).toBeNull()

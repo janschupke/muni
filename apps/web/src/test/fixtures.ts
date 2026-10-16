@@ -18,7 +18,7 @@ import type {
 } from '@muni/db/repositories'
 import type { getCourseForEdit, getPlannerInput } from '@muni/db/repositories'
 import type { AdvisorInput } from '@muni/domain/advisor'
-import type { RoomRef } from '@muni/domain/rooms'
+import { roomFit, type RoomFacts, type RoomRef, type SessionNeeds } from '@muni/domain/rooms'
 import type { ComplianceCounts } from '@muni/domain/compliance'
 
 // Typed builders for repository results, shaped like the seeded register (asOf 2026-10-16).
@@ -408,34 +408,36 @@ export const roomRow = (over: Partial<RoomListItem> = {}): RoomListItem => ({
   ...over,
 })
 
-export const roomDetail = (over: Partial<RoomDetail> = {}): RoomDetail => ({
-  ...roomRow(),
-  note: 'Přízemí, vchod B',
-  upcoming: [session()],
-  pastCount: 4,
-  courses: [
-    { code: 'BOZP-Z', name: 'BOZP – základní školení', groupSize: 30, mismatch: null },
-    {
-      code: 'LAB-BEZ',
-      name: 'Bezpečná práce v laboratoři',
-      groupSize: 20,
-      mismatch: { kind: 'MISSING_CAPABILITIES', missing: ['LAB_EQUIPMENT'] },
-    },
-    {
-      code: 'GDPR',
-      name: 'Ochrana osobních údajů',
-      groupSize: 100,
-      mismatch: { kind: 'TOO_SMALL', capacity: 40 },
-    },
-    {
-      code: 'KYBER',
-      name: 'Kybernetická bezpečnost',
-      groupSize: 30,
-      mismatch: { kind: 'ONLINE_NOT_ALLOWED' },
-    },
-  ],
-  ...over,
+/** A course's needs judged against `room`, as the repository does. */
+const fitOf = (
+  room: RoomFacts,
+  code: string,
+  name: string,
+  needs: Partial<SessionNeeds> & { groupSize: number | null }
+) => ({
+  code,
+  name,
+  fit: roomFit(room, { onlineAllowed: false, capabilities: [], ...needs }, needs.groupSize),
 })
+
+export const roomDetail = (over: Partial<RoomDetail> = {}): RoomDetail => {
+  const room = { ...roomRow(), ...over }
+  return {
+    note: 'Přízemí, vchod B',
+    upcoming: [session()],
+    pastCount: 4,
+    courses: [
+      fitOf(room, 'BOZP-Z', 'BOZP – základní školení', { groupSize: 30 }),
+      fitOf(room, 'LAB-BEZ', 'Bezpečná práce v laboratoři', {
+        groupSize: 20,
+        capabilities: ['LAB_EQUIPMENT', 'PROJECTOR'],
+      }),
+      fitOf(room, 'GDPR', 'Ochrana osobních údajů', { groupSize: 100, onlineAllowed: true }),
+      fitOf(room, 'ANGL', 'Angličtina', { groupSize: null }),
+    ],
+    ...room,
+  }
+}
 
 /** A group's people: one needing attention, one fully held (on leave), one with nothing required. */
 const members = (): EmployeeListItem[] => [

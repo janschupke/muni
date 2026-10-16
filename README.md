@@ -55,6 +55,12 @@ Internal packages ship TypeScript source (`exports` point at `src/`); Next compi
   online room has no seat limit and every other room has seats (a CHECK). A room's
   utilisation is its booked hours over the next 30 days from tomorrow, against Czech working
   days (weekends and public holidays, Easter included, are out) of 8 hours.
+- **Room fit:** `roomFit` in `@muni/domain/rooms` is the one judgement of whether a room can
+  hold a session of a course, and the planner, the server checks and the room page all use it.
+  - **A physical room:** the result sets each need beside what the room provides (seats needed
+    against seats there, each needed piece of equipment held or lacking), then the first reason
+    it fails, in numbers ("Needs 100 seats, has 40").
+  - **An online room:** judged only on whether the course may be held online.
 - **What a session needs:** `Course.sessionMinutes`, `groupSize`, `onlineAllowed` and its
   capabilities. Every sessions import derives them from the course's sessions (usual length,
   median size, online if ever held online) until someone sets them in the course form

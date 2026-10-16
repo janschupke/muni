@@ -364,7 +364,8 @@ describe('rooms', () => {
       options
     )
     expect(
-      (await getRoom(id, { ...options, now }))?.courses.find(c => c.code === 'LAB-BEZ')?.mismatch
+      (await getRoom(id, { ...options, now }))?.courses.find(c => c.code === 'LAB-BEZ')?.fit
+        .mismatch
     ).toEqual({ kind: 'MISSING_CAPABILITIES', missing: ['PROJECTOR'] })
     await updateRoom(
       id,
@@ -382,7 +383,8 @@ describe('rooms', () => {
       ['PROJECTOR', 'LAB_EQUIPMENT'],
     ])
     expect(
-      (await getRoom(id, { ...options, now }))?.courses.find(c => c.code === 'LAB-BEZ')?.mismatch
+      (await getRoom(id, { ...options, now }))?.courses.find(c => c.code === 'LAB-BEZ')?.fit
+        .mismatch
     ).toBeNull()
     expect((await listRooms({ ...options, now })).find(r => r.id === id)?.capabilities).toEqual([
       'PROJECTOR',

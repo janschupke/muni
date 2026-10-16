@@ -102,18 +102,37 @@ describe('room detail', () => {
     expect(screen.getByText('Wheelchair access')).toBeTruthy()
     expect(screen.getByText('Přízemí, vchod B')).toBeTruthy()
     expect(screen.getByText('25% of working hours')).toBeTruthy()
-    // The course list, not the session table (which names courses too).
-    const course = (name: string) =>
-      screen
-        .getAllByRole('link', { name })
-        .map(link => link.closest('li'))
-        .find(item => item !== null) as HTMLElement
-    expect(within(course('BOZP – základní školení')).getByText('Fits')).toBeTruthy()
+    // Each course's needs beside what the room provides, in numbers.
+    const fit = screen.getByRole('table', { name: 'Course fit in Aula A' })
     expect(
-      within(course('Bezpečná práce v laboratoři')).getByText('Missing Lab equipment')
-    ).toBeTruthy()
-    expect(within(course('Ochrana osobních údajů')).getByText('Seats only 40')).toBeTruthy()
-    expect(within(course('Kybernetická bezpečnost')).getByText('Not held online')).toBeTruthy()
+      within(fit)
+        .getAllByRole('columnheader')
+        .map(h => h.textContent)
+    ).toEqual(['Course', 'Seats needed', 'Seats here', 'Equipment needed', 'Fits'])
+    const cells = (name: string) =>
+      within(within(fit).getByRole('row', { name: new RegExp(name) }))
+        .getAllByRole('cell')
+        .map(c => c.textContent)
+    expect(cells('BOZP')).toEqual(['BOZP – základní školení', '30', '40', 'None', 'Fits'])
+    expect(cells('laboratoři')).toEqual([
+      'Bezpečná práce v laboratoři',
+      '20',
+      '40',
+      'Lab equipment (not in this room)Projector (in this room)',
+      'Lacks Lab equipment',
+    ])
+    expect(cells('osobních')).toEqual([
+      'Ochrana osobních údajů',
+      '100',
+      '40',
+      'None',
+      'Needs 100 seats, has 40',
+    ])
+    expect(cells('Angličtina')).toEqual(['Angličtina', 'Split by room', '40', 'None', 'Fits'])
+    // The short room is marked where it falls short, not only in the verdict.
+    expect(
+      within(within(fit).getByRole('row', { name: /osobních/ })).getAllByRole('cell')[2]?.className
+    ).toContain('text-danger-fg')
     expect(screen.getByRole('link', { name: /Nov 4, 2026/ }).getAttribute('href')).toBe(
       '/sessions/T016'
     )
@@ -141,11 +160,33 @@ describe('room detail', () => {
     expect(screen.getByText('No limit')).toBeTruthy()
     expect(screen.getByText('No equipment listed')).toBeTruthy()
     expect(screen.getByText('Nothing is scheduled here.')).toBeTruthy()
-    expect(screen.getByText('No course has its session needs set yet.')).toBeTruthy()
+    expect(screen.getByText('There are no courses yet.')).toBeTruthy()
     expect(screen.queryByText(/past session/)).toBeNull()
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '/rooms/room_online/edit'
     )
+  })
+})
+
+describe('room fit online', () => {
+  it('judges an online room only on whether each course may be held online', async () => {
+    vi.mocked(getRoom).mockResolvedValue(
+      roomDetail({ ...ONLINE, capacity: null, capabilities: [], utilisation: null })
+    )
+    await renderServer(RoomPage({ params: params({ id: 'room_online' }) }))
+    const fit = screen.getByRole('table', { name: 'Course fit in Online' })
+    expect(
+      within(fit)
+        .getAllByRole('columnheader')
+        .map(h => h.textContent)
+    ).toEqual(['Course', 'Held online', 'Fits'])
+    const row = (name: RegExp) =>
+      within(within(fit).getByRole('row', { name }))
+        .getAllByRole('cell')
+        .map(c => c.textContent)
+    expect(row(/osobních/)).toEqual(['Ochrana osobních údajů', 'Allowed', 'Fits'])
+    expect(row(/BOZP/)).toEqual(['BOZP – základní školení', 'Not allowed', 'Not held online'])
+    await expectNoAxeViolations()
   })
 })
 
