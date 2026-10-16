@@ -1,7 +1,7 @@
 import { courseEditSchema, sessionEditSchema } from '@muni/domain/schemas'
 import { describe, expect, it } from 'vitest'
 
-import { fieldErrors, list, number, text } from './form'
+import { fieldErrors, list, money, number, text } from './form'
 
 const form = (entries: Record<string, string>) => {
   const data = new FormData()
@@ -15,6 +15,16 @@ describe('form helpers', () => {
     expect(text(data, 'a')).toBeNull()
     expect(number(data, 'b')).toBe(1200.5)
     expect(number(data, 'c')).toBe('abc')
+  })
+
+  it('reads amounts as the imports do, and leaves the rest for the schema', () => {
+    const data = form({ a: '1 200,50 Kč', b: 'zdarma', c: '450,-', d: '-5', e: 'abc', f: ' ' })
+    expect(money(data, 'a')).toBe(1200.5)
+    expect(money(data, 'b')).toBe(0)
+    expect(money(data, 'c')).toBe(450)
+    expect(money(data, 'd')).toBe(-5)
+    expect(money(data, 'e')).toBe('abc')
+    expect(money(data, 'f')).toBeNull()
   })
 
   it('reads every value of a checkbox group', () => {

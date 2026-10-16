@@ -5,7 +5,15 @@ import { sessionCreateSchema, type SessionCreate } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { fieldErrors, formError, number, sessionProblem, text, type FormState } from '@/lib/form'
+import {
+  fieldErrors,
+  formError,
+  money,
+  number,
+  sessionProblem,
+  text,
+  type FormState,
+} from '@/lib/form'
 import { getViewer, requireUser } from '@/server/auth'
 
 export type CreateOutcome =
@@ -46,7 +54,7 @@ export async function saveNewSession(
     endTime: text(form, 'endTime'),
     roomId: text(form, 'roomId'),
     capacity: number(form, 'capacity'),
-    pricePerPerson: number(form, 'pricePerPerson'),
+    pricePerPerson: money(form, 'pricePerPerson'),
     status: text(form, 'status'),
   }
   const parsed = sessionCreateSchema.safeParse(input)

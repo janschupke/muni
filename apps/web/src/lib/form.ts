@@ -1,4 +1,5 @@
 import type { SessionProblem } from '@muni/db/repositories'
+import { parseCzk } from '@muni/utils/money'
 import type * as z from 'zod'
 
 /** What a field can be wrong with: i18n keys under forms.errors. */
@@ -46,6 +47,19 @@ export function number(form: FormData, key: string): number | string | null {
   if (value === null) return null
   const parsed = Number(value.replace(/\s/g, '').replace(',', '.'))
   return Number.isFinite(parsed) ? parsed : value
+}
+
+/**
+ * An amount in crowns, read as the imports read it (`1 200,50 Kč`, `450,-`, `zdarma`); empty
+ * → null. A negative amount reaches the schema as a number, so it says the value is too small;
+ * anything else unreadable is passed through for the schema to reject.
+ */
+export function money(form: FormData, key: string): number | string | null {
+  const value = text(form, key)
+  if (value === null) return null
+  const parsed = parseCzk(value)
+  if (parsed.ok) return parsed.value
+  return parsed.reason === 'negative' ? number(form, key) : value
 }
 
 export function checkbox(form: FormData, key: string): boolean {

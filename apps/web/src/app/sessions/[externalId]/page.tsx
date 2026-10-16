@@ -10,7 +10,7 @@ import { Meter } from '@muni/ui/meter'
 import { PageHeader } from '@muni/ui/page-header'
 import { TextLink } from '@muni/ui/text-link'
 import { toZonedParts } from '@muni/utils/dates'
-import { formatCurrency, formatDate, formatOptional, formatTimeRange } from '@muni/utils/format'
+import { formatCurrency, formatDate, formatTimeRange } from '@muni/utils/format'
 import { Pencil } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
@@ -87,7 +87,7 @@ export default async function SessionPage({ params }: Props) {
                   <SessionStatusBadge status={session.status} />
                 </DescriptionItem>
                 <DescriptionItem label={t('detail.price')}>
-                  {formatOptional(session.pricePerPerson, v => formatCurrency(v, locale))}
+                  {formatCurrency(session.pricePerPerson, locale)}
                 </DescriptionItem>
                 <DescriptionItem label="ID">{session.externalId}</DescriptionItem>
               </DescriptionList>

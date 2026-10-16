@@ -1,6 +1,6 @@
 import { forecastEnd, type AdvisorInput, type AdvisorNeed } from '@muni/domain/advisor'
 
-import { dbOf, loadCompliance, type RepoOptions } from './context'
+import { dbOf, loadCompliance, toAmount, type RepoOptions } from './context'
 import { roomRefSelect } from './sessions'
 
 /**
@@ -83,7 +83,7 @@ export async function getAdvisorInput(
       capacity: s.capacity,
       unnamedBookings: s.unnamedBookings,
       assigned: s.assignments.map(a => a.employee.externalId),
-      pricePerPerson: s.pricePerPerson === null ? null : Number(s.pricePerPerson),
+      pricePerPerson: toAmount(s.pricePerPerson),
       status: s.status,
     })),
   }

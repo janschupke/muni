@@ -71,10 +71,10 @@ export function CompletionHistoryTable({
         }),
         history.accessor(c => c.price ?? undefined, {
           id: 'price',
-          header: t('forms.completion.price'),
+          header: t('employees.detail.price'),
           sortFn: 'basic',
           meta: { align: 'right' },
-          cell: ({ getValue }) => formatOptional(getValue(), v => formatCurrency(v, locale)),
+          cell: ({ getValue }) => formatCurrency(getValue(), locale),
         }),
         ...(showNotes
           ? [

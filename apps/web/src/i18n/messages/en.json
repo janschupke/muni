@@ -163,6 +163,7 @@
       "hiredOn": "Hired",
       "leftOn": "Left",
       "note": "Note",
+      "price": "Price",
       "requirements": "Required trainings",
       "requirementsDescription": "Status of every course this person must hold.",
       "noRequirements": "No training is required for this person.",
@@ -346,7 +347,7 @@
       "startTime": "Start",
       "endTime": "End",
       "capacity": "Capacity",
-      "pricePerPerson": "Price per person (CZK)",
+      "pricePerPerson": "Price per person ({currency})",
       "status": "Status",
       "unnamedBookings": "Other bookings (not named)",
       "unnamedHelp": "{count, plural, =0 {Nobody is booked by name.} one {Plus # person booked by name.} other {Plus # people booked by name.}}",
@@ -371,7 +372,7 @@
       "validUntil": "Valid until",
       "validUntilHelp": "Leave empty to calculate it from the course validity.",
       "provider": "Provider",
-      "price": "Price (CZK)",
+      "price": "Price ({currency})",
       "note": "Note"
     }
   },

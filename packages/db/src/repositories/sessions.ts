@@ -1,7 +1,7 @@
 import type { RoomRef } from '@muni/domain/rooms'
 
 import type { SessionListItem } from './courses'
-import { dbOf, type RepoOptions } from './context'
+import { dbOf, toAmount, type RepoOptions } from './context'
 
 /**
  * What "upcoming" means wherever sessions are shown or counted: planned and not yet ended,
@@ -61,7 +61,7 @@ export function toSessionItem(s: SessionRow): SessionListItem {
       name: `${a.employee.lastName} ${a.employee.firstName}`,
     })),
     bookedCount: s.unnamedBookings + s.assignments.length,
-    pricePerPerson: s.pricePerPerson === null ? null : Number(s.pricePerPerson.toString()),
+    pricePerPerson: toAmount(s.pricePerPerson),
     status: s.status,
   }
 }

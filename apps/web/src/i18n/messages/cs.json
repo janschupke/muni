@@ -163,6 +163,7 @@
       "hiredOn": "Nástup",
       "leftOn": "Ukončení",
       "note": "Poznámka",
+      "price": "Cena",
       "requirements": "Povinná školení",
       "requirementsDescription": "Stav všech kurzů, které musí mít.",
       "noRequirements": "Pro tuto osobu není žádné školení povinné.",
@@ -346,7 +347,7 @@
       "startTime": "Začátek",
       "endTime": "Konec",
       "capacity": "Kapacita",
-      "pricePerPerson": "Cena za osobu (Kč)",
+      "pricePerPerson": "Cena za osobu ({currency})",
       "status": "Stav",
       "unnamedBookings": "Další obsazená místa (bez jména)",
       "unnamedHelp": "{count, plural, =0 {Nikdo není přihlášen jménem.} one {A # osoba přihlášená jménem.} few {A # osoby přihlášené jménem.} other {A # osob přihlášených jménem.}}",
@@ -371,7 +372,7 @@
       "validUntil": "Platí do",
       "validUntilHelp": "Nechte prázdné a dopočítá se z platnosti kurzu.",
       "provider": "Poskytovatel",
-      "price": "Cena (Kč)",
+      "price": "Cena ({currency})",
       "note": "Poznámka"
     }
   },

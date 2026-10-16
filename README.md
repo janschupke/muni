@@ -101,6 +101,13 @@ applied in `listEmployees` before the page is cut.
 Dates and times are formatted with luxon in Europe/Prague time (`@muni/utils/format`);
 date-only values are formatted as UTC so the day never shifts. Amounts use `Intl.NumberFormat`.
 
+Every amount is in Czech crowns (`CURRENCY` in `@muni/utils/format`):
+
+- `formatCurrency` shows one, or the placeholder when there is none. Whole amounts drop the decimals.
+- Price fields name the currency with `currencySymbol` ("Kč", "CZK") rather than a literal in the messages.
+- The forms read an amount with the import's parser (`money()` → `parseCzk`), so `1 200,50 Kč` and `zdarma` work in both.
+- The database stores decimals, and the repositories convert them with `toAmount`.
+
 ### Colour
 
 One palette, defined once in `packages/ui/src/styles/tokens.css`:

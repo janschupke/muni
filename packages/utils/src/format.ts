@@ -78,15 +78,31 @@ export function formatTimeRange(
     : `${from.toLocaleString(DATE_TIME)} – ${to.toLocaleString(DATE_TIME)}`
 }
 
-/** Whole amounts drop the decimals (`450 Kč`); anything else keeps two (`450,50 Kč`). */
-export function formatCurrency(amount: number, locale: string, currency = 'CZK'): string {
+/** Every amount the app stores and shows is in this currency. */
+export const CURRENCY = 'CZK'
+
+/**
+ * Whole amounts drop the decimals (`450 Kč`); anything else keeps two (`450,50 Kč`).
+ * No amount is the placeholder.
+ */
+export function formatCurrency(amount: number | null | undefined, locale: string): string {
+  if (amount === null || amount === undefined) return PLACEHOLDER
   const whole = Number.isInteger(amount)
   return numberFormatter(locale, {
     style: 'currency',
-    currency,
+    currency: CURRENCY,
     minimumFractionDigits: whole ? 0 : 2,
     maximumFractionDigits: whole ? 0 : 2,
   }).format(amount)
+}
+
+/** How the locale writes the currency on its own (`Kč`, `CZK`), for a field's label. */
+export function currencySymbol(locale: string): string {
+  return (
+    numberFormatter(locale, { style: 'currency', currency: CURRENCY })
+      .formatToParts(0)
+      .find(p => p.type === 'currency')?.value ?? CURRENCY
+  )
 }
 
 export function formatInteger(value: number, locale: string): string {

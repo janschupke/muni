@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  currencySymbol,
   formatCurrency,
   formatDate,
   formatDateTime,
@@ -59,6 +60,13 @@ describe('numbers', () => {
     expect(plain(formatCurrency(0, 'cs'))).toBe('0 Kč')
     expect(plain(formatCurrency(2100, 'en'))).toBe('CZK 2,100')
     expect(plain(formatCurrency(450.5, 'en'))).toBe('CZK 450.50')
+    expect(formatCurrency(null, 'cs')).toBe(PLACEHOLDER)
+    expect(formatCurrency(undefined, 'en')).toBe(PLACEHOLDER)
+  })
+
+  it('names the currency as the locale writes it', () => {
+    expect(currencySymbol('cs')).toBe('Kč')
+    expect(currencySymbol('en')).toBe('CZK')
   })
 
   it('formats scores, signed when asked', () => {

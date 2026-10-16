@@ -360,7 +360,7 @@ describe('tables', () => {
     renderClient(<CompletionHistoryTable completions={completions} showNotes />)
     expect(screen.getByText('online')).toBeTruthy()
     expect(screen.getByText('No expiry')).toBeTruthy()
-    for (const header of ['Course', 'Completed', 'Valid until', 'Provider', 'Price (CZK)'])
+    for (const header of ['Course', 'Completed', 'Valid until', 'Provider', 'Price'])
       await user.click(screen.getByRole('button', { name: header }))
     expect(screen.getAllByRole('row')).toHaveLength(3)
   })

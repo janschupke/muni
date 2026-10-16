@@ -7,7 +7,8 @@ import {
   type Capability,
 } from '@muni/domain/enums'
 import { FieldRow } from '@muni/ui/field'
-import { useTranslations } from 'next-intl'
+import { currencySymbol } from '@muni/utils/format'
+import { useLocale, useTranslations } from 'next-intl'
 
 import type { FormState } from '@/lib/form'
 
@@ -115,6 +116,7 @@ export function SessionForm({
 }) {
   const t = useTranslations('forms.session')
   const ts = useTranslations('status.session')
+  const locale = useLocale()
   return (
     <FormShell action={action} cancelHref={cancelHref}>
       <FieldRow columns={3}>
@@ -167,7 +169,7 @@ export function SessionForm({
         <TextField
           name="pricePerPerson"
           inputMode="decimal"
-          label={t('pricePerPerson')}
+          label={t('pricePerPerson', { currency: currencySymbol(locale) })}
           defaultValue={defaults.pricePerPerson ?? ''}
         />
       </FieldRow>
@@ -289,6 +291,7 @@ export function CompletionForm({
   today: string
 }) {
   const t = useTranslations('forms.completion')
+  const locale = useLocale()
   return (
     <FormShell action={action} cancelHref={cancelHref}>
       <SelectField
@@ -314,7 +317,11 @@ export function CompletionForm({
       </FieldRow>
       <FieldRow>
         <TextField name="provider" label={t('provider')} list="providers" autoComplete="off" />
-        <TextField name="price" inputMode="decimal" label={t('price')} />
+        <TextField
+          name="price"
+          inputMode="decimal"
+          label={t('price', { currency: currencySymbol(locale) })}
+        />
       </FieldRow>
       <datalist id="providers">
         {providers.map(p => (

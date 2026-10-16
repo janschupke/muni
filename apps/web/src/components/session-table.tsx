@@ -7,7 +7,7 @@ import { BarRow } from '@muni/ui/bar-row'
 import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
-import { formatCurrency, formatOptional } from '@muni/utils/format'
+import { formatCurrency } from '@muni/utils/format'
 import { Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -114,8 +114,7 @@ export function SessionTable({
                 header: t('columns.price'),
                 sortFn: 'basic',
                 meta: { align: 'right', nowrap: true },
-                cell: ({ getValue }) =>
-                  formatOptional(getValue(), value => formatCurrency(value, locale)),
+                cell: ({ getValue }) => formatCurrency(getValue(), locale),
               }),
               col.accessor('status', {
                 header: t('columns.status'),

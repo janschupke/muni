@@ -10,7 +10,14 @@ import { sanitizeRecord } from '@muni/domain/sanitize'
 import { fold } from '@muni/utils/text'
 import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
-import { countedCells, dbOf, getPolicy, loadCompliance, type RepoOptions } from './context'
+import {
+  countedCells,
+  dbOf,
+  getPolicy,
+  loadCompliance,
+  toAmount,
+  type RepoOptions,
+} from './context'
 import { compareNames, sortEmployees, type EmployeeSortKey } from './employee-sort'
 import { courseOf, loadNextBookings, requirementOf, type RequirementContext } from './requirements'
 
@@ -322,7 +329,7 @@ export async function getEmployee(
           completedOn: isoDateFromUtc(c.completedOn),
           validUntil: c.validUntil ? isoDateFromUtc(c.validUntil) : null,
           provider: c.provider?.name ?? null,
-          price: c.price === null ? null : Number(c.price),
+          price: toAmount(c.price),
           note: c.note,
         },
         viewer

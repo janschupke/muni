@@ -23,6 +23,7 @@ import {
   fieldErrors,
   formError,
   list,
+  money,
   number,
   sessionProblem,
   text,
@@ -76,7 +77,7 @@ export async function saveSession(
     roomId: text(form, 'roomId'),
     capacity: number(form, 'capacity'),
     unnamedBookings: number(form, 'unnamedBookings') ?? 0,
-    pricePerPerson: number(form, 'pricePerPerson'),
+    pricePerPerson: money(form, 'pricePerPerson'),
     status: text(form, 'status'),
   }
   const parsed = sessionEditSchema.safeParse(input)
@@ -131,7 +132,7 @@ export async function recordCompletion(
     completedOn: text(form, 'completedOn'),
     validUntil: text(form, 'validUntil'),
     provider: text(form, 'provider'),
-    price: number(form, 'price'),
+    price: money(form, 'price'),
     note: text(form, 'note'),
   }
   const parsed = completionCreateSchema.safeParse(input)

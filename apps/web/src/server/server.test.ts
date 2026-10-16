@@ -166,7 +166,7 @@ describe('edit actions', () => {
     endTime: '11:00',
     roomId: 'room_aula_a',
     capacity: '30',
-    pricePerPerson: '450,50',
+    pricePerPerson: '450,50 Kč',
     status: 'PLANNED',
   }
 
@@ -238,11 +238,15 @@ describe('edit actions', () => {
     )
     // A date the user entered wins; a course that never expires gives none.
     await redirectOf(
-      recordCompletion('E0153', idle, form({ ...completionForm, validUntil: '2027-01-01' }))
+      recordCompletion(
+        'E0153',
+        idle,
+        form({ ...completionForm, validUntil: '2027-01-01', price: '1 200 Kč' })
+      )
     )
     expect(createCompletion).toHaveBeenLastCalledWith(
       'E0153',
-      expect.objectContaining({ validUntil: '2027-01-01' })
+      expect.objectContaining({ validUntil: '2027-01-01', price: 1200 })
     )
     vi.mocked(getCourseForEdit).mockResolvedValue(
       courseForEdit({ code: 'LEAD', name: 'LEAD', validityMonths: null })
@@ -512,7 +516,7 @@ describe('session creation', () => {
       endTime: '12:00',
       roomId: 'room_aula_a',
       capacity: '40',
-      pricePerPerson: '380',
+      pricePerPerson: '380,- Kč',
       status: 'PLANNED',
     }
     expect(await redirectOf(saveNewSession('POZ-OCH', idle, form(fields)))).toBe('/sessions/S002')
