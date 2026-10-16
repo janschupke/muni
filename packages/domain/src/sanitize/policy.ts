@@ -145,7 +145,7 @@ export type Sanitized<T, K extends keyof T> = Omit<T, K> & { [P in K]?: T[P] }
  */
 export function sanitizeRecord<
   E extends SensitiveEntity,
-  T extends { [K in SensitiveFieldOf<E>]: Sanitizable },
+  T extends Record<SensitiveFieldOf<E>, Sanitizable>,
 >(policy: SanitizePolicy, entity: E, record: T, viewer: Viewer): Sanitized<T, SensitiveFieldOf<E>> {
   const sensitive = new Set<string>(SENSITIVE_FIELDS[entity])
   const out: Record<string, unknown> = {}

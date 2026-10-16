@@ -16,7 +16,9 @@ import { GroupBreakdown } from '@/features/org/group-breakdown'
 import { GroupFacts } from '@/features/org/group-facts'
 import { GroupCourses, GroupPeople } from '@/features/org/group-sections'
 
-type Props = { params: Promise<{ id: string }> }
+interface Props {
+  params: Promise<{ id: string }>
+}
 
 const loadDepartment = cache((id: string) => getDepartment(id))
 

@@ -3,7 +3,7 @@ import 'server-only'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { refused, type DeleteState } from '@/lib/form'
+import { type DeleteState, refused } from '@/lib/form'
 import { requireUser } from '@/server/auth'
 
 /**

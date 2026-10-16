@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import { headOf } from './org'
 
-type Person = { id: string; managerId: string | null; firstName: string; lastName: string }
+interface Person {
+  id: string
+  managerId: string | null
+  firstName: string
+  lastName: string
+}
 
 const person = (id: string, managerId: string | null, lastName = id): Person => ({
   id,

@@ -1,4 +1,4 @@
-import { courseSchema, type CourseInput, type RequirementInput } from '@muni/domain/schemas'
+import { type CourseInput, courseSchema, type RequirementInput } from '@muni/domain/schemas'
 import { fold } from '@muni/utils/text'
 
 import type { RowBuilder } from '../fields'

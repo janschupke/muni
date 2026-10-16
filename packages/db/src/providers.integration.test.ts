@@ -3,7 +3,6 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createDb } from './client'
-import type * as Context from './repositories/context'
 import {
   createCompletion,
   createProvider,
@@ -13,6 +12,7 @@ import {
   listProviders,
   updateProvider,
 } from './repositories'
+import type * as Context from './repositories/context'
 import { seedFromDirectory } from './seed'
 
 // Whether the policy withholds prices from anonymous viewers (the default shows them).

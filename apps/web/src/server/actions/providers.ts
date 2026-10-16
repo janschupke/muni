@@ -5,7 +5,7 @@ import { providerSchema } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { fieldErrors, formError, text, type DeleteState, type FormState } from '@/lib/form'
+import { type DeleteState, fieldErrors, formError, type FormState, text } from '@/lib/form'
 import { requireUser } from '@/server/auth'
 import { deleteRecord } from '@/server/delete-record'
 

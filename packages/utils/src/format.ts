@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 
-import { APP_TIME_ZONE, isoDateToUtc, type IsoDate } from './dates'
+import { APP_TIME_ZONE, type IsoDate, isoDateToUtc } from './dates'
 
 /** What a table cell or detail row shows for a missing value. */
 export const PLACEHOLDER = '—'

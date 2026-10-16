@@ -2,9 +2,9 @@
 
 import {
   CAPABILITIES,
+  type Capability,
   EMPLOYMENT_STATUSES,
   SESSION_STATUSES,
-  type Capability,
 } from '@muni/domain/enums'
 import { FieldRow } from '@muni/ui/field'
 import { currencySymbol } from '@muni/utils/format'

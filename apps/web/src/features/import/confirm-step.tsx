@@ -3,9 +3,9 @@
 import {
   COMMIT_ORDER,
   committable,
-  summarize,
   type ImportBatch,
   type ParsedRow,
+  summarize,
 } from '@muni/importer'
 import { Alert } from '@muni/ui/alert'
 import { Button } from '@muni/ui/button'

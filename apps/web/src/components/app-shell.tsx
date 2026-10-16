@@ -25,7 +25,7 @@ import { SIDEBAR_COOKIE } from '@/lib/sidebar'
 import { clerkEnabled } from '@/server/clerk'
 
 import { LocaleSwitch } from './locale-switch'
-import { SidebarShell, type NavGroup } from './sidebar-shell'
+import { type NavGroup, SidebarShell } from './sidebar-shell'
 
 /** The navigation, the language/theme/account controls and the frame around every page. */
 export async function AppShell({ viewer, children }: { viewer: Viewer; children: ReactNode }) {

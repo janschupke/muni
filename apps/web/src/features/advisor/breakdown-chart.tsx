@@ -1,6 +1,6 @@
 'use client'
 
-import { REMEDIATIONS, type Bucket, type BreakdownRow } from '@muni/domain/advisor'
+import { type BreakdownRow, type Bucket, REMEDIATIONS } from '@muni/domain/advisor'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { Legend } from '@muni/ui/charts/legend'
 import { StackedBar } from '@muni/ui/charts/stacked-bar'

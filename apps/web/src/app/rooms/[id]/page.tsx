@@ -24,7 +24,9 @@ import { SessionTable } from '@/components/session-table'
 import { RoomFitTable } from '@/features/rooms/room-fit-table'
 import { getViewer } from '@/server/auth'
 
-type Props = { params: Promise<{ id: string }> }
+interface Props {
+  params: Promise<{ id: string }>
+}
 
 const loadRoom = cache((id: string) => getRoom(id))
 

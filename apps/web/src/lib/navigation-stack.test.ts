@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  type HistoryEntry,
   isTransient,
   pageLabel,
   previousEntry,
   record,
   withTitle,
-  type HistoryEntry,
 } from './navigation-stack'
 
 const visit = (...hrefs: string[]) => hrefs.reduce<HistoryEntry[]>(record, [])

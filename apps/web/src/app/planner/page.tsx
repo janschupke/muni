@@ -6,7 +6,7 @@ import { PageHeader } from '@muni/ui/page-header'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { PlannerView, type PlannerGroup } from '@/features/planner/planner-view'
+import { type PlannerGroup, PlannerView } from '@/features/planner/planner-view'
 import { getViewer } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {

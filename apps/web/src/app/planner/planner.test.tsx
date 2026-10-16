@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 import { getAdvisorInput, getPlannerInput } from '@muni/db/repositories'
+import type { SessionOffer } from '@muni/domain/planner'
 import { act, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { PlannerView } from '@/features/planner/planner-view'
 import { createOfferedSession } from '@/server/actions/sessions'
 import { getViewer } from '@/server/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { advisorInput, plannerInput } from '@/test/fixtures'
 import { renderClient, renderServer } from '@/test/render'
-import { PlannerView } from '@/features/planner/planner-view'
-import type { SessionOffer } from '@muni/domain/planner'
 
 import PlannerPage, { generateMetadata } from './page'
 

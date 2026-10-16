@@ -1,6 +1,6 @@
-import { forecastEnd, type AdvisorInput, type AdvisorNeed } from '@muni/domain/advisor'
+import { type AdvisorInput, type AdvisorNeed, forecastEnd } from '@muni/domain/advisor'
 
-import { dbOf, loadCompliance, toAmount, type RepoOptions } from './context'
+import { dbOf, loadCompliance, type RepoOptions, toAmount } from './context'
 import { roomRefSelect } from './sessions'
 
 /**

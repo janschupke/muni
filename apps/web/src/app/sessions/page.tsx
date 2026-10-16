@@ -9,10 +9,12 @@ import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 
 import { SessionTable } from '@/components/session-table'
-import { param, withParams, type SearchParams } from '@/lib/search-params'
+import { param, type SearchParams, withParams } from '@/lib/search-params'
 import { getViewer } from '@/server/auth'
 
-type Props = { searchParams: SearchParams }
+interface Props {
+  searchParams: SearchParams
+}
 
 /** The room the list is filtered to, by its id in `?room=`. */
 async function roomOf(params: Awaited<SearchParams>) {

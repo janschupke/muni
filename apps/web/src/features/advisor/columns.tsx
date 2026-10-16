@@ -1,7 +1,7 @@
 'use client'
 
-import type { RoomRef } from '@muni/domain/rooms'
 import type { PlanItem } from '@muni/domain/advisor'
+import type { RoomRef } from '@muni/domain/rooms'
 import { createDataColumns } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'

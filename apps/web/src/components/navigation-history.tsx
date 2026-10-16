@@ -1,9 +1,9 @@
 'use client'
 
 import { usePathname, useSearchParams } from 'next/navigation'
-import { Suspense, useEffect, type ReactNode } from 'react'
+import { type ReactNode, Suspense, useEffect } from 'react'
 
-import { record, withTitle, type HistoryEntry } from '@/lib/navigation-stack'
+import { type HistoryEntry, record, withTitle } from '@/lib/navigation-stack'
 
 const KEY = 'muni.history'
 const EVENT = 'muni:history'

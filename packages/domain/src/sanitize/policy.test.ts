@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { loadPolicy, maskEmail, maskText, sanitizeRecord, SanitizePolicyError } from './policy'
+import { loadPolicy, maskEmail, maskText, SanitizePolicyError, sanitizeRecord } from './policy'
 
 const employee = {
   id: 'e1',

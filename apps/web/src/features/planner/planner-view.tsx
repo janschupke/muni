@@ -2,15 +2,15 @@
 
 import {
   DEFAULT_SESSION_MINUTES,
-  PLAN_HORIZON_DAYS,
   type OfferCourse,
+  PLAN_HORIZON_DAYS,
   type SessionOffer,
 } from '@muni/domain/planner'
 import { Alert } from '@muni/ui/alert'
 import { Badge } from '@muni/ui/badge'
 import { Button } from '@muni/ui/button'
-import { IconButton } from '@muni/ui/icon-button'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { IconButton } from '@muni/ui/icon-button'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'

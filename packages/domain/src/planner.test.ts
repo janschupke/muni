@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import type { PlanItem, UnplacedReason } from './advisor'
 import {
   DEFAULT_SESSION_MINUTES,
-  planSessions,
   type PlannerCourse,
   type PlannerInput,
   type PlannerSession,
+  planSessions,
 } from './planner'
 import type { RoomFacts } from './rooms'
 

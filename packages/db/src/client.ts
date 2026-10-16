@@ -1,6 +1,6 @@
 import { PrismaPg } from '@prisma/adapter-pg'
 
-import { PrismaClient, type Prisma } from './generated/prisma/client'
+import { type Prisma, PrismaClient } from './generated/prisma/client'
 
 export type { Prisma } from './generated/prisma/client'
 export type Db = PrismaClient

@@ -1,7 +1,7 @@
 import type { RoomRef } from '@muni/domain/rooms'
 
+import { dbOf, type RepoOptions, toAmount } from './context'
 import type { SessionListItem } from './courses'
-import { dbOf, toAmount, type RepoOptions } from './context'
 
 /**
  * What "upcoming" means wherever sessions are shown or counted: planned and not yet ended,
@@ -32,7 +32,7 @@ export const sessionInclude = {
   },
 } as const
 
-type SessionRow = {
+interface SessionRow {
   externalId: string
   startsAt: Date
   endsAt: Date

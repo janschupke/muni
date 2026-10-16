@@ -25,7 +25,7 @@ export function record(stack: HistoryEntry[], href: string): HistoryEntry[] {
 
 export function withTitle(stack: HistoryEntry[], href: string, title: string): HistoryEntry[] {
   const top = stack.at(-1)
-  if (!top || top.href !== href || top.title === title) return stack
+  if (top?.href !== href || top.title === title) return stack
   return [...stack.slice(0, -1), { href, title }]
 }
 

@@ -1,0 +1,39 @@
+# Fast checks on the staged files only. `pnpm check` (and CI) is the full gate: typecheck,
+# tests, coverage and the build do not run here.
+pre-commit:
+  parallel: true
+  jobs:
+    - name: prettier
+      run: pnpm exec prettier --check --ignore-unknown {staged_files}
+
+    # Each package lints with its own config, so each runs from its own root.
+    - name: eslint web
+      root: apps/web/
+      glob: '*.{ts,tsx,js,mjs}'
+      run: pnpm exec eslint --max-warnings 0 --no-warn-ignored {staged_files}
+    - name: eslint db
+      root: packages/db/
+      glob: '*.{ts,js}'
+      run: pnpm exec eslint --max-warnings 0 --no-warn-ignored {staged_files}
+    - name: eslint domain
+      root: packages/domain/
+      glob: '*.{ts,js}'
+      run: pnpm exec eslint --max-warnings 0 --no-warn-ignored {staged_files}
+    - name: eslint importer
+      root: packages/importer/
+      glob: '*.{ts,js}'
+      run: pnpm exec eslint --max-warnings 0 --no-warn-ignored {staged_files}
+    - name: eslint ui
+      root: packages/ui/
+      glob: '*.{ts,tsx,js}'
+      run: pnpm exec eslint --max-warnings 0 --no-warn-ignored {staged_files}
+    - name: eslint utils
+      root: packages/utils/
+      glob: '*.{ts,js}'
+      run: pnpm exec eslint --max-warnings 0 --no-warn-ignored {staged_files}
+    - name: eslint root
+      glob: '*.{ts,js}'
+      exclude:
+        - 'apps/**'
+        - 'packages/**'
+      run: pnpm exec eslint --max-warnings 0 --no-warn-ignored {staged_files}

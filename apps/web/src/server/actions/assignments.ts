@@ -2,10 +2,10 @@
 
 import {
   applyAssignments,
-  moveSeats,
-  removeAssignment,
   type AssignmentFailure,
   type MoveFailure,
+  moveSeats,
+  removeAssignment,
 } from '@muni/db/repositories'
 import { revalidatePath } from 'next/cache'
 import * as z from 'zod'

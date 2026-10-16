@@ -1,4 +1,4 @@
-import { completionSchema, type CompletionInput } from '@muni/domain/schemas'
+import { type CompletionInput, completionSchema } from '@muni/domain/schemas'
 import type { IsoDate } from '@muni/utils/dates'
 
 import { reservedId, type RowBuilder } from '../fields'

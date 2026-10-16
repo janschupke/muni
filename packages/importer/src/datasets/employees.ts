@@ -1,5 +1,5 @@
 import type { EmploymentStatus } from '@muni/domain/enums'
-import { employeeSchema, type EmployeeInput } from '@muni/domain/schemas'
+import { type EmployeeInput, employeeSchema } from '@muni/domain/schemas'
 import type { IsoDate } from '@muni/utils/dates'
 import { collapseWhitespace, fold, titleCase } from '@muni/utils/text'
 import * as z from 'zod'

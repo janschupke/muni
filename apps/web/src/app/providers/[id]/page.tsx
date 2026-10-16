@@ -22,7 +22,9 @@ import {
 } from '@/features/providers/provider-tables'
 import { getViewer } from '@/server/auth'
 
-type Props = { params: Promise<{ id: string }> }
+interface Props {
+  params: Promise<{ id: string }>
+}
 
 const loadProvider = cache(async (id: string) => getProvider(id, await getViewer()))
 

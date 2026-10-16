@@ -9,8 +9,8 @@ import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { expectNoAxeViolations } from '@/test/axe'
 import en from '@/i18n/messages/en.json'
+import { expectNoAxeViolations } from '@/test/axe'
 
 import { ImportWizard } from './import-wizard'
 

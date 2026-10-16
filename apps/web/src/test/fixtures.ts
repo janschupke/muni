@@ -3,12 +3,12 @@ import type {
   CourseDetail,
   CourseListItem,
   DashboardData,
+  DepartmentDetail,
+  DepartmentSummary,
   EmployeeBooking,
   EmployeeDetail,
   EmployeeListItem,
   EmployeeListRequirement,
-  DepartmentDetail,
-  DepartmentSummary,
   Page,
   PositionDetail,
   PositionSummary,
@@ -20,8 +20,8 @@ import type {
 } from '@muni/db/repositories'
 import type { getCourseForEdit, getPlannerInput } from '@muni/db/repositories'
 import type { AdvisorInput } from '@muni/domain/advisor'
-import { roomFit, type RoomFacts, type RoomRef, type SessionNeeds } from '@muni/domain/rooms'
 import type { ComplianceCounts } from '@muni/domain/compliance'
+import { type RoomFacts, roomFit, type RoomRef, type SessionNeeds } from '@muni/domain/rooms'
 
 // Typed builders for repository results, shaped like the seeded register (asOf 2026-10-16).
 // Each takes overrides, so a test states only what it is about.

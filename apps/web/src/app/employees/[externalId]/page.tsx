@@ -9,8 +9,8 @@ import { SplitLayout } from '@muni/ui/layout'
 import { Meter } from '@muni/ui/meter'
 import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
-import { TextLink } from '@muni/ui/text-link'
 import { CellStack } from '@muni/ui/table'
+import { TextLink } from '@muni/ui/text-link'
 import { formatDate, formatOptional, formatPercent, PLACEHOLDER } from '@muni/utils/format'
 import { Pencil, Plus } from 'lucide-react'
 import type { Metadata } from 'next'
@@ -20,15 +20,17 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import { cache } from 'react'
 
 import { BackLink } from '@/components/back-link'
-import { OrgLink } from '@/components/org-links'
-import { TeamCard } from '@/components/team-card'
 import { CompletionHistoryTable } from '@/components/completion-tables'
+import { OrgLink } from '@/components/org-links'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RoomLink, SessionDateLink } from '@/components/session-links'
 import { ComplianceBadge, EmploymentBadge, rateTone } from '@/components/status-badges'
+import { TeamCard } from '@/components/team-card'
 import { getViewer } from '@/server/auth'
 
-type Props = { params: Promise<{ externalId: string }> }
+interface Props {
+  params: Promise<{ externalId: string }>
+}
 
 // One fetch per request for both the title and the page.
 const loadEmployee = cache(async (externalId: string) => getEmployee(externalId, await getViewer()))

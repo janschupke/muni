@@ -1,5 +1,5 @@
 import { APP_ID_PREFIX } from '@muni/domain/schemas'
-import { parseDate, type IsoDate } from '@muni/utils/dates'
+import { type IsoDate, parseDate } from '@muni/utils/dates'
 import { parseCount, parseCzk } from '@muni/utils/money'
 import { cleanFreeText, collapseWhitespace, isFormulaLike } from '@muni/utils/text'
 import type * as z from 'zod'
@@ -102,7 +102,7 @@ export class RowBuilder {
     const value = this.cell(field)
     if (value === '') return required ? this.error(field, 'REQUIRED') : null
     const count = parseCount(value)
-    return count === null ? this.error(field, 'INVALID_NUMBER', { raw: value }) : count
+    return count ?? this.error(field, 'INVALID_NUMBER', { raw: value })
   }
 
   /** Free text with spreadsheet formulas neutralised (CSV injection). */

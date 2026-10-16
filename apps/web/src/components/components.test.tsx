@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import * as z from 'zod'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as z from 'zod'
 
 import { fieldErrors, type FormState } from '@/lib/form'
 import { ONLINE, session } from '@/test/fixtures'

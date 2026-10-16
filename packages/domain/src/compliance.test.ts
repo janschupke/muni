@@ -3,14 +3,14 @@ import { describe, expect, it } from 'vitest'
 import {
   bestCompletion,
   complianceBand,
+  type ComplianceCompletion,
+  type ComplianceEmployee,
   complianceRate,
+  type ComplianceRequirement,
   computeCompliance,
   countStatuses,
   statusOf,
   worstStatus,
-  type ComplianceCompletion,
-  type ComplianceEmployee,
-  type ComplianceRequirement,
 } from './compliance'
 
 const options = { asOf: '2026-10-16', expiringWithinDays: 30 }

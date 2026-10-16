@@ -2,7 +2,7 @@
 
 import { Check } from 'lucide-react'
 import { Checkbox as CheckboxPrimitive } from 'radix-ui'
-import { useId, type ReactNode } from 'react'
+import { type ReactNode, useId } from 'react'
 
 /**
  * A labelled checkbox (Radix). Inside a form it posts `name=value` (`on` by default) when

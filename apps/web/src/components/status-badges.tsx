@@ -1,6 +1,6 @@
-import { complianceBand, type ComplianceBand } from '@muni/domain/compliance'
+import { type ComplianceBand, complianceBand } from '@muni/domain/compliance'
 import type { ComplianceStatus, EmploymentStatus, SessionStatus } from '@muni/domain/enums'
-import { occupancy, type Occupancy } from '@muni/domain/sessions'
+import { type Occupancy, occupancy } from '@muni/domain/sessions'
 import { Badge, type BadgeTone } from '@muni/ui/badge'
 import type { MeterTone } from '@muni/ui/meter'
 import {
@@ -11,11 +11,11 @@ import {
   CircleSlash,
   CircleX,
   Clock,
+  type LucideIcon,
   TriangleAlert,
   UserCheck,
-  UserX,
   Users,
-  type LucideIcon,
+  UserX,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 

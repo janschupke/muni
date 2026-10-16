@@ -1,8 +1,10 @@
-import { ClerkProvider } from '@clerk/nextjs'
+import './globals.css'
+
 import { csCZ, enUS } from '@clerk/localizations'
+import { ClerkProvider } from '@clerk/nextjs'
 import { Container } from '@muni/ui/layout'
-import { TooltipProvider } from '@muni/ui/tooltip'
 import { THEME_BOOT_SCRIPT } from '@muni/ui/theme/boot'
+import { TooltipProvider } from '@muni/ui/tooltip'
 import type { Metadata } from 'next'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getTranslations } from 'next-intl/server'
@@ -13,8 +15,6 @@ import { AppShell } from '@/components/app-shell'
 import { NavigationHistory } from '@/components/navigation-history'
 import { getViewer } from '@/server/auth'
 import { clerkEnabled } from '@/server/clerk'
-
-import './globals.css'
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta')

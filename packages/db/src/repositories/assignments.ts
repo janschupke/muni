@@ -1,7 +1,7 @@
 import { forecastEnd } from '@muni/domain/advisor'
 import { appliesTo, bestCompletion } from '@muni/domain/compliance'
 import type { RoomRef } from '@muni/domain/rooms'
-import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
+import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 
 import type { Prisma } from '../generated/prisma/client'
 import { audienceSelect, rulesOf } from './audience'

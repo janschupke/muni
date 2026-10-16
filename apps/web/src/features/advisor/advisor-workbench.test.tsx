@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import {
-  planAssignments,
   type AdvisorInput,
   type AdvisorNeed,
   type AdvisorSession,
+  planAssignments,
 } from '@muni/domain/advisor'
 import { TooltipProvider } from '@muni/ui/tooltip'
 import { render, screen, waitFor, within } from '@testing-library/react'
@@ -11,8 +11,8 @@ import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { expectNoAxeViolations } from '@/test/axe'
 import en from '@/i18n/messages/en.json'
+import { expectNoAxeViolations } from '@/test/axe'
 
 import { AdvisorWorkbench } from './advisor-workbench'
 

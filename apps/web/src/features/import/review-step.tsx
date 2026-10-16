@@ -1,6 +1,6 @@
 'use client'
 
-import { summarize, type DatasetKind, type ImportBatch, type ParsedRow } from '@muni/importer'
+import { type DatasetKind, type ImportBatch, type ParsedRow, summarize } from '@muni/importer'
 import { Alert } from '@muni/ui/alert'
 import { Badge } from '@muni/ui/badge'
 import { Button } from '@muni/ui/button'
@@ -15,13 +15,13 @@ import {
   CalendarDays,
   DoorOpen,
   GraduationCap,
-  Users,
   type LucideIcon,
+  Users,
 } from 'lucide-react'
 import { useLocale } from 'next-intl'
 import { useMemo, useState } from 'react'
 
-import { ReviewTable, type IndexedRow } from './review-table'
+import { type IndexedRow, ReviewTable } from './review-table'
 import { useImportText } from './use-issue-text'
 
 const KIND_ICON: Record<DatasetKind, LucideIcon> = {

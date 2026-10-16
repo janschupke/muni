@@ -23,7 +23,9 @@ import { RequirementList } from '@/components/requirement-list'
 import { SessionTable } from '@/components/session-table'
 import { getViewer } from '@/server/auth'
 
-type Props = { params: Promise<{ code: string }> }
+interface Props {
+  params: Promise<{ code: string }>
+}
 
 const loadCourse = cache((code: string) => getCourse(code))
 

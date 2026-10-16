@@ -1,6 +1,6 @@
 import type { Capability, RoomKind } from '@muni/domain/enums'
 import { ROOM_KIND_WORDS, roomKindOfName } from '@muni/domain/rooms'
-import { roomSchema, type RoomInput } from '@muni/domain/schemas'
+import { type RoomInput, roomSchema } from '@muni/domain/schemas'
 import { fold } from '@muni/utils/text'
 
 import type { RowBuilder } from '../fields'

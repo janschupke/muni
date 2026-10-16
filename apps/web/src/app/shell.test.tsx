@@ -5,15 +5,14 @@ import userEvent from '@testing-library/user-event'
 import { isValidElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { getViewer } from '@/server/auth'
+import { AppFailure } from '@/components/app-failure'
+import { NotFoundMessage } from '@/components/not-found-message'
 import { setLocale } from '@/server/actions/locale'
+import { getViewer } from '@/server/auth'
 import { advisorInput, dashboard, session } from '@/test/fixtures'
 import { setViewportWidth } from '@/test/media'
 import { navigate, NotFoundError, requestCookies, route, router } from '@/test/next'
 import { Providers, renderClient, renderServer, resolveServer } from '@/test/render'
-
-import { AppFailure } from '@/components/app-failure'
-import { NotFoundMessage } from '@/components/not-found-message'
 
 import ErrorPage from './error'
 import RootLayout, { generateMetadata } from './layout'
@@ -45,7 +44,10 @@ beforeEach(() => {
   vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
 })
 
-type Element = { type: unknown; props: { children?: ReactNode } }
+interface Element {
+  type: unknown
+  props: { children?: ReactNode }
+}
 
 /** The first element of a type in a server tree, depth first through children. */
 function find(node: ReactNode, type: string): Element | undefined {

@@ -17,7 +17,7 @@ import { getTranslations } from 'next-intl/server'
 
 import { EmployeeFilters } from '@/components/employee-filters'
 import { EmployeesTable } from '@/components/employees-table'
-import { oneOf, param, parseSort, withParams, type SearchParams } from '@/lib/search-params'
+import { oneOf, param, parseSort, type SearchParams, withParams } from '@/lib/search-params'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('employees'))('title') }

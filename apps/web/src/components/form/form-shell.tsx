@@ -11,13 +11,13 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
   createContext,
-  useActionState,
-  useContext,
   type InputHTMLAttributes,
   type ReactNode,
+  useActionState,
+  useContext,
 } from 'react'
 
-import { IDLE, type FieldErrorKey, type FormState } from '@/lib/form'
+import { type FieldErrorKey, type FormState, IDLE } from '@/lib/form'
 
 const ErrorsContext = createContext<Partial<Record<string, FieldErrorKey>>>({})
 
@@ -62,7 +62,7 @@ function useFieldError(name: string): string | undefined {
   return key ? t(key) : undefined
 }
 
-type BaseProps = {
+interface BaseProps {
   name: string
   label: string
   help?: string | undefined

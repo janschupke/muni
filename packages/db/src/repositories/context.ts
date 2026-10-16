@@ -1,13 +1,13 @@
 import {
-  computeCompliance,
-  DEFAULT_EXPIRING_DAYS,
   type ComplianceCell,
   type ComplianceOptions,
+  computeCompliance,
+  DEFAULT_EXPIRING_DAYS,
 } from '@muni/domain/compliance'
 import { loadPolicy, type SanitizePolicy } from '@muni/domain/sanitize'
 import { isoDateFromUtc, todayIn } from '@muni/utils/dates'
 
-import { getDb, type Db } from '../client'
+import { type Db, getDb } from '../client'
 import { audienceSelect, mandatoryCourse, rulesOf } from './audience'
 
 let policy: SanitizePolicy | undefined

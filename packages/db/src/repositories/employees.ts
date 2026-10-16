@@ -1,25 +1,25 @@
 import {
-  worstStatus,
-  countStatuses,
-  complianceRate,
   type ComplianceCell,
   type ComplianceCounts,
+  complianceRate,
+  countStatuses,
+  worstStatus,
 } from '@muni/domain/compliance'
 import type { ComplianceStatus, EmploymentStatus, Viewer } from '@muni/domain/enums'
 import { sanitizeRecord } from '@muni/domain/sanitize'
+import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
-import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
 import {
   countedCells,
   dbOf,
   getPolicy,
   loadCompliance,
-  toAmount,
   type RepoOptions,
+  toAmount,
 } from './context'
-import { compareNames, sortEmployees, type EmployeeSortKey } from './employee-sort'
-import { courseOf, loadNextBookings, requirementOf, type RequirementContext } from './requirements'
+import { compareNames, type EmployeeSortKey, sortEmployees } from './employee-sort'
+import { courseOf, loadNextBookings, type RequirementContext, requirementOf } from './requirements'
 
 export interface EmployeeListItem {
   externalId: string

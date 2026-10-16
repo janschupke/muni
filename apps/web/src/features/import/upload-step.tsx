@@ -1,6 +1,6 @@
 'use client'
 
-import { MAX_FILE_BYTES, type DatasetKind, type FileError, type ParsedFile } from '@muni/importer'
+import { type DatasetKind, type FileError, MAX_FILE_BYTES, type ParsedFile } from '@muni/importer'
 import { Alert } from '@muni/ui/alert'
 import { Badge } from '@muni/ui/badge'
 import { Button } from '@muni/ui/button'

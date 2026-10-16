@@ -7,6 +7,7 @@ import {
   Check,
   Construction,
   FlaskConical,
+  type LucideIcon,
   Monitor,
   Projector,
   School,
@@ -14,7 +15,6 @@ import {
   Video,
   Wifi,
   X,
-  type LucideIcon,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 

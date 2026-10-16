@@ -1,12 +1,12 @@
-import { complianceRate, countStatuses, type ComplianceCounts } from '@muni/domain/compliance'
+import { type ComplianceCounts, complianceRate, countStatuses } from '@muni/domain/compliance'
 
 import { mandatoryCourse } from './audience'
 import { dbOf, loadCompliance, type RepoOptions } from './context'
+import type { SessionListItem } from './courses'
 import { compareNames } from './employee-sort'
 import type { EmployeeListRequirement } from './employees'
 import { loadNextBookings, requirementOf } from './requirements'
 import { listSessions } from './sessions'
-import type { SessionListItem } from './courses'
 
 export interface DashboardData {
   asOf: string

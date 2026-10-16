@@ -1,9 +1,9 @@
 'use client'
 
 import type { SessionListItem } from '@muni/db/repositories'
+import { BarRow } from '@muni/ui/bar-row'
 import { Button } from '@muni/ui/button'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
-import { BarRow } from '@muni/ui/bar-row'
 import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'

@@ -1,6 +1,6 @@
 'use client'
 
-import { CAPABILITIES, ROOM_KINDS, type Capability, type RoomKind } from '@muni/domain/enums'
+import { CAPABILITIES, type Capability, ROOM_KINDS, type RoomKind } from '@muni/domain/enums'
 import { useTranslations } from 'next-intl'
 
 import {

@@ -1,12 +1,12 @@
 import type { Capability, RoomKind } from '@muni/domain/enums'
-import { roomFit, UTILISATION_DAYS, WORKING_HOURS, type RoomFit } from '@muni/domain/rooms'
+import { type RoomFit, roomFit, UTILISATION_DAYS, WORKING_HOURS } from '@muni/domain/rooms'
 import {
   addDays,
+  type IsoDate,
   isWorkingDay,
   todayIn,
   toZonedParts,
   zonedTimeToUtc,
-  type IsoDate,
 } from '@muni/utils/dates'
 
 import { dbOf, type RepoOptions } from './context'
@@ -79,7 +79,7 @@ function roomQuery(now: Date, window: Window) {
   } as const
 }
 
-type RoomRow = {
+interface RoomRow {
   id: string
   name: string
   kind: RoomKind

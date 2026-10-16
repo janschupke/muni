@@ -6,23 +6,23 @@ import {
   createPaginatedRowModel,
   createSortedRowModel,
   metaHelper,
+  type PaginationState,
+  type RowData,
   rowExpandingFeature,
   rowPaginationFeature,
   rowSortingFeature,
   sortFn_basic,
   sortFn_datetime,
+  type SortingState,
   tableFeatures,
   useTable,
-  type PaginationState,
-  type RowData,
-  type SortingState,
 } from '@tanstack/react-table'
 import { ArrowDown, ArrowUp, ChevronRight, ChevronsUpDown } from 'lucide-react'
-import { Fragment, useId, useState, type ReactNode } from 'react'
+import { Fragment, type ReactNode, useId, useState } from 'react'
 
 import { cn } from '../cn'
 import { Pagination } from './pagination'
-import { Table, TableContainer, TBody, Td, Th, THead, Tr, type CellLayout } from './table'
+import { type CellLayout, Table, TableContainer, TBody, Td, Th, THead, Tr } from './table'
 
 /** Per-column layout, read by the renderer. */
 interface DataColumnMeta extends CellLayout {

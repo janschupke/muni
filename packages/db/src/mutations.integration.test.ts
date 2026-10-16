@@ -18,10 +18,10 @@ import {
   getEmployeeForEdit,
   getRoom,
   getSession,
-  listEmployees,
   listCourseOptions,
   listDepartments,
   listEmployeeBookings,
+  listEmployees,
   listPositions,
   listProviderNames,
   listRoomOptions,
@@ -36,7 +36,7 @@ import {
 } from './repositories'
 import { complianceOptions, dbOf } from './repositories/context'
 import { seedFromDirectory } from './seed'
-import { CommitValidationError, COMMIT_CHUNK_SIZE, commitChunk } from './writer'
+import { COMMIT_CHUNK_SIZE, commitChunk, CommitValidationError } from './writer'
 
 // Writes that the main suite does not exercise. Everything here is undone in afterAll:
 // a re-seed restores edited rows (upsert by source ID) and app-created rows are deleted.

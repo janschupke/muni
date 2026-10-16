@@ -1,10 +1,10 @@
 import type { Viewer } from '@muni/domain/enums'
-import { providerSchema, type ProviderInput } from '@muni/domain/schemas'
-import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
+import { type ProviderInput, providerSchema } from '@muni/domain/schemas'
+import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
 
 import { Prisma } from '../generated/prisma/client'
-import { dbOf, getPolicy, toAmount, type RepoOptions } from './context'
+import { dbOf, getPolicy, type RepoOptions, toAmount } from './context'
 
 // Training providers: who delivered the completions on record, with their contact details
 // and what was done with them. Prices follow the sanitisation policy for `completion.price`:

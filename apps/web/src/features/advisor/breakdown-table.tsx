@@ -1,11 +1,11 @@
 'use client'
 
-import { NOW, type Bucket, type PlanItem } from '@muni/domain/advisor'
+import { type Bucket, NOW, type PlanItem } from '@muni/domain/advisor'
 import { DataTable } from '@muni/ui/data-table'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SectionHeading } from '@muni/ui/section-heading'
-import { useLocale, useTranslations } from 'next-intl'
 import { formatMonth } from '@muni/utils/format'
+import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { RoomLink, SessionDateLink } from '@/components/session-links'

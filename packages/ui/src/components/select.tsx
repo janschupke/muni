@@ -2,7 +2,7 @@
 
 import { Check, ChevronDown } from 'lucide-react'
 import { Select as SelectPrimitive } from 'radix-ui'
-import { useState, type ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 
 import { cn } from '../cn'
 import { controlClass } from './field'

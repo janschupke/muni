@@ -1,10 +1,10 @@
 'use client'
 
 import {
-  NOW,
   type AdvisorPlan,
   type BreakdownRow,
   type Bucket,
+  NOW,
   type OverbookedSession,
 } from '@muni/domain/advisor'
 import { Alert } from '@muni/ui/alert'
@@ -19,14 +19,14 @@ import { useState, useTransition } from 'react'
 
 import {
   applyAssignmentsAction,
-  moveSeatsAction,
   type ApplyResult,
+  moveSeatsAction,
 } from '@/server/actions/assignments'
 
 import { ActionTable, type ProposedItem } from './action-table'
 import { BreakdownChart } from './breakdown-chart'
 import { BreakdownTable } from './breakdown-table'
-import { advisorHref, VIEW_ICON, type AdvisorView } from './labels'
+import { advisorHref, type AdvisorView, VIEW_ICON } from './labels'
 import { OverbookedList } from './overbooked-list'
 import { PlannedTable } from './planned-table'
 import { AdvisorRules } from './rules'

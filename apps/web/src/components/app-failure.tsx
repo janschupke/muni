@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from 'react'
 
-import { DEFAULT_LOCALE, localeCookieIn, resolveLocale, type Locale } from '@/i18n/locales'
+import { DEFAULT_LOCALE, type Locale, localeCookieIn, resolveLocale } from '@/i18n/locales'
 
 // The root layout itself failed, so there is no frame and no translations: the language is
 // resolved here the way the app does it (cookie, then the browser, then Czech).

@@ -3,16 +3,16 @@
 import {
   COMMIT_ORDER,
   committable,
+  type DatasetKind,
   editCell,
+  type ImportBatch,
   MAX_FILE_BYTES,
+  type ParsedFile,
   parseFile,
+  type ReferenceSnapshot,
   revertRow,
   setRemoved,
   validateBatch,
-  type DatasetKind,
-  type ImportBatch,
-  type ParsedFile,
-  type ReferenceSnapshot,
 } from '@muni/importer'
 import { StepIndicator } from '@muni/ui/step-indicator'
 import { useRouter } from 'next/navigation'
@@ -20,9 +20,9 @@ import { useState, useTransition } from 'react'
 
 import { commitImportChunk } from './actions'
 import { ConfirmStep } from './confirm-step'
-import { ProgressStep, type ImportJob } from './progress-step'
+import { type ImportJob, ProgressStep } from './progress-step'
 import { ReviewStep } from './review-step'
-import { UploadStep, type RejectedFile } from './upload-step'
+import { type RejectedFile, UploadStep } from './upload-step'
 import { useImportText } from './use-issue-text'
 
 const CHUNK = 500

@@ -24,7 +24,9 @@ import { RoomLink } from '@/components/session-links'
 import { OccupancyBadge, seatTone, SessionStatusBadge } from '@/components/status-badges'
 import { getViewer } from '@/server/auth'
 
-type Props = { params: Promise<{ externalId: string }> }
+interface Props {
+  params: Promise<{ externalId: string }>
+}
 
 const loadSession = cache((externalId: string) => getSession(externalId))
 

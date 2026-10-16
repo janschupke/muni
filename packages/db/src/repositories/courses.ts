@@ -1,19 +1,19 @@
 import {
-  complianceRate,
-  countStatuses,
   type ComplianceCell,
   type ComplianceCounts,
+  complianceRate,
+  countStatuses,
 } from '@muni/domain/compliance'
 import type { Capability, SessionStatus } from '@muni/domain/enums'
 import type { RoomRef } from '@muni/domain/rooms'
-import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
+import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 
-import { audienceInclude, requirementViews, type RequirementView } from './audience'
+import { audienceInclude, type RequirementView, requirementViews } from './audience'
 import {
+  type ComplianceSnapshot,
   countedCells,
   dbOf,
   loadCompliance,
-  type ComplianceSnapshot,
   type RepoOptions,
 } from './context'
 import { isUpcoming, sessionInclude, toSessionItem, upcomingSessionWhere } from './sessions'

@@ -1,14 +1,14 @@
 import {
   addDays,
+  type IsoDate,
   isWorkingDay,
   toZonedParts,
   zonedTimeToUtc,
-  type IsoDate,
 } from '@muni/utils/dates'
 
 import { needsNewSession, NOW, type PlanItem } from './advisor'
 import type { Capability } from './enums'
-import { roomMismatch, type RoomFacts, type RoomRef } from './rooms'
+import { type RoomFacts, roomMismatch, type RoomRef } from './rooms'
 
 /*
  * The session planner: for trainings the advisor could not place (no session of the course

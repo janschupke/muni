@@ -3,7 +3,7 @@
 import { SegmentedControl } from '@muni/ui/segmented-control'
 import { useTransition } from 'react'
 
-import { LOCALES, type Locale } from '@/i18n/locales'
+import { type Locale, LOCALES } from '@/i18n/locales'
 import { setLocale } from '@/server/actions/locale'
 
 export function LocaleSwitch({

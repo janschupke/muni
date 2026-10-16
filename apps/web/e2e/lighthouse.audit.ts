@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
-import { chromium, expect, test, type Browser } from '@playwright/test'
+import { type Browser, chromium, expect, test } from '@playwright/test'
 import lighthouse from 'lighthouse'
 import desktopConfig from 'lighthouse/core/config/desktop-config.js'
 
@@ -27,17 +27,24 @@ test.afterAll(async () => {
   await writeFile(path.join(REPORTS, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`)
 })
 
+/** One Lighthouse run; a run that fails or reports a runtime error throws. */
+async function audit(url: string) {
+  const result = await lighthouse(
+    url,
+    { port: DEBUG_PORT, output: 'html', logLevel: 'error', locale: 'en' },
+    desktopConfig
+  )
+  if (!result) throw new Error(`Lighthouse returned nothing for ${url}`)
+  if (result.lhr.runtimeError) throw new Error(result.lhr.runtimeError.message)
+  return result
+}
+
 for (const entry of PUBLIC_PAGES.filter(p => p.status === undefined)) {
   const { name } = entry
+
   test(`${name} page`, async ({ baseURL }) => {
     const route = await pathOf(entry, async url => (await fetch(`${String(baseURL)}${url}`)).text())
-    const result = await lighthouse(
-      `${String(baseURL)}${route}`,
-      { port: DEBUG_PORT, output: 'html', logLevel: 'error', locale: 'en' },
-      desktopConfig
-    )
-    if (!result) throw new Error(`Lighthouse returned nothing for ${route}`)
-    if (result.lhr.runtimeError) throw new Error(result.lhr.runtimeError.message)
+    const result = await audit(`${String(baseURL)}${route}`)
     await writeFile(path.join(REPORTS, `${name}.html`), String(result.report))
     summary[route] = Object.fromEntries(
       Object.keys(MINIMUM).map(id => [

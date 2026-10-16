@@ -1,20 +1,20 @@
 import {
-  complianceRate,
-  countStatuses,
   type ComplianceCell,
   type ComplianceCounts,
+  complianceRate,
+  countStatuses,
 } from '@muni/domain/compliance'
 import type { EmploymentStatus } from '@muni/domain/enums'
 
 import {
   audienceInclude,
   mandatoryCourse,
-  requirementViews,
   type RequirementView,
+  requirementViews,
 } from './audience'
 import { dbOf, loadCompliance, type RepoOptions } from './context'
 import { compareNames, sortEmployees } from './employee-sort'
-import { employeeRecord, type EmployeeListItem } from './employees'
+import { type EmployeeListItem, employeeRecord } from './employees'
 import { loadNextBookings } from './requirements'
 import { upcomingSessionWhere } from './sessions'
 
@@ -71,7 +71,7 @@ export interface PositionDetail extends PositionSummary {
   courses: CourseCompliance[]
 }
 
-type Member = {
+interface Member {
   id: string
   externalId: string
   firstName: string
@@ -177,7 +177,10 @@ function tally(members: Member[], key: (m: Member) => { id: string; name: string
   )
 }
 
-type Reporting = { id: string; managerId: string | null }
+interface Reporting {
+  id: string
+  managerId: string | null
+}
 
 /**
  * Who leads a group: the member with the most other members anywhere beneath them in the

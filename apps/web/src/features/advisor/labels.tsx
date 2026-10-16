@@ -1,4 +1,4 @@
-import { NOW, type Bucket, type NonComplianceWindow, type Remediation } from '@muni/domain/advisor'
+import { type Bucket, type NonComplianceWindow, NOW, type Remediation } from '@muni/domain/advisor'
 import { Badge, type BadgeTone } from '@muni/ui/badge'
 import { CellStack } from '@muni/ui/table'
 import { diffInDays } from '@muni/utils/dates'

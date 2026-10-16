@@ -18,7 +18,7 @@
     "seed": "dotenv -e ../../.env -- tsx scripts/seed.ts",
     "studio": "dotenv -e ../../.env -- prisma studio",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "test:integration": "dotenv -e .env.test -- vitest run --config vitest.integration.config.ts",
     "test:coverage": "dotenv -e .env.test -- vitest run --coverage --config vitest.coverage.config.ts"

@@ -8,20 +8,21 @@ import {
   deleteProvider,
   deleteRoom,
   getCourseForEdit,
-  updateProvider,
-  updateRoom,
   moveSeats,
   removeAssignment,
   updateCourse,
   updateEmployee,
+  updateProvider,
+  updateRoom,
   updateSession,
 } from '@muni/db/repositories'
-import { CommitValidationError, commitChunk } from '@muni/db/writer'
+import { commitChunk, CommitValidationError } from '@muni/db/writer'
 import { revalidatePath } from 'next/cache'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { commitImportChunk } from '@/features/import/actions'
 import getRequestConfig from '@/i18n/request'
+import { courseForEdit } from '@/test/fixtures'
 import {
   NotFoundError,
   RedirectError,
@@ -29,7 +30,6 @@ import {
   requestHeaders,
   responseCookies,
 } from '@/test/next'
-import { courseForEdit } from '@/test/fixtures'
 
 import {
   applyAssignmentsAction,
@@ -37,10 +37,10 @@ import {
   removeAssignmentAction,
 } from './actions/assignments'
 import { recordCompletion, saveCourse, saveEmployee, saveSession } from './actions/edit'
+import { setLocale } from './actions/locale'
 import { removeProvider, saveProvider } from './actions/providers'
 import { removeRoom, saveRoom } from './actions/rooms'
 import { createOfferedSession, saveNewSession } from './actions/sessions'
-import { setLocale } from './actions/locale'
 import { getViewer, requirePageUser, requireUser } from './auth'
 
 const clerk = vi.hoisted(() => ({ enabled: true }))

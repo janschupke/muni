@@ -8,7 +8,7 @@ import { IconButton } from '@muni/ui/icon-button'
 import { Tooltip } from '@muni/ui/tooltip'
 import { CircleAlert, RotateCcw, Trash2, Undo2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useMemo, useState, type ReactElement } from 'react'
+import { type ReactElement, useMemo, useState } from 'react'
 
 import { useImportText } from './use-issue-text'
 
@@ -109,6 +109,8 @@ export function ReviewTable({
               return (
                 <Input
                   size="cell"
+                  // The field replaces the cell the user just chose to edit, so focus follows.
+                  // eslint-disable-next-line jsx-a11y-x/no-autofocus
                   autoFocus
                   defaultValue={value}
                   aria-label={label}

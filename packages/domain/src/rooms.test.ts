@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { roomFit, roomKindOfName, roomMismatch, type RoomFacts, type SessionNeeds } from './rooms'
+import { type RoomFacts, roomFit, roomKindOfName, roomMismatch, type SessionNeeds } from './rooms'
 
 const lab: RoomFacts = {
   id: 'r1',

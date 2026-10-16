@@ -1,36 +1,35 @@
 import path from 'node:path'
 
+import { forecastEnd, planAssignments } from '@muni/domain/advisor'
+import { addDays } from '@muni/utils/dates'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { createDb } from './client'
-import { forecastEnd, planAssignments } from '@muni/domain/advisor'
-import { addDays } from '@muni/utils/dates'
-
 import {
   applyAssignments,
+  type AssignmentRequest,
   createCompletion,
   getAdvisorInput,
   getComplianceMatrix,
   getCourse,
   getDashboard,
-  getPersonName,
-  getEmployee,
-  listCourses,
-  listEmployees,
   getDepartment,
+  getEmployee,
+  getPersonName,
   getPlannerInput,
   getPosition,
   getRoom,
   getRoomForEdit,
-  listDepartmentSummaries,
-  listPositionSummaries,
   getSession,
+  listCourses,
+  listDepartmentSummaries,
+  listEmployees,
+  listPositionSummaries,
   listRooms,
   listSessions,
   moveSeats,
   removeAssignment,
   updateSession,
-  type AssignmentRequest,
 } from './repositories'
 import { seedFromDirectory } from './seed'
 

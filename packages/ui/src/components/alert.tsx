@@ -1,5 +1,5 @@
 import { cva } from 'class-variance-authority'
-import { CircleCheck, CircleX, Info, TriangleAlert, type LucideIcon } from 'lucide-react'
+import { CircleCheck, CircleX, Info, type LucideIcon, TriangleAlert } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { cn } from '../cn'

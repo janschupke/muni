@@ -11,8 +11,8 @@ import { HeatCell, HeatLegend } from '@muni/ui/charts/heat-cell'
 import { cn } from '@muni/ui/cn'
 import { Dialog } from '@muni/ui/dialog'
 import { Table, TableContainer, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
-import { Tooltip } from '@muni/ui/tooltip'
 import { TextLink } from '@muni/ui/text-link'
+import { Tooltip } from '@muni/ui/tooltip'
 import {
   formatDate,
   formatDateTime,

@@ -46,13 +46,11 @@ describe('form helpers', () => {
       capabilities: [],
     }
     const result = courseEditSchema.safeParse(input)
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(fieldErrors(result.error, input)).toEqual({
-        status: 'error',
-        fieldErrors: { name: 'required', validityMonths: 'invalid_type' },
-      })
-    }
+    if (result.success) throw new Error('the schema accepted an invalid course')
+    expect(fieldErrors(result.error, input)).toEqual({
+      status: 'error',
+      fieldErrors: { name: 'required', validityMonths: 'invalid_type' },
+    })
   })
 
   it('surfaces refinement keys', () => {
@@ -67,10 +65,9 @@ describe('form helpers', () => {
       status: 'PLANNED',
     }
     const result = sessionEditSchema.safeParse(input)
-    expect(result.success).toBe(false)
-    if (!result.success)
-      expect(fieldErrors(result.error, input)).toMatchObject({
-        fieldErrors: { endTime: 'before_start' },
-      })
+    if (result.success) throw new Error('the schema accepted an end before the start')
+    expect(fieldErrors(result.error, input)).toMatchObject({
+      fieldErrors: { endTime: 'before_start' },
+    })
   })
 })

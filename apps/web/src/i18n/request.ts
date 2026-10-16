@@ -1,10 +1,10 @@
 import { APP_TIME_ZONE } from '@muni/utils/dates'
-import { getRequestConfig } from 'next-intl/server'
 import { cookies, headers } from 'next/headers'
+import { getRequestConfig } from 'next-intl/server'
 
+import { LOCALE_COOKIE, resolveLocale } from './locales'
 import cs from './messages/cs.json'
 import en from './messages/en.json'
-import { LOCALE_COOKIE, resolveLocale } from './locales'
 
 const MESSAGES = { cs, en }
 

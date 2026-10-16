@@ -1,5 +1,5 @@
 import type { SessionStatus } from '@muni/domain/enums'
-import { sessionSchema, type SessionInput } from '@muni/domain/schemas'
+import { type SessionInput, sessionSchema } from '@muni/domain/schemas'
 import { parseTimeRange } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 

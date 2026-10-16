@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  forecastEnd,
-  forecastMonths,
-  planAssignments,
   type AdvisorInput,
   type AdvisorNeed,
   type AdvisorPlan,
   type AdvisorSession,
+  forecastEnd,
+  forecastMonths,
+  planAssignments,
 } from './advisor'
 
 const AS_OF = '2026-10-16'

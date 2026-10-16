@@ -1,16 +1,16 @@
-import {
-  completionSchema,
-  courseSchema,
-  employeeSchema,
-  roomSchema,
-  sessionSchema,
-  type CompletionInput,
-  type CourseInput,
-  type EmployeeInput,
-  type RoomInput,
-  type SessionInput,
-} from '@muni/domain/schemas'
 import { roomKindOfName } from '@muni/domain/rooms'
+import {
+  type CompletionInput,
+  completionSchema,
+  type CourseInput,
+  courseSchema,
+  type EmployeeInput,
+  employeeSchema,
+  type RoomInput,
+  roomSchema,
+  type SessionInput,
+  sessionSchema,
+} from '@muni/domain/schemas'
 import type { DatasetKind, DatasetRecord } from '@muni/importer'
 import { isoDateToUtc, zonedTimeToUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
