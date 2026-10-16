@@ -42,9 +42,11 @@ missing or unknown role is written back as `viewer` (and `Full` as `full`), and 
 updated with the role, email, name and last sign-in. If Clerk cannot be reached, the stored
 role is used. Bookings record the user who made them.
 
-To change a role: Clerk dashboard → Users → the user → Metadata → Public, set `role`. It
-applies at the user's next sign-in, or within five minutes. `/users` lists everyone and their
-role for admins.
+To change a role, an admin opens the user from `/users` and saves the new role there: it is
+written to Clerk's public metadata first, then to the users table (setting `role` in the Clerk
+dashboard works too). It applies at the user's next sign-in, or within five minutes. Admins
+cannot change their own role, and the last admin keeps theirs. An archived user is refused
+everything; the home page tells them their access has ended.
 
 Enforcement is on the server, in three layers: `proxy.ts` sends visitors to sign-in on every
 path except `/`, `/sign-in` and `/sign-up`; every page calls `requireReader()` (or
@@ -103,13 +105,14 @@ Internal packages ship TypeScript source (`exports` point at `src/`); Next compi
 Source IDs (`E0001`,
 `T001`, `Z000001`) are kept as `externalId`, and imports upsert on them, so re-importing a file
 updates records instead of duplicating them. Records created in the app get their own prefix
-(`S001` sessions, `A…` completions), which imports refuse (`RESERVED_ID`), so an export can
-never overwrite them. Date-only values are Postgres `date` columns;
+(`S001` sessions, `A…` completions, `N0001` people), which imports refuse (`RESERVED_ID`), so
+an export can never overwrite them. Date-only values are Postgres `date` columns;
 session times are `timestamptz` converted from Europe/Prague wall-clock time.
 
 Bookings: a session's seats are `unnamedBookings` (anonymous seats from the export) plus
 `SessionAssignment` rows (a named person on a session, with FKs to both and to the `User` who
-booked it; deleting a session cascades, deleting a person with bookings is refused). The booked total is always derived,
+booked it). Admins add them from the advisor, from a session's page (a person) or from a
+person's page (a session with a free seat). The booked total is always derived,
 never stored twice. Saving a booking locks the session row (`SELECT … FOR UPDATE`) and
 re-checks seats, status, clashes and need, so two people can never take the last seat.
 `capacity >= 0` and `unnamed_bookings >= 0` are CHECK constraints in the migration SQL.
@@ -119,7 +122,42 @@ Compliance is derived, not stored: for each active employee and each course a re
 applies to, the best completion decides `VALID`, `EXPIRING` (within `MUNI_EXPIRING_DAYS`,
 default 30), `EXPIRED` or `MISSING` (`packages/domain/src/compliance.ts`).
 
+## Archiving
+
+Nothing that carries history is deleted. Employees, courses, sessions, completions,
+departments, positions, rooms, providers and users are **archived** (`archived_at`,
+`archived_by_id`); only bookings and the join rows (requirements, equipment) are deleted. Every
+foreign key is `ON DELETE RESTRICT`, and a lint rule in `@muni/db` refuses any other delete.
+
+- **Hidden, not gone:** archived records leave every list, count, compliance rate, the advisor
+  and the planner. Records that still point to one (a past session's room, a completion's
+  provider) show it muted and unlinked.
+- **People are anonymised:** an archived employee or user appears as "Archived employee
+  #a1b2c3" everywhere, to every role. Only an admin opening that record's archived page sees
+  who it was. `archive.integration.test.ts` reads every repository as each role and finds no
+  name, email or ID of an archived person.
+- **Unique keys are free again:** names, codes, source IDs, emails, IČO and Clerk IDs are
+  unique among active rows only (partial indexes, `WHERE archived_at IS NULL`), so a new
+  record can take an archived one's name. Bringing the old one back is then refused, as it
+  is while something it belongs to is archived.
+- **What may be archived:** a person's bookings on sessions ahead go with them (the dialog
+  says how many). A course or room with sessions ahead, a session ahead with seats taken, or
+  a department or position with people in it is refused, with the count. An admin cannot
+  archive themselves or the last admin.
+- **Imports** never revive an archived record or create an active twin of one: a row whose
+  ID, code or name (or anything it refers to) only an archived record holds is skipped
+  (`ARCHIVED`). The browser sends its files' keys and the server answers with the archived
+  ones only.
+
+Admins reach each kind's archived records from its list (`/rooms/archived`, …) and bring
+them back from there.
+
 ## UI
+
+Forms put the page heading inside the form, with Cancel and Save on its right, and the
+fields in one full-width card. Dates and times are typed or picked: `DatePicker` (a calendar
+on Radix Popover, driven fully from the keyboard) and `TimePicker` (hour and minute lists),
+both posting ISO dates and `HH:mm`.
 
 Pages are built from `@muni/ui` primitives, one subpath export each (`@muni/ui/select`,
 `@muni/ui/data-table`, …). Primitives that wrap a link take `asChild`
@@ -201,7 +239,7 @@ Providers (`/providers`) list who delivered the completions on record:
 - **Each provider shows:** its IČO, its completions, people and courses, what was spent and the last completion.
 - **Its page adds:** contact details, a breakdown by course and the latest 20 completions; the employee's completion history links to it.
 - **Records:** imports and the completion form still create a provider by name. Its details (IČO with its check digit, email, phone, website, note) are entered in the app, and imports leave them alone.
-- **Rename and delete:** renaming changes the name on every completion. A provider can be deleted only while no completion names it.
+- **Rename and archive:** renaming changes the name on every completion. An archived provider stays on its completions, shown muted.
 - **Prices:** the spend follows the `completion.price` policy. A viewer who may not see prices sees no sums of them either.
 
 Back links ("← Employees") name the page the visitor actually came from, filters included,
@@ -273,7 +311,7 @@ The wizard at `/import` follows the same flow as ceum: upload, review, confirm, 
 - **Upload:** files are recognised by their header, not their name. Encoding (UTF-8 with or
   without BOM, Windows-1250) and delimiter (`,` `;` tab) are detected.
 - **Review:** rows with an **error** are skipped. Rows with a **warning** are imported with the
-  fix described. Cells can be edited inline, rows removed, restored or reverted, and every
+  fix described, except rows that touch an archived record (`ARCHIVED`), which are skipped. Cells can be edited inline, rows removed, restored or reverted, and every
   change re-validates the whole batch, including references between files.
 - **Rooms:** an optional `mistnosti.csv` (`nazev`, `typ`, `kapacita`, `vybaveni`; equipment
   as codes or Czech labels, `;`- or `,`-separated). Without one, each place the sessions name
