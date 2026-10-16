@@ -79,6 +79,7 @@ describe('employee list', () => {
         search({
           q: 'černá',
           department: 'Laboratoře',
+          position: 'Laborantka',
           status: 'ACTIVE',
           compliance: 'BOGUS',
           sort: 'department',
@@ -90,6 +91,7 @@ describe('employee list', () => {
     expect(listEmployees).toHaveBeenCalledWith({
       q: 'černá',
       department: 'Laboratoře',
+      position: 'Laborantka',
       status: 'ACTIVE',
       compliance: undefined,
       sort: { by: 'department', desc: true },
@@ -140,6 +142,11 @@ describe('employee list', () => {
     })
     await user.click(screen.getByRole('combobox', { name: 'Department' }))
     await user.click(await screen.findByRole('option', { name: 'Laboratoře' }))
+    await user.click(screen.getByRole('combobox', { name: 'Position' }))
+    await user.click(await screen.findByRole('option', { name: 'Referent' }))
+    expect(router.replace).toHaveBeenLastCalledWith('/employees?position=Referent&sort=name', {
+      scroll: false,
+    })
     await user.click(screen.getByRole('combobox', { name: 'Has training' }))
     await user.click(await screen.findByRole('option', { name: 'Expired' }))
     expect(router.replace).toHaveBeenLastCalledWith('/employees?compliance=EXPIRED&sort=name', {

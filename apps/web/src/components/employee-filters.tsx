@@ -22,11 +22,13 @@ type Query = Record<string, string | undefined>
 export function EmployeeFilters({
   query,
   departments,
+  positions,
   total,
 }: {
   /** Every current URL parameter (filters and sort). */
   query: Query
   departments: string[]
+  positions: string[]
   total: number
 }) {
   const t = useTranslations('employees')
@@ -83,6 +85,19 @@ export function EmployeeFilters({
               }}
               emptyLabel={t('filters.any')}
               options={departments.map(d => ({ value: d, label: d }))}
+            />
+          )}
+        </Field>
+        <Field label={t('filters.position')} className="w-full sm:w-48">
+          {control => (
+            <Select
+              {...control}
+              value={query.position ?? ''}
+              onValueChange={position => {
+                apply({ position })
+              }}
+              emptyLabel={t('filters.any')}
+              options={positions.map(p => ({ value: p, label: p }))}
             />
           )}
         </Field>

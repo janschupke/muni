@@ -1,6 +1,6 @@
 'use client'
 
-import type { PositionSummary } from '@muni/db/repositories'
+import type { DepartmentSummary, PositionSummary } from '@muni/db/repositories'
 import { Badge } from '@muni/ui/badge'
 import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
@@ -14,13 +14,24 @@ import { useMemo } from 'react'
 
 import { rateTone } from '@/components/status-badges'
 
-import { GroupBreakdown } from './group-breakdown'
+import { MembersTable } from './members-table'
 
-const col = createDataColumns<PositionSummary>()
+type Group = DepartmentSummary | PositionSummary
 
-export function PositionsTable({ positions }: { positions: PositionSummary[] }) {
-  const t = useTranslations('positions')
-  const tDep = useTranslations('departments')
+const col = createDataColumns<Group>()
+
+/**
+ * Departments or positions: who leads each (departments) or where it sits (positions), its
+ * people, how its mandatory training stands. A row opens to the records of its people.
+ */
+export function GroupsTable(
+  props:
+    | { kind: 'departments'; groups: DepartmentSummary[] }
+    | { kind: 'positions'; groups: PositionSummary[] }
+) {
+  const { kind } = props
+  const t = useTranslations(kind)
+  const to = useTranslations('org')
   const locale = useLocale()
   const columns = useMemo(() => {
     const n = (value: number) => formatInteger(value, locale)
@@ -30,22 +41,35 @@ export function PositionsTable({ positions }: { positions: PositionSummary[] }) 
         sortFn: 'text',
         cell: ({ row }) => (
           <TextLink asChild emphasis>
-            <Link href={`/positions/${row.original.id}`}>{row.original.name}</Link>
+            <Link href={`/${kind}/${row.original.id}`}>{row.original.name}</Link>
           </TextLink>
         ),
       }),
-      col.accessor(p => p.departments.map(g => g.name).join(', '), {
-        id: 'departments',
-        header: t('columns.departments'),
-        sortFn: 'text',
-        cell: ({ row }) =>
-          row.original.departments.length === 0
-            ? PLACEHOLDER
-            : row.original.departments.map(g => g.name).join(', '),
-      }),
+      kind === 'departments'
+        ? col.accessor(g => ('head' in g ? g.head?.name : undefined), {
+            id: 'head',
+            header: t('columns.head'),
+            sortFn: 'text',
+            cell: ({ row }) => {
+              const head = 'head' in row.original ? row.original.head : null
+              return head ? (
+                <TextLink asChild>
+                  <Link href={`/employees/${head.externalId}`}>{head.name}</Link>
+                </TextLink>
+              ) : (
+                PLACEHOLDER
+              )
+            },
+          })
+        : col.accessor(g => ('departments' in g ? g.departments.map(d => d.name).join(', ') : ''), {
+            id: 'departments',
+            header: t('columns.departments'),
+            sortFn: 'text',
+            cell: ({ getValue }) => getValue() || PLACEHOLDER,
+          }),
       col.accessor('active', {
         id: 'people',
-        header: t('columns.people'),
+        header: to('columns.people'),
         sortFn: 'basic',
         meta: { align: 'right' },
         cell: ({ row }) => (
@@ -53,15 +77,15 @@ export function PositionsTable({ positions }: { positions: PositionSummary[] }) 
             title={n(row.original.active)}
             meta={
               row.original.parentalLeave > 0
-                ? tDep('onLeave', { count: row.original.parentalLeave })
+                ? to('onLeave', { count: row.original.parentalLeave })
                 : undefined
             }
           />
         ),
       }),
-      col.accessor(d => (d.counts.total > 0 ? d.rate : undefined), {
+      col.accessor(g => (g.counts.total > 0 ? g.rate : undefined), {
         id: 'compliance',
-        header: t('columns.compliance'),
+        header: to('columns.compliance'),
         sortFn: 'basic',
         meta: { headerClassName: 'w-52' },
         cell: ({ row }) =>
@@ -74,7 +98,7 @@ export function PositionsTable({ positions }: { positions: PositionSummary[] }) 
                 <Meter
                   value={row.original.counts.VALID + row.original.counts.EXPIRING}
                   max={row.original.counts.total}
-                  label={t('columns.compliance')}
+                  label={to('columns.compliance')}
                   tone={rateTone(row.original.rate)}
                 />
               }
@@ -84,13 +108,13 @@ export function PositionsTable({ positions }: { positions: PositionSummary[] }) 
       }),
       col.accessor('requiredCourses', {
         id: 'required',
-        header: t('columns.required'),
+        header: to('columns.required'),
         sortFn: 'basic',
         meta: { align: 'right' },
         cell: ({ getValue }) => n(getValue()),
       }),
       col.accessor('actionNow', {
-        header: t('columns.actionNow'),
+        header: to('columns.actionNow'),
         sortFn: 'basic',
         meta: { align: 'right' },
         cell: ({ getValue }) =>
@@ -98,22 +122,28 @@ export function PositionsTable({ positions }: { positions: PositionSummary[] }) 
       }),
       col.accessor('upcomingBookings', {
         id: 'bookings',
-        header: t('columns.bookings'),
+        header: to('columns.bookings'),
         sortFn: 'basic',
         meta: { align: 'right' },
         cell: ({ getValue }) => n(getValue()),
       }),
     ])
-  }, [locale, t, tDep])
+  }, [kind, locale, t, to])
   return (
-    <DataTable
+    <DataTable<Group>
       columns={columns}
-      data={positions}
-      getRowId={p => p.id}
-      renderExpanded={p => <GroupBreakdown kind="departments" groups={p.departments} />}
-      getRowCanExpand={p => p.departments.length > 0}
-      expandLabel={p => t('toggle', { name: p.name })}
-      expandHeader={t('panelHeader')}
+      data={props.groups}
+      getRowId={g => g.id}
+      renderExpanded={g => (
+        <MembersTable
+          name={g.name}
+          members={g.members}
+          other={kind === 'departments' ? 'position' : 'department'}
+        />
+      )}
+      getRowCanExpand={g => g.members.length > 0}
+      expandLabel={g => t('toggle', { name: g.name })}
+      expandHeader={to('panelHeader')}
     />
   )
 }

@@ -115,7 +115,11 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
   const byPair = Map.groupBy(cells, c => `${departmentOf.get(c.employeeId) ?? ''}|${c.courseId}`)
   const cellsByPerson = Map.groupBy(cells, c => c.employeeId)
   const peopleByDepartment = Map.groupBy(people.toSorted(compareNames), p => p.departmentId)
-  const { asOf } = compliance.options
+  const context = {
+    courses: new Map(courses.map(c => [c.id, c])),
+    asOf: compliance.options.asOf,
+    bookings,
+  }
 
   return {
     asOf: compliance.options.asOf,
@@ -141,7 +145,7 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
             cells: Object.fromEntries(
               courses.map(course => {
                 const cell = own.get(course.id)
-                return [course.code, cell ? requirementOf(cell, course, asOf, bookings) : null]
+                return [course.code, cell ? requirementOf(cell, context) : null]
               })
             ),
           }

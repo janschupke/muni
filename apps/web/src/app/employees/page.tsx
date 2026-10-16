@@ -1,4 +1,9 @@
-import { EMPLOYEE_SORT_KEYS, listDepartments, listEmployees } from '@muni/db/repositories'
+import {
+  EMPLOYEE_SORT_KEYS,
+  listDepartments,
+  listEmployees,
+  listPositions,
+} from '@muni/db/repositories'
 import { COMPLIANCE_STATUSES, EMPLOYMENT_STATUSES } from '@muni/domain/enums'
 import { Alert } from '@muni/ui/alert'
 import { EmptyState } from '@muni/ui/empty-state'
@@ -22,6 +27,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Se
   const filters = {
     q: param(params, 'q'),
     department: param(params, 'department'),
+    position: param(params, 'position'),
     status: oneOf(param(params, 'status'), EMPLOYMENT_STATUSES),
     compliance: oneOf(param(params, 'compliance'), COMPLIANCE_STATUSES),
     manager: param(params, 'manager'),
@@ -34,9 +40,10 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Se
     dir: sort?.desc ? 'desc' : undefined,
   }
   const page = Number(param(params, 'page') ?? 1) || 1
-  const [result, departments, t, tc] = await Promise.all([
+  const [result, departments, positions, t, tc] = await Promise.all([
     listEmployees({ ...filters, sort, page }),
     listDepartments(),
+    listPositions(),
     getTranslations('employees'),
     getTranslations('common'),
   ])
@@ -54,7 +61,12 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Se
           </TextLink>
         </Alert>
       )}
-      <EmployeeFilters query={query} departments={departments} total={result.total} />
+      <EmployeeFilters
+        query={query}
+        departments={departments}
+        positions={positions}
+        total={result.total}
+      />
 
       {result.items.length === 0 ? (
         <EmptyState title={t('empty')} />

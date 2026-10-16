@@ -29,21 +29,30 @@ export async function loadNextBookings(db: Db, now = new Date()): Promise<NextBo
   return next
 }
 
+/** What turns compliance cells into the requirement rows the lists show. */
+export interface RequirementContext {
+  /** Every course a cell can name, by id. */
+  courses: ReadonlyMap<string, { code: string; name: string }>
+  asOf: IsoDate
+  bookings: NextBookings
+}
+
 /** One required course of one person, as the lists and the matrix show it. */
 export function requirementOf(
   cell: ComplianceCell,
-  course: { code: string; name: string } | undefined,
-  asOf: IsoDate,
-  bookings: NextBookings
+  context: RequirementContext
 ): EmployeeListRequirement {
+  const course = context.courses.get(cell.courseId)
+  // Cells come from the mandatory courses, which the context always carries.
+  if (!course) throw new Error(`No course ${cell.courseId} for a compliance cell`)
   const validUntil = cell.basis?.validUntil ?? null
   return {
-    courseCode: course?.code ?? '',
-    courseName: course?.name ?? '',
+    courseCode: course.code,
+    courseName: course.name,
     status: cell.status,
     completedOn: cell.basis?.completedOn ?? null,
     validUntil,
-    daysLeft: validUntil === null ? null : diffInDays(asOf, validUntil),
-    booked: bookings.get(`${cell.employeeId}|${cell.courseId}`) ?? null,
+    daysLeft: validUntil === null ? null : diffInDays(context.asOf, validUntil),
+    booked: context.bookings.get(`${cell.employeeId}|${cell.courseId}`) ?? null,
   }
 }

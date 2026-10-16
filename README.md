@@ -55,8 +55,9 @@ Internal packages ship TypeScript source (`exports` point at `src/`); Next compi
 - **What a session needs:** `Course.sessionMinutes`, `groupSize`, `onlineAllowed` and its
   capabilities. Set in the course form; until then derived from the course's sessions (usual
   length, median size, online if ever held online). An import never overwrites them.
-- **Department heads** are not stored: the head is the person most of the department's
-  members report to.
+- **Department heads** are not stored: the head is the member with the most other members
+  anywhere beneath them in the reporting chain (so a head over two team leads outranks
+  either lead); when no member manages another, the outside manager most members report to.
 
 Source IDs (`E0001`,
 `T001`, `Z000001`) are kept as `externalId`, and imports upsert on them, so re-importing a file
@@ -127,7 +128,9 @@ data; `global-error.tsx` draws its own page when the root layout fails. Every re
 has its own not-found page naming the missing record.
 
 The compliance matrix opens each department into one row per person, under the course
-columns, and each cell into a dialog listing its people, most urgent first.
+columns, and each cell into a dialog listing its people, most urgent first. The department
+and position lists open each row to its people's records: position or department,
+employment, the share held, and every training that needs attention with its booking.
 
 Motion is centralised in `packages/ui/src/styles/tokens.css`: three durations, the easings,
 the named animations (`animate-fade-in`, `animate-pop-in`, …), and the default for every

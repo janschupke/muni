@@ -49,6 +49,20 @@ for (const theme of ['light', 'dark'] as const) {
       await expectNoViolations(page, 'cell dialog')
     })
 
+    test('departments and positions with a row open to its people', async ({ page }) => {
+      await page.goto('/departments')
+      await page.getByRole('button', { name: 'People in Laboratoře' }).click()
+      await expect(page.getByRole('table', { name: 'People of Laboratoře' })).toBeVisible()
+      await expectNoViolations(page, 'department people')
+      await page.goto('/positions')
+      await page
+        .getByRole('button', { name: /^People with the position / })
+        .first()
+        .click()
+      await expect(page.getByRole('table', { name: /^People of / })).toBeVisible()
+      await expectNoViolations(page, 'position people')
+    })
+
     test('collapsed sidebar, and the navigation drawer on a phone', async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 900 })
       await page.goto('/courses')

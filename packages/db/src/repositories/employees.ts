@@ -2,6 +2,7 @@ import {
   worstStatus,
   countStatuses,
   complianceRate,
+  type ComplianceCell,
   type ComplianceCounts,
 } from '@muni/domain/compliance'
 import type { ComplianceStatus, EmploymentStatus, Viewer } from '@muni/domain/enums'
@@ -11,7 +12,7 @@ import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
 import { dbOf, getPolicy, loadCompliance, type RepoOptions } from './context'
 import { compareNames, sortEmployees, type EmployeeSortKey } from './employee-sort'
-import { loadNextBookings, requirementOf } from './requirements'
+import { loadNextBookings, requirementOf, type RequirementContext } from './requirements'
 
 export interface EmployeeListItem {
   externalId: string
@@ -41,12 +42,45 @@ export interface EmployeeListRequirement {
   booked: { sessionExternalId: string; startsAt: string } | null
 }
 
+/** What a person's record is built from: the person as stored, with their place. */
+export interface EmployeeSource {
+  externalId: string
+  firstName: string
+  lastName: string
+  status: EmploymentStatus
+  department: { id: string; name: string } | null
+  position: { id: string; name: string } | null
+}
+
+/** One person as every list shows them: where they sit, their compliance, each requirement. */
+export function employeeRecord(
+  e: EmployeeSource,
+  cells: readonly ComplianceCell[],
+  context: RequirementContext
+): EmployeeListItem {
+  return {
+    externalId: e.externalId,
+    firstName: e.firstName,
+    lastName: e.lastName,
+    department: e.department?.name ?? null,
+    departmentId: e.department?.id ?? null,
+    position: e.position?.name ?? null,
+    positionId: e.position?.id ?? null,
+    status: e.status,
+    compliance: worstStatus(cells.map(c => c.status)),
+    counts: countStatuses(cells),
+    requirements: cells
+      .map(c => requirementOf(c, context))
+      .sort((a, b) => a.courseCode.localeCompare(b.courseCode)),
+  }
+}
+
 export interface EmployeeFilters {
   q?: string
   /** Department name (the list's URL filter). */
   department?: string
-  departmentId?: string
-  positionId?: string
+  /** Position name. */
+  position?: string
   /** Direct reports of this person (external ID). */
   manager?: string
   status?: EmploymentStatus
@@ -75,8 +109,7 @@ export async function listEmployees(
     db.employee.findMany({
       where: {
         ...(filters.department && { department: { name: filters.department } }),
-        ...(filters.departmentId && { departmentId: filters.departmentId }),
-        ...(filters.positionId && { positionId: filters.positionId }),
+        ...(filters.position && { position: { name: filters.position } }),
         ...(filters.manager && { manager: { externalId: filters.manager } }),
         ...(filters.status && { status: filters.status }),
       },
@@ -96,29 +129,15 @@ export async function listEmployees(
     loadNextBookings(db),
   ])
 
-  const courseById = new Map(courses.map(c => [c.id, c]))
-  const { asOf } = compliance.options
+  const context = {
+    courses: new Map(courses.map(c => [c.id, c])),
+    asOf: compliance.options.asOf,
+    bookings,
+  }
   const cellsByEmployee = Map.groupBy(compliance.cells, c => c.employeeId)
   const q = filters.q ? fold(filters.q) : ''
   const items = employees
-    .map((e): EmployeeListItem => {
-      const cells = cellsByEmployee.get(e.id) ?? []
-      return {
-        externalId: e.externalId,
-        firstName: e.firstName,
-        lastName: e.lastName,
-        department: e.department?.name ?? null,
-        departmentId: e.department?.id ?? null,
-        position: e.position?.name ?? null,
-        positionId: e.position?.id ?? null,
-        status: e.status,
-        compliance: worstStatus(cells.map(c => c.status)),
-        counts: countStatuses(cells),
-        requirements: cells
-          .map(c => requirementOf(c, courseById.get(c.courseId), asOf, bookings))
-          .sort((a, b) => a.courseCode.localeCompare(b.courseCode)),
-      }
-    })
+    .map(e => employeeRecord(e, cellsByEmployee.get(e.id) ?? [], context))
     .filter(e => !q || fold(`${e.firstName} ${e.lastName} ${e.externalId}`).includes(q))
     // "Has a training in this state", so the list matches the dashboard's counts of trainings:
     // someone with one expired and one missing course appears under both.

@@ -135,6 +135,7 @@
     "searchPlaceholder": "Name or ID",
     "filters": {
       "department": "Department",
+      "position": "Position",
       "status": "Employment",
       "compliance": "Has training",
       "any": "Any",
@@ -747,13 +748,8 @@
       "deleteHint": "A room can be deleted only while no session uses it."
     }
   },
-  "departments": {
-    "title": "Departments",
-    "description": "Who works where, who leads each department, and how its mandatory training stands. Compliance counts active people only.",
-    "empty": "No departments yet.",
+  "org": {
     "columns": {
-      "name": "Department",
-      "head": "Head",
       "people": "People",
       "compliance": "Compliance",
       "required": "Required courses",
@@ -761,26 +757,51 @@
       "bookings": "Upcoming bookings"
     },
     "onLeave": "+{count} on leave",
-    "toggle": "Positions in {name}",
-    "panelHeader": "Positions",
+    "panelHeader": "People",
     "detail": {
-      "facts": "Department",
-      "head": "Head",
       "active": "Active people",
       "onLeave": "On parental leave",
-      "positions": "Positions",
-      "noPositions": "Nobody has a position here.",
       "courses": "Mandatory courses",
       "coursesDescription": "Share held per course, active people only.",
-      "noCourses": "Nothing is required of this department.",
-      "people": "People",
-      "inList": "Open in the employee list"
+      "people": "People"
     },
     "courseColumns": {
       "course": "Course",
       "requiredBy": "Required for",
       "compliance": "Compliance",
       "held": "Held"
+    },
+    "members": {
+      "label": "People of {name}",
+      "person": "Person",
+      "position": "Position",
+      "department": "Department",
+      "status": "Employment",
+      "held": "Held",
+      "attention": "Needs attention",
+      "heldOf": "{held} / {total}",
+      "allValid": "All held",
+      "nothingRequired": "Nothing required",
+      "booked": "booked for {date}",
+      "none": "Nobody works here."
+    }
+  },
+  "departments": {
+    "title": "Departments",
+    "description": "Who works where, who leads each department, and how its mandatory training stands. Compliance counts active people only.",
+    "empty": "No departments yet.",
+    "columns": {
+      "name": "Department",
+      "head": "Head"
+    },
+    "toggle": "People in {name}",
+    "detail": {
+      "facts": "Department",
+      "head": "Head",
+      "positions": "Positions",
+      "noPositions": "Nobody has a position here.",
+      "noCourses": "Nothing is required of this department.",
+      "inList": "Open in the employee list"
     }
   },
   "positions": {
@@ -789,25 +810,15 @@
     "empty": "No positions yet.",
     "columns": {
       "name": "Position",
-      "departments": "Departments",
-      "people": "People",
-      "compliance": "Compliance",
-      "required": "Required courses",
-      "actionNow": "Need action now",
-      "bookings": "Upcoming bookings"
+      "departments": "Departments"
     },
-    "toggle": "Departments with {name}",
-    "panelHeader": "Departments",
+    "toggle": "People with the position {name}",
     "detail": {
       "facts": "Position",
-      "active": "Active people",
-      "onLeave": "On parental leave",
       "departments": "Departments",
       "noDepartments": "Nobody with this position belongs to a department.",
-      "courses": "Mandatory courses",
-      "coursesDescription": "Share held per course, active people only.",
       "noCourses": "Nothing is required of this position.",
-      "people": "People"
+      "inList": "Open in the employee list"
     }
   },
   "planner": {

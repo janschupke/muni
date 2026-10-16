@@ -437,6 +437,42 @@ export const roomDetail = (over: Partial<RoomDetail> = {}): RoomDetail => ({
   ...over,
 })
 
+/** A group's people: one needing attention, one fully held (on leave), one with nothing required. */
+const members = (): EmployeeListItem[] => [
+  employeeRow(),
+  employeeRow({
+    externalId: 'E0154',
+    firstName: 'Petr',
+    lastName: 'Adámek',
+    position: 'Vedoucí',
+    positionId: 'pos_head',
+    status: 'PARENTAL_LEAVE',
+    compliance: 'VALID',
+    counts: counts({ VALID: 1, EXPIRING: 0, EXPIRED: 0, MISSING: 0 }),
+    requirements: [
+      {
+        courseCode: 'GDPR',
+        courseName: 'Ochrana osobních údajů',
+        status: 'VALID',
+        completedOn: '2025-11-05',
+        validUntil: '2027-11-05',
+        daysLeft: 385,
+        booked: null,
+      },
+    ],
+  }),
+  employeeRow({
+    externalId: 'E0155',
+    firstName: 'Jana',
+    lastName: 'Bílá',
+    department: null,
+    departmentId: null,
+    compliance: null,
+    counts: counts({ VALID: 0, EXPIRING: 0, EXPIRED: 0, MISSING: 0 }),
+    requirements: [],
+  }),
+]
+
 export const departmentSummary = (over: Partial<DepartmentSummary> = {}): DepartmentSummary => ({
   id: 'dep_lab',
   name: 'Laboratoře',
@@ -452,6 +488,7 @@ export const departmentSummary = (over: Partial<DepartmentSummary> = {}): Depart
     { id: 'pos_lab', name: 'Laborant', count: 24 },
     { id: 'pos_head', name: 'Vedoucí', count: 1 },
   ],
+  members: members(),
   ...over,
 })
 
@@ -489,6 +526,7 @@ export const positionSummary = (over: Partial<PositionSummary> = {}): PositionSu
   actionNow: 8,
   upcomingBookings: 2,
   departments: [{ id: 'dep_lab', name: 'Laboratoře', count: 24 }],
+  members: members(),
   ...over,
 })
 

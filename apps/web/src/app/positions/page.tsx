@@ -5,7 +5,7 @@ import type { Metadata } from 'next'
 import { connection } from 'next/server'
 import { getTranslations } from 'next-intl/server'
 
-import { PositionsTable } from '@/features/org/positions-table'
+import { GroupsTable } from '@/features/org/groups-table'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('positions'))('title') }
@@ -21,7 +21,7 @@ export default async function PositionsPage() {
       {positions.length === 0 ? (
         <EmptyState title={t('empty')} />
       ) : (
-        <PositionsTable positions={positions} />
+        <GroupsTable kind="positions" groups={positions} />
       )}
     </>
   )

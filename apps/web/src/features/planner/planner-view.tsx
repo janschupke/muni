@@ -87,14 +87,11 @@ function CourseHeading({ course }: { course: PlannerGroup['course'] }) {
       : []),
   ]
   return (
-    <div className="mb-3">
-      <SectionHeading className="mt-0">
-        <TextLink asChild>
-          <Link href={`/courses/${course.code}`}>{course.name}</Link>
-        </TextLink>
-      </SectionHeading>
-      <p className="-mt-2 text-sm text-fg-muted">{facts.join(' · ')}</p>
-    </div>
+    <SectionHeading className="mt-0" description={facts.join(' · ')}>
+      <TextLink asChild>
+        <Link href={`/courses/${course.code}`}>{course.name}</Link>
+      </TextLink>
+    </SectionHeading>
   )
 }
 

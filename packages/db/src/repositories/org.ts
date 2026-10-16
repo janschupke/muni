@@ -13,7 +13,9 @@ import {
   type RequirementView,
 } from './audience'
 import { dbOf, loadCompliance, type RepoOptions } from './context'
-import { compareNames } from './employee-sort'
+import { compareNames, sortEmployees } from './employee-sort'
+import { employeeRecord, type EmployeeListItem } from './employees'
+import { loadNextBookings } from './requirements'
 
 // Departments and positions as the register sees them: who is in them, who leads them,
 // what they must hold and how much of it they hold. Active people count toward compliance;
@@ -46,6 +48,8 @@ interface GroupSummary {
   actionNow: number
   /** Named bookings of members on sessions still ahead. */
   upcomingBookings: number
+  /** Its people (active and on leave), each with their record: most urgent first, then by name. */
+  members: EmployeeListItem[]
 }
 
 export interface DepartmentSummary extends GroupSummary {
@@ -82,7 +86,7 @@ type Member = {
 async function loadOrg(options?: RepoOptions & { now?: Date }) {
   const db = dbOf(options)
   const now = options?.now ?? new Date()
-  const [compliance, people, bookings, courses] = await Promise.all([
+  const [compliance, people, bookings, courses, nextBookings] = await Promise.all([
     loadCompliance(options),
     db.employee.findMany({
       where: { status: { not: 'TERMINATED' } },
@@ -108,9 +112,22 @@ async function loadOrg(options?: RepoOptions & { now?: Date }) {
       select: { id: true, code: true, name: true, requiredForAll: true, ...audienceInclude },
       orderBy: { code: 'asc' },
     }),
+    loadNextBookings(db, now),
   ])
   const byId = new Map(people.map(p => [p.id, p]))
-  return { people, byId, cells: compliance.cells, bookings, courses }
+  return {
+    people,
+    byId,
+    cells: compliance.cells,
+    cellsByEmployee: Map.groupBy(compliance.cells, c => c.employeeId),
+    bookings,
+    courses,
+    context: {
+      courses: new Map(courses.map(c => [c.id, c])),
+      asOf: compliance.options.asOf,
+      bookings: nextBookings,
+    },
+  }
 }
 
 type Org = Awaited<ReturnType<typeof loadOrg>>
@@ -125,6 +142,11 @@ function summarise(org: Org, members: Member[]): Omit<GroupSummary, 'id' | 'name
   const cells = activeCells(org, members)
   const counts = countStatuses(cells)
   const memberIds = new Set(members.map(m => m.id))
+  const records = members.map(m =>
+    employeeRecord(m, org.cellsByEmployee.get(m.id) ?? [], org.context)
+  )
+  sortEmployees(records, 'name', false)
+  sortEmployees(records, 'compliance', false)
   return {
     active: members.filter(m => m.status === 'ACTIVE').length,
     parentalLeave: members.filter(m => m.status === 'PARENTAL_LEAVE').length,
@@ -135,6 +157,7 @@ function summarise(org: Org, members: Member[]): Omit<GroupSummary, 'id' | 'name
       cells.filter(c => c.status === 'EXPIRED' || c.status === 'MISSING').map(c => c.employeeId)
     ).size,
     upcomingBookings: org.bookings.filter(b => memberIds.has(b.employeeId)).length,
+    members: records,
   }
 }
 
@@ -153,15 +176,37 @@ function tally(members: Member[], key: (m: Member) => { id: string; name: string
   )
 }
 
-function headOf(org: Org, members: Member[]): PersonRef | null {
-  const reportsTo = new Map<string, number>()
-  for (const m of members)
-    if (m.managerId) reportsTo.set(m.managerId, (reportsTo.get(m.managerId) ?? 0) + 1)
-  const ranked = [...reportsTo]
-    .map(([id, count]) => ({ person: org.byId.get(id), count }))
-    .filter((r): r is { person: Member; count: number } => r.person !== undefined)
+type Reporting = { id: string; managerId: string | null }
+
+/**
+ * Who leads a group: the member with the most other members anywhere beneath them in the
+ * reporting chain, so a head over two team leads outranks either lead. Ties go by name.
+ * When no member manages another, the person most members report to (from outside).
+ */
+export function headOf<P extends Reporting & { firstName: string; lastName: string }>(
+  members: readonly P[],
+  everyone: ReadonlyMap<string, P>
+): P | null {
+  const inGroup = new Set(members.map(m => m.id))
+  const beneath = new Map<string, number>()
+  const direct = new Map<string, number>()
+  for (const m of members) {
+    if (m.managerId) direct.set(m.managerId, (direct.get(m.managerId) ?? 0) + 1)
+    const seen = new Set([m.id])
+    for (let up = m.managerId; up && !seen.has(up); up = everyone.get(up)?.managerId ?? null) {
+      seen.add(up)
+      if (inGroup.has(up)) beneath.set(up, (beneath.get(up) ?? 0) + 1)
+    }
+  }
+  const ranked = [...(beneath.size > 0 ? beneath : direct)]
+    .map(([id, count]) => ({ person: everyone.get(id), count }))
+    .filter((r): r is { person: P; count: number } => r.person !== undefined)
     .sort((a, b) => b.count - a.count || compareNames(a.person, b.person))
-  const head = ranked[0]?.person
+  return ranked[0]?.person ?? null
+}
+
+function headRef(org: Org, members: Member[]): PersonRef | null {
+  const head = headOf(members, org.byId)
   return head ? { externalId: head.externalId, name: `${head.lastName} ${head.firstName}` } : null
 }
 
@@ -196,7 +241,7 @@ function departmentSummary(org: Org, department: { id: string; name: string }): 
   return {
     ...department,
     ...summarise(org, members),
-    head: headOf(org, members),
+    head: headRef(org, members),
     positions: tally(members, m => m.position),
   }
 }

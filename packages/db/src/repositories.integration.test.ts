@@ -418,6 +418,12 @@ describe('departments and positions', () => {
       (lab?.active ?? 0) + (lab?.parentalLeave ?? 0)
     )
     expect(lab?.actionNow).toBeGreaterThan(0)
+    // Its people, each with the same record the employee list shows, most urgent first.
+    expect(lab?.members).toHaveLength((lab?.active ?? 0) + (lab?.parentalLeave ?? 0))
+    expect(['EXPIRED', 'MISSING']).toContain(lab?.members[0]?.compliance)
+    const first = lab?.members[0]
+    const listed = await listEmployees({ q: first?.externalId }, options)
+    expect(listed.items).toEqual([first])
   })
 
   it('show a department’s courses and why it must hold them', async () => {
@@ -445,6 +451,8 @@ describe('departments and positions', () => {
     expect(positions.map(p => p.name)).toContain('Řidič')
     const driver = positions.find(p => p.name === 'Řidič')
     expect(driver?.departments.length).toBeGreaterThan(0)
+    expect(driver?.members.every(m => m.position === 'Řidič')).toBe(true)
+    expect(driver?.members).toHaveLength((driver?.active ?? 0) + (driver?.parentalLeave ?? 0))
     const detail = await getPosition(driver?.id ?? '', options)
     expect(detail?.courses.find(c => c.code === 'RIDIC')?.requiredBy).toMatchObject([
       { scope: 'POSITION', target: 'Řidič' },
@@ -467,11 +475,9 @@ describe('departments and positions', () => {
         .map(e => e.externalId)
         .toSorted()
     )
-    const lab = await db.department.findUniqueOrThrow({ where: { name: 'Laboratoře' } })
-    const byId = await listEmployees({ departmentId: lab.id, pageSize: 100 }, options)
-    expect(byId.items.every(e => e.department === 'Laboratoře')).toBe(true)
-    const driver = await db.position.findUniqueOrThrow({ where: { name: 'Řidič' } })
-    const drivers = await listEmployees({ positionId: driver.id, pageSize: 100 }, options)
+    const lab = await listEmployees({ department: 'Laboratoře', pageSize: 100 }, options)
+    expect(lab.items.every(e => e.department === 'Laboratoře')).toBe(true)
+    const drivers = await listEmployees({ position: 'Řidič', pageSize: 100 }, options)
     expect(drivers.total).toBeGreaterThan(0)
     expect(drivers.items.every(e => e.position === 'Řidič')).toBe(true)
   })

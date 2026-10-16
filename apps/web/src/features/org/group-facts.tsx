@@ -11,7 +11,6 @@ import { rateTone } from '@/components/status-badges'
 /** The numbers every department and position page opens with. */
 export function GroupFacts({
   group,
-  labels,
   children,
 }: {
   group: {
@@ -21,20 +20,20 @@ export function GroupFacts({
     counts: { VALID: number; EXPIRING: number; EXPIRED: number; MISSING: number; total: number }
     rate: number
   }
-  labels: { active: string; onLeave: string }
   children?: ReactNode
 }) {
-  const t = useTranslations('departments.columns')
+  const t = useTranslations('org.columns')
+  const td = useTranslations('org.detail')
   const locale = useLocale()
   const held = group.counts.VALID + group.counts.EXPIRING
   return (
     <div className="flex flex-col gap-4">
       <DescriptionList>
         {children}
-        <DescriptionItem label={labels.active}>
+        <DescriptionItem label={td('active')}>
           {formatInteger(group.active, locale)}
         </DescriptionItem>
-        <DescriptionItem label={labels.onLeave}>
+        <DescriptionItem label={td('onLeave')}>
           {formatInteger(group.parentalLeave, locale)}
         </DescriptionItem>
       </DescriptionList>
@@ -42,7 +41,7 @@ export function GroupFacts({
         <>
           <BarRow
             label={t('compliance')}
-            value={`${formatPercent(group.rate, locale)} · ${held} / ${group.counts.total}`}
+            value={`${formatPercent(group.rate, locale)} · ${formatInteger(held, locale)} / ${formatInteger(group.counts.total, locale)}`}
             bar={
               <Meter
                 value={held}

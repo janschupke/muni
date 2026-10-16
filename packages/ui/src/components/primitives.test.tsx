@@ -87,7 +87,9 @@ describe('surfaces and layout', () => {
             description="Laborantka · Laboratoře"
             actions={<Button>Upravit</Button>}
           />
-          <SectionHeading actions={<Button>Vše</Button>}>Nadcházející termíny</SectionHeading>
+          <SectionHeading actions={<Button>Vše</Button>} description="Příštích 30 dní">
+            Nadcházející termíny
+          </SectionHeading>
           <SplitLayout
             side={
               <Card>
@@ -142,6 +144,7 @@ describe('surfaces and layout', () => {
       'Profil',
       'Školení',
     ])
+    expect(screen.getByText('Příštích 30 dní').tagName).toBe('P')
     expect(screen.getByRole('article').className).toContain('rounded-lg')
     expect(screen.getByText('E0153').tagName).toBe('DD')
     expect(screen.getByText('3').tagName).toBe('DD')

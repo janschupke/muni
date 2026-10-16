@@ -3,7 +3,7 @@ import { complianceBand } from '@muni/domain/compliance'
 import { HeatCell } from '@muni/ui/charts/heat-cell'
 import { Table, TableContainer, TBody, Td, Th, THead } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
-import { formatPercent } from '@muni/utils/format'
+import { formatInteger, formatPercent } from '@muni/utils/format'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -12,7 +12,7 @@ import { RequirementList } from '@/components/requirement-list'
 
 /** A group's mandatory courses: why it must hold each, and how much of it it holds. */
 export function CourseComplianceTable({ courses }: { courses: CourseCompliance[] }) {
-  const t = useTranslations('departments.courseColumns')
+  const t = useTranslations('org.courseColumns')
   const locale = useLocale()
   return (
     <TableContainer>
@@ -51,7 +51,8 @@ export function CourseComplianceTable({ courses }: { courses: CourseCompliance[]
                 </div>
               </Td>
               <Td align="right" nowrap>
-                {c.counts.VALID + c.counts.EXPIRING} / {c.counts.total}
+                {formatInteger(c.counts.VALID + c.counts.EXPIRING, locale)} /{' '}
+                {formatInteger(c.counts.total, locale)}
               </Td>
             </tr>
           ))}

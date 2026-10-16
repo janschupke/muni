@@ -1,13 +1,10 @@
-import { getDepartment, listEmployees } from '@muni/db/repositories'
+import { getDepartment } from '@muni/db/repositories'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem } from '@muni/ui/description-list'
-import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
 import { PageHeader } from '@muni/ui/page-header'
-import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import { PLACEHOLDER } from '@muni/utils/format'
-import { ArrowRight } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -15,10 +12,9 @@ import { getTranslations } from 'next-intl/server'
 import { cache } from 'react'
 
 import { BackLink } from '@/components/back-link'
-import { EmployeesTable } from '@/components/employees-table'
-import { CourseComplianceTable } from '@/features/org/course-compliance-table'
 import { GroupBreakdown } from '@/features/org/group-breakdown'
 import { GroupFacts } from '@/features/org/group-facts'
+import { GroupMain } from '@/features/org/group-main'
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -31,11 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function DepartmentPage({ params }: Props) {
   const { id } = await params
-  const [department, people, t] = await Promise.all([
-    loadDepartment(id),
-    listEmployees({ departmentId: id, pageSize: 100 }),
-    getTranslations('departments'),
-  ])
+  const [department, t] = await Promise.all([loadDepartment(id), getTranslations('departments')])
   if (!department) notFound()
   return (
     <>
@@ -48,10 +40,7 @@ export default async function DepartmentPage({ params }: Props) {
           <Card>
             <CardHeader title={t('detail.facts')} />
             <CardBody className="flex flex-col gap-5">
-              <GroupFacts
-                group={department}
-                labels={{ active: t('detail.active'), onLeave: t('detail.onLeave') }}
-              >
+              <GroupFacts group={department}>
                 <DescriptionItem label={t('detail.head')}>
                   {department.head ? (
                     <TextLink asChild>
@@ -75,30 +64,7 @@ export default async function DepartmentPage({ params }: Props) {
             </CardBody>
           </Card>
         }
-        main={
-          <>
-            <SectionHeading className="mt-0">{t('detail.courses')}</SectionHeading>
-            <p className="-mt-2 mb-3 text-sm text-fg-muted">{t('detail.coursesDescription')}</p>
-            {department.courses.length === 0 ? (
-              <EmptyState variant="inline" title={t('detail.noCourses')} />
-            ) : (
-              <CourseComplianceTable courses={department.courses} />
-            )}
-            <SectionHeading>{t('detail.people')}</SectionHeading>
-            <EmployeesTable items={people.items} />
-            <p className="mt-3 text-sm">
-              <TextLink asChild>
-                <Link
-                  href={`/employees?department=${encodeURIComponent(department.name)}`}
-                  className="inline-flex items-center gap-1"
-                >
-                  {t('detail.inList')}
-                  <ArrowRight aria-hidden className="size-3.5" />
-                </Link>
-              </TextLink>
-            </p>
-          </>
-        }
+        main={<GroupMain kind="departments" group={department} />}
       />
     </>
   )
