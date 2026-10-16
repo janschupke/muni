@@ -16,8 +16,12 @@ import {
   getEmployee,
   listCourses,
   listEmployees,
+  getDepartment,
+  getPosition,
   getRoom,
   getRoomForEdit,
+  listDepartmentSummaries,
+  listPositionSummaries,
   getSession,
   listRooms,
   listSessions,
@@ -358,6 +362,85 @@ describe('sessions', () => {
   })
 })
 
+describe('departments and positions', () => {
+  it('summarise each department, agreeing with the matrix', async () => {
+    const [departments, matrix] = await Promise.all([
+      listDepartmentSummaries(options),
+      getComplianceMatrix(options),
+    ])
+    expect(departments).toHaveLength(9)
+    for (const row of matrix.rows) {
+      const department = departments.find(d => d.name === row.department)
+      expect(department?.active, row.department).toBe(row.headcount)
+      const total = Object.values(row.cells).reduce((n, c) => n + (c?.counts.total ?? 0), 0)
+      expect(department?.counts.total, row.department).toBe(total)
+      expect(department?.requiredCourses).toBe(Object.values(row.cells).filter(Boolean).length)
+    }
+    const lab = departments.find(d => d.name === 'Laboratoře')
+    expect(lab?.head).not.toBeNull()
+    expect(lab?.positions.reduce((n, p) => n + p.count, 0)).toBe(
+      (lab?.active ?? 0) + (lab?.parentalLeave ?? 0)
+    )
+    expect(lab?.actionNow).toBeGreaterThan(0)
+  })
+
+  it('show a department’s courses and why it must hold them', async () => {
+    const id = (await db.department.findUniqueOrThrow({ where: { name: 'Laboratoře' } })).id
+    const lab = await getDepartment(id, options)
+    const matrixRow = (await getComplianceMatrix(options)).rows.find(
+      r => r.department === 'Laboratoře'
+    )
+    expect(lab?.courses.map(c => [c.code, c.counts])).toEqual(
+      Object.entries(matrixRow?.cells ?? {}).flatMap(([code, cell]) =>
+        cell ? [[code, cell.counts]] : []
+      )
+    )
+    expect(lab?.courses.find(c => c.code === 'LAB-BEZ')?.requiredBy).toEqual([
+      { scope: 'DEPARTMENT', target: 'Laboratoře', targetId: id },
+    ])
+    expect(lab?.courses.find(c => c.code === 'BOZP-Z')?.requiredBy).toMatchObject([
+      { scope: 'ALL' },
+    ])
+    expect(await getDepartment('nope', options)).toBeNull()
+  })
+
+  it('summarise each position and show the courses it brings', async () => {
+    const positions = await listPositionSummaries(options)
+    expect(positions.map(p => p.name)).toContain('Řidič')
+    const driver = positions.find(p => p.name === 'Řidič')
+    expect(driver?.departments.length).toBeGreaterThan(0)
+    const detail = await getPosition(driver?.id ?? '', options)
+    expect(detail?.courses.find(c => c.code === 'RIDIC')?.requiredBy).toMatchObject([
+      { scope: 'POSITION', target: 'Řidič' },
+    ])
+    expect(await getPosition('nope', options)).toBeNull()
+  })
+
+  it('show a manager’s team, and filter the list by manager, department and position', async () => {
+    const manager = await getEmployee('E0001', 'anonymous', options)
+    expect(manager?.reports.map(r => r.externalId)).toContain('E0002')
+    expect(manager?.teamCounts.total).toBe(manager?.reports.reduce((n, r) => n + r.counts.total, 0))
+    const team = await listEmployees({ manager: 'E0001', pageSize: 100 }, options)
+    expect(team.items.map(e => e.externalId).toSorted()).toEqual(
+      (
+        await db.employee.findMany({
+          where: { manager: { externalId: 'E0001' } },
+          select: { externalId: true },
+        })
+      )
+        .map(e => e.externalId)
+        .toSorted()
+    )
+    const lab = await db.department.findUniqueOrThrow({ where: { name: 'Laboratoře' } })
+    const byId = await listEmployees({ departmentId: lab.id, pageSize: 100 }, options)
+    expect(byId.items.every(e => e.department === 'Laboratoře')).toBe(true)
+    const driver = await db.position.findUniqueOrThrow({ where: { name: 'Řidič' } })
+    const drivers = await listEmployees({ positionId: driver.id, pageSize: 100 }, options)
+    expect(drivers.total).toBeGreaterThan(0)
+    expect(drivers.items.every(e => e.position === 'Řidič')).toBe(true)
+  })
+})
+
 describe('rooms', () => {
   const now = new Date('2026-10-16T12:00:00Z')
   const roomId = async (name: string) => (await db.room.findUniqueOrThrow({ where: { name } })).id
@@ -484,6 +567,10 @@ describe('assignments', () => {
       .flatMap(r => r.people)
       .find(p => p.externalId === need.employee.externalId)
     expect(person?.cells['BOZP-Z']).toMatchObject({ status: 'EXPIRED', booked })
+    const department = (await listDepartmentSummaries({ ...options, now })).find(
+      d => d.name === need.employee.department
+    )
+    expect(department?.upcomingBookings).toBe(1)
     const listed = await listEmployees({ q: need.employee.externalId }, options)
     expect(listed.items[0]?.requirements.find(r => r.courseCode === 'BOZP-Z')?.booked).toEqual(
       booked

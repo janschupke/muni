@@ -7,7 +7,11 @@ import type {
   EmployeeDetail,
   EmployeeListItem,
   EmployeeListRequirement,
+  DepartmentDetail,
+  DepartmentSummary,
   Page,
+  PositionDetail,
+  PositionSummary,
   RoomDetail,
   RoomListItem,
   SessionListItem,
@@ -51,7 +55,9 @@ export const employeeRow = (over: Partial<EmployeeListItem> = {}): EmployeeListI
   firstName: 'Marie',
   lastName: 'Černá',
   department: 'Laboratoře',
+  departmentId: 'dep_lab',
   position: 'Laborantka',
+  positionId: 'pos_lab',
   status: 'ACTIVE',
   compliance: 'EXPIRED',
   counts: counts({ VALID: 2, EXPIRING: 0, EXPIRED: 1, MISSING: 0 }),
@@ -105,8 +111,12 @@ export const employeeDetail = (over: Partial<EmployeeDetail> = {}): EmployeeDeta
   lastName: 'Černá',
   email: 'm••••••••••@vzorova.example',
   department: 'Laboratoře',
+  departmentId: 'dep_lab',
   position: 'Laborantka',
-  manager: { externalId: 'E0001', name: 'Tereza Urbanová' },
+  positionId: 'pos_lab',
+  manager: { externalId: 'E0001', name: 'Urbanová Tereza' },
+  reports: [],
+  teamCounts: counts({ VALID: 0, EXPIRING: 0, EXPIRED: 0, MISSING: 0 }),
   hiredOn: '2019-03-01',
   leftOn: null,
   status: 'ACTIVE',
@@ -410,5 +420,66 @@ export const roomDetail = (over: Partial<RoomDetail> = {}): RoomDetail => ({
       mismatch: { kind: 'ONLINE_NOT_ALLOWED' },
     },
   ],
+  ...over,
+})
+
+export const departmentSummary = (over: Partial<DepartmentSummary> = {}): DepartmentSummary => ({
+  id: 'dep_lab',
+  name: 'Laboratoře',
+  active: 28,
+  parentalLeave: 2,
+  counts: counts({ VALID: 120, EXPIRING: 8, EXPIRED: 6, MISSING: 10 }),
+  rate: 128 / 144,
+  requiredCourses: 6,
+  actionNow: 9,
+  upcomingBookings: 3,
+  head: { externalId: 'E0001', name: 'Urbanová Tereza' },
+  positions: [
+    { id: 'pos_lab', name: 'Laborant', count: 24 },
+    { id: 'pos_head', name: 'Vedoucí', count: 1 },
+  ],
+  ...over,
+})
+
+const courseCompliance = [
+  {
+    code: 'BOZP-Z',
+    name: 'BOZP – základní školení',
+    requiredBy: [{ scope: 'ALL' as const, target: null, targetId: null }],
+    counts: counts({ VALID: 26, EXPIRING: 1, EXPIRED: 1, MISSING: 0 }),
+    rate: 27 / 28,
+  },
+  {
+    code: 'LAB-BEZ',
+    name: 'Bezpečná práce v laboratoři',
+    requiredBy: [{ scope: 'DEPARTMENT' as const, target: 'Laboratoře', targetId: 'dep_lab' }],
+    counts: counts({ VALID: 12, EXPIRING: 0, EXPIRED: 6, MISSING: 10 }),
+    rate: 12 / 28,
+  },
+]
+
+export const departmentDetail = (over: Partial<DepartmentDetail> = {}): DepartmentDetail => ({
+  ...departmentSummary(),
+  courses: courseCompliance,
+  ...over,
+})
+
+export const positionSummary = (over: Partial<PositionSummary> = {}): PositionSummary => ({
+  id: 'pos_lab',
+  name: 'Laborant',
+  active: 24,
+  parentalLeave: 0,
+  counts: counts({ VALID: 100, EXPIRING: 4, EXPIRED: 6, MISSING: 10 }),
+  rate: 104 / 120,
+  requiredCourses: 5,
+  actionNow: 8,
+  upcomingBookings: 2,
+  departments: [{ id: 'dep_lab', name: 'Laboratoře', count: 24 }],
+  ...over,
+})
+
+export const positionDetail = (over: Partial<PositionDetail> = {}): PositionDetail => ({
+  ...positionSummary(),
+  courses: courseCompliance,
   ...over,
 })

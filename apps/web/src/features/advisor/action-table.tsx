@@ -130,7 +130,7 @@ export function ActionTable({
           <ul className="mt-1 flex flex-col gap-0.5">
             {shortfall.map(s => (
               <li key={s.courseCode}>
-                <TextLink asChild className="text-inherit underline">
+                <TextLink asChild tone="inherit">
                   <Link
                     href={`/courses/${s.courseCode}`}
                     className="inline-flex items-center gap-1"

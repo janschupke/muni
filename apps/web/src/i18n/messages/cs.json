@@ -47,7 +47,9 @@
       "en": "English"
     },
     "advisor": "Poradce",
-    "rooms": "Místnosti"
+    "rooms": "Místnosti",
+    "departments": "Útvary",
+    "positions": "Pozice"
   },
   "status": {
     "employment": {
@@ -67,8 +69,8 @@
     },
     "scope": {
       "ALL": "Všichni",
-      "DEPARTMENT": "Útvar: {target}",
-      "POSITION": "Pozice: {target}"
+      "DEPARTMENT": "Útvar: <link>{target}</link>",
+      "POSITION": "Pozice: <link>{target}</link>"
     },
     "optional": "Nepovinné",
     "nothingRequired": "Nic povinného",
@@ -128,7 +130,9 @@
       "compliance": "Má školení",
       "any": "Vše",
       "apply": "Filtrovat",
-      "reset": "Zrušit filtry"
+      "reset": "Zrušit filtry",
+      "manager": "Přímí podřízení {id}",
+      "clearManager": "Zobrazit všechny"
     },
     "columns": {
       "name": "Jméno",
@@ -158,7 +162,13 @@
       "rate": "Splněno {rate} povinných školení",
       "bookings": "Přihlášené termíny",
       "noBookings": "Žádné nadcházející přihlášky.",
-      "cancelBooking": "Zrušit přihlášku na {course}"
+      "cancelBooking": "Zrušit přihlášku na {course}",
+      "team": {
+        "title": "Tým",
+        "description": "{count, plural, one {# přímý podřízený} few {# přímí podřízení} other {# přímých podřízených}}, kteří neodešli",
+        "inList": "Všichni přímí podřízení v seznamu",
+        "heldOf": "Splněno {held} z {total}"
+      }
     },
     "validOf": "{valid} z {total}",
     "panel": {
@@ -674,6 +684,69 @@
       "note": "Poznámka",
       "delete": "Smazat místnost",
       "deleteHint": "Místnost lze smazat, jen dokud ji nepoužívá žádný termín."
+    }
+  },
+  "departments": {
+    "title": "Útvary",
+    "description": "Kdo kde pracuje, kdo útvar vede a jak je na tom s povinnými školeními. Plnění počítá jen aktivní zaměstnance.",
+    "empty": "Zatím žádné útvary.",
+    "columns": {
+      "name": "Útvar",
+      "head": "Vedoucí",
+      "people": "Lidé",
+      "compliance": "Plnění",
+      "required": "Povinné kurzy",
+      "actionNow": "Hned řešit",
+      "bookings": "Přihlášky na termíny"
+    },
+    "onLeave": "+{count} na rodičovské",
+    "toggle": "Pozice v útvaru {name}",
+    "panelHeader": "Pozice",
+    "detail": {
+      "facts": "Útvar",
+      "head": "Vedoucí",
+      "active": "Aktivní zaměstnanci",
+      "onLeave": "Na rodičovské",
+      "positions": "Pozice",
+      "noPositions": "Nikdo tu nemá pozici.",
+      "courses": "Povinné kurzy",
+      "coursesDescription": "Podíl splněných školení po kurzech, jen aktivní zaměstnanci.",
+      "noCourses": "Tento útvar nemá žádná povinná školení.",
+      "people": "Lidé",
+      "inList": "Otevřít v seznamu zaměstnanců"
+    },
+    "courseColumns": {
+      "course": "Kurz",
+      "requiredBy": "Povinné pro",
+      "compliance": "Plnění",
+      "held": "Splněno"
+    }
+  },
+  "positions": {
+    "title": "Pozice",
+    "description": "Všechny pozice, kde se vyskytují a jaká školení s sebou nesou. Plnění počítá jen aktivní zaměstnance.",
+    "empty": "Zatím žádné pozice.",
+    "columns": {
+      "name": "Pozice",
+      "departments": "Útvary",
+      "people": "Lidé",
+      "compliance": "Plnění",
+      "required": "Povinné kurzy",
+      "actionNow": "Hned řešit",
+      "bookings": "Přihlášky na termíny"
+    },
+    "toggle": "Útvary s pozicí {name}",
+    "panelHeader": "Útvary",
+    "detail": {
+      "facts": "Pozice",
+      "active": "Aktivní zaměstnanci",
+      "onLeave": "Na rodičovské",
+      "departments": "Útvary",
+      "noDepartments": "Nikdo s touto pozicí nepatří do útvaru.",
+      "courses": "Povinné kurzy",
+      "coursesDescription": "Podíl splněných školení po kurzech, jen aktivní zaměstnanci.",
+      "noCourses": "Tato pozice nemá žádná povinná školení.",
+      "people": "Lidé"
     }
   }
 }

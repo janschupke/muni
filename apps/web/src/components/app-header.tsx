@@ -4,6 +4,8 @@ import { Container } from '@muni/ui/layout'
 import { ThemeToggle } from '@muni/ui/theme/theme-toggle'
 import {
   BookOpen,
+  BriefcaseBusiness,
+  Building,
   CalendarDays,
   DoorOpen,
   GraduationCap,
@@ -28,6 +30,8 @@ export async function AppHeader({ viewer }: { viewer: Viewer }) {
   const links = [
     { href: '/', label: t('nav.dashboard'), Icon: LayoutDashboard },
     { href: '/employees', label: t('nav.employees'), Icon: Users },
+    { href: '/departments', label: t('nav.departments'), Icon: Building },
+    { href: '/positions', label: t('nav.positions'), Icon: BriefcaseBusiness },
     { href: '/courses', label: t('nav.courses'), Icon: BookOpen },
     { href: '/sessions', label: t('nav.sessions'), Icon: CalendarDays },
     { href: '/rooms', label: t('nav.rooms'), Icon: DoorOpen },

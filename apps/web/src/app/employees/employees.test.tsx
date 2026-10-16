@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { expectNoAxeViolations } from '@/test/axe'
 import { getViewer, requirePageUser } from '@/server/auth'
-import { booking, employeeDetail, employeePage, employeeRow } from '@/test/fixtures'
+import { booking, counts, employeeDetail, employeePage, employeeRow } from '@/test/fixtures'
 import { NotFoundError, router } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
@@ -207,7 +207,7 @@ describe('employee detail', () => {
     expect(screen.getByRole('link', { name: 'Back to Employees' }).getAttribute('href')).toBe(
       '/employees'
     )
-    expect(screen.getByRole('link', { name: 'Tereza Urbanová' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: 'Urbanová Tereza' }).getAttribute('href')).toBe(
       '/employees/E0001'
     )
     expect(screen.getByText('m••••••••••@vzorova.example')).toBeTruthy()
@@ -266,6 +266,63 @@ describe('employee detail', () => {
     expect(screen.getByText('No upcoming bookings.')).toBeTruthy()
     expect(screen.getByText('No completed trainings on record.')).toBeTruthy()
     expect(screen.queryByText('Email')).toBeNull()
+  })
+})
+
+describe('managers', () => {
+  it('see their team: each report, the team’s compliance, and the reports in the list', async () => {
+    vi.mocked(getEmployee).mockResolvedValue(
+      employeeDetail({
+        reports: [
+          {
+            externalId: 'E0002',
+            name: 'Adámek Petr',
+            position: 'Laborant',
+            status: 'ACTIVE',
+            compliance: 'MISSING',
+            counts: counts({ VALID: 2, EXPIRING: 0, EXPIRED: 0, MISSING: 1 }),
+          },
+          {
+            externalId: 'E0003',
+            name: 'Bílá Jana',
+            position: null,
+            status: 'PARENTAL_LEAVE',
+            compliance: null,
+            counts: counts({ VALID: 0, EXPIRING: 0, EXPIRED: 0, MISSING: 0 }),
+          },
+        ],
+        teamCounts: counts({ VALID: 2, EXPIRING: 0, EXPIRED: 0, MISSING: 1 }),
+      })
+    )
+    await renderServer(EmployeePage({ params: params({ externalId: 'E0001' }) }))
+    expect(screen.getByRole('heading', { name: 'Team' })).toBeTruthy()
+    expect(screen.getByText('2 direct reports who have not left')).toBeTruthy()
+    expect(screen.getByText('2 of 3 held')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Adámek Petr' }).getAttribute('href')).toBe(
+      '/employees/E0002'
+    )
+    expect(screen.getByText('Nothing required')).toBeTruthy()
+    expect(
+      screen.getByRole('link', { name: 'All direct reports in the list' }).getAttribute('href')
+    ).toBe('/employees?manager=E0153')
+    // The person's own department and position link to their pages.
+    expect(screen.getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
+      '/departments/dep_lab'
+    )
+  })
+
+  it('see no team card without reports', async () => {
+    await renderServer(EmployeePage({ params: params({ externalId: 'E0153' }) }))
+    expect(screen.queryByRole('heading', { name: 'Team' })).toBeNull()
+  })
+
+  it('narrow the list to their reports, with a way back to everyone', async () => {
+    await renderServer(EmployeesPage({ searchParams: params({ manager: 'E0001' }) }))
+    expect(listEmployees).toHaveBeenCalledWith(expect.objectContaining({ manager: 'E0001' }))
+    expect(screen.getByText(/Direct reports of E0001/)).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Show everyone' }).getAttribute('href')).toBe(
+      '/employees'
+    )
   })
 })
 

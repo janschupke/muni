@@ -33,7 +33,7 @@ export async function AppFooter({ viewer }: { viewer: Viewer }) {
           <ul className="flex flex-wrap gap-x-4 gap-y-1">
             {links.map(link => (
               <li key={link.href}>
-                <TextLink asChild className="text-fg-muted hover:text-fg">
+                <TextLink asChild tone="muted">
                   <Link href={link.href}>{link.label}</Link>
                 </TextLink>
               </li>

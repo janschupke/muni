@@ -45,7 +45,7 @@ export default async function DashboardPage() {
       {(now > 0 || overbooked > 0) && (
         <Alert tone={action > 0 || overbooked > 0 ? 'warning' : 'info'} className="mb-4">
           {t('advisor.summary', { now, action, overbooked })}{' '}
-          <TextLink asChild emphasis className="text-inherit underline">
+          <TextLink asChild emphasis tone="inherit">
             <Link href="/advisor" className="inline-flex items-center gap-1">
               {t('advisor.open')}
               <ArrowRight aria-hidden className="size-3.5" />

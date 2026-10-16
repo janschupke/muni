@@ -20,6 +20,8 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import { cache } from 'react'
 
 import { BackLink } from '@/components/back-link'
+import { OrgLink } from '@/components/org-links'
+import { TeamCard } from '@/components/team-card'
 import { CompletionHistoryTable } from '@/components/completion-tables'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RoomLink, SessionDateLink } from '@/components/session-links'
@@ -103,6 +105,16 @@ export default async function EmployeePage({ params }: Props) {
                       {employee.nationalId ?? PLACEHOLDER}
                     </DescriptionItem>
                   )}
+                  <DescriptionItem label={te('columns.department')}>
+                    <OrgLink
+                      kind="departments"
+                      id={employee.departmentId}
+                      name={employee.department}
+                    />
+                  </DescriptionItem>
+                  <DescriptionItem label={te('columns.position')}>
+                    <OrgLink kind="positions" id={employee.positionId} name={employee.position} />
+                  </DescriptionItem>
                   <DescriptionItem label={t('manager')}>
                     {employee.manager ? (
                       <TextLink asChild>
@@ -126,6 +138,7 @@ export default async function EmployeePage({ params }: Props) {
                 </DescriptionList>
               </CardBody>
             </Card>
+            {employee.reports.length > 0 && <TeamCard employee={employee} />}
             <Card>
               <CardHeader title={t('bookings')} />
               <CardBody>

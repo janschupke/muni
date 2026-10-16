@@ -44,6 +44,7 @@ export {
   type EmployeeListItem,
   type EmployeeListRequirement,
   type Page,
+  type TeamMember,
 } from './employees'
 export { EMPLOYEE_SORT_KEYS, type EmployeeSortKey } from './employee-sort'
 export {
@@ -63,6 +64,18 @@ export {
   updateRoom,
   updateSession,
 } from './mutations'
+export {
+  getDepartment,
+  getPosition,
+  listDepartmentSummaries,
+  listPositionSummaries,
+  type CourseCompliance,
+  type DepartmentDetail,
+  type DepartmentSummary,
+  type PersonRef,
+  type PositionDetail,
+  type PositionSummary,
+} from './org'
 export {
   getRoom,
   getRoomForEdit,

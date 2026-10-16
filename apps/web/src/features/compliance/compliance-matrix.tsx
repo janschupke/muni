@@ -99,7 +99,7 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
               </Th>
               {matrix.courses.map(c => (
                 <Th key={c.code} className={cn(HEAD, 'px-1 text-center')}>
-                  <TextLink asChild className="text-fg-muted">
+                  <TextLink asChild tone="muted">
                     <Link href={`/courses/${c.code}`} title={c.name}>
                       {c.code}
                     </Link>

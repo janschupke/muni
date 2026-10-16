@@ -10,7 +10,7 @@ import { fold } from '@muni/utils/text'
 import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
 import { dbOf, getPolicy, loadCompliance, type RepoOptions } from './context'
-import { sortEmployees, type EmployeeSortKey } from './employee-sort'
+import { compareNames, sortEmployees, type EmployeeSortKey } from './employee-sort'
 import { loadNextBookings, requirementOf } from './requirements'
 
 export interface EmployeeListItem {
@@ -18,7 +18,9 @@ export interface EmployeeListItem {
   firstName: string
   lastName: string
   department: string | null
+  departmentId: string | null
   position: string | null
+  positionId: string | null
   status: EmploymentStatus
   /** Worst requirement status; null when nothing is required (or terminated). */
   compliance: ComplianceStatus | null
@@ -41,7 +43,12 @@ export interface EmployeeListRequirement {
 
 export interface EmployeeFilters {
   q?: string
+  /** Department name (the list's URL filter). */
   department?: string
+  departmentId?: string
+  positionId?: string
+  /** Direct reports of this person (external ID). */
+  manager?: string
   status?: EmploymentStatus
   /** People with at least one required training in this state. */
   compliance?: ComplianceStatus
@@ -68,6 +75,9 @@ export async function listEmployees(
     db.employee.findMany({
       where: {
         ...(filters.department && { department: { name: filters.department } }),
+        ...(filters.departmentId && { departmentId: filters.departmentId }),
+        ...(filters.positionId && { positionId: filters.positionId }),
+        ...(filters.manager && { manager: { externalId: filters.manager } }),
         ...(filters.status && { status: filters.status }),
       },
       select: {
@@ -76,8 +86,8 @@ export async function listEmployees(
         firstName: true,
         lastName: true,
         status: true,
-        department: { select: { name: true } },
-        position: { select: { name: true } },
+        department: { select: { id: true, name: true } },
+        position: { select: { id: true, name: true } },
       },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     }),
@@ -98,7 +108,9 @@ export async function listEmployees(
         firstName: e.firstName,
         lastName: e.lastName,
         department: e.department?.name ?? null,
+        departmentId: e.department?.id ?? null,
         position: e.position?.name ?? null,
+        positionId: e.position?.id ?? null,
         status: e.status,
         compliance: worstStatus(cells.map(c => c.status)),
         counts: countStatuses(cells),
@@ -148,6 +160,15 @@ interface EmployeeCompletionRow {
   note?: string | null
 }
 
+export interface TeamMember {
+  externalId: string
+  name: string
+  position: string | null
+  status: EmploymentStatus
+  compliance: ComplianceStatus | null
+  counts: ComplianceCounts
+}
+
 export interface EmployeeDetail {
   externalId: string
   firstName: string
@@ -156,8 +177,14 @@ export interface EmployeeDetail {
   nationalId?: string | null
   note?: string | null
   department: string | null
+  departmentId: string | null
   position: string | null
+  positionId: string | null
   manager: { externalId: string; name: string } | null
+  /** Direct reports who have not left, with their compliance; empty for non-managers. */
+  reports: TeamMember[]
+  /** All of the reports' required trainings together. */
+  teamCounts: ComplianceCounts
   hiredOn: IsoDate
   leftOn: IsoDate | null
   status: EmploymentStatus
@@ -176,9 +203,20 @@ export async function getEmployee(
   const employee = await db.employee.findUnique({
     where: { externalId },
     include: {
-      department: { select: { name: true } },
-      position: { select: { name: true } },
+      department: { select: { id: true, name: true } },
+      position: { select: { id: true, name: true } },
       manager: { select: { externalId: true, firstName: true, lastName: true } },
+      reports: {
+        where: { status: { not: 'TERMINATED' } },
+        select: {
+          id: true,
+          externalId: true,
+          firstName: true,
+          lastName: true,
+          status: true,
+          position: { select: { name: true } },
+        },
+      },
       completions: {
         include: {
           course: { select: { code: true, name: true } },
@@ -192,6 +230,18 @@ export async function getEmployee(
 
   const compliance = await loadCompliance(options)
   const cells = compliance.cells.filter(c => c.employeeId === employee.id)
+  const cellsByPerson = Map.groupBy(compliance.cells, c => c.employeeId)
+  const reports = employee.reports.toSorted(compareNames).map((r): TeamMember => {
+    const own = cellsByPerson.get(r.id) ?? []
+    return {
+      externalId: r.externalId,
+      name: `${r.lastName} ${r.firstName}`,
+      position: r.position?.name ?? null,
+      status: r.status,
+      compliance: worstStatus(own.map(c => c.status)),
+      counts: countStatuses(own),
+    }
+  })
   const courses = await db.course.findMany({
     where: { id: { in: cells.map(c => c.courseId) } },
     select: { id: true, code: true, name: true },
@@ -212,13 +262,17 @@ export async function getEmployee(
     firstName: employee.firstName,
     lastName: employee.lastName,
     department: employee.department?.name ?? null,
+    departmentId: employee.department?.id ?? null,
     position: employee.position?.name ?? null,
+    positionId: employee.position?.id ?? null,
     manager: employee.manager
       ? {
           externalId: employee.manager.externalId,
-          name: `${employee.manager.firstName} ${employee.manager.lastName}`,
+          name: `${employee.manager.lastName} ${employee.manager.firstName}`,
         }
       : null,
+    reports,
+    teamCounts: countStatuses(employee.reports.flatMap(r => cellsByPerson.get(r.id) ?? [])),
     hiredOn: isoDateFromUtc(employee.hiredOn),
     leftOn: employee.leftOn ? isoDateFromUtc(employee.leftOn) : null,
     status: employee.status,

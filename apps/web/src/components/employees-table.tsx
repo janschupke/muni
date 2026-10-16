@@ -14,6 +14,7 @@ import { useMemo, useTransition } from 'react'
 
 import { withParams } from '@/lib/search-params'
 
+import { OrgLink } from './org-links'
 import { RequirementPanel } from './requirement-panel'
 import { ComplianceBadge, EmploymentBadge, rateTone } from './status-badges'
 
@@ -30,8 +31,9 @@ export function EmployeesTable({
   sort,
 }: {
   items: EmployeeListItem[]
-  query: Record<string, string | undefined>
-  sort: { by: string; desc: boolean } | undefined
+  /** The list page's filters: sorting rewrites the URL. Without them the table sorts itself. */
+  query?: Record<string, string | undefined>
+  sort?: { by: string; desc: boolean } | undefined
 }) {
   const t = useTranslations('employees')
   const router = useRouter()
@@ -64,11 +66,19 @@ export function EmployeesTable({
         }),
         col.accessor('department', {
           header: t('columns.department'),
-          cell: ({ getValue }) => getValue() ?? PLACEHOLDER,
+          cell: ({ row }) => (
+            <OrgLink
+              kind="departments"
+              id={row.original.departmentId}
+              name={row.original.department}
+            />
+          ),
         }),
         col.accessor('position', {
           header: t('columns.position'),
-          cell: ({ getValue }) => getValue() ?? PLACEHOLDER,
+          cell: ({ row }) => (
+            <OrgLink kind="positions" id={row.original.positionId} name={row.original.position} />
+          ),
         }),
         col.accessor('status', {
           header: t('columns.status'),
@@ -118,13 +128,15 @@ export function EmployeesTable({
         columns={columns}
         data={items}
         getRowId={e => e.externalId}
-        manualSorting
-        sorting={sorting}
+        {...(query
+          ? { manualSorting: true, sorting }
+          : { initialSorting: [{ id: 'name', desc: false }] })}
         renderExpanded={e => <RequirementPanel requirements={e.requirements} />}
         getRowCanExpand={e => e.requirements.length > 0}
         expandLabel={e => t('panel.toggle', { name: `${e.lastName} ${e.firstName}` })}
         expandHeader={t('panel.header')}
         onSortingChange={next => {
+          if (!query) return
           const [first] = next
           startTransition(() => {
             router.push(

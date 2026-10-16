@@ -1,8 +1,10 @@
 import { EMPLOYEE_SORT_KEYS, listDepartments, listEmployees } from '@muni/db/repositories'
 import { COMPLIANCE_STATUSES, EMPLOYMENT_STATUSES } from '@muni/domain/enums'
+import { Alert } from '@muni/ui/alert'
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
 import { Pagination } from '@muni/ui/pagination'
+import { TextLink } from '@muni/ui/text-link'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
@@ -22,6 +24,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Se
     department: param(params, 'department'),
     status: oneOf(param(params, 'status'), EMPLOYMENT_STATUSES),
     compliance: oneOf(param(params, 'compliance'), COMPLIANCE_STATUSES),
+    manager: param(params, 'manager'),
   }
   const sort = parseSort(params, EMPLOYEE_SORT_KEYS)
   // Everything that shapes the list; page links and filter changes carry it along.
@@ -41,6 +44,16 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Se
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
+      {filters.manager && (
+        <Alert tone="info" variant="inline" className="mb-3">
+          {t('filters.manager', { id: filters.manager })}{' '}
+          <TextLink asChild tone="inherit">
+            <Link href={withParams('/employees', query, { manager: undefined, page: undefined })}>
+              {t('filters.clearManager')}
+            </Link>
+          </TextLink>
+        </Alert>
+      )}
       <EmployeeFilters query={query} departments={departments} total={result.total} />
 
       {result.items.length === 0 ? (

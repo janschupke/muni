@@ -73,7 +73,7 @@ function Arrow({
 }) {
   const t = useTranslations('back')
   return (
-    <TextLink asChild className="inline-flex items-center gap-1 text-inherit">
+    <TextLink asChild tone="muted" className="inline-flex items-center gap-1">
       <Link href={href} onClick={onClick} aria-label={t('to', { page: label })}>
         <ArrowLeft aria-hidden className="size-3.5" />
         {label}

@@ -102,8 +102,18 @@ describe('course detail', () => {
     await renderServer(CoursePage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'BOZP – základní školení' })).toBeTruthy()
     expect(screen.getByText('BOZP-Z · 24 months')).toBeTruthy()
-    expect(screen.getByText('Department: Laboratoře')).toBeTruthy()
-    expect(screen.getByText('Position: Vedoucí oddělení')).toBeTruthy()
+    // Who must hold it, each department and position linking to its page.
+    expect(screen.getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
+      '/departments/dep_lab'
+    )
+    expect(screen.getByRole('link', { name: 'Vedoucí oddělení' }).getAttribute('href')).toBe(
+      '/positions/pos_head'
+    )
+    expect(
+      screen.getByText(
+        (_, el) => el?.tagName === 'LI' && el.textContent === 'Department: Laboratoře'
+      )
+    ).toBeTruthy()
     expect(screen.getByText('70%')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Černá Marie' }).getAttribute('href')).toBe(
       '/employees/E0153'
