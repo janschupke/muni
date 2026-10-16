@@ -60,6 +60,19 @@ export function react(tsconfigRootDir, { next = false } = {}) {
           },
         ]
       : []),
-    { languageOptions: { globals: { ...globals.browser, ...globals.node } } }
+    { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
+    {
+      rules: {
+        // Native `title` tooltips are slow, unstyled and unreachable by keyboard: use the
+        // Tooltip component (or IconButton for icon-only buttons).
+        'no-restricted-syntax': [
+          'error',
+          {
+            selector: 'JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name="title"]',
+            message: 'Use <Tooltip> (or <IconButton>) instead of a native title attribute.',
+          },
+        ],
+      },
+    }
   )
 }

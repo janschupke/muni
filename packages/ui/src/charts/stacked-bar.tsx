@@ -1,4 +1,5 @@
 import { cn } from '../cn'
+import { Tooltip } from '../components/tooltip'
 import { barFillClass, barTrackClass } from '../components/meter'
 
 export interface StackedSegment {
@@ -11,7 +12,7 @@ export interface StackedSegment {
 
 /**
  * A 100% stacked horizontal bar (part-to-whole for one row). Segments are separated by a
- * 2px surface gap; the hover title and the caller's visible numbers carry the values,
+ * 2px surface gap; the hover tooltip and the caller's visible numbers carry the values,
  * so colour never carries meaning alone.
  */
 export function StackedBar({
@@ -33,16 +34,16 @@ export function StackedBar({
     >
       {total > 0 &&
         visible.map(segment => (
-          <span
-            key={segment.key}
-            title={`${segment.label}: ${segment.value}`}
-            className={cn(
-              barFillClass,
-              'first:rounded-l-full last:rounded-r-full',
-              segment.fillClass
-            )}
-            style={{ width: `${(segment.value / total) * 100}%` }}
-          />
+          <Tooltip key={segment.key} content={`${segment.label}: ${String(segment.value)}`}>
+            <span
+              className={cn(
+                barFillClass,
+                'first:rounded-l-full last:rounded-r-full',
+                segment.fillClass
+              )}
+              style={{ width: `${(segment.value / total) * 100}%` }}
+            />
+          </Tooltip>
         ))}
     </div>
   )

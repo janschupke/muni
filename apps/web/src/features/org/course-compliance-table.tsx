@@ -40,7 +40,7 @@ export function CourseComplianceTable({ courses }: { courses: CourseCompliance[]
                 <div className="flex items-center gap-2">
                   <HeatCell
                     band={complianceBand(c.rate)}
-                    title={`${c.name}: ${formatPercent(c.rate, locale)}`}
+                    tooltip={`${c.name}: ${formatPercent(c.rate, locale)}`}
                     className="h-7 w-16 min-w-16 flex-none text-xs"
                   >
                     {formatPercent(c.rate, locale)}

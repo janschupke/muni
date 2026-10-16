@@ -1,9 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRef, useState } from 'react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { Dialog, Drawer } from './dialog'
+import { IconButton } from './icon-button'
 
 function Harness({
   description,
@@ -100,5 +101,23 @@ describe('Drawer', () => {
       expect(screen.queryByRole('dialog')).toBeNull()
     })
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Menu' }))
+  })
+})
+
+describe('IconButton', () => {
+  it('is named by its label and shows it as a tooltip', async () => {
+    const user = userEvent.setup()
+    const onClick = vi.fn()
+    render(
+      <IconButton label="Odebrat" onClick={onClick}>
+        <svg aria-hidden />
+      </IconButton>
+    )
+    const button = screen.getByRole('button', { name: 'Odebrat' })
+    expect(button.hasAttribute('title')).toBe(false)
+    await user.hover(button)
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Odebrat')
+    await user.click(button)
+    expect(onClick).toHaveBeenCalled()
   })
 })

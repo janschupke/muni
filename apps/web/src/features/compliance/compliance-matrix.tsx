@@ -11,6 +11,7 @@ import { HeatCell, HeatLegend } from '@muni/ui/charts/heat-cell'
 import { cn } from '@muni/ui/cn'
 import { Dialog } from '@muni/ui/dialog'
 import { Table, TableContainer, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
+import { Tooltip } from '@muni/ui/tooltip'
 import { TextLink } from '@muni/ui/text-link'
 import {
   formatDate,
@@ -101,11 +102,11 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
               </Th>
               {matrix.courses.map(c => (
                 <Th key={c.code} className={cn(HEAD, 'px-1 text-center')}>
-                  <TextLink asChild tone="muted">
-                    <Link href={`/courses/${c.code}`} title={c.name}>
-                      {c.code}
-                    </Link>
-                  </TextLink>
+                  <Tooltip content={c.name}>
+                    <TextLink asChild tone="muted">
+                      <Link href={`/courses/${c.code}`}>{c.code}</Link>
+                    </TextLink>
+                  </Tooltip>
                 </Th>
               ))}
             </tr>
@@ -131,7 +132,6 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
                               : undefined
                           }
                           aria-label={t('toggle', { department: row.department })}
-                          title={t('toggle', { department: row.department })}
                           onClick={() => {
                             toggle(row.department)
                           }}
@@ -160,7 +160,7 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
                           <Td key={course.code} className="p-0">
                             <HeatCell
                               band={null}
-                              title={`${row.department}, ${course.name}: ${t('notApplicable')}`}
+                              tooltip={`${row.department}, ${course.name}: ${t('notApplicable')}`}
                             >
                               <span className="sr-only">{t('notApplicable')}</span>
                             </HeatCell>
@@ -171,7 +171,7 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
                         <Td key={course.code} className="p-0">
                           <HeatCell
                             band={complianceBand(cell.rate)}
-                            title={t('cellTitle', {
+                            tooltip={t('cellTitle', {
                               department: row.department,
                               course: course.name,
                               held: held(cell.counts),
@@ -281,17 +281,18 @@ function PersonCell({
   const { Icon } = COMPLIANCE[requirement.status]
   const text = describe(requirement, courseName)
   return (
-    <div
-      title={text}
-      className={cn(
-        'flex h-8 items-center justify-center gap-1 rounded-sm',
-        STATUS_CELL[requirement.status]
-      )}
-    >
-      <Icon aria-hidden className="size-4" />
-      {requirement.booked && <CalendarCheck aria-hidden className="size-3.5" />}
-      <span className="sr-only">{text}</span>
-    </div>
+    <Tooltip content={text}>
+      <div
+        className={cn(
+          'flex h-8 items-center justify-center gap-1 rounded-sm',
+          STATUS_CELL[requirement.status]
+        )}
+      >
+        <Icon aria-hidden className="size-4" />
+        {requirement.booked && <CalendarCheck aria-hidden className="size-3.5" />}
+        <span className="sr-only">{text}</span>
+      </div>
+    </Tooltip>
   )
 }
 

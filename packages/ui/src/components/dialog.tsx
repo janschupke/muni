@@ -5,7 +5,7 @@ import { Dialog as DialogPrimitive } from 'radix-ui'
 import type { ReactNode } from 'react'
 
 import { cn } from '../cn'
-import { Button } from './button'
+import { IconButton } from './icon-button'
 
 /**
  * A modal panel over a scrim: focus is trapped inside, Escape and the close button dismiss
@@ -38,6 +38,12 @@ export function Dialog({
         <DialogPrimitive.Content
           // Without a description, say so; otherwise Radix wires the Description itself.
           {...(description === undefined ? { 'aria-describedby': undefined } : {})}
+          // Focus the panel, not its close button: a focused icon button shows its tooltip, and
+          // the first Escape would then close the tooltip instead of the dialog.
+          onOpenAutoFocus={event => {
+            event.preventDefault()
+            ;(event.currentTarget as HTMLElement).focus()
+          }}
           onCloseAutoFocus={event => {
             const target = returnFocusTo?.()
             if (!target) return
@@ -45,7 +51,7 @@ export function Dialog({
             target.focus()
           }}
           className={cn(
-            'fixed top-1/2 left-1/2 z-50 flex max-h-[85dvh] w-[calc(100vw-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border-default bg-surface-overlay text-fg shadow-overlay data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in',
+            'fixed top-1/2 left-1/2 z-50 flex max-h-[85dvh] w-[calc(100vw-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border-default bg-surface-overlay text-fg shadow-overlay outline-none data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in',
             className
           )}
         >
@@ -61,9 +67,9 @@ export function Dialog({
               )}
             </div>
             <DialogPrimitive.Close asChild>
-              <Button variant="ghost" size="icon-sm" aria-label={closeLabel} title={closeLabel}>
+              <IconButton label={closeLabel}>
                 <X aria-hidden />
-              </Button>
+              </IconButton>
             </DialogPrimitive.Close>
           </div>
           <div className="overflow-y-auto px-5 py-4">{children}</div>
@@ -100,14 +106,20 @@ export function Drawer({
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=closed]:animate-fade-out data-[state=open]:animate-fade-in" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
-          className="fixed inset-y-0 left-0 z-50 flex w-80 max-w-[85vw] flex-col border-r border-border-default bg-surface-elevated text-fg shadow-overlay data-[state=closed]:animate-drawer-out data-[state=open]:animate-drawer-in"
+          // Focus the panel, not its close button: a focused icon button shows its tooltip, and
+          // the first Escape would then close the tooltip instead of the dialog.
+          onOpenAutoFocus={event => {
+            event.preventDefault()
+            ;(event.currentTarget as HTMLElement).focus()
+          }}
+          className="fixed inset-y-0 left-0 z-50 flex w-80 max-w-[85vw] flex-col border-r border-border-default bg-surface-elevated text-fg shadow-overlay outline-none data-[state=closed]:animate-drawer-out data-[state=open]:animate-drawer-in"
         >
           <div className="flex items-center justify-between gap-4 border-b border-border-muted px-4 py-3">
             <DialogPrimitive.Title className="text-sm font-semibold">{title}</DialogPrimitive.Title>
             <DialogPrimitive.Close asChild>
-              <Button variant="ghost" size="icon-sm" aria-label={closeLabel}>
+              <IconButton label={closeLabel}>
                 <X aria-hidden />
-              </Button>
+              </IconButton>
             </DialogPrimitive.Close>
           </div>
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>

@@ -20,18 +20,25 @@ describe('StackedBar', () => {
     expect(screen.getByRole('img').getAttribute('aria-label')).toBe(
       'Laboratoře: Platné 6, Prošlé 0, Chybí 2'
     )
-    const drawn = container.querySelectorAll('[title]')
-    expect([...drawn].map(s => [s.getAttribute('title'), (s as HTMLElement).style.width])).toEqual([
-      ['Platné: 6', '75%'],
-      ['Chybí: 2', '25%'],
+    const drawn = container.querySelectorAll<HTMLElement>('span[style]')
+    expect([...drawn].map(s => [s.className, s.style.width])).toEqual([
+      [expect.stringContaining('bg-status-valid'), '75%'],
+      [expect.stringContaining('bg-status-missing'), '25%'],
     ])
+  })
+
+  it('names a segment on hover', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<StackedBar label="Laboratoře" segments={segments} />)
+    await user.hover(container.querySelector('span[style]') as HTMLElement)
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Platné: 6')
   })
 
   it('draws an empty track when there is nothing to show', () => {
     const { container } = render(
       <StackedBar label="Archiv" segments={segments.map(s => ({ ...s, value: 0 }))} />
     )
-    expect(container.querySelectorAll('[title]')).toHaveLength(0)
+    expect(container.querySelectorAll('span[style]')).toHaveLength(0)
   })
 })
 
@@ -90,11 +97,11 @@ describe('HeatCell and legends', () => {
     ['POOR', 'bg-heat-poor'],
   ] as const)('band %s uses %s with its own ink', (band, fill) => {
     render(
-      <HeatCell band={band} title="Knihovna · BOZP: 80 %">
+      <HeatCell band={band} tooltip="Knihovna · BOZP: 80 %">
         80 %
       </HeatCell>
     )
-    const cell = screen.getByTitle('Knihovna · BOZP: 80 %')
+    const cell = screen.getByText('80 %')
     expect(cell.tagName).toBe('DIV')
     expect(cell.className).toContain(fill)
     expect(cell.className).toContain(`${fill.replace('bg-', 'text-')}-ink`)
@@ -102,23 +109,30 @@ describe('HeatCell and legends', () => {
 
   it('leaves a cell with no value uncoloured', () => {
     render(
-      <HeatCell band={null} title="nic">
+      <HeatCell band={null} tooltip="nic">
         —
       </HeatCell>
     )
-    expect(screen.getByTitle('nic').className).toContain('text-fg-subtle')
+    expect(screen.getByText('—').className).toContain('text-fg-subtle')
   })
 
   it('is a button when it opens something', async () => {
     const user = userEvent.setup()
     const onClick = vi.fn()
     render(
-      <HeatCell band="LOW" title="Laboratoře · BOZP: 60 %" onClick={onClick} aria-haspopup="dialog">
+      <HeatCell
+        band="LOW"
+        tooltip="Laboratoře · BOZP: 60 %"
+        onClick={onClick}
+        aria-haspopup="dialog"
+      >
         60 %
       </HeatCell>
     )
     const cell = screen.getByRole('button', { name: '60 %' })
     expect(cell.getAttribute('aria-haspopup')).toBe('dialog')
+    await user.hover(cell)
+    expect((await screen.findByRole('tooltip')).textContent).toBe('Laboratoře · BOZP: 60 %')
     await user.click(cell)
     expect(onClick).toHaveBeenCalledOnce()
   })

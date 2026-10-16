@@ -1,14 +1,14 @@
 'use client'
 
 import type { ParsedRow, ValidationIssue } from '@muni/importer'
-import { Button } from '@muni/ui/button'
 import { cn } from '@muni/ui/cn'
 import { createDataColumns, DataTable, type PaginationState } from '@muni/ui/data-table'
 import { Input } from '@muni/ui/field'
+import { IconButton } from '@muni/ui/icon-button'
 import { Tooltip } from '@muni/ui/tooltip'
 import { CircleAlert, RotateCcw, Trash2, Undo2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactElement } from 'react'
 
 import { useImportText } from './use-issue-text'
 
@@ -126,17 +126,15 @@ export function ReviewTable({
                 />
               )
             }
+            // The full value on hover: cells truncate long text.
+            const full = (cell: ReactElement) =>
+              value === '' ? cell : <Tooltip content={value}>{cell}</Tooltip>
             if (row.isRemoved) {
-              return (
-                <span className="block truncate px-3 py-2" title={value}>
-                  {value}
-                </span>
-              )
+              return full(<span className="block truncate px-3 py-2">{value}</span>)
             }
-            return (
+            return full(
               <button
                 type="button"
-                title={value}
                 aria-label={label}
                 className="block w-full truncate px-3 py-2 text-left hover:bg-state-hover"
                 onClick={() => {
@@ -158,42 +156,36 @@ export function ReviewTable({
           return (
             <>
               {row.isRemoved ? (
-                <Button
-                  variant="ghost"
+                <IconButton
                   size="icon"
-                  aria-label={t('review.restore')}
-                  title={t('review.restore')}
+                  label={t('review.restore')}
                   onClick={() => {
                     onRestore(index)
                   }}
                 >
                   <RotateCcw aria-hidden />
-                </Button>
+                </IconButton>
               ) : (
-                <Button
-                  variant="ghost"
+                <IconButton
                   size="icon"
-                  aria-label={t('review.remove')}
-                  title={t('review.remove')}
+                  label={t('review.remove')}
                   onClick={() => {
                     onRemove(index)
                   }}
                 >
                   <Trash2 aria-hidden />
-                </Button>
+                </IconButton>
               )}
               {row.isEdited && (
-                <Button
-                  variant="ghost"
+                <IconButton
                   size="icon"
-                  aria-label={t('review.revert')}
-                  title={t('review.revert')}
+                  label={t('review.revert')}
                   onClick={() => {
                     onRevert(index)
                   }}
                 >
                   <Undo2 aria-hidden />
-                </Button>
+                </IconButton>
               )}
             </>
           )

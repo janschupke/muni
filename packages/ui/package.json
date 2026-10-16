@@ -21,6 +21,7 @@
     "./dropzone": "./src/components/dropzone.tsx",
     "./empty-state": "./src/components/empty-state.tsx",
     "./field": "./src/components/field.tsx",
+    "./icon-button": "./src/components/icon-button.tsx",
     "./item-list": "./src/components/item-list.tsx",
     "./layout": "./src/components/layout.tsx",
     "./meter": "./src/components/meter.tsx",

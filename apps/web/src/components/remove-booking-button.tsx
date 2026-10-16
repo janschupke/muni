@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@muni/ui/button'
+import { IconButton } from '@muni/ui/icon-button'
 import { X } from 'lucide-react'
 import { useTransition } from 'react'
 
@@ -18,11 +18,8 @@ export function RemoveBookingButton({
 }) {
   const [pending, startTransition] = useTransition()
   return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={label}
-      title={label}
+    <IconButton
+      label={label}
       disabled={pending}
       onClick={() => {
         startTransition(async () => {
@@ -31,6 +28,6 @@ export function RemoveBookingButton({
       }}
     >
       <X aria-hidden />
-    </Button>
+    </IconButton>
   )
 }

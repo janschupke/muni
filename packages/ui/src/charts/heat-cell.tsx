@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react'
 
 import { cn } from '../cn'
+import { Tooltip } from '../components/tooltip'
 
 /** Rate bands, best first (the same names as complianceBand in @muni/domain). */
 export const HEAT_BANDS = ['FULL', 'HIGH', 'FAIR', 'LOW', 'POOR'] as const
@@ -29,41 +30,39 @@ const cellClass =
 
 /**
  * One heatmap cell, coloured by its band (`null` = not applicable). The value is always
- * printed inside; colour only reinforces it. With `onClick` (or as a Radix trigger child)
- * it is a button.
+ * printed inside; colour only reinforces it. With `onClick` it is a button.
  */
 export function HeatCell({
   band,
-  title,
+  tooltip,
   children,
   className,
   ...props
 }: {
   band: HeatBand | null
-  title: string
+  /** What the cell stands for, shown on hover (and on focus for a button). */
+  tooltip: string
   children: ReactNode
   className?: string
 } & Omit<ComponentProps<'button'>, 'title' | 'children' | 'className'>) {
   const classes = cn(cellClass, band === null ? 'text-fg-subtle' : BAND_CLASS[band], className)
-  if (props.onClick === undefined) {
-    return (
-      <div title={title} className={classes}>
-        {children}
-      </div>
-    )
-  }
   return (
-    <button
-      type="button"
-      title={title}
-      className={cn(
-        classes,
-        'cursor-pointer transition-shadow hover:shadow-[inset_0_0_0_2px_var(--p-fg)]'
+    <Tooltip content={tooltip}>
+      {props.onClick === undefined ? (
+        <div className={classes}>{children}</div>
+      ) : (
+        <button
+          type="button"
+          className={cn(
+            classes,
+            'cursor-pointer transition-shadow hover:shadow-[inset_0_0_0_2px_var(--p-fg)]'
+          )}
+          {...props}
+        >
+          {children}
+        </button>
       )}
-      {...props}
-    >
-      {children}
-    </button>
+    </Tooltip>
   )
 }
 
