@@ -181,9 +181,9 @@ describe('employee list', () => {
       '/sessions/T016'
     )
     expect(screen.getByText('2 of 3')).toBeTruthy()
-    // Two of three held is in the red band.
+    // Two of three held is in the orange band (50–74 %).
     const bar = within(screen.getByRole('row', { name: /Černá Marie/ })).getByRole('meter')
-    expect(bar.firstElementChild?.className).toContain('bg-danger-fill')
+    expect(bar.firstElementChild?.className).toContain('bg-serious-fill')
   })
 })
 
@@ -218,7 +218,7 @@ describe('employee detail', () => {
       '1',
       '2',
     ])
-    expect(held.firstElementChild?.className).toContain('bg-danger-fill')
+    expect(held.firstElementChild?.className).toContain('bg-serious-fill')
     expect(screen.getByText('1 of 2')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Feb 3, 2027/ }).getAttribute('href')).toBe(
       '/sessions/T018'

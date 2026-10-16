@@ -98,20 +98,21 @@
   --ramp-red-900: #3b0d0c;
 
   /*
-   * Compliance heat scale, best (full) to worst (poor): green, yellow, red, with lightness
-   * running one way so the order survives colour-blind vision (adjacent CVD ΔE >= 8.7 light,
-   * 13.4 dark; normal-vision ΔE >= 15). Every cell also prints its percentage.
+   * Compliance heat scale, best (full) to worst (poor), in plain sentiment colours: a solid
+   * green for 100 %, a lighter green, yellow, orange, red. Adjacent bands stay apart for
+   * colour-blind readers (CVD ΔE >= 8.2 light, 12.2 dark) and everyone else (ΔE >= 18.8 light,
+   * 16.2 dark); every band carries an ink with >= 4.8:1 contrast. Every cell prints its rate too.
    */
-  --ramp-heat-full-light: #d6fcdf;
-  --ramp-heat-high-light: #a8db71;
-  --ramp-heat-fair-light: #e4a010;
-  --ramp-heat-low-light: #e26444;
-  --ramp-heat-poor-light: #b4243d;
-  --ramp-heat-full-dark: #092c1a;
-  --ramp-heat-high-dark: #48580b;
-  --ramp-heat-fair-dark: #a07836;
-  --ramp-heat-low-dark: #f09478;
-  --ramp-heat-poor-dark: #e2483b;
+  --ramp-heat-full-light: #15803d;
+  --ramp-heat-high-light: #4ade80;
+  --ramp-heat-fair-light: #fde047;
+  --ramp-heat-low-light: #fb923c;
+  --ramp-heat-poor-light: #dc2626;
+  --ramp-heat-full-dark: #22c55e;
+  --ramp-heat-high-dark: #14532d;
+  --ramp-heat-fair-dark: #fde047;
+  --ramp-heat-low-dark: #fb923c;
+  --ramp-heat-poor-dark: #ef4444;
 }
 
 :root {
@@ -186,7 +187,7 @@
   --p-heat-fair: light-dark(var(--ramp-heat-fair-light), var(--ramp-heat-fair-dark));
   --p-heat-low: light-dark(var(--ramp-heat-low-light), var(--ramp-heat-low-dark));
   --p-heat-poor: light-dark(var(--ramp-heat-poor-light), var(--ramp-heat-poor-dark));
-  --p-heat-full-ink: light-dark(var(--ramp-neutral-1000), var(--ramp-neutral-75));
+  --p-heat-full-ink: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-1000));
   --p-heat-high-ink: light-dark(var(--ramp-neutral-1000), var(--ramp-neutral-75));
   --p-heat-fair-ink: var(--ramp-neutral-1000);
   --p-heat-low-ink: var(--ramp-neutral-1000);

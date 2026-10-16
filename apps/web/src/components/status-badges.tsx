@@ -83,12 +83,13 @@ export function SessionStatusBadge({ status }: { status: SessionStatus }) {
   )
 }
 
-// A rate in green (held), yellow (slipping) or red (action needed); the rate is always printed too.
-const BAND_TONE: Record<ComplianceBand, 'success' | 'warning' | 'danger'> = {
+// A rate in the matrix's colours: green (held), yellow (slipping), orange, red (action
+// needed). The rate is always printed too.
+const BAND_TONE: Record<ComplianceBand, 'success' | 'warning' | 'serious' | 'danger'> = {
   FULL: 'success',
   HIGH: 'success',
   FAIR: 'warning',
-  LOW: 'danger',
+  LOW: 'serious',
   POOR: 'danger',
 }
 
