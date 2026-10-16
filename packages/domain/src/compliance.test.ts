@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   bestCompletion,
+  complianceBand,
   complianceRate,
   computeCompliance,
   countStatuses,
@@ -119,5 +120,22 @@ describe('worstStatus', () => {
   it('ranks MISSING highest', () => {
     expect(worstStatus(['VALID', 'EXPIRING', 'MISSING', 'EXPIRED'])).toBe('MISSING')
     expect(worstStatus([])).toBeNull()
+  })
+})
+
+describe('complianceBand', () => {
+  it.each([
+    [1, 'FULL'],
+    [0.99, 'HIGH'],
+    [0.9, 'HIGH'],
+    [0.89, 'FAIR'],
+    [0.75, 'FAIR'],
+    [0.74, 'LOW'],
+    [0.5, 'LOW'],
+    [0.49, 'POOR'],
+    [0, 'POOR'],
+    [Number.NaN, 'POOR'],
+  ])('%f is %s', (rate, band) => {
+    expect(complianceBand(rate)).toBe(band)
   })
 })

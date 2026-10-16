@@ -13,6 +13,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { expectNoAxeViolations } from '@/test/axe'
 import { getViewer, requirePageUser } from '@/server/auth'
 import { booking, employeeDetail, employeePage, employeeRow } from '@/test/fixtures'
 import { NotFoundError, router } from '@/test/next'
@@ -176,7 +177,13 @@ describe('employee list', () => {
     )
     expect(screen.getByText('(45 days ago)')).toBeTruthy()
     expect(screen.getByText('No expiry')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Nov 4, 2026/ }).getAttribute('href')).toBe(
+      '/sessions/T016'
+    )
     expect(screen.getByText('2 of 3')).toBeTruthy()
+    // Two of three held is in the red band.
+    const bar = within(screen.getByRole('row', { name: /Černá Marie/ })).getByRole('meter')
+    expect(bar.firstElementChild?.className).toContain('bg-danger-fill')
   })
 })
 
@@ -206,6 +213,13 @@ describe('employee detail', () => {
     expect(screen.getByText('m••••••••••@vzorova.example')).toBeTruthy()
     expect(screen.queryByText('Birth number')).toBeNull()
     expect(screen.getByText('50% of required trainings held')).toBeTruthy()
+    const held = screen.getByRole('meter', { name: 'Valid trainings' })
+    expect([held.getAttribute('aria-valuenow'), held.getAttribute('aria-valuemax')]).toEqual([
+      '1',
+      '2',
+    ])
+    expect(held.firstElementChild?.className).toContain('bg-danger-fill')
+    expect(screen.getByText('1 of 2')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Feb 3, 2027/ }).getAttribute('href')).toBe(
       '/sessions/T018'
     )
@@ -236,6 +250,7 @@ describe('employee detail', () => {
     expect(screen.getByText('•••••••0359')).toBeTruthy()
     expect(screen.getByText('interní poznámka')).toBeTruthy()
     expect(screen.getByText('Left')).toBeTruthy()
+    await expectNoAxeViolations()
   })
 
   it('says when nothing is required, booked or recorded', async () => {
@@ -271,6 +286,7 @@ describe('employee forms', () => {
     expect(screen.getByRole('link', { name: 'Back to Marie Černá' }).getAttribute('href')).toBe(
       '/employees/E0153'
     )
+    await expectNoAxeViolations()
   })
 
   it('record a completion against the course list', async () => {
@@ -279,5 +295,6 @@ describe('employee forms', () => {
       screen.getByRole('heading', { level: 1, name: 'Record completion for Marie Černá' })
     ).toBeTruthy()
     expect(screen.getByRole('combobox', { name: /Course/ })).toBeTruthy()
+    await expectNoAxeViolations()
   })
 })

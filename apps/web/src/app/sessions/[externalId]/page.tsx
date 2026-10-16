@@ -21,7 +21,7 @@ import { cache } from 'react'
 import { BackLink } from '@/components/back-link'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RoomLink } from '@/components/session-links'
-import { OccupancyBadge, SessionStatusBadge } from '@/components/status-badges'
+import { OccupancyBadge, seatTone, SessionStatusBadge } from '@/components/status-badges'
 import { getViewer } from '@/server/auth'
 
 type Props = { params: Promise<{ externalId: string }> }
@@ -100,6 +100,7 @@ export default async function SessionPage({ params }: Props) {
                     max={session.capacity}
                     label={t('detail.seats')}
                     size="md"
+                    tone={seatTone(session.bookedCount, session.capacity)}
                   />
                 }
               />

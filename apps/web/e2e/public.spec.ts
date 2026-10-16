@@ -89,10 +89,40 @@ test.describe('public register (signed out)', () => {
     await expect(row.getByRole('cell').nth(2)).toHaveText(/\d+\s?%/)
   })
 
+  test('compliance matrix opens a department into its people and a cell into a list', async ({
+    page,
+  }) => {
+    await setLocale(page, 'en')
+    await page.goto('/compliance')
+    await page.getByRole('button', { name: 'People in Knihovna' }).click()
+    const person = page.getByRole('row').filter({ has: page.locator('a[href^="/employees/E"]') })
+    await expect(person.first()).toBeVisible()
+    await person.first().getByRole('link').click()
+    await expect(page).toHaveURL(/\/employees\/E\d+$/)
+
+    await page.goBack()
+    await page.getByRole('button', { name: /^Laboratoře, BOZP – základní školení: / }).click()
+    const dialog = page.getByRole('dialog', { name: 'Laboratoře · BOZP – základní školení' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('link', { name: 'Course detail' })).toHaveAttribute(
+      'href',
+      '/courses/BOZP-Z'
+    )
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: /^Laboratoře, BOZP – základní školení: / })
+    ).toBeFocused()
+  })
+
   test('sessions show overbooking', async ({ page }) => {
     await setLocale(page, 'en')
     await page.goto('/sessions')
     await expect(page.getByText('Overbooked').first()).toBeVisible()
+    // T011: 28 of 30 seats taken.
+    await expect(
+      page.getByRole('row').filter({ hasText: 'T011' }).getByText('Almost full')
+    ).toBeVisible()
     await page.getByRole('link', { name: 'Past' }).click()
     await expect(page).toHaveURL(/when=past/)
   })

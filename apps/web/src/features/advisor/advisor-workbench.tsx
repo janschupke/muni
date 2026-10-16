@@ -26,7 +26,7 @@ import {
 import { ActionTable, type ProposedItem } from './action-table'
 import { BreakdownChart } from './breakdown-chart'
 import { BreakdownTable } from './breakdown-table'
-import { advisorHref, type AdvisorView } from './labels'
+import { advisorHref, VIEW_ICON, type AdvisorView } from './labels'
 import { OverbookedList } from './overbooked-list'
 import { PlannedTable } from './planned-table'
 import { AdvisorRules } from './rules'
@@ -175,14 +175,18 @@ export function AdvisorWorkbench({
 
       <div>
         <LinkTabs aria-label={t('views.label')}>
-          {tabs.map(tab => (
-            <LinkTab key={tab.view} asChild active={view === tab.view}>
-              <Link href={advisorHref(tab.view)}>
-                {t(`views.${tab.view}`)}
-                {tab.count !== undefined && <Badge tone={tab.tone}>{n(tab.count)}</Badge>}
-              </Link>
-            </LinkTab>
-          ))}
+          {tabs.map(tab => {
+            const Icon = VIEW_ICON[tab.view]
+            return (
+              <LinkTab key={tab.view} asChild active={view === tab.view}>
+                <Link href={advisorHref(tab.view)}>
+                  <Icon aria-hidden />
+                  {t(`views.${tab.view}`)}
+                  {tab.count !== undefined && <Badge tone={tab.tone}>{n(tab.count)}</Badge>}
+                </Link>
+              </LinkTab>
+            )
+          })}
         </LinkTabs>
 
         {view === 'breakdown' && (

@@ -17,6 +17,7 @@
     "./checkbox": "./src/components/checkbox.tsx",
     "./data-table": "./src/components/data-table.tsx",
     "./description-list": "./src/components/description-list.tsx",
+    "./dialog": "./src/components/dialog.tsx",
     "./dropzone": "./src/components/dropzone.tsx",
     "./empty-state": "./src/components/empty-state.tsx",
     "./field": "./src/components/field.tsx",

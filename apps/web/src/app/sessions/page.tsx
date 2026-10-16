@@ -3,6 +3,7 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { LinkTab, LinkTabs } from '@muni/ui/nav'
 import { PageHeader } from '@muni/ui/page-header'
 import { TextLink } from '@muni/ui/text-link'
+import { CalendarClock, History } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
@@ -48,7 +49,10 @@ export default async function SessionsPage({ searchParams }: Props) {
       <LinkTabs aria-label={t('title')}>
         {WINDOWS.map(w => (
           <LinkTab key={w} asChild active={window === w}>
-            <Link href={href({ when: w === 'past' ? 'past' : undefined })}>{t(w)}</Link>
+            <Link href={href({ when: w === 'past' ? 'past' : undefined })}>
+              {w === 'past' ? <History aria-hidden /> : <CalendarClock aria-hidden />}
+              {t(w)}
+            </Link>
           </LinkTab>
         ))}
       </LinkTabs>

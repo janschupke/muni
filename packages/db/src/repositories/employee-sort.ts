@@ -14,6 +14,14 @@ export type EmployeeSortKey = (typeof EMPLOYEE_SORT_KEYS)[number]
 
 const collator = new Intl.Collator('cs', { numeric: true, sensitivity: 'base' })
 
+/** Czech name order: surname, then first name. */
+export function compareNames(
+  a: { lastName: string; firstName: string },
+  b: { lastName: string; firstName: string }
+): number {
+  return collator.compare(a.lastName, b.lastName) || collator.compare(a.firstName, b.firstName)
+}
+
 // Ascending puts the most urgent first.
 const COMPLIANCE_ORDER: Record<ComplianceStatus, number> = {
   EXPIRED: 0,
@@ -53,11 +61,7 @@ function sortValue(e: EmployeeListItem, by: Exclude<EmployeeSortKey, 'name'>): S
  */
 export function sortEmployees(items: EmployeeListItem[], by: EmployeeSortKey, desc: boolean) {
   if (by === 'name') {
-    items.sort((a, b) => {
-      const order =
-        collator.compare(a.lastName, b.lastName) || collator.compare(a.firstName, b.firstName)
-      return desc ? -order : order
-    })
+    items.sort((a, b) => (desc ? -compareNames(a, b) : compareNames(a, b)))
     return
   }
   const values = new Map(items.map(e => [e, sortValue(e, by)]))

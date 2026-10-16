@@ -2,7 +2,17 @@ import { SignInButton, UserButton } from '@clerk/nextjs'
 import { Button } from '@muni/ui/button'
 import { Container } from '@muni/ui/layout'
 import { ThemeToggle } from '@muni/ui/theme/theme-toggle'
-import { GraduationCap } from 'lucide-react'
+import {
+  BookOpen,
+  CalendarDays,
+  GraduationCap,
+  Grid3x3,
+  LayoutDashboard,
+  Lightbulb,
+  LogIn,
+  Upload,
+  Users,
+} from 'lucide-react'
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 
@@ -15,13 +25,15 @@ import { NavLink } from './nav-link'
 export async function AppHeader({ viewer }: { viewer: Viewer }) {
   const [t, locale] = await Promise.all([getTranslations(), getLocale()])
   const links = [
-    { href: '/', label: t('nav.dashboard') },
-    { href: '/employees', label: t('nav.employees') },
-    { href: '/courses', label: t('nav.courses') },
-    { href: '/sessions', label: t('nav.sessions') },
-    { href: '/compliance', label: t('nav.compliance') },
-    { href: '/advisor', label: t('nav.advisor') },
-    ...(viewer === 'authenticated' ? [{ href: '/import', label: t('nav.import') }] : []),
+    { href: '/', label: t('nav.dashboard'), Icon: LayoutDashboard },
+    { href: '/employees', label: t('nav.employees'), Icon: Users },
+    { href: '/courses', label: t('nav.courses'), Icon: BookOpen },
+    { href: '/sessions', label: t('nav.sessions'), Icon: CalendarDays },
+    { href: '/compliance', label: t('nav.compliance'), Icon: Grid3x3 },
+    { href: '/advisor', label: t('nav.advisor'), Icon: Lightbulb },
+    ...(viewer === 'authenticated'
+      ? [{ href: '/import', label: t('nav.import'), Icon: Upload }]
+      : []),
   ]
 
   return (
@@ -35,9 +47,10 @@ export async function AppHeader({ viewer }: { viewer: Viewer }) {
           aria-label={t('nav.primary')}
           className="order-last -mx-1 scrollbar-none flex w-full gap-1 overflow-x-auto md:order-none md:w-auto"
         >
-          {links.map(link => (
-            <NavLink key={link.href} href={link.href}>
-              {link.label}
+          {links.map(({ href, label, Icon }) => (
+            <NavLink key={href} href={href}>
+              <Icon aria-hidden />
+              {label}
             </NavLink>
           ))}
         </nav>
@@ -61,6 +74,7 @@ export async function AppHeader({ viewer }: { viewer: Viewer }) {
             ) : (
               <SignInButton mode="modal">
                 <Button variant="primary" size="sm">
+                  <LogIn aria-hidden />
                   {t('common.signIn')}
                 </Button>
               </SignInButton>

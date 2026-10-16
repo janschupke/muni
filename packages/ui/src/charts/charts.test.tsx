@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 
 import { BarRow } from '../components/bar-row'
 import { Meter } from '../components/meter'
@@ -52,6 +53,21 @@ describe('Meter', () => {
   })
 })
 
+describe('Meter tones', () => {
+  it.each([
+    ['success', 'bg-success-fill'],
+    ['warning', 'bg-warning-fill'],
+    ['serious', 'bg-serious-fill'],
+    ['danger', 'bg-danger-fill'],
+  ] as const)('%s fills with %s, and over capacity is still critical', (tone, fill) => {
+    const { unmount } = render(<Meter value={28} max={30} label="Obsazeno" tone={tone} />)
+    expect(screen.getByRole('meter').firstElementChild?.className).toContain(fill)
+    unmount()
+    render(<Meter value={31} max={30} label="Obsazeno" tone={tone} />)
+    expect(screen.getByRole('meter').firstElementChild?.className).toContain('bg-danger-fill')
+  })
+})
+
 describe('BarRow', () => {
   it('stacks label and value over the bar, or lines them up inline', () => {
     render(
@@ -67,32 +83,56 @@ describe('BarRow', () => {
 
 describe('HeatCell and legends', () => {
   it.each([
-    [0, 'bg-seq-1'],
-    [0.5, 'bg-seq-4'],
-    [1, 'bg-seq-6'],
-    [-1, 'bg-seq-1'],
-  ])('intensity %f uses %s', (intensity, step) => {
+    ['FULL', 'bg-heat-full'],
+    ['HIGH', 'bg-heat-high'],
+    ['FAIR', 'bg-heat-fair'],
+    ['LOW', 'bg-heat-low'],
+    ['POOR', 'bg-heat-poor'],
+  ] as const)('band %s uses %s with its own ink', (band, fill) => {
     render(
-      <HeatCell intensity={intensity} title="Knihovna · BOZP: 80 %">
+      <HeatCell band={band} title="Knihovna · BOZP: 80 %">
         80 %
       </HeatCell>
     )
-    expect(screen.getByTitle('Knihovna · BOZP: 80 %').className).toContain(step)
+    const cell = screen.getByTitle('Knihovna · BOZP: 80 %')
+    expect(cell.tagName).toBe('DIV')
+    expect(cell.className).toContain(fill)
+    expect(cell.className).toContain(`${fill.replace('bg-', 'text-')}-ink`)
   })
 
   it('leaves a cell with no value uncoloured', () => {
     render(
-      <HeatCell intensity={null} title="nic">
+      <HeatCell band={null} title="nic">
         —
       </HeatCell>
     )
     expect(screen.getByTitle('nic').className).toContain('text-fg-subtle')
   })
 
+  it('is a button when it opens something', async () => {
+    const user = userEvent.setup()
+    const onClick = vi.fn()
+    render(
+      <HeatCell band="LOW" title="Laboratoře · BOZP: 60 %" onClick={onClick} aria-haspopup="dialog">
+        60 %
+      </HeatCell>
+    )
+    const cell = screen.getByRole('button', { name: '60 %' })
+    expect(cell.getAttribute('aria-haspopup')).toBe('dialog')
+    await user.click(cell)
+    expect(onClick).toHaveBeenCalledOnce()
+  })
+
   it('labels the colour scale and the series', () => {
     const { container } = render(
       <>
-        <HeatLegend low="0 %" high="100 %" />
+        <HeatLegend
+          label="Pásma"
+          items={[
+            { band: 'FULL', label: '100 %' },
+            { band: 'POOR', label: 'pod 50 %' },
+          ]}
+        />
         <Legend
           items={[
             { key: 'valid', label: 'Platné', swatchClassName: 'bg-status-valid' },
@@ -101,7 +141,13 @@ describe('HeatCell and legends', () => {
         />
       </>
     )
-    expect(container.querySelectorAll('.bg-seq-1, .bg-seq-6')).toHaveLength(2)
-    expect(screen.getAllByRole('listitem').map(i => i.textContent)).toEqual(['Platné', 'Chybí'])
+    expect(container.querySelectorAll('.bg-heat-full, .bg-heat-poor')).toHaveLength(2)
+    expect(screen.getByRole('list', { name: 'Pásma' }).textContent).toBe('100 %pod 50 %')
+    expect(screen.getAllByRole('listitem').map(i => i.textContent)).toEqual([
+      '100 %',
+      'pod 50 %',
+      'Platné',
+      'Chybí',
+    ])
   })
 })

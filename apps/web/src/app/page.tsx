@@ -9,11 +9,13 @@ import { SectionHeading } from '@muni/ui/section-heading'
 import { StatCard } from '@muni/ui/stat-card'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDate, formatInteger, formatPercent } from '@muni/utils/format'
+import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
 
 import { ComplianceBar, ComplianceLegend } from '@/components/compliance-breakdown'
 import { SessionTable } from '@/components/session-table'
+import { rateTone } from '@/components/status-badges'
 import { getViewer } from '@/server/auth'
 
 export default async function DashboardPage() {
@@ -44,7 +46,10 @@ export default async function DashboardPage() {
         <Alert tone={action > 0 || overbooked > 0 ? 'warning' : 'info'} className="mb-4">
           {t('advisor.summary', { now, action, overbooked })}{' '}
           <TextLink asChild emphasis className="text-inherit underline">
-            <Link href="/advisor">{t('advisor.open')}</Link>
+            <Link href="/advisor" className="inline-flex items-center gap-1">
+              {t('advisor.open')}
+              <ArrowRight aria-hidden className="size-3.5" />
+            </Link>
           </TextLink>
         </Alert>
       )}
@@ -63,7 +68,7 @@ export default async function DashboardPage() {
           label={t('kpi.complianceRate')}
           value={formatPercent(data.rate, locale)}
           hint={t('kpi.complianceHint', { held, total: data.counts.total })}
-          tone="accent"
+          tone={rateTone(data.rate)}
         />
         <StatCard
           href={employees('EXPIRING')}

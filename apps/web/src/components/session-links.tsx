@@ -7,6 +7,10 @@ import { useLocale, useTranslations } from 'next-intl'
 const sessionHref = (externalId: string) => `/sessions/${externalId}`
 const roomHref = (location: string) => `/sessions?location=${encodeURIComponent(location)}`
 
+// These links sit stacked in table cells and card headers; 24px tall keeps them apart enough
+// to hit (WCAG 2.2 target size).
+const TARGET = 'inline-flex min-h-6 items-center'
+
 /** A session's date and time, linking to the session. */
 export function SessionDateLink({
   session,
@@ -18,7 +22,7 @@ export function SessionDateLink({
   const locale = useLocale()
   return (
     <TextLink asChild emphasis={emphasis}>
-      <Link href={sessionHref(session.externalId)}>
+      <Link href={sessionHref(session.externalId)} className={TARGET}>
         {formatTimeRange(session.startsAt, session.endsAt, locale)}
       </Link>
     </TextLink>
@@ -32,7 +36,9 @@ export function RoomLink({ location, isOnline = false }: { location: string; isO
     <span className="inline-flex items-center gap-1.5">
       {isOnline && <Wifi aria-label={t('online')} className="size-3.5 text-fg-muted" />}
       <TextLink asChild>
-        <Link href={roomHref(location)}>{location}</Link>
+        <Link href={roomHref(location)} className={TARGET}>
+          {location}
+        </Link>
       </TextLink>
     </span>
   )

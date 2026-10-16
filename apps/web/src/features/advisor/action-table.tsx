@@ -9,7 +9,7 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { TextLink } from '@muni/ui/text-link'
 import { toZonedParts } from '@muni/utils/dates'
 import { formatCurrency, formatDate } from '@muni/utils/format'
-import { CalendarCheck, CalendarPlus } from 'lucide-react'
+import { ArrowRight, CalendarCheck, CalendarPlus } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
@@ -131,8 +131,12 @@ export function ActionTable({
             {shortfall.map(s => (
               <li key={s.courseCode}>
                 <TextLink asChild className="text-inherit underline">
-                  <Link href={`/courses/${s.courseCode}`}>
+                  <Link
+                    href={`/courses/${s.courseCode}`}
+                    className="inline-flex items-center gap-1"
+                  >
                     {t('action.shortfall', { course: s.courseName, people: s.people })}
+                    <ArrowRight aria-hidden className="size-3.5" />
                   </Link>
                 </TextLink>
               </li>
@@ -168,7 +172,10 @@ function ProposalCell({ item, asOf }: { item: PlanItem; asOf: string }) {
       <div className="flex flex-col items-start gap-1">
         <Badge tone="neutral">{t(`reasons.${proposal.reason}`)}</Badge>
         <TextLink asChild className="text-xs">
-          <Link href={todo.href}>{todo.label}</Link>
+          <Link href={todo.href} className="inline-flex items-center gap-1">
+            {todo.label}
+            <ArrowRight aria-hidden className="size-3" />
+          </Link>
         </TextLink>
       </div>
     )

@@ -4,6 +4,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { expectNoAxeViolations } from '@/test/axe'
 import { removeAssignmentAction } from '@/server/actions/assignments'
 import { getViewer, requirePageUser } from '@/server/auth'
 import { advisorInput, session } from '@/test/fixtures'
@@ -162,6 +163,7 @@ describe('session detail', () => {
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '/sessions/T016/edit'
     )
+    await expectNoAxeViolations()
     await user.click(screen.getByRole('button', { name: 'Cancel the booking of Černá Marie' }))
     expect(removeAssignmentAction).toHaveBeenCalledWith({
       sessionExternalId: 'T016',
@@ -187,6 +189,7 @@ describe('session edit', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Edit session T016' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /Location/ })).toHaveProperty('value', 'Aula A')
     expect(screen.getByRole('link', { name: 'Černá Marie' })).toBeTruthy()
+    await expectNoAxeViolations()
   })
 
   it('is a 404 for an unknown session, and says when nobody is named', async () => {

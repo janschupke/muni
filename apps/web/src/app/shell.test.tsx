@@ -67,6 +67,12 @@ describe('root layout', () => {
       'page'
     )
     expect(within(nav).queryByRole('link', { name: 'Import' })).toBeNull()
+    // Every destination carries its icon; the name stays the text.
+    for (const link of within(nav).getAllByRole('link'))
+      expect(link.querySelector('svg')).toBeTruthy()
+    // Keyboard users can jump past the header straight to the page.
+    expect(screen.getByRole('link', { name: 'Skip to content' }).getAttribute('href')).toBe('#main')
+    expect(screen.getByRole('main').id).toBe('main')
     expect(screen.getByRole('contentinfo').textContent).toContain('Personal data is masked')
     expect(screen.queryByRole('button', { name: 'Sign in' })).toBeNull()
   })
@@ -99,9 +105,10 @@ describe('dashboard', () => {
     expect(screen.getByRole('link', { name: /^Expired/ }).getAttribute('href')).toBe(
       '/employees?status=ACTIVE&compliance=EXPIRED'
     )
-    expect(screen.getByRole('link', { name: /^Compliance/ }).getAttribute('href')).toBe(
-      '/compliance'
-    )
+    const rate = screen.getByRole('link', { name: /^Compliance/ })
+    expect(rate.getAttribute('href')).toBe('/compliance')
+    // 85 % held is in the yellow band.
+    expect(rate.className).toContain('before:bg-warning-fill')
     expect(screen.getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
       '/employees?department=Laborato%C5%99e'
     )

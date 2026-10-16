@@ -6,6 +6,7 @@ import { Checkbox } from '@muni/ui/checkbox'
 import { Field, Input, Textarea } from '@muni/ui/field'
 import { Select } from '@muni/ui/select'
 import { PLACEHOLDER } from '@muni/utils/format'
+import { Save, X } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
@@ -41,10 +42,14 @@ export function FormShell({
       <ErrorsContext value={errors}>{children}</ErrorsContext>
       <div className="flex gap-2">
         <Button type="submit" variant="primary" disabled={pending}>
+          <Save aria-hidden />
           {pending ? t('common.saving') : t('common.save')}
         </Button>
         <Button asChild variant="ghost">
-          <Link href={cancelHref}>{t('common.cancel')}</Link>
+          <Link href={cancelHref}>
+            <X aria-hidden />
+            {t('common.cancel')}
+          </Link>
         </Button>
       </div>
     </form>

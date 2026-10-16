@@ -9,6 +9,7 @@ import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { expectNoAxeViolations } from '@/test/axe'
 import en from '@/i18n/messages/en.json'
 
 import { ImportWizard } from './import-wizard'
@@ -60,6 +61,7 @@ describe('ImportWizard', () => {
     expect(await screen.findByText('absolvovana_skoleni.csv')).toBeTruthy()
     expect(screen.getByText(/WINDOWS-1250 · delimiter “;” · 2,866 rows/)).toBeTruthy()
     expect(screen.getByText(/Skipped 3 blank, 1 repeated header and 1 comment lines/)).toBeTruthy()
+    await expectNoAxeViolations()
 
     await user.click(screen.getByRole('button', { name: 'Review rows' }))
 
@@ -83,6 +85,7 @@ describe('ImportWizard', () => {
     await user.type(cell, 'KYBER{Enter}')
     expect(within(panel).getByRole('button', { name: /Errors/ }).textContent).toContain('1')
     expect(within(panel).queryByRole('button', { name: /Problems on line 11/ })).toBeNull()
+    await expectNoAxeViolations()
 
     await user.click(screen.getByRole('button', { name: 'Continue' }))
 
@@ -91,6 +94,7 @@ describe('ImportWizard', () => {
     expect(screen.getByText('Employees: 170 records will be written')).toBeTruthy()
     expect(screen.getByText('Sessions: 33 records will be written')).toBeTruthy()
     expect(screen.getByText('Completions: 2,822 records will be written')).toBeTruthy()
+    await expectNoAxeViolations()
 
     await user.click(screen.getByRole('button', { name: /Import 3,035 records/ }))
 
@@ -109,6 +113,7 @@ describe('ImportWizard', () => {
       ['completions', 322],
     ])
     expect(screen.getByText('Completions: 2822 created, 0 updated')).toBeTruthy()
+    await expectNoAxeViolations()
   })
 
   it('sorts the whole dataset before paging, and keeps the page through an edit', async () => {

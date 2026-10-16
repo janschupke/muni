@@ -3,13 +3,27 @@ import { Badge, type BadgeTone } from '@muni/ui/badge'
 import { CellStack } from '@muni/ui/table'
 import { diffInDays } from '@muni/utils/dates'
 import { formatDate, formatMonth, formatRelativeDays } from '@muni/utils/format'
-import { CalendarCheck, CalendarClock, CircleAlert, type LucideIcon } from 'lucide-react'
+import {
+  ArrowRightLeft,
+  CalendarCheck,
+  CalendarClock,
+  ChartColumn,
+  CircleAlert,
+  type LucideIcon,
+} from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { withParams } from '@/lib/search-params'
 
 export const ADVISOR_VIEWS = ['breakdown', 'action', 'planned', 'overbooked'] as const
 export type AdvisorView = (typeof ADVISOR_VIEWS)[number]
+
+export const VIEW_ICON: Record<AdvisorView, LucideIcon> = {
+  breakdown: ChartColumn,
+  action: CircleAlert,
+  planned: CalendarCheck,
+  overbooked: ArrowRightLeft,
+}
 
 /** `/advisor` with a view and (breakdown only) a bucket; defaults are left out of the URL. */
 export function advisorHref(view: AdvisorView, bucket?: Bucket): string {

@@ -9,7 +9,7 @@ import { cn } from '../cn'
  * components can use it.
  */
 export const tabTriggerClass = cn(
-  'inline-flex items-center gap-2 border-b-2 border-transparent px-3 py-2 text-sm font-medium whitespace-nowrap text-fg-muted transition-colors hover:text-fg',
+  'inline-flex items-center gap-2 border-b-2 border-transparent px-3 py-2 text-sm font-medium whitespace-nowrap text-fg-muted transition-colors hover:text-fg [&_svg]:size-4 [&_svg]:shrink-0',
   'data-[state=active]:border-accent data-[state=active]:text-fg',
   'aria-[current=page]:border-accent aria-[current=page]:text-fg'
 )
@@ -46,7 +46,7 @@ export function NavItem({ asChild = false, active = false, className, ...props }
     <Comp
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap text-fg-muted transition-colors hover:bg-state-hover hover:text-fg',
+        'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap text-fg-muted transition-colors hover:bg-state-hover hover:text-fg [&_svg]:size-4 [&_svg]:shrink-0',
         'aria-[current=page]:bg-state-selected aria-[current=page]:text-fg',
         className
       )}

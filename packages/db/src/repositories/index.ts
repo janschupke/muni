@@ -31,6 +31,8 @@ export {
   getComplianceMatrix,
   getDashboard,
   type ComplianceMatrix,
+  type ComplianceMatrixPerson,
+  type ComplianceMatrixRow,
   type DashboardData,
 } from './dashboard'
 export {

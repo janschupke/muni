@@ -14,7 +14,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { RoomLink, SessionDateLink } from './session-links'
-import { OccupancyBadge, SessionStatusBadge } from './status-badges'
+import { OccupancyBadge, seatTone, SessionStatusBadge } from './status-badges'
 
 const col = createDataColumns<SessionListItem>()
 
@@ -91,6 +91,7 @@ export function SessionTable({
                   value={row.original.bookedCount}
                   max={row.original.capacity}
                   label={t('columns.capacity')}
+                  tone={seatTone(row.original.bookedCount, row.original.capacity)}
                 />
               }
               value={t('booked', {

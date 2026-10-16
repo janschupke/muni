@@ -77,6 +77,28 @@ applied in `listEmployees` before the page is cut.
 Dates and times are formatted with luxon in Europe/Prague time (`@muni/utils/format`);
 date-only values are formatted as UTC so the day never shifts. Amounts use `Intl.NumberFormat`.
 
+### Colour
+
+One palette, defined once in `packages/ui/src/styles/tokens.css`:
+
+- **Ramps** (`--ramp-*`) are the only place colour values live: a warm neutral ramp for
+  surfaces, ink and hairlines; brand blue; and green, yellow, orange and red for signals.
+  Steps run light (50) to dark (900). The signal ramps are built in OKLCH around the dataviz
+  reference status colours (green 500, yellow 300, orange 400, red 500).
+- **Roles** (`--p-*`, used as Tailwind classes such as `bg-surface-elevated`,
+  `text-success-fg`, `bg-status-expired`) pick a light and a dark step with `light-dark()`.
+  The OS preference chooses the side unless the theme switch pins it (`data-theme`).
+- **Signals mean one thing each:** green = held, yellow = attention soon (expiring, a session
+  80 % booked or full), orange = lapsed, red = action needed (missing, overbooked). Blue is
+  the brand and never a state. A signal colour always comes with an icon and a label.
+- **Compliance rates** are coloured by band (`complianceBand` in `@muni/domain`): 100 %,
+  90–99 %, 75–89 %, 50–74 % and under 50 %. The matrix uses the green → yellow → red heat
+  scale (`bg-heat-*`, lightness running one way so the order survives colour blindness);
+  rate meters and the overview card use green, yellow or red. The rate is always printed too.
+
+The compliance matrix opens each department into one row per person, under the course
+columns, and each cell into a dialog listing its people, most urgent first.
+
 Motion is centralised in `packages/ui/src/styles/tokens.css`: three durations, the easings,
 the named animations (`animate-fade-in`, `animate-pop-in`, …), and the default for every
 `transition-*` utility. `prefers-reduced-motion: reduce` turns all of it off in one rule.
@@ -178,17 +200,27 @@ Prisma models directly.
 
 ## Commands
 
-| Command                 | What it does                                                         |
-| ----------------------- | -------------------------------------------------------------------- |
-| `pnpm check`            | format check, lint, typecheck, knip, coverage, build (needs `db:up`) |
-| `pnpm test`             | unit tests in every package                                          |
-| `pnpm coverage`         | tests with coverage in every package; fails below 90 %               |
-| `pnpm test:integration` | repositories and seed against the test database (port 5439)          |
-| `pnpm test:e2e`         | Playwright smoke tests against `next start` on the test database     |
-| `pnpm db:studio`        | Prisma Studio on the dev database                                    |
+| Command                 | What it does                                                          |
+| ----------------------- | --------------------------------------------------------------------- |
+| `pnpm check`            | format check, lint, typecheck, knip, coverage, build (needs `db:up`)  |
+| `pnpm test`             | unit tests in every package                                           |
+| `pnpm coverage`         | tests with coverage in every package; fails below 90 %                |
+| `pnpm test:integration` | repositories and seed against the test database (port 5439)           |
+| `pnpm test:e2e`         | Playwright smoke and axe tests against `next start` on the test DB    |
+| `pnpm test:lighthouse`  | Lighthouse on every public page; reports in `test-results/lighthouse` |
+| `pnpm db:studio`        | Prisma Studio on the dev database                                     |
 
 The integration tests apply migrations and seed the test database; run them before
-`pnpm test:e2e`, which also needs `pnpm --filter @muni/web build` first.
+`pnpm test:e2e` and `pnpm test:lighthouse`, which also need `pnpm --filter @muni/web build`
+first.
+
+Accessibility is checked twice. `e2e/a11y.spec.ts` runs axe (WCAG 2.2 A/AA and best
+practices) on every public page in the light and dark theme, and on the open states (matrix
+row and dialog, employee row, an open select); any violation fails. Pages that need a
+signed-in user are checked by axe in their unit tests (`apps/web/src/test/axe.ts`, without
+contrast and target size, which jsdom cannot measure). `pnpm test:lighthouse` requires
+accessibility 100, best practices 95, SEO 90 and performance 90 (desktop) on every public
+page.
 
 Coverage has one standard for every package (`vitest.preset.ts`): at least 90 % of lines,
 statements, functions and branches of everything under `src/`, files without tests included.

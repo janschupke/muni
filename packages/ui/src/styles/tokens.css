@@ -1,226 +1,198 @@
 /*
  * muni design tokens.
  *
- * Layer 1, raw palette (--p-*): the only place hex values live. Light first, then the dark
- * palette twice (OS preference unless the page is pinned light, and an explicit dark pin).
- * Keep the two dark blocks identical.
+ * Layer 1, palette ramps (--ramp-*): the only place colour values live. One neutral ramp,
+ * one ramp per signal hue (green, yellow, orange, red) and the brand blue, plus the
+ * compliance heat scale. Steps run light (50) to dark (900); hue ramps are generated in
+ * OKLCH with the status anchors pinned (green 500, yellow 300, orange 400, red 500 are the
+ * dataviz reference status colours). Blue is the reference sequential ramp.
  *
- * Layer 2, semantic utilities (@theme inline): Tailwind classes such as bg-surface-elevated,
- * text-fg-muted, border-border-default, bg-status-valid. Components use only these.
+ * Layer 2, roles (--p-*): each role picks a light and a dark step with light-dark(), so the
+ * theme is one block. color-scheme selects the side: the OS preference by default, pinned
+ * by data-theme on <html> (theme boot script and toggle).
  *
- * Chart and status steps follow the dataviz reference palette (status: good / warning /
- * serious / critical; sequential: blue ramp, separate steps chosen for the dark surface).
+ * Layer 3, utilities (@theme inline): Tailwind classes such as bg-surface-elevated,
+ * text-fg-muted, bg-status-valid, bg-heat-poor. Components use only these.
+ *
+ * Signal meanings are reserved: green = held / fine, yellow = attention soon (expiring,
+ * nearly full), orange = lapsed (expired), red = action needed (missing, overbooked).
+ * Blue is the brand and never signals a state.
  */
 
-:root,
+:root {
+  /* Warm neutral ramp: surfaces, ink and hairlines in both themes. */
+  --ramp-neutral-0: #ffffff;
+  --ramp-neutral-25: #fcfcfb;
+  --ramp-neutral-50: #f7f7f5;
+  --ramp-neutral-75: #f0efec;
+  --ramp-neutral-100: #efeeea;
+  --ramp-neutral-150: #ecebe6;
+  --ramp-neutral-200: #e1e0d9;
+  --ramp-neutral-300: #c3c2b7;
+  --ramp-neutral-400: #9c9b94;
+  --ramp-neutral-500: #6b6a65;
+  --ramp-neutral-600: #52514e;
+  --ramp-neutral-650: #4a4945;
+  --ramp-neutral-700: #383835;
+  --ramp-neutral-750: #2f2f2c;
+  --ramp-neutral-800: #242422;
+  --ramp-neutral-850: #1a1a19;
+  --ramp-neutral-900: #131312;
+  --ramp-neutral-950: #0d0d0d;
+  --ramp-neutral-1000: #0b0b0b;
+
+  /* Brand blue: the dataviz reference sequential ramp, plus the soft tints. */
+  --ramp-blue-50: #e8f0fb;
+  --ramp-blue-100: #cde2fb;
+  --ramp-blue-200: #9ec5f4;
+  --ramp-blue-250: #86b6ef;
+  --ramp-blue-350: #5598e7;
+  --ramp-blue-400: #3987e5;
+  --ramp-blue-450: #2a78d6;
+  --ramp-blue-500: #256abf;
+  --ramp-blue-550: #1c5cab;
+  --ramp-blue-900: #15273f;
+
+  --ramp-green-50: #effbee;
+  --ramp-green-100: #daf4d7;
+  --ramp-green-200: #b4e8af;
+  --ramp-green-300: #7dd777;
+  --ramp-green-400: #44bf3f;
+  --ramp-green-500: #0ca30c;
+  --ramp-green-600: #018301;
+  --ramp-green-700: #016501;
+  --ramp-green-800: #004200;
+  --ramp-green-900: #012801;
+
+  --ramp-yellow-50: #fef6e8;
+  --ramp-yellow-100: #ffe8c5;
+  --ramp-yellow-200: #fecf86;
+  --ramp-yellow-300: #fab219;
+  --ramp-yellow-400: #d2940a;
+  --ramp-yellow-500: #b07b03;
+  --ramp-yellow-600: #8e6301;
+  --ramp-yellow-700: #6e4b00;
+  --ramp-yellow-800: #483000;
+  --ramp-yellow-900: #2c1c00;
+
+  --ramp-orange-50: #fef4f1;
+  --ramp-orange-100: #ffe5db;
+  --ramp-orange-200: #ffcab6;
+  --ramp-orange-300: #fea481;
+  --ramp-orange-400: #ec835a;
+  --ramp-orange-500: #d35e2d;
+  --ramp-orange-600: #b44202;
+  --ramp-orange-700: #8c3100;
+  --ramp-orange-800: #5d1e01;
+  --ramp-orange-900: #361305;
+
+  --ramp-red-50: #fef4f3;
+  --ramp-red-100: #ffe4e1;
+  --ramp-red-200: #fec9c3;
+  --ramp-red-300: #fea199;
+  --ramp-red-400: #fe6c65;
+  --ramp-red-500: #d03b3b;
+  --ramp-red-600: #c2272c;
+  --ramp-red-700: #9b0d1a;
+  --ramp-red-800: #651012;
+  --ramp-red-900: #3b0d0c;
+
+  /*
+   * Compliance heat scale, best (full) to worst (poor): green, yellow, red, with lightness
+   * running one way so the order survives colour-blind vision (adjacent CVD ΔE >= 8.7 light,
+   * 13.4 dark; normal-vision ΔE >= 15). Every cell also prints its percentage.
+   */
+  --ramp-heat-full-light: #d6fcdf;
+  --ramp-heat-high-light: #a8db71;
+  --ramp-heat-fair-light: #e4a010;
+  --ramp-heat-low-light: #e26444;
+  --ramp-heat-poor-light: #b4243d;
+  --ramp-heat-full-dark: #092c1a;
+  --ramp-heat-high-dark: #48580b;
+  --ramp-heat-fair-dark: #a07836;
+  --ramp-heat-low-dark: #f09478;
+  --ramp-heat-poor-dark: #e2483b;
+}
+
+:root {
+  color-scheme: light dark;
+}
 :root[data-theme='light'] {
   color-scheme: light;
-
-  --p-surface-base: #f7f7f5;
-  --p-surface-elevated: #ffffff;
-  --p-surface-sunken: #efeeea;
-  --p-surface-overlay: #ffffff;
-
-  --p-fg: #0b0b0b;
-  --p-fg-muted: #52514e;
-  --p-fg-subtle: #6b6a65;
-  --p-fg-inverse: #fcfcfb;
-
-  --p-border-default: #e1e0d9;
-  --p-border-muted: #ecebe6;
-  --p-border-emphasis: #c3c2b7;
-
-  --p-accent: #256abf;
-  --p-accent-hover: #1c5cab;
-  --p-accent-fg: #ffffff;
-  --p-accent-soft: #e8f0fb;
-  --p-accent-text: #1c5cab;
-
-  --p-success-fg: #006300;
-  --p-success-fill: #0ca30c;
-  --p-success-soft: #e8f5e8;
-  --p-success-border: #a6d8a6;
-
-  --p-warning-fg: #6e4a00;
-  --p-warning-fill: #fab219;
-  --p-warning-soft: #fdf3dc;
-  --p-warning-border: #ecc56a;
-
-  --p-serious-fg: #93391a;
-  --p-serious-fill: #ec835a;
-  --p-serious-soft: #fcede6;
-  --p-serious-border: #efb39b;
-
-  --p-danger-fg: #a82626;
-  --p-danger-fill: #d03b3b;
-  --p-danger-soft: #fbeaea;
-  --p-danger-border: #ecb0b0;
-
-  --p-info-fg: #1c5cab;
-  --p-info-fill: #2a78d6;
-  --p-info-soft: #e8f0fb;
-  --p-info-border: #9ec5f4;
-
-  --p-state-hover: rgb(11 11 11 / 0.04);
-  --p-state-active: rgb(11 11 11 / 0.08);
-  --p-state-selected: #e8f0fb;
-  --p-focus-ring: #2a78d6;
-  --p-scrim: rgb(11 11 11 / 0.4);
-
-  --p-chart-grid: #e1e0d9;
-  --p-chart-axis: #c3c2b7;
-  --p-chart-track: #ecebe6;
-  /* sequential: 1 = lowest value (recedes toward the surface), 6 = highest */
-  --p-seq-1: #cde2fb;
-  --p-seq-2: #9ec5f4;
-  --p-seq-3: #6da7ec;
-  --p-seq-4: #3987e5;
-  --p-seq-5: #256abf;
-  --p-seq-6: #184f95;
-  --p-seq-ink-light: #0b0b0b;
-  --p-seq-ink-dark: #ffffff;
-
-  --p-shadow-color: rgb(11 11 11 / 0.08);
 }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-
-    --p-surface-base: #0d0d0d;
-    --p-surface-elevated: #1a1a19;
-    --p-surface-sunken: #131312;
-    --p-surface-overlay: #232321;
-
-    --p-fg: #f0efec;
-    --p-fg-muted: #c3c2b7;
-    --p-fg-subtle: #9c9b94;
-    --p-fg-inverse: #0b0b0b;
-
-    --p-border-default: #2f2f2c;
-    --p-border-muted: #242422;
-    --p-border-emphasis: #4a4945;
-
-    --p-accent: #3987e5;
-    --p-accent-hover: #5598e7;
-    --p-accent-fg: #0b0b0b;
-    --p-accent-soft: #15273f;
-    --p-accent-text: #86b6ef;
-
-    --p-success-fg: #3dbb3d;
-    --p-success-fill: #0ca30c;
-    --p-success-soft: #102414;
-    --p-success-border: #1f5c1f;
-
-    --p-warning-fg: #fab219;
-    --p-warning-fill: #fab219;
-    --p-warning-soft: #2b2210;
-    --p-warning-border: #6b5214;
-
-    --p-serious-fg: #ec835a;
-    --p-serious-fill: #ec835a;
-    --p-serious-soft: #2c1a12;
-    --p-serious-border: #6e3a24;
-
-    --p-danger-fg: #e66767;
-    --p-danger-fill: #d03b3b;
-    --p-danger-soft: #2c1515;
-    --p-danger-border: #6e2a2a;
-
-    --p-info-fg: #86b6ef;
-    --p-info-fill: #3987e5;
-    --p-info-soft: #15273f;
-    --p-info-border: #1c5cab;
-
-    --p-state-hover: rgb(255 255 255 / 0.05);
-    --p-state-active: rgb(255 255 255 / 0.09);
-    --p-state-selected: #15273f;
-    --p-focus-ring: #5598e7;
-    --p-scrim: rgb(0 0 0 / 0.6);
-
-    --p-chart-grid: #2c2c2a;
-    --p-chart-axis: #383835;
-    --p-chart-track: #2c2c2a;
-    --p-seq-1: #0d366b;
-    --p-seq-2: #104281;
-    --p-seq-3: #1c5cab;
-    --p-seq-4: #2a78d6;
-    --p-seq-5: #5598e7;
-    --p-seq-6: #9ec5f4;
-    --p-seq-ink-light: #ffffff;
-    --p-seq-ink-dark: #0b0b0b;
-
-    --p-shadow-color: rgb(0 0 0 / 0.4);
-  }
-}
-
 :root[data-theme='dark'] {
   color-scheme: dark;
+}
 
-  --p-surface-base: #0d0d0d;
-  --p-surface-elevated: #1a1a19;
-  --p-surface-sunken: #131312;
-  --p-surface-overlay: #232321;
+:root {
+  --p-surface-base: light-dark(var(--ramp-neutral-50), var(--ramp-neutral-950));
+  --p-surface-elevated: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-850));
+  --p-surface-sunken: light-dark(var(--ramp-neutral-100), var(--ramp-neutral-900));
+  --p-surface-overlay: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-800));
 
-  --p-fg: #f0efec;
-  --p-fg-muted: #c3c2b7;
-  --p-fg-subtle: #9c9b94;
-  --p-fg-inverse: #0b0b0b;
+  --p-fg: light-dark(var(--ramp-neutral-1000), var(--ramp-neutral-75));
+  --p-fg-muted: light-dark(var(--ramp-neutral-600), var(--ramp-neutral-300));
+  --p-fg-subtle: light-dark(var(--ramp-neutral-500), var(--ramp-neutral-400));
+  --p-fg-inverse: light-dark(var(--ramp-neutral-25), var(--ramp-neutral-1000));
 
-  --p-border-default: #2f2f2c;
-  --p-border-muted: #242422;
-  --p-border-emphasis: #4a4945;
+  --p-border-default: light-dark(var(--ramp-neutral-200), var(--ramp-neutral-750));
+  --p-border-muted: light-dark(var(--ramp-neutral-150), var(--ramp-neutral-800));
+  --p-border-emphasis: light-dark(var(--ramp-neutral-300), var(--ramp-neutral-650));
 
-  --p-accent: #3987e5;
-  --p-accent-hover: #5598e7;
-  --p-accent-fg: #0b0b0b;
-  --p-accent-soft: #15273f;
-  --p-accent-text: #86b6ef;
+  --p-accent: light-dark(var(--ramp-blue-500), var(--ramp-blue-400));
+  --p-accent-hover: light-dark(var(--ramp-blue-550), var(--ramp-blue-350));
+  --p-accent-fg: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-1000));
+  --p-accent-soft: light-dark(var(--ramp-blue-50), var(--ramp-blue-900));
+  --p-accent-text: light-dark(var(--ramp-blue-550), var(--ramp-blue-250));
 
-  --p-success-fg: #3dbb3d;
-  --p-success-fill: #0ca30c;
-  --p-success-soft: #102414;
-  --p-success-border: #1f5c1f;
+  --p-success-fg: light-dark(var(--ramp-green-700), var(--ramp-green-300));
+  --p-success-fill: var(--ramp-green-500);
+  --p-success-soft: light-dark(var(--ramp-green-50), var(--ramp-green-900));
+  --p-success-border: light-dark(var(--ramp-green-200), var(--ramp-green-800));
 
-  --p-warning-fg: #fab219;
-  --p-warning-fill: #fab219;
-  --p-warning-soft: #2b2210;
-  --p-warning-border: #6b5214;
+  --p-warning-fg: light-dark(var(--ramp-yellow-700), var(--ramp-yellow-300));
+  --p-warning-fill: var(--ramp-yellow-300);
+  --p-warning-soft: light-dark(var(--ramp-yellow-50), var(--ramp-yellow-900));
+  --p-warning-border: light-dark(var(--ramp-yellow-200), var(--ramp-yellow-800));
 
-  --p-serious-fg: #ec835a;
-  --p-serious-fill: #ec835a;
-  --p-serious-soft: #2c1a12;
-  --p-serious-border: #6e3a24;
+  --p-serious-fg: light-dark(var(--ramp-orange-700), var(--ramp-orange-300));
+  --p-serious-fill: var(--ramp-orange-400);
+  --p-serious-soft: light-dark(var(--ramp-orange-50), var(--ramp-orange-900));
+  --p-serious-border: light-dark(var(--ramp-orange-200), var(--ramp-orange-800));
 
-  --p-danger-fg: #e66767;
-  --p-danger-fill: #d03b3b;
-  --p-danger-soft: #2c1515;
-  --p-danger-border: #6e2a2a;
+  --p-danger-fg: light-dark(var(--ramp-red-700), var(--ramp-red-300));
+  --p-danger-fill: var(--ramp-red-500);
+  --p-danger-soft: light-dark(var(--ramp-red-50), var(--ramp-red-900));
+  --p-danger-border: light-dark(var(--ramp-red-200), var(--ramp-red-800));
+  --p-danger-ink: var(--ramp-neutral-0);
 
-  --p-info-fg: #86b6ef;
-  --p-info-fill: #3987e5;
-  --p-info-soft: #15273f;
-  --p-info-border: #1c5cab;
+  --p-info-fg: light-dark(var(--ramp-blue-550), var(--ramp-blue-250));
+  --p-info-fill: light-dark(var(--ramp-blue-450), var(--ramp-blue-400));
+  --p-info-soft: light-dark(var(--ramp-blue-50), var(--ramp-blue-900));
+  --p-info-border: light-dark(var(--ramp-blue-200), var(--ramp-blue-550));
 
-  --p-state-hover: rgb(255 255 255 / 0.05);
-  --p-state-active: rgb(255 255 255 / 0.09);
-  --p-state-selected: #15273f;
-  --p-focus-ring: #5598e7;
-  --p-scrim: rgb(0 0 0 / 0.6);
+  --p-state-hover: light-dark(rgb(11 11 11 / 0.04), rgb(255 255 255 / 0.05));
+  --p-state-active: light-dark(rgb(11 11 11 / 0.08), rgb(255 255 255 / 0.09));
+  --p-state-selected: light-dark(var(--ramp-blue-50), var(--ramp-blue-900));
+  --p-focus-ring: light-dark(var(--ramp-blue-450), var(--ramp-blue-350));
+  --p-scrim: light-dark(rgb(11 11 11 / 0.4), rgb(0 0 0 / 0.6));
 
-  --p-chart-grid: #2c2c2a;
-  --p-chart-axis: #383835;
-  --p-chart-track: #2c2c2a;
-  --p-seq-1: #0d366b;
-  --p-seq-2: #104281;
-  --p-seq-3: #1c5cab;
-  --p-seq-4: #2a78d6;
-  --p-seq-5: #5598e7;
-  --p-seq-6: #9ec5f4;
-  --p-seq-ink-light: #ffffff;
-  --p-seq-ink-dark: #0b0b0b;
+  --p-chart-grid: light-dark(var(--ramp-neutral-200), var(--ramp-neutral-750));
+  --p-chart-axis: light-dark(var(--ramp-neutral-300), var(--ramp-neutral-700));
+  --p-chart-track: light-dark(var(--ramp-neutral-150), var(--ramp-neutral-750));
 
-  --p-shadow-color: rgb(0 0 0 / 0.4);
+  --p-heat-full: light-dark(var(--ramp-heat-full-light), var(--ramp-heat-full-dark));
+  --p-heat-high: light-dark(var(--ramp-heat-high-light), var(--ramp-heat-high-dark));
+  --p-heat-fair: light-dark(var(--ramp-heat-fair-light), var(--ramp-heat-fair-dark));
+  --p-heat-low: light-dark(var(--ramp-heat-low-light), var(--ramp-heat-low-dark));
+  --p-heat-poor: light-dark(var(--ramp-heat-poor-light), var(--ramp-heat-poor-dark));
+  --p-heat-full-ink: light-dark(var(--ramp-neutral-1000), var(--ramp-neutral-75));
+  --p-heat-high-ink: light-dark(var(--ramp-neutral-1000), var(--ramp-neutral-75));
+  --p-heat-fair-ink: var(--ramp-neutral-1000);
+  --p-heat-low-ink: var(--ramp-neutral-1000);
+  --p-heat-poor-ink: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-1000));
+
+  --p-shadow-color: light-dark(rgb(11 11 11 / 0.08), rgb(0 0 0 / 0.4));
 }
 
 @theme inline {
@@ -262,6 +234,7 @@
   --color-danger-fill: var(--p-danger-fill);
   --color-danger-soft: var(--p-danger-soft);
   --color-danger-border: var(--p-danger-border);
+  --color-danger-ink: var(--p-danger-ink);
   --color-info-fg: var(--p-info-fg);
   --color-info-fill: var(--p-info-fill);
   --color-info-soft: var(--p-info-soft);
@@ -282,14 +255,18 @@
   --color-chart-grid: var(--p-chart-grid);
   --color-chart-axis: var(--p-chart-axis);
   --color-chart-track: var(--p-chart-track);
-  --color-seq-1: var(--p-seq-1);
-  --color-seq-2: var(--p-seq-2);
-  --color-seq-3: var(--p-seq-3);
-  --color-seq-4: var(--p-seq-4);
-  --color-seq-5: var(--p-seq-5);
-  --color-seq-6: var(--p-seq-6);
-  --color-seq-ink-light: var(--p-seq-ink-light);
-  --color-seq-ink-dark: var(--p-seq-ink-dark);
+
+  /* Compliance rate bands (the matrix, rate meters); see complianceBand in @muni/domain. */
+  --color-heat-full: var(--p-heat-full);
+  --color-heat-high: var(--p-heat-high);
+  --color-heat-fair: var(--p-heat-fair);
+  --color-heat-low: var(--p-heat-low);
+  --color-heat-poor: var(--p-heat-poor);
+  --color-heat-full-ink: var(--p-heat-full-ink);
+  --color-heat-high-ink: var(--p-heat-high-ink);
+  --color-heat-fair-ink: var(--p-heat-fair-ink);
+  --color-heat-low-ink: var(--p-heat-low-ink);
+  --color-heat-poor-ink: var(--p-heat-poor-ink);
 
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
@@ -319,12 +296,18 @@
   --default-transition-timing-function: var(--ease-standard);
 
   --animate-fade-in: fade-in var(--motion-normal) var(--ease-standard);
+  --animate-fade-out: fade-out var(--motion-fast) var(--ease-exit);
   --animate-pop-in: pop-in var(--motion-fast) var(--ease-emphasized);
   --animate-pop-out: pop-out var(--motion-fast) var(--ease-exit);
   --animate-slide-up: slide-up var(--motion-normal) var(--ease-emphasized);
 
   @keyframes fade-in {
     from {
+      opacity: 0;
+    }
+  }
+  @keyframes fade-out {
+    to {
       opacity: 0;
     }
   }

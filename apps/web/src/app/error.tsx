@@ -2,6 +2,7 @@
 
 import { Button } from '@muni/ui/button'
 import { PageMessage } from '@muni/ui/page-message'
+import { RotateCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 export default function ErrorPage({
@@ -17,6 +18,7 @@ export default function ErrorPage({
       description={t('errorBody')}
       actions={
         <Button variant="primary" onClick={reset}>
+          <RotateCw aria-hidden />
           {t('retry')}
         </Button>
       }

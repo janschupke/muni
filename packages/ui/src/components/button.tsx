@@ -13,7 +13,7 @@ export const buttonClass = cva(
         secondary:
           'border border-border-default bg-surface-elevated text-fg hover:bg-state-hover active:bg-state-active',
         ghost: 'text-fg-muted hover:bg-state-hover hover:text-fg active:bg-state-active',
-        danger: 'bg-danger-fill text-white hover:opacity-90',
+        danger: 'bg-danger-fill text-danger-ink hover:opacity-90',
       },
       size: {
         sm: 'h-8 px-3 text-sm',

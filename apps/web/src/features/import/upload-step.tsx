@@ -7,7 +7,7 @@ import { Button } from '@muni/ui/button'
 import { Card } from '@muni/ui/card'
 import { Dropzone } from '@muni/ui/dropzone'
 import { Hint } from '@muni/ui/field'
-import { FileSpreadsheet, X } from 'lucide-react'
+import { ArrowRight, FileSpreadsheet, X } from 'lucide-react'
 
 import { useImportText } from './use-issue-text'
 
@@ -117,6 +117,7 @@ export function UploadStep({
       <div>
         <Button variant="primary" disabled={accepted.length === 0} onClick={onNext}>
           {t('upload.next')}
+          <ArrowRight aria-hidden />
         </Button>
       </div>
     </div>

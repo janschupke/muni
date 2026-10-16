@@ -149,3 +149,22 @@ export function worstStatus(statuses: Iterable<ComplianceStatus>): ComplianceSta
   }
   return worst
 }
+
+/**
+ * Rate bands, best first. A rate falls in the first band whose floor it reaches; the
+ * matrix, the rate meters and the overview colour by band and always print the rate too.
+ */
+export const COMPLIANCE_BANDS = [
+  { band: 'FULL', min: 1 },
+  { band: 'HIGH', min: 0.9 },
+  { band: 'FAIR', min: 0.75 },
+  { band: 'LOW', min: 0.5 },
+  { band: 'POOR', min: 0 },
+] as const
+
+export type ComplianceBand = (typeof COMPLIANCE_BANDS)[number]['band']
+
+export function complianceBand(rate: number): ComplianceBand {
+  for (const { band, min } of COMPLIANCE_BANDS) if (rate >= min) return band
+  return 'POOR'
+}

@@ -23,7 +23,9 @@
     "readOnly": "You are viewing the public read-only register. Sign in to edit or import.",
     "free": "Free",
     "choose": "Choose…",
-    "pagination": "Pages"
+    "pagination": "Pages",
+    "close": "Close",
+    "skipToContent": "Skip to content"
   },
   "nav": {
     "primary": "Main navigation",
@@ -216,7 +218,8 @@
       "status": "Status",
       "price": "Price per person",
       "seats": "Seats"
-    }
+    },
+    "nearlyFull": "Almost full"
   },
   "compliance": {
     "title": "Compliance matrix",
@@ -226,8 +229,31 @@
     "notApplicable": "Not required",
     "cellTitle": "{department}, {course}: {held} of {total} held",
     "empty": "No mandatory courses are defined yet.",
-    "legendFull": "100 % held",
-    "legendPoor": "≤ 50 % held"
+    "bands": {
+      "label": "Colour bands",
+      "full": "{value}",
+      "range": "{from}–{to}",
+      "below": "Under {value}"
+    },
+    "toggle": "People in {department}",
+    "person": {
+      "cell": "{course}: {status}",
+      "validUntil": "valid until {date}",
+      "booked": "booked for {date}",
+      "legend": "In the people rows:",
+      "bookedLegend": "Booked on a session"
+    },
+    "detail": {
+      "title": "{department} · {course}",
+      "open": "{department}, {course}: {rate}, show people",
+      "name": "Name",
+      "status": "Status",
+      "validUntil": "Valid until",
+      "booked": "Booked",
+      "course": "Course detail",
+      "employees": "Everyone in {department}",
+      "summary": "{held} of {total} people hold it ({rate})"
+    }
   },
   "forms": {
     "errors": {

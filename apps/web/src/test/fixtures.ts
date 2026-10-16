@@ -6,6 +6,7 @@ import type {
   EmployeeBooking,
   EmployeeDetail,
   EmployeeListItem,
+  EmployeeListRequirement,
   Page,
   SessionListItem,
 } from '@muni/db/repositories'
@@ -192,6 +193,19 @@ export const dashboard = (over: Partial<DashboardData> = {}): DashboardData => (
   ...over,
 })
 
+const requirement = (over: Partial<EmployeeListRequirement> = {}): EmployeeListRequirement => ({
+  courseCode: 'BOZP-Z',
+  courseName: 'BOZP – základní školení',
+  status: 'VALID',
+  completedOn: '2025-05-01',
+  validUntil: '2027-05-01',
+  daysLeft: 197,
+  booked: null,
+  ...over,
+})
+
+const LAB_BEZ = { courseCode: 'LAB-BEZ', courseName: 'Bezpečná práce v laboratoři' }
+
 export const matrix = (over: Partial<ComplianceMatrix> = {}): ComplianceMatrix => ({
   asOf: AS_OF,
   courses: [
@@ -201,16 +215,85 @@ export const matrix = (over: Partial<ComplianceMatrix> = {}): ComplianceMatrix =
   rows: [
     {
       department: 'Laboratoře',
-      headcount: 20,
+      headcount: 3,
       cells: {
-        'BOZP-Z': { counts: counts(), rate: 0.7 },
-        'LAB-BEZ': { counts: counts({ VALID: 0, EXPIRING: 0, EXPIRED: 0, MISSING: 4 }), rate: 0 },
+        'BOZP-Z': {
+          counts: counts({ VALID: 1, EXPIRING: 1, EXPIRED: 1, MISSING: 0 }),
+          rate: 2 / 3,
+        },
+        'LAB-BEZ': { counts: counts({ VALID: 0, EXPIRING: 0, EXPIRED: 0, MISSING: 2 }), rate: 0 },
       },
+      people: [
+        {
+          externalId: 'E0002',
+          name: 'Adámek Petr',
+          position: 'Laborant',
+          cells: {
+            'BOZP-Z': requirement(),
+            'LAB-BEZ': requirement({
+              ...LAB_BEZ,
+              status: 'MISSING',
+              completedOn: null,
+              validUntil: null,
+              daysLeft: null,
+            }),
+          },
+        },
+        {
+          externalId: 'E0153',
+          name: 'Černá Marie',
+          position: 'Laborantka',
+          cells: {
+            'BOZP-Z': requirement({
+              status: 'EXPIRED',
+              completedOn: '2024-09-01',
+              validUntil: '2026-09-01',
+              daysLeft: -45,
+              booked: { sessionExternalId: 'T016', startsAt: '2026-11-04T07:00:00.000Z' },
+            }),
+            'LAB-BEZ': requirement({
+              ...LAB_BEZ,
+              status: 'MISSING',
+              completedOn: null,
+              validUntil: null,
+              daysLeft: null,
+            }),
+          },
+        },
+        {
+          externalId: 'E0160',
+          name: 'Dvořák Tomáš',
+          position: null,
+          cells: {
+            'BOZP-Z': requirement({
+              status: 'EXPIRING',
+              completedOn: '2024-11-01',
+              validUntil: '2026-11-01',
+              daysLeft: 16,
+            }),
+            'LAB-BEZ': null,
+          },
+        },
+      ],
     },
     {
       department: 'Knihovna',
-      headcount: 8,
-      cells: { 'BOZP-Z': { counts: counts(), rate: 1 }, 'LAB-BEZ': null },
+      headcount: 1,
+      cells: {
+        'BOZP-Z': { counts: counts({ VALID: 1, EXPIRING: 0, EXPIRED: 0, MISSING: 0 }), rate: 1 },
+        'LAB-BEZ': null,
+      },
+      people: [
+        {
+          externalId: 'E0007',
+          name: 'Novák Jan',
+          position: 'Knihovník',
+          cells: {
+            'BOZP-Z': requirement({ validUntil: null, daysLeft: null }),
+            'LAB-BEZ': null,
+          },
+        },
+      ],
     },
   ],
   ...over,

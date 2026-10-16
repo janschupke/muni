@@ -121,6 +121,34 @@ describe('compliance', () => {
     expect(dashboard.rate).toBeLessThan(1)
   })
 
+  it('lists each department’s people, whose cells add up to the row and match their own list', async () => {
+    const matrix = await getComplianceMatrix(options)
+    for (const row of matrix.rows) {
+      expect(row.people).toHaveLength(row.headcount)
+      for (const course of matrix.courses) {
+        const cell = row.cells[course.code]
+        const held = row.people.map(p => p.cells[course.code]).filter(c => c !== null)
+        expect(held.length).toBe(cell?.counts.total ?? 0)
+        for (const status of ['VALID', 'EXPIRING', 'EXPIRED', 'MISSING'] as const)
+          expect(held.filter(c => c?.status === status).length).toBe(cell?.counts[status] ?? 0)
+      }
+    }
+    const lab = matrix.rows.find(r => r.department === 'Laboratoře')
+    const listed = await listEmployees(
+      { department: 'Laboratoře', status: 'ACTIVE', pageSize: 100 },
+      options
+    )
+    expect(lab?.people.map(p => p.externalId)).toEqual(listed.items.map(e => e.externalId))
+    for (const person of listed.items) {
+      const inMatrix = lab?.people.find(p => p.externalId === person.externalId)
+      expect(inMatrix?.name).toBe(`${person.lastName} ${person.firstName}`)
+      expect(inMatrix?.position).toBe(person.position)
+      expect(Object.values(inMatrix?.cells ?? {}).filter(c => c !== null)).toEqual(
+        person.requirements
+      )
+    }
+  })
+
   it('reflects a newly recorded completion', async () => {
     const before = await getEmployee('E0131', 'authenticated', options)
     const missing = before?.requirements.find(r => r.status === 'MISSING' || r.status === 'EXPIRED')
@@ -329,6 +357,27 @@ describe('assignments', () => {
       remediation: 'PLANNED_LATE',
       window: { from: addDays(need.validUntil, 1), until: '2027-02-03' },
     })
+    await removeAssignment('T018', need.employee.externalId, options)
+  })
+
+  it('shows a named booking in the matrix and the employee list', async () => {
+    const input = await getAdvisorInput(opts)
+    const need = input.needs.find(
+      n => n.course.code === 'BOZP-Z' && n.status === 'EXPIRED' && n.employee.status === 'ACTIVE'
+    )
+    if (!need) throw new Error('fixture: no active employee has an expired BOZP-Z')
+    await applyAssignments([manual('T018', need.employee.externalId)], 'user_test', opts)
+    const booked = { sessionExternalId: 'T018', startsAt: '2027-02-03T07:00:00.000Z' }
+
+    const matrix = await getComplianceMatrix(options)
+    const person = matrix.rows
+      .flatMap(r => r.people)
+      .find(p => p.externalId === need.employee.externalId)
+    expect(person?.cells['BOZP-Z']).toMatchObject({ status: 'EXPIRED', booked })
+    const listed = await listEmployees({ q: need.employee.externalId }, options)
+    expect(listed.items[0]?.requirements.find(r => r.courseCode === 'BOZP-Z')?.booked).toEqual(
+      booked
+    )
     await removeAssignment('T018', need.employee.externalId, options)
   })
 

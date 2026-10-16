@@ -1,10 +1,12 @@
 import { getEmployee, listEmployeeBookings } from '@muni/db/repositories'
+import { BarRow } from '@muni/ui/bar-row'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { SplitLayout } from '@muni/ui/layout'
+import { Meter } from '@muni/ui/meter'
 import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
@@ -21,7 +23,7 @@ import { BackLink } from '@/components/back-link'
 import { CompletionHistoryTable } from '@/components/completion-tables'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RoomLink, SessionDateLink } from '@/components/session-links'
-import { ComplianceBadge, EmploymentBadge } from '@/components/status-badges'
+import { ComplianceBadge, EmploymentBadge, rateTone } from '@/components/status-badges'
 import { getViewer } from '@/server/auth'
 
 type Props = { params: Promise<{ externalId: string }> }
@@ -50,6 +52,9 @@ export default async function EmployeePage({ params }: Props) {
   if (!employee) notFound()
   const canEdit = viewer === 'authenticated'
   const date = (value: string | null) => formatOptional(value, v => formatDate(v, locale))
+  const held = employee.requirements.filter(
+    r => r.status === 'VALID' || r.status === 'EXPIRING'
+  ).length
 
   return (
     <>
@@ -179,23 +184,39 @@ export default async function EmployeePage({ params }: Props) {
               {employee.requirements.length === 0 ? (
                 <EmptyState variant="inline" title={t('noRequirements')} />
               ) : (
-                <ItemList>
-                  {employee.requirements.map(r => (
-                    <ItemListRow key={r.courseCode}>
-                      <TextLink asChild emphasis>
-                        <Link href={`/courses/${r.courseCode}`}>{r.courseName}</Link>
-                      </TextLink>
-                      <span className="flex items-center gap-3 text-fg-muted">
-                        {r.validUntil && (
-                          <span>
-                            {tc('detail.validUntil')} {date(r.validUntil)}
-                          </span>
-                        )}
-                        <ComplianceBadge status={r.status} />
-                      </span>
-                    </ItemListRow>
-                  ))}
-                </ItemList>
+                <>
+                  <BarRow
+                    layout="inline"
+                    className="mb-3"
+                    bar={
+                      <Meter
+                        value={held}
+                        max={employee.requirements.length}
+                        label={te('columns.valid')}
+                        size="md"
+                        tone={rateTone(employee.completionRate)}
+                      />
+                    }
+                    value={te('validOf', { valid: held, total: employee.requirements.length })}
+                  />
+                  <ItemList>
+                    {employee.requirements.map(r => (
+                      <ItemListRow key={r.courseCode}>
+                        <TextLink asChild emphasis>
+                          <Link href={`/courses/${r.courseCode}`}>{r.courseName}</Link>
+                        </TextLink>
+                        <span className="flex items-center gap-3 text-fg-muted">
+                          {r.validUntil && (
+                            <span>
+                              {tc('detail.validUntil')} {date(r.validUntil)}
+                            </span>
+                          )}
+                          <ComplianceBadge status={r.status} />
+                        </span>
+                      </ItemListRow>
+                    ))}
+                  </ItemList>
+                </>
               )}
             </CardBody>
           </Card>

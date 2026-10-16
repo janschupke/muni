@@ -12,6 +12,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { expectNoAxeViolations } from '@/test/axe'
 import { getViewer, requirePageUser } from '@/server/auth'
 import { counts, courseDetail, courseRow, matrix } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
@@ -125,6 +126,7 @@ describe('course detail', () => {
     expect(screen.getByRole('link', { name: 'Edit session T016' }).getAttribute('href')).toBe(
       '/sessions/T016/edit'
     )
+    await expectNoAxeViolations()
   })
 
   it('says when nobody is required, nothing is scheduled and nobody has completed it', async () => {
@@ -150,6 +152,7 @@ describe('course detail', () => {
       'value',
       'BOZP – základní školení'
     )
+    await expectNoAxeViolations()
     vi.mocked(getCourseForEdit).mockResolvedValue(null)
     await expect(EditCoursePage(props)).rejects.toThrow(NotFoundError)
   })
@@ -159,12 +162,13 @@ describe('compliance matrix', () => {
   it('prints every percentage, and says where a course does not apply', async () => {
     expect(await complianceMetadata()).toEqual({ title: 'Compliance matrix' })
     await renderServer(CompliancePage())
-    const lab = screen.getByRole('row', { name: /Laboratoře/ })
-    expect(within(lab).getByText('70%')).toBeTruthy()
+    expect(screen.getByText(/Share of required trainings held.*Oct 16, 2026/)).toBeTruthy()
+    const lab = screen.getByRole('row', { name: /^Laboratoře/ })
+    expect(within(lab).getByText('67%')).toBeTruthy()
     expect(
-      within(lab).getByTitle('Laboratoře, Bezpečná práce v laboratoři: 0 of 4 held')
+      within(lab).getByTitle('Laboratoře, Bezpečná práce v laboratoři: 0 of 2 held')
     ).toBeTruthy()
-    const library = screen.getByRole('row', { name: /Knihovna/ })
+    const library = screen.getByRole('row', { name: /^Knihovna/ })
     expect(within(library).getByText('Not required')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'LAB-BEZ' }).getAttribute('href')).toBe(
       '/courses/LAB-BEZ'
@@ -185,5 +189,6 @@ describe('import page', () => {
     expect(requirePageUser).toHaveBeenCalled()
     expect(loadReferenceSnapshot).toHaveBeenCalledWith(getDb())
     expect(screen.getByRole('heading', { level: 1, name: 'Import' })).toBeTruthy()
+    await expectNoAxeViolations()
   })
 })

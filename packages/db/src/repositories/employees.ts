@@ -7,10 +7,11 @@ import {
 import type { ComplianceStatus, EmploymentStatus, Viewer } from '@muni/domain/enums'
 import { sanitizeRecord } from '@muni/domain/sanitize'
 import { fold } from '@muni/utils/text'
-import { diffInDays, isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
+import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
 import { dbOf, getPolicy, loadCompliance, type RepoOptions } from './context'
 import { sortEmployees, type EmployeeSortKey } from './employee-sort'
+import { loadNextBookings, requirementOf } from './requirements'
 
 export interface EmployeeListItem {
   externalId: string
@@ -63,7 +64,6 @@ export async function listEmployees(
   options?: RepoOptions
 ): Promise<Page<EmployeeListItem>> {
   const db = dbOf(options)
-  const now = new Date()
   const [employees, compliance, courses, bookings] = await Promise.all([
     db.employee.findMany({
       where: {
@@ -83,27 +83,10 @@ export async function listEmployees(
     }),
     loadCompliance(options),
     db.course.findMany({ select: { id: true, code: true, name: true } }),
-    db.sessionAssignment.findMany({
-      where: { session: { startsAt: { gt: now }, status: 'PLANNED' } },
-      select: {
-        employeeId: true,
-        session: { select: { externalId: true, startsAt: true, courseId: true } },
-      },
-      orderBy: { session: { startsAt: 'asc' } },
-    }),
+    loadNextBookings(db),
   ])
 
   const courseById = new Map(courses.map(c => [c.id, c]))
-  // First (soonest) booking per person and course.
-  const nextBooking = new Map<string, { sessionExternalId: string; startsAt: string }>()
-  for (const b of bookings) {
-    const key = `${b.employeeId}|${b.session.courseId}`
-    if (!nextBooking.has(key))
-      nextBooking.set(key, {
-        sessionExternalId: b.session.externalId,
-        startsAt: b.session.startsAt.toISOString(),
-      })
-  }
   const { asOf } = compliance.options
   const cellsByEmployee = Map.groupBy(compliance.cells, c => c.employeeId)
   const q = filters.q ? fold(filters.q) : ''
@@ -120,19 +103,7 @@ export async function listEmployees(
         compliance: worstStatus(cells.map(c => c.status)),
         counts: countStatuses(cells),
         requirements: cells
-          .map(c => {
-            const course = courseById.get(c.courseId)
-            const validUntil = c.basis?.validUntil ?? null
-            return {
-              courseCode: course?.code ?? '',
-              courseName: course?.name ?? '',
-              status: c.status,
-              completedOn: c.basis?.completedOn ?? null,
-              validUntil,
-              daysLeft: validUntil === null ? null : diffInDays(asOf, validUntil),
-              booked: nextBooking.get(`${e.id}|${c.courseId}`) ?? null,
-            }
-          })
+          .map(c => requirementOf(c, courseById.get(c.courseId), asOf, bookings))
           .sort((a, b) => a.courseCode.localeCompare(b.courseCode)),
       }
     })

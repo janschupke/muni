@@ -25,7 +25,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [locale, viewer] = await Promise.all([getLocale(), getViewer()])
+  const [locale, viewer, t] = await Promise.all([
+    getLocale(),
+    getViewer(),
+    getTranslations('common'),
+  ])
 
   const page = (
     <html lang={locale} suppressHydrationWarning>
@@ -36,10 +40,18 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="flex min-h-dvh flex-col">
         <NextIntlClientProvider>
           <TooltipProvider>
+            <a
+              href="#main"
+              className="sr-only rounded-md bg-surface-overlay px-4 py-2 text-sm font-medium text-fg shadow-overlay focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50"
+            >
+              {t('skipToContent')}
+            </a>
             <AppHeader viewer={viewer} />
             <NavigationHistory>
               <Container asChild className="flex-1 py-8">
-                <main>{children}</main>
+                <main id="main" tabIndex={-1} className="outline-none">
+                  {children}
+                </main>
               </Container>
             </NavigationHistory>
             <AppFooter viewer={viewer} />

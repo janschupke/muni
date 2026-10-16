@@ -15,7 +15,7 @@ import { useMemo, useTransition } from 'react'
 import { withParams } from '@/lib/search-params'
 
 import { RequirementPanel } from './requirement-panel'
-import { ComplianceBadge, EmploymentBadge } from './status-badges'
+import { ComplianceBadge, EmploymentBadge, rateTone } from './status-badges'
 
 const col = createDataColumns<EmployeeListItem>()
 
@@ -95,7 +95,14 @@ export function EmployeesTable({
             return (
               <BarRow
                 layout="inline"
-                bar={<Meter value={held} max={counts.total} label={t('columns.valid')} />}
+                bar={
+                  <Meter
+                    value={held}
+                    max={counts.total}
+                    label={t('columns.valid')}
+                    tone={rateTone(held / counts.total)}
+                  />
+                }
                 value={t('validOf', { valid: held, total: counts.total })}
               />
             )

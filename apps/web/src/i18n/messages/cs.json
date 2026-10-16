@@ -23,7 +23,9 @@
     "readOnly": "Prohlížíte veřejný registr jen pro čtení. Pro úpravy a import se přihlaste.",
     "free": "Zdarma",
     "choose": "Vyberte…",
-    "pagination": "Stránkování"
+    "pagination": "Stránkování",
+    "close": "Zavřít",
+    "skipToContent": "Přeskočit na obsah"
   },
   "nav": {
     "primary": "Hlavní navigace",
@@ -216,7 +218,8 @@
       "status": "Stav",
       "price": "Cena za osobu",
       "seats": "Místa"
-    }
+    },
+    "nearlyFull": "Téměř plno"
   },
   "compliance": {
     "title": "Matice plnění",
@@ -226,8 +229,31 @@
     "notApplicable": "Nepovinné",
     "cellTitle": "{department}, {course}: splněno {held} z {total}",
     "empty": "Zatím nejsou definované žádné povinné kurzy.",
-    "legendFull": "splněno 100 %",
-    "legendPoor": "splněno ≤ 50 %"
+    "bands": {
+      "label": "Barevná pásma",
+      "full": "{value}",
+      "range": "{from}–{to}",
+      "below": "Pod {value}"
+    },
+    "toggle": "Lidé v útvaru {department}",
+    "person": {
+      "cell": "{course}: {status}",
+      "validUntil": "platí do {date}",
+      "booked": "přihlášen na {date}",
+      "legend": "V řádcích osob:",
+      "bookedLegend": "Přihlášen na termín"
+    },
+    "detail": {
+      "title": "{department} · {course}",
+      "open": "{department}, {course}: {rate}, zobrazit lidi",
+      "name": "Jméno",
+      "status": "Stav",
+      "validUntil": "Platí do",
+      "booked": "Přihlášený termín",
+      "course": "Detail kurzu",
+      "employees": "Všichni z útvaru {department}",
+      "summary": "Splňuje {held} z {total} osob ({rate})"
+    }
   },
   "forms": {
     "errors": {

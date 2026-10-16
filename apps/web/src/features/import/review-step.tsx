@@ -8,11 +8,27 @@ import { Hint } from '@muni/ui/field'
 import { StatCard } from '@muni/ui/stat-card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@muni/ui/tabs'
 import { formatInteger } from '@muni/utils/format'
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
+  GraduationCap,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 import { useLocale } from 'next-intl'
 import { useMemo, useState } from 'react'
 
 import { ReviewTable, type IndexedRow } from './review-table'
 import { useImportText } from './use-issue-text'
+
+const KIND_ICON: Record<DatasetKind, LucideIcon> = {
+  courses: BookOpen,
+  employees: Users,
+  sessions: CalendarDays,
+  completions: GraduationCap,
+}
 
 type Filter = 'all' | 'valid' | 'errors' | 'warnings' | 'removed'
 const PAGE_SIZE = 50
@@ -159,8 +175,10 @@ export function ReviewStep({
         <TabsList>
           {kinds.map(kind => {
             const s = summarize(batch[kind] ?? [])
+            const Icon = KIND_ICON[kind]
             return (
               <TabsTrigger key={kind} value={kind}>
+                <Icon aria-hidden />
                 {t(`kinds.${kind}`)}
                 <Badge>{s.total}</Badge>
                 {s.invalid > 0 && <Badge tone="danger">{s.invalid}</Badge>}
@@ -190,9 +208,13 @@ export function ReviewStep({
         ))}
       </Tabs>
       <div className="flex gap-2">
-        <Button onClick={onBack}>{t('review.back')}</Button>
+        <Button onClick={onBack}>
+          <ArrowLeft aria-hidden />
+          {t('review.back')}
+        </Button>
         <Button variant="primary" onClick={onNext}>
           {t('review.next')}
+          <ArrowRight aria-hidden />
         </Button>
       </div>
     </div>

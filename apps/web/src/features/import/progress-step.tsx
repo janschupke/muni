@@ -5,6 +5,7 @@ import { Alert } from '@muni/ui/alert'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody } from '@muni/ui/card'
 import { Meter } from '@muni/ui/meter'
+import { RotateCcw } from 'lucide-react'
 
 import { useImportText } from './use-issue-text'
 
@@ -42,7 +43,10 @@ export function ProgressStep({ job, onReset }: { job: ImportJob; onReset: () => 
             <p className="text-fg-muted">{t('progress.partial', { count: job.written })}</p>
           )}
           <div>
-            <Button onClick={onReset}>{t('progress.again')}</Button>
+            <Button onClick={onReset}>
+              <RotateCcw aria-hidden />
+              {t('progress.again')}
+            </Button>
           </div>
         </CardBody>
       </Card>
@@ -69,6 +73,7 @@ export function ProgressStep({ job, onReset }: { job: ImportJob; onReset: () => 
         </ul>
         <div>
           <Button variant="primary" onClick={onReset}>
+            <RotateCcw aria-hidden />
             {t('progress.again')}
           </Button>
         </div>

@@ -245,6 +245,7 @@ describe('badges and small panels', () => {
     expect(screen.getByText('Parental leave')).toBeTruthy()
     expect(screen.getByText('Cancelled')).toBeTruthy()
     expect(screen.queryByText('Full')).toBeNull()
+    expect(screen.queryByText('Almost full')).toBeNull()
     expect(screen.getByText('Nothing is required of this person.')).toBeTruthy()
   })
 
@@ -276,6 +277,37 @@ describe('badges and small panels', () => {
     const missing = screen.getByRole('row', { name: /Ochrana/ })
     expect(within(missing).getAllByText('—')).toHaveLength(3)
     expect(screen.getByText('Nov 1, 2026')).toBeTruthy()
+  })
+})
+
+describe('seat occupancy', () => {
+  it.each([
+    [24, 30, 'Almost full', 'text-warning-fg', 'bg-warning-fill'],
+    [30, 30, 'Full', 'text-warning-fg', 'bg-warning-fill'],
+    [31, 30, 'Overbooked', 'text-danger-fg', 'bg-danger-fill'],
+  ])(
+    '%i of %i is “%s” in its signal colour, badge and meter alike',
+    (booked, capacity, label, ink, fill) => {
+      renderClient(
+        <SessionTable
+          sessions={[session({ bookedCount: booked, unnamedBookings: booked - 1, capacity })]}
+          canEdit={false}
+        />
+      )
+      expect(screen.getByText(label).className).toContain(ink)
+      expect(screen.getByRole('meter').firstElementChild?.className).toContain(fill)
+    }
+  )
+
+  it('stays brand blue and unlabelled while there is room', () => {
+    renderClient(
+      <SessionTable
+        sessions={[session({ bookedCount: 23, unnamedBookings: 22, capacity: 30 })]}
+        canEdit={false}
+      />
+    )
+    expect(screen.getByRole('meter').firstElementChild?.className).toContain('bg-accent')
+    expect(screen.queryByText(/full|Overbooked/i)).toBeNull()
   })
 })
 

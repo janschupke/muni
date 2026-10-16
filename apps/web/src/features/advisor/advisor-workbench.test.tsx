@@ -11,6 +11,7 @@ import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { expectNoAxeViolations } from '@/test/axe'
 import en from '@/i18n/messages/en.json'
 
 import { AdvisorWorkbench } from './advisor-workbench'
@@ -166,6 +167,7 @@ describe('AdvisorWorkbench', () => {
   it('saves a proposal as an advisor booking', async () => {
     const user = userEvent.setup()
     renderWorkbench({ view: 'action', canApply: true })
+    await expectNoAxeViolations()
     await user.click(
       screen.getByRole('button', {
         name: 'Book Adámek Petr on BOZP – základní školení, Nov 20, 2026',

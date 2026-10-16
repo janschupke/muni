@@ -56,7 +56,17 @@ export function RequirementPanel({ requirements }: { requirements: EmployeeListR
             <Td nowrap>
               {r.completedOn === null ? PLACEHOLDER : formatDate(r.completedOn, locale)}
             </Td>
-            <Td nowrap>{r.booked ? formatDateTime(r.booked.startsAt, locale) : PLACEHOLDER}</Td>
+            <Td nowrap>
+              {r.booked ? (
+                <TextLink asChild>
+                  <Link href={`/sessions/${r.booked.sessionExternalId}`}>
+                    {formatDateTime(r.booked.startsAt, locale)}
+                  </Link>
+                </TextLink>
+              ) : (
+                PLACEHOLDER
+              )}
+            </Td>
           </tr>
         ))}
       </TBody>

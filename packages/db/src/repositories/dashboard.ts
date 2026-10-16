@@ -1,6 +1,9 @@
 import { complianceRate, countStatuses, type ComplianceCounts } from '@muni/domain/compliance'
 
 import { dbOf, loadCompliance, type RepoOptions } from './context'
+import { compareNames } from './employee-sort'
+import type { EmployeeListRequirement } from './employees'
+import { loadNextBookings, requirementOf } from './requirements'
 import { listSessions } from './sessions'
 import type { SessionListItem } from './courses'
 
@@ -58,17 +61,32 @@ export async function getDashboard(options?: RepoOptions): Promise<DashboardData
 export interface ComplianceMatrix {
   asOf: string
   courses: { code: string; name: string }[]
-  rows: {
-    department: string
-    headcount: number
-    cells: Record<string, { counts: ComplianceCounts; rate: number } | null>
-  }[]
+  rows: ComplianceMatrixRow[]
 }
 
-/** Department × mandatory course. A null cell means the course does not apply there. */
+export interface ComplianceMatrixRow {
+  department: string
+  headcount: number
+  cells: Record<string, { counts: ComplianceCounts; rate: number } | null>
+  /** The department's active people, by name; their cells add up to the row's counts. */
+  people: ComplianceMatrixPerson[]
+}
+
+export interface ComplianceMatrixPerson {
+  externalId: string
+  name: string
+  position: string | null
+  /** Per course code; null where the course is not required of this person. */
+  cells: Record<string, EmployeeListRequirement | null>
+}
+
+/**
+ * Department × mandatory course, active people only. A null cell means the course does
+ * not apply there. Each row also carries its people, for the row and cell details.
+ */
 export async function getComplianceMatrix(options?: RepoOptions): Promise<ComplianceMatrix> {
   const db = dbOf(options)
-  const [compliance, departments, courses] = await Promise.all([
+  const [compliance, departments, courses, people, bookings] = await Promise.all([
     loadCompliance(options),
     db.department.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
     db.course.findMany({
@@ -76,12 +94,27 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
       select: { id: true, code: true, name: true },
       orderBy: { code: 'asc' },
     }),
+    db.employee.findMany({
+      where: { status: 'ACTIVE' },
+      select: {
+        id: true,
+        externalId: true,
+        firstName: true,
+        lastName: true,
+        departmentId: true,
+        position: { select: { name: true } },
+      },
+    }),
+    loadNextBookings(db),
   ])
   const active = compliance.employees.filter(e => e.status === 'ACTIVE')
   const activeIds = new Set(active.map(e => e.id))
   const departmentOf = new Map(active.map(e => [e.id, e.departmentId]))
   const cells = compliance.cells.filter(c => activeIds.has(c.employeeId))
   const byPair = Map.groupBy(cells, c => `${departmentOf.get(c.employeeId) ?? ''}|${c.courseId}`)
+  const cellsByPerson = Map.groupBy(cells, c => c.employeeId)
+  const peopleByDepartment = Map.groupBy(people.toSorted(compareNames), p => p.departmentId)
+  const { asOf } = compliance.options
 
   return {
     asOf: compliance.options.asOf,
@@ -98,6 +131,20 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
             return [course.code, { counts, rate: complianceRate(counts) }]
           })
         ),
+        people: (peopleByDepartment.get(d.id) ?? []).map(p => {
+          const own = new Map((cellsByPerson.get(p.id) ?? []).map(c => [c.courseId, c]))
+          return {
+            externalId: p.externalId,
+            name: `${p.lastName} ${p.firstName}`,
+            position: p.position?.name ?? null,
+            cells: Object.fromEntries(
+              courses.map(course => {
+                const cell = own.get(course.id)
+                return [course.code, cell ? requirementOf(cell, course, asOf, bookings) : null]
+              })
+            ),
+          }
+        }),
       }))
       .filter(r => r.headcount > 0),
   }

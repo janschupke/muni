@@ -1,5 +1,8 @@
+import { complianceBand, type ComplianceBand } from '@muni/domain/compliance'
 import type { ComplianceStatus, EmploymentStatus, SessionStatus } from '@muni/domain/enums'
+import { occupancy, type Occupancy } from '@muni/domain/sessions'
 import { Badge, type BadgeTone } from '@muni/ui/badge'
+import type { MeterTone } from '@muni/ui/meter'
 import {
   Baby,
   CalendarCheck,
@@ -19,7 +22,7 @@ import { useTranslations } from 'next-intl'
 // Status colours always come with an icon and a label, never colour alone.
 // These use `useTranslations`, so they render both in server components and in client tables.
 
-const COMPLIANCE: Record<ComplianceStatus, { tone: BadgeTone; Icon: LucideIcon }> = {
+export const COMPLIANCE: Record<ComplianceStatus, { tone: BadgeTone; Icon: LucideIcon }> = {
   VALID: { tone: 'success', Icon: CircleCheck },
   EXPIRING: { tone: 'warning', Icon: Clock },
   EXPIRED: { tone: 'serious', Icon: TriangleAlert },
@@ -80,24 +83,43 @@ export function SessionStatusBadge({ status }: { status: SessionStatus }) {
   )
 }
 
-/** Over capacity, or exactly full; nothing otherwise. */
+// A rate in green (held), yellow (slipping) or red (action needed); the rate is always printed too.
+const BAND_TONE: Record<ComplianceBand, 'success' | 'warning' | 'danger'> = {
+  FULL: 'success',
+  HIGH: 'success',
+  FAIR: 'warning',
+  LOW: 'danger',
+  POOR: 'danger',
+}
+
+/** The signal tone of a share of required trainings held (meters, the overview card). */
+export const rateTone = (rate: number) => BAND_TONE[complianceBand(rate)]
+
+const OCCUPANCY: Record<
+  Exclude<Occupancy, 'OPEN'>,
+  { tone: BadgeTone; Icon: LucideIcon; key: 'nearlyFull' | 'full' | 'overbooked' }
+> = {
+  NEARLY_FULL: { tone: 'warning', Icon: Users, key: 'nearlyFull' },
+  FULL: { tone: 'warning', Icon: Users, key: 'full' },
+  OVERBOOKED: { tone: 'danger', Icon: TriangleAlert, key: 'overbooked' },
+}
+
+/** Seat meter colour: brand blue while there is room, yellow when (nearly) full, red over. */
+export function seatTone(booked: number, capacity: number): MeterTone {
+  const state = occupancy(booked, capacity)
+  return state === 'OPEN' ? 'accent' : state === 'OVERBOOKED' ? 'danger' : 'warning'
+}
+
+/** Nearly full, full or over capacity; nothing while there is room. */
 export function OccupancyBadge({ booked, capacity }: { booked: number; capacity: number }) {
   const t = useTranslations('sessions')
-  if (booked > capacity) {
-    return (
-      <Badge tone="danger">
-        <TriangleAlert aria-hidden />
-        {t('overbooked')}
-      </Badge>
-    )
-  }
-  if (capacity > 0 && booked === capacity) {
-    return (
-      <Badge tone="neutral">
-        <Users aria-hidden />
-        {t('full')}
-      </Badge>
-    )
-  }
-  return null
+  const state = occupancy(booked, capacity)
+  if (state === 'OPEN') return null
+  const { tone, Icon, key } = OCCUPANCY[state]
+  return (
+    <Badge tone={tone}>
+      <Icon aria-hidden />
+      {t(key)}
+    </Badge>
+  )
 }

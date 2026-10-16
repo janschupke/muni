@@ -15,6 +15,7 @@
     "coverage": "turbo run test:coverage",
     "test:integration": "pnpm --filter @muni/db test:integration",
     "test:e2e": "pnpm --filter @muni/web test:e2e",
+    "test:lighthouse": "pnpm --filter @muni/web test:lighthouse",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip --no-config-hints",

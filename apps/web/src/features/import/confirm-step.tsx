@@ -10,6 +10,7 @@ import {
 import { Alert } from '@muni/ui/alert'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
+import { ArrowLeft, Play } from 'lucide-react'
 
 import { useImportText } from './use-issue-text'
 
@@ -50,8 +51,12 @@ export function ConfirmStep({
           </Alert>
         )}
         <div className="flex gap-2 pt-2">
-          <Button onClick={onBack}>{t('confirm.back')}</Button>
+          <Button onClick={onBack}>
+            <ArrowLeft aria-hidden />
+            {t('confirm.back')}
+          </Button>
           <Button variant="primary" disabled={total === 0} onClick={onStart}>
+            <Play aria-hidden />
             {t('confirm.start', { count: total })}
           </Button>
         </div>
