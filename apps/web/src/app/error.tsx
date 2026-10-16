@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@muni/ui/button'
+import { PageMessage } from '@muni/ui/page-message'
 import { useTranslations } from 'next-intl'
 
 export default function ErrorPage({
@@ -11,12 +12,14 @@ export default function ErrorPage({
 }) {
   const t = useTranslations('errors')
   return (
-    <div className="py-16 text-center">
-      <h1 className="text-2xl font-semibold">{t('errorTitle')}</h1>
-      <p className="mt-2 text-fg-muted">{t('errorBody')}</p>
-      <Button variant="primary" className="mt-6" onClick={reset}>
-        {t('retry')}
-      </Button>
-    </div>
+    <PageMessage
+      title={t('errorTitle')}
+      description={t('errorBody')}
+      actions={
+        <Button variant="primary" onClick={reset}>
+          {t('retry')}
+        </Button>
+      }
+    />
   )
 }

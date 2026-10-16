@@ -1,0 +1,117 @@
+'use client'
+
+import { COMPLIANCE_STATUSES, EMPLOYMENT_STATUSES } from '@muni/domain/enums'
+import { Button } from '@muni/ui/button'
+import { Field, Input } from '@muni/ui/field'
+import { Select } from '@muni/ui/select'
+import { Toolbar, ToolbarSummary } from '@muni/ui/toolbar'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { useTransition } from 'react'
+
+import { withParams } from '@/lib/search-params'
+
+type Query = Record<string, string | undefined>
+
+/**
+ * Search and filters for the employee list, kept in the URL. A select applies as soon as it
+ * changes; the search applies on submit. Any change returns to the first page.
+ */
+export function EmployeeFilters({
+  query,
+  departments,
+  total,
+}: {
+  /** Every current URL parameter (filters and sort). */
+  query: Query
+  departments: string[]
+  total: number
+}) {
+  const t = useTranslations('employees')
+  const ts = useTranslations('status')
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+
+  const apply = (changes: Query) => {
+    startTransition(() => {
+      router.replace(withParams('/employees', query, { ...changes, page: undefined }), {
+        scroll: false,
+      })
+    })
+  }
+
+  return (
+    <Toolbar asChild>
+      <form
+        role="search"
+        aria-busy={pending}
+        onSubmit={event => {
+          event.preventDefault()
+          const q = new FormData(event.currentTarget).get('q')
+          apply({ q: typeof q === 'string' ? q.trim() : undefined })
+        }}
+      >
+        <Field label={t('search')} className="w-56">
+          {control => (
+            <Input
+              {...control}
+              // Remount when the URL's query changes (reset, back) so the field follows it.
+              key={query.q ?? ''}
+              type="search"
+              name="q"
+              defaultValue={query.q}
+              placeholder={t('searchPlaceholder')}
+            />
+          )}
+        </Field>
+        <Field label={t('filters.department')} className="w-52">
+          {control => (
+            <Select
+              {...control}
+              value={query.department ?? ''}
+              onValueChange={department => {
+                apply({ department })
+              }}
+              emptyLabel={t('filters.any')}
+              options={departments.map(d => ({ value: d, label: d }))}
+            />
+          )}
+        </Field>
+        <Field label={t('filters.status')} className="w-40">
+          {control => (
+            <Select
+              {...control}
+              value={query.status ?? ''}
+              onValueChange={status => {
+                apply({ status })
+              }}
+              emptyLabel={t('filters.any')}
+              options={EMPLOYMENT_STATUSES.map(s => ({ value: s, label: ts(`employment.${s}`) }))}
+            />
+          )}
+        </Field>
+        <Field label={t('filters.compliance')} className="w-40">
+          {control => (
+            <Select
+              {...control}
+              value={query.compliance ?? ''}
+              onValueChange={compliance => {
+                apply({ compliance })
+              }}
+              emptyLabel={t('filters.any')}
+              options={COMPLIANCE_STATUSES.map(s => ({ value: s, label: ts(`compliance.${s}`) }))}
+            />
+          )}
+        </Field>
+        <Button type="submit" variant="primary">
+          {t('filters.apply')}
+        </Button>
+        <Button asChild variant="ghost">
+          <Link href="/employees">{t('filters.reset')}</Link>
+        </Button>
+        <ToolbarSummary>{t('total', { count: total })}</ToolbarSummary>
+      </form>
+    </Toolbar>
+  )
+}

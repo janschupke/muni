@@ -21,7 +21,9 @@
     "viewAll": "View all",
     "signIn": "Sign in",
     "readOnly": "You are viewing the public read-only register. Sign in to edit or import.",
-    "free": "Free"
+    "free": "Free",
+    "choose": "Choose…",
+    "pagination": "Pages"
   },
   "nav": {
     "primary": "Main navigation",
@@ -133,6 +135,7 @@
   "courses": {
     "title": "Courses",
     "description": "The training catalogue and who each course applies to.",
+    "empty": "No courses yet. Import the course catalogue to start.",
     "columns": {
       "code": "Code",
       "name": "Course",

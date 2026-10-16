@@ -1,12 +1,17 @@
-import type { HTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from 'react'
+import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react'
 
 import { cn } from '../cn'
 
+/**
+ * The scroll box around a table. `relative` makes it the containing block of absolutely
+ * positioned descendants (the `sr-only` labels in cells), so its overflow clips them too;
+ * without it they sit outside the box and stretch the page sideways on phones.
+ */
 export function TableContainer({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        'overflow-x-auto rounded-lg border border-border-default bg-surface-elevated',
+        'relative overflow-x-auto rounded-lg border border-border-default bg-surface-elevated',
         className
       )}
       {...props}
@@ -14,8 +19,22 @@ export function TableContainer({ className, ...props }: HTMLAttributes<HTMLDivEl
   )
 }
 
-export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
-  return <table className={cn('w-full border-collapse text-sm', className)} {...props} />
+export function Table({
+  className,
+  density = 'default',
+  ...props
+}: HTMLAttributes<HTMLTableElement> & { density?: 'default' | 'compact' }) {
+  return (
+    <table
+      className={cn(
+        'w-full border-collapse text-sm',
+        // Overrides the cells' own padding (descendant selectors outrank their utilities).
+        density === 'compact' && '[&_td]:px-2 [&_td]:py-1 [&_th]:px-2 [&_th]:py-1',
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
 export function THead({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
@@ -35,12 +54,39 @@ export function Tr({ className, ...props }: HTMLAttributes<HTMLTableRowElement>)
   return <tr className={cn('transition-colors hover:bg-state-hover', className)} {...props} />
 }
 
-export function Th({ className, scope = 'col', ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
+export interface CellLayout {
+  /** `right` also switches to tabular figures, for numbers and amounts. */
+  align?: 'left' | 'right'
+  nowrap?: boolean
+  /** Pins the column while the table scrolls sideways. */
+  sticky?: 'left' | 'right'
+}
+
+function cellLayout({ align, nowrap, sticky }: CellLayout) {
+  return cn(
+    align === 'right' && 'text-right tabular-nums',
+    nowrap && 'whitespace-nowrap',
+    sticky === 'left' && 'sticky left-0',
+    sticky === 'right' && 'sticky right-0'
+  )
+}
+
+export function Th({
+  className,
+  scope = 'col',
+  align,
+  nowrap,
+  sticky,
+  ...props
+}: ThHTMLAttributes<HTMLTableCellElement> & CellLayout) {
   return (
     <th
       scope={scope}
       className={cn(
-        'border-b border-border-default px-3 py-2 font-medium whitespace-nowrap',
+        // Row headers sit outside <thead>, so they need their own alignment.
+        'border-b border-border-default px-3 py-2 text-left font-medium whitespace-nowrap',
+        cellLayout({ align, nowrap, sticky }),
+        sticky && 'z-20 bg-surface-sunken',
         className
       )}
       {...props}
@@ -48,6 +94,32 @@ export function Th({ className, scope = 'col', ...props }: ThHTMLAttributes<HTML
   )
 }
 
-export function Td({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn('px-3 py-2 align-middle text-fg', className)} {...props} />
+export function Td({
+  className,
+  align,
+  nowrap,
+  sticky,
+  ...props
+}: TdHTMLAttributes<HTMLTableCellElement> & CellLayout) {
+  return (
+    <td
+      className={cn(
+        'px-3 py-2 align-middle text-fg',
+        cellLayout({ align, nowrap, sticky }),
+        sticky && 'z-[1] bg-surface-elevated',
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+/** A cell's primary content with a quieter line under it (`Name` / `E0001`). */
+export function CellStack({ title, meta }: { title: ReactNode; meta?: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      {title}
+      {meta !== undefined && <div className="text-xs text-fg-subtle">{meta}</div>}
+    </div>
+  )
 }

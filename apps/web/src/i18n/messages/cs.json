@@ -21,7 +21,9 @@
     "viewAll": "Zobrazit vše",
     "signIn": "Přihlásit se",
     "readOnly": "Prohlížíte veřejný registr jen pro čtení. Pro úpravy a import se přihlaste.",
-    "free": "Zdarma"
+    "free": "Zdarma",
+    "choose": "Vyberte…",
+    "pagination": "Stránkování"
   },
   "nav": {
     "primary": "Hlavní navigace",
@@ -133,6 +135,7 @@
   "courses": {
     "title": "Kurzy",
     "description": "Katalog školení a pro koho je které povinné.",
+    "empty": "Zatím žádná školení. Začněte importem katalogu školení.",
     "columns": {
       "code": "Kód",
       "name": "Kurz",

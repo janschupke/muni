@@ -1,14 +1,16 @@
+import { cva, type VariantProps } from 'class-variance-authority'
 import {
   useId,
+  type HTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
-  type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react'
 
 import { cn } from '../cn'
 
-const control =
+/** Shared by Input, Textarea and the Select trigger. */
+export const controlClass =
   'w-full rounded-md border border-border-default bg-surface-elevated px-3 py-2 text-sm text-fg placeholder:text-fg-subtle hover:border-border-emphasis aria-invalid:border-danger-fill disabled:opacity-60'
 
 /**
@@ -71,14 +73,40 @@ export function Field({
   )
 }
 
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn(control, 'h-9', className)} {...props} />
-}
+const inputClass = cva(controlClass, {
+  variants: {
+    size: {
+      md: 'h-9',
+      sm: 'h-8 py-1',
+      /** Borderless editor that fills a table cell. */
+      cell: 'h-auto min-w-24 rounded-none border-0 px-2 py-1.5 text-xs outline-2 outline-focus-ring',
+    },
+  },
+  defaultVariants: { size: 'md' },
+})
 
-export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={cn(control, 'h-9 py-0', className)} {...props} />
+export function Input({
+  className,
+  size,
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> & VariantProps<typeof inputClass>) {
+  return <input className={cn(inputClass({ size }), className)} {...props} />
 }
 
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={cn(control, 'min-h-20', className)} {...props} />
+  return <textarea className={cn(controlClass, 'min-h-20', className)} {...props} />
+}
+
+/** Fields side by side from `sm`, stacked on phones. */
+export function FieldRow({ columns = 2, children }: { columns?: 2 | 3; children: ReactNode }) {
+  return (
+    <div className={cn('grid gap-4', columns === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
+      {children}
+    </div>
+  )
+}
+
+/** Quiet explanatory text next to a control or above a table. */
+export function Hint({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={cn('text-xs text-fg-subtle', className)} {...props} />
 }

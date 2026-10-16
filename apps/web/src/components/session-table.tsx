@@ -1,15 +1,22 @@
+'use client'
+
 import type { SessionListItem } from '@muni/db/repositories'
+import { Button } from '@muni/ui/button'
+import { createDataColumns, DataTable } from '@muni/ui/data-table'
 import { Meter } from '@muni/ui/meter'
-import { Table, TableContainer, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
-import { APP_TIME_ZONE } from '@muni/utils/dates'
-import { formatCzk, formatDateTime, formatTime } from '@muni/utils/format'
+import { CellStack } from '@muni/ui/table'
+import { TextLink } from '@muni/ui/text-link'
+import { formatCurrency, formatOptional, formatTimeRange } from '@muni/utils/format'
 import { Pencil, Wifi } from 'lucide-react'
 import Link from 'next/link'
-import { getLocale, getTranslations } from 'next-intl/server'
+import { useLocale, useTranslations } from 'next-intl'
+import { useMemo } from 'react'
 
-import { SessionStatusBadge } from './status-badges'
+import { OccupancyBadge, SessionStatusBadge } from './status-badges'
 
-export async function SessionTable({
+const col = createDataColumns<SessionListItem>()
+
+export function SessionTable({
   sessions,
   canEdit,
   showCourse = true,
@@ -18,107 +25,128 @@ export async function SessionTable({
   sessions: SessionListItem[]
   canEdit: boolean
   showCourse?: boolean
-  /** Course, time and occupancy only (dashboard). */
+  /** Course, time and occupancy only, not sortable (dashboard). */
   compact?: boolean
 }) {
-  const [t, tc, locale] = await Promise.all([
-    getTranslations('sessions'),
-    getTranslations('common'),
-    getLocale(),
-  ])
-  return (
-    <TableContainer>
-      <Table>
-        <THead>
-          <tr>
-            {showCourse && <Th>{t('columns.course')}</Th>}
-            <Th>{t('columns.date')}</Th>
-            {!compact && <Th>{t('columns.location')}</Th>}
-            <Th className="w-48">{t('columns.capacity')}</Th>
-            {!compact && <Th className="text-right">{t('columns.price')}</Th>}
-            {!compact && <Th>{t('columns.status')}</Th>}
-            {canEdit && !compact && (
-              <Th className="w-0">
-                <span className="sr-only">{tc('edit')}</span>
-              </Th>
-            )}
-          </tr>
-        </THead>
-        <TBody>
-          {sessions.map(s => {
-            const over = s.bookedCount > s.capacity
-            const full = !over && s.capacity > 0 && s.bookedCount === s.capacity
-            return (
-              <Tr
-                key={s.externalId}
-                className={s.status === 'CANCELLED' ? 'text-fg-subtle' : undefined}
-              >
-                {showCourse && (
-                  <Td>
-                    <Link href={`/courses/${s.courseCode}`} className="font-medium hover:underline">
-                      {s.courseName}
-                    </Link>
-                    <div className="text-xs text-fg-subtle">
-                      {s.courseCode} · {s.externalId}
-                    </div>
-                  </Td>
-                )}
-                <Td className="whitespace-nowrap">
-                  {`${formatDateTime(s.startsAt, locale, APP_TIME_ZONE)}–${formatTime(s.endsAt, locale, APP_TIME_ZONE)}`}
-                </Td>
-                {!compact && (
-                  <Td>
-                    <span className="inline-flex items-center gap-1.5">
-                      {s.isOnline && (
-                        <Wifi aria-label={tc('online')} className="size-3.5 text-fg-muted" />
-                      )}
-                      {s.location}
-                    </span>
-                  </Td>
-                )}
-                <Td>
-                  <div className="flex items-center gap-2">
-                    <Meter
-                      value={s.bookedCount}
-                      max={s.capacity}
-                      label={t('columns.capacity')}
-                      className="w-20"
-                    />
-                    <span className="text-xs whitespace-nowrap tabular-nums">
-                      {t('booked', { booked: s.bookedCount, capacity: s.capacity })}
-                    </span>
-                    {over && (
-                      <span className="text-xs font-medium text-danger-fg">{t('overbooked')}</span>
+  const t = useTranslations('sessions')
+  const tc = useTranslations('common')
+  const locale = useLocale()
+
+  const columns = useMemo(
+    () =>
+      col.columns([
+        ...(showCourse
+          ? [
+              col.accessor('courseName', {
+                id: 'course',
+                header: t('columns.course'),
+                sortFn: 'text',
+                cell: ({ row }) => (
+                  <CellStack
+                    title={
+                      <TextLink asChild emphasis>
+                        <Link href={`/courses/${row.original.courseCode}`}>
+                          {row.original.courseName}
+                        </Link>
+                      </TextLink>
+                    }
+                    meta={`${row.original.courseCode} · ${row.original.externalId}`}
+                  />
+                ),
+              }),
+            ]
+          : []),
+        col.accessor(s => Date.parse(s.startsAt), {
+          id: 'date',
+          header: t('columns.date'),
+          sortFn: 'basic',
+          meta: { nowrap: true },
+          cell: ({ row }) => formatTimeRange(row.original.startsAt, row.original.endsAt, locale),
+        }),
+        ...(compact
+          ? []
+          : [
+              col.accessor('location', {
+                header: t('columns.location'),
+                sortFn: 'text',
+                cell: ({ row }) => (
+                  <span className="inline-flex items-center gap-1.5">
+                    {row.original.isOnline && (
+                      <Wifi aria-label={tc('online')} className="size-3.5 text-fg-muted" />
                     )}
-                    {full && <span className="text-xs text-fg-muted">{t('full')}</span>}
-                  </div>
-                </Td>
-                {!compact && (
-                  <Td className="text-right whitespace-nowrap tabular-nums">
-                    {s.pricePerPerson === null ? tc('notSet') : formatCzk(s.pricePerPerson, locale)}
-                  </Td>
-                )}
-                {!compact && (
-                  <Td>
-                    <SessionStatusBadge status={s.status} />
-                  </Td>
-                )}
-                {canEdit && !compact && (
-                  <Td>
+                    {row.original.location}
+                  </span>
+                ),
+              }),
+            ]),
+        // Sorts by how full the session is; a session without places sorts last.
+        col.accessor(s => (s.capacity > 0 ? s.bookedCount / s.capacity : undefined), {
+          id: 'capacity',
+          header: t('columns.capacity'),
+          sortFn: 'basic',
+          meta: { headerClassName: 'w-48' },
+          cell: ({ row }) => (
+            <div className="flex items-center gap-2">
+              <Meter
+                value={row.original.bookedCount}
+                max={row.original.capacity}
+                label={t('columns.capacity')}
+                className="w-20"
+              />
+              <span className="text-xs whitespace-nowrap tabular-nums">
+                {t('booked', { booked: row.original.bookedCount, capacity: row.original.capacity })}
+              </span>
+              <OccupancyBadge booked={row.original.bookedCount} capacity={row.original.capacity} />
+            </div>
+          ),
+        }),
+        ...(compact
+          ? []
+          : [
+              col.accessor(s => s.pricePerPerson ?? undefined, {
+                id: 'price',
+                header: t('columns.price'),
+                sortFn: 'basic',
+                meta: { align: 'right', nowrap: true },
+                cell: ({ getValue }) =>
+                  formatOptional(getValue(), value => formatCurrency(value, locale)),
+              }),
+              col.accessor('status', {
+                header: t('columns.status'),
+                sortFn: 'text',
+                cell: ({ getValue }) => <SessionStatusBadge status={getValue()} />,
+              }),
+            ]),
+        ...(canEdit && !compact
+          ? [
+              col.display({
+                id: 'edit',
+                header: () => <span className="sr-only">{tc('edit')}</span>,
+                meta: { headerClassName: 'w-0' },
+                cell: ({ row }) => (
+                  <Button asChild variant="ghost" size="icon-sm">
                     <Link
-                      href={`/sessions/${s.externalId}/edit`}
-                      className="inline-flex size-8 items-center justify-center rounded-md text-fg-muted hover:bg-state-hover hover:text-fg"
-                      aria-label={t('editTitle', { id: s.externalId })}
+                      href={`/sessions/${row.original.externalId}/edit`}
+                      aria-label={t('editTitle', { id: row.original.externalId })}
                     >
-                      <Pencil aria-hidden className="size-4" />
+                      <Pencil aria-hidden />
                     </Link>
-                  </Td>
-                )}
-              </Tr>
-            )
-          })}
-        </TBody>
-      </Table>
-    </TableContainer>
+                  </Button>
+                ),
+              }),
+            ]
+          : []),
+      ]),
+    [canEdit, compact, locale, showCourse, t, tc]
+  )
+
+  return (
+    <DataTable
+      columns={columns}
+      data={sessions}
+      getRowId={s => s.externalId}
+      enableSorting={!compact}
+      rowClassName={s => (s.status === 'CANCELLED' ? 'text-fg-subtle' : undefined)}
+    />
   )
 }

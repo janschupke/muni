@@ -1,16 +1,19 @@
-import { buttonClass } from '@muni/ui/button'
+import { Button } from '@muni/ui/button'
+import { PageMessage } from '@muni/ui/page-message'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 
 export default async function NotFound() {
   const t = await getTranslations('errors')
   return (
-    <div className="py-16 text-center">
-      <h1 className="text-2xl font-semibold">{t('notFoundTitle')}</h1>
-      <p className="mt-2 text-fg-muted">{t('notFoundBody')}</p>
-      <Link href="/" className={`${buttonClass({ variant: 'primary' })} mt-6`}>
-        {t('home')}
-      </Link>
-    </div>
+    <PageMessage
+      title={t('notFoundTitle')}
+      description={t('notFoundBody')}
+      actions={
+        <Button asChild variant="primary">
+          <Link href="/">{t('home')}</Link>
+        </Button>
+      }
+    />
   )
 }

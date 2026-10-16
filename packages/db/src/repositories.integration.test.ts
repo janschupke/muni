@@ -133,6 +133,71 @@ describe('compliance', () => {
   })
 })
 
+describe('employee list sorting', () => {
+  const collator = new Intl.Collator('cs', { sensitivity: 'base' })
+
+  it('sorts by department across pages, blanks last in both directions', async () => {
+    for (const desc of [false, true]) {
+      const pages = await Promise.all(
+        [1, 2, 3, 4, 5, 6, 7].map(page =>
+          listEmployees({ sort: { by: 'department', desc }, page, pageSize: 25 }, options)
+        )
+      )
+      const all = pages.flatMap(p => p.items)
+      expect(all).toHaveLength(pages[0]?.total ?? -1)
+      const named = all.filter(e => e.department !== null).map(e => e.department ?? '')
+      expect(all.slice(named.length).every(e => e.department === null)).toBe(true)
+      const sorted = [...named].sort((a, b) => (desc ? -1 : 1) * collator.compare(a, b))
+      expect(named).toEqual(sorted)
+    }
+  })
+
+  it('puts the most urgent compliance first and people who left last', async () => {
+    const { items, total } = await listEmployees(
+      { sort: { by: 'compliance', desc: false }, pageSize: 100 },
+      options
+    )
+    expect(items[0]?.compliance).toBe('EXPIRED')
+    const last = await listEmployees(
+      { sort: { by: 'compliance', desc: false }, pageSize: 100, page: 2 },
+      options
+    )
+    expect(total).toBeGreaterThan(100)
+    expect(
+      last.items.at(-1)?.status === 'TERMINATED' || last.items.at(-1)?.compliance === null
+    ).toBe(true)
+  })
+
+  it('lists in Czech name order by default and breaks ties by name', async () => {
+    const byName = (await listEmployees({ pageSize: 100 }, options)).items
+    const names = byName.map(e => e.lastName)
+    expect(names).toEqual([...names].sort((a, b) => collator.compare(a, b)))
+    expect(names.findIndex(n => n.startsWith('Č'))).toBeLessThan(
+      names.findIndex(n => n.startsWith('D'))
+    )
+
+    const expired = (
+      await listEmployees({ sort: { by: 'compliance', desc: false }, pageSize: 100 }, options)
+    ).items.filter(e => e.compliance === 'EXPIRED' && e.status !== 'TERMINATED')
+    const keys = expired.map(e => [e.lastName, e.firstName] as const)
+    expect(keys).toEqual(
+      [...keys].sort((a, b) => collator.compare(a[0], b[0]) || collator.compare(a[1], b[1]))
+    )
+  })
+
+  it('sorts names by surname, then first name, with Czech collation', async () => {
+    const { items } = await listEmployees(
+      { sort: { by: 'name', desc: true }, pageSize: 100 },
+      options
+    )
+    const keys = items.map(e => [e.lastName, e.firstName] as const)
+    const sorted = [...keys].sort(
+      (a, b) => -(collator.compare(a[0], b[0]) || collator.compare(a[1], b[1]))
+    )
+    expect(keys).toEqual(sorted)
+  })
+})
+
 describe('sessions', () => {
   it('lists upcoming sessions in Prague time and saves edits', async () => {
     const t002 = (await getCourse('KYBER', options))?.sessions.find(s => s.externalId === 'T002')

@@ -30,3 +30,12 @@ export function withParams(
   const query = next.toString()
   return query ? `${path}?${query}` : path
 }
+
+/** `?sort=<key>&dir=desc` → `{ by, desc }`; anything else → undefined. */
+export function parseSort<T extends string>(
+  params: Record<string, string | string[] | undefined>,
+  allowed: readonly T[]
+): { by: T; desc: boolean } | undefined {
+  const by = oneOf(param(params, 'sort'), allowed)
+  return by === undefined ? undefined : { by, desc: param(params, 'dir') === 'desc' }
+}

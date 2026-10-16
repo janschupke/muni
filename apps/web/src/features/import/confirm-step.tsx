@@ -7,6 +7,7 @@ import {
   type ImportBatch,
   type ParsedRow,
 } from '@muni/importer'
+import { Alert } from '@muni/ui/alert'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 
@@ -44,7 +45,9 @@ export function ConfirmStep({
           ))}
         </ul>
         {skipped > 0 && (
-          <p className="text-warning-fg">{t('confirm.skipped', { count: skipped })}</p>
+          <Alert tone="warning" variant="inline" role="none">
+            {t('confirm.skipped', { count: skipped })}
+          </Alert>
         )}
         <div className="flex gap-2 pt-2">
           <Button onClick={onBack}>{t('confirm.back')}</Button>

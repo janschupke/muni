@@ -1,5 +1,6 @@
-import { getSession, toWallClock } from '@muni/db/repositories'
+import { getSession } from '@muni/db/repositories'
 import { PageHeader } from '@muni/ui/page-header'
+import { toZonedParts } from '@muni/utils/dates'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
@@ -16,8 +17,8 @@ export default async function EditSessionPage({
   const { externalId } = await params
   const [session, t] = await Promise.all([getSession(externalId), getTranslations('sessions')])
   if (!session) notFound()
-  const start = toWallClock(session.startsAt)
-  const end = toWallClock(session.endsAt)
+  const start = toZonedParts(session.startsAt)
+  const end = toZonedParts(session.endsAt)
   return (
     <>
       <PageHeader

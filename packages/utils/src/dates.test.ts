@@ -8,6 +8,7 @@ import {
   parseDate,
   parseTimeRange,
   todayIn,
+  toZonedParts,
   zonedTimeToUtc,
 } from './dates'
 
@@ -66,6 +67,23 @@ describe('time zones', () => {
   it('resolves Prague wall-clock time on both sides of DST', () => {
     expect(zonedTimeToUtc('2026-10-14', '09:00').toISOString()).toBe('2026-10-14T07:00:00.000Z')
     expect(zonedTimeToUtc('2026-12-16', '13:00').toISOString()).toBe('2026-12-16T12:00:00.000Z')
+  })
+
+  it('moves a time inside the spring-forward gap forward by the gap', () => {
+    // 02:00–03:00 does not exist in Prague on 29 March 2026; 02:30 becomes 03:30 CEST.
+    expect(zonedTimeToUtc('2026-03-29', '02:30').toISOString()).toBe('2026-03-29T01:30:00.000Z')
+  })
+
+  it('resolves an ambiguous autumn time to its first occurrence', () => {
+    expect(zonedTimeToUtc('2026-10-25', '02:30').toISOString()).toBe('2026-10-25T00:30:00.000Z')
+  })
+
+  it('splits an instant back into Prague wall-clock fields', () => {
+    expect(toZonedParts('2026-10-14T07:00:00Z')).toEqual({ date: '2026-10-14', time: '09:00' })
+    expect(toZonedParts(new Date('2026-12-31T23:30:00Z'))).toEqual({
+      date: '2027-01-01',
+      time: '00:30',
+    })
   })
 
   it("reads today's date in Prague, not UTC", () => {

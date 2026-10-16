@@ -1,3 +1,5 @@
+import { DateTime } from 'luxon'
+
 /**
  * Date-only values travel through the app as ISO strings (`YYYY-MM-DD`).
  * They become `Date` objects (UTC midnight) only at the database boundary.
@@ -14,8 +16,7 @@ export type DateParseResult =
 const PLACEHOLDER_MAX_YEAR = 1900
 
 // 1899-12-30 is day 0 of the Excel 1900 date system (it absorbs the 1900 leap-year bug).
-const EXCEL_EPOCH_UTC = Date.UTC(1899, 11, 30)
-const DAY_MS = 86_400_000
+const EXCEL_EPOCH = DateTime.utc(1899, 12, 30)
 
 const ISO_RE = /^(\d{4})-(\d{1,2})-(\d{1,2})$/
 // "6. 1. 2019", "06.01.2019", "6.1.2019"
@@ -23,12 +24,7 @@ const CZECH_RE = /^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})$/
 const EXCEL_SERIAL_RE = /^\d{5}$/
 
 export function isValidCalendarDate(year: number, month: number, day: number): boolean {
-  if (month < 1 || month > 12 || day < 1) return false
-  return day <= daysInMonth(year, month)
-}
-
-function daysInMonth(year: number, month: number): number {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate()
+  return DateTime.utc(year, month, day).isValid
 }
 
 export function toIsoDate(year: number, month: number, day: number): IsoDate {
@@ -53,102 +49,96 @@ export function parseDate(raw: string | null | undefined): DateParseResult {
   if (czech) return fromParts(Number(czech[3]), Number(czech[2]), Number(czech[1]), 'czech')
 
   if (EXCEL_SERIAL_RE.test(value)) {
-    const date = new Date(EXCEL_EPOCH_UTC + Number(value) * DAY_MS)
-    return fromParts(
-      date.getUTCFullYear(),
-      date.getUTCMonth() + 1,
-      date.getUTCDate(),
-      'excelSerial'
-    )
+    const date = EXCEL_EPOCH.plus({ days: Number(value) })
+    return fromParts(date.year, date.month, date.day, 'excelSerial')
   }
 
   return { ok: false, reason: 'unparseable' }
 }
 
+/** A date-only value as a luxon `DateTime` at UTC midnight. Throws on anything but `YYYY-MM-DD`. */
+function utcDay(date: IsoDate): DateTime<true> {
+  const match = ISO_RE.exec(date)
+  const day = match ? DateTime.utc(Number(match[1]), Number(match[2]), Number(match[3])) : null
+  if (!day?.isValid) throw new Error(`Not an ISO date: ${date}`)
+  return day
+}
+
+function isoOf(value: DateTime<true>): IsoDate {
+  return value.toISODate()
+}
+
 /** Adds calendar months, clamping to the last day of the target month (31 Jan + 1 → 28/29 Feb). */
 export function addMonths(date: IsoDate, months: number): IsoDate {
-  const [y, m, d] = splitIsoDate(date)
-  const total = y * 12 + (m - 1) + months
-  const year = Math.floor(total / 12)
-  const month = (total % 12) + 1
-  return toIsoDate(year, month, Math.min(d, daysInMonth(year, month)))
+  return isoOf(utcDay(date).plus({ months }))
 }
 
 export function addDays(date: IsoDate, days: number): IsoDate {
-  return isoDateFromUtc(new Date(isoDateToUtc(date).getTime() + days * DAY_MS))
+  return isoOf(utcDay(date).plus({ days }))
 }
 
 export function diffInDays(from: IsoDate, to: IsoDate): number {
-  return Math.round((isoDateToUtc(to).getTime() - isoDateToUtc(from).getTime()) / DAY_MS)
-}
-
-function splitIsoDate(date: IsoDate): [number, number, number] {
-  const match = ISO_RE.exec(date)
-  if (!match) throw new Error(`Not an ISO date: ${date}`)
-  return [Number(match[1]), Number(match[2]), Number(match[3])]
+  return Math.round(utcDay(to).diff(utcDay(from), 'days').days)
 }
 
 /** ISO date → `Date` at UTC midnight (the shape Postgres `date` columns round-trip as). */
 export function isoDateToUtc(date: IsoDate): Date {
-  const [y, m, d] = splitIsoDate(date)
-  return new Date(Date.UTC(y, m - 1, d))
+  return utcDay(date).toJSDate()
 }
 
 /** `Date` read from a `date` column → ISO date. Reads UTC parts, never local ones. */
 export function isoDateFromUtc(date: Date): IsoDate {
-  return toIsoDate(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate())
+  return valid(DateTime.fromJSDate(date, { zone: 'utc' }), 'date').toISODate()
 }
 
 export const APP_TIME_ZONE = 'Europe/Prague'
 
+function valid(value: DateTime<true> | DateTime<false>, what: string): DateTime<true> {
+  if (!value.isValid)
+    throw new Error(`Invalid ${what}: ${value.invalidExplanation ?? value.invalidReason}`)
+  return value
+}
+
 /** Today's calendar date in the given zone. */
 export function todayIn(timeZone: string = APP_TIME_ZONE, now: Date = new Date()): IsoDate {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now)
-  const get = (type: string) => parts.find(p => p.type === type)?.value ?? ''
-  return `${get('year')}-${get('month')}-${get('day')}`
+  return valid(DateTime.fromJSDate(now, { zone: timeZone }), 'time zone').toISODate()
 }
 
-/** Offset of `timeZone` from UTC at `instant`, in minutes (Prague: +60 or +120). */
-function zoneOffsetMinutes(timeZone: string, instant: Date): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-    second: 'numeric',
-  }).formatToParts(instant)
-  const get = (type: string) => Number(parts.find(p => p.type === type)?.value)
-  const asUtc = Date.UTC(
-    get('year'),
-    get('month') - 1,
-    get('day'),
-    get('hour'),
-    get('minute'),
-    get('second')
-  )
-  return Math.round((asUtc - instant.getTime()) / 60_000)
-}
+const TIME_RE = /^(\d{1,2}):(\d{2})$/
 
-/** Wall-clock time in `timeZone` → UTC instant. `("2026-10-14", "09:00")` → 07:00Z. */
+/**
+ * Wall-clock time in `timeZone` → UTC instant. `("2026-10-14", "09:00")` → 07:00Z.
+ * A time inside a spring-forward gap (02:30 on the last Sunday of March) moves forward
+ * by the gap, to 03:30 local; an ambiguous autumn time resolves to its first occurrence.
+ */
 export function zonedTimeToUtc(
   date: IsoDate,
   time: string,
   timeZone: string = APP_TIME_ZONE
 ): Date {
-  const [y, m, d] = splitIsoDate(date)
-  const [hh, mm] = time.split(':').map(Number)
-  const guess = Date.UTC(y, m - 1, d, hh ?? 0, mm ?? 0)
-  // Two passes settle the offset across DST transitions.
-  const first = guess - zoneOffsetMinutes(timeZone, new Date(guess)) * 60_000
-  return new Date(guess - zoneOffsetMinutes(timeZone, new Date(first)) * 60_000)
+  const day = utcDay(date)
+  const match = TIME_RE.exec(time)
+  if (!match) throw new Error(`Not a time: ${time}`)
+  const local = DateTime.fromObject(
+    {
+      year: day.year,
+      month: day.month,
+      day: day.day,
+      hour: Number(match[1]),
+      minute: Number(match[2]),
+    },
+    { zone: timeZone }
+  )
+  return valid(local, 'wall-clock time').toJSDate()
+}
+
+/** UTC instant → the date and `HH:mm` a wall clock in `timeZone` shows. */
+export function toZonedParts(
+  instant: Date | string,
+  timeZone: string = APP_TIME_ZONE
+): { date: IsoDate; time: string } {
+  const local = valid(DateTime.fromJSDate(new Date(instant), { zone: timeZone }), 'instant')
+  return { date: local.toISODate(), time: local.toFormat('HH:mm') }
 }
 
 const TIME_RANGE_RE = /^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$/

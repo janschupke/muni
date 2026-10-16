@@ -15,7 +15,11 @@
     "lint": "eslint .",
     "test": "vitest run"
   },
+  "dependencies": {
+    "luxon": "catalog:"
+  },
   "devDependencies": {
+    "@types/luxon": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

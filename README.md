@@ -32,8 +32,8 @@ no roles, so restrict sign-ups in the Clerk dashboard (allowlist or restricted m
 | `packages/db`       | `@muni/db`       | Prisma schema and migrations, client, repositories (sanitised DTOs), import writer, seed                       |
 | `packages/importer` | `@muni/importer` | CSV decoding, parsing, normalisation, row and cross-file validation. Pure TypeScript, runs in browser and Node |
 | `packages/domain`   | `@muni/domain`   | Enums, zod schemas, the compliance engine, the sanitisation policy                                             |
-| `packages/ui`       | `@muni/ui`       | Design tokens and components (Tailwind 4)                                                                      |
-| `packages/utils`    | `@muni/utils`    | Text folding, date and money parsing, `Intl` formatting                                                        |
+| `packages/ui`       | `@muni/ui`       | Design tokens and components (Tailwind 4, Radix, lucide), `DataTable` on TanStack Table                        |
+| `packages/utils`    | `@muni/utils`    | Text folding, date and money parsing, date math and formatting (luxon), number and currency formatting         |
 | `data/`             |                  | The source CSV exports                                                                                         |
 
 Internal packages ship TypeScript source (`exports` point at `src/`); Next compiles them via
@@ -52,6 +52,22 @@ session times are `timestamptz` converted from Europe/Prague wall-clock time.
 Compliance is derived, not stored: for each active employee and each course a requirement
 applies to, the best completion decides `VALID`, `EXPIRING` (within `MUNI_EXPIRING_DAYS`,
 default 30), `EXPIRED` or `MISSING` (`packages/domain/src/compliance.ts`).
+
+## UI
+
+Pages are built from `@muni/ui` primitives, one subpath export each (`@muni/ui/select`,
+`@muni/ui/data-table`, …). Primitives that wrap a link take `asChild`
+(`<Button asChild><Link href="…">…</Link></Button>`), so the package never imports Next.
+
+Tables use `DataTable` (TanStack Table 9) and sort by clicking a header. Text sorts with
+Czech collation, and missing values sort last in both directions. Small lists (courses,
+sessions, completion history, the import review) are sorted in the browser; the review sorts
+every row of the current filter before paging. The employee list is paginated on the server,
+so it is also sorted there: the order lives in the URL (`?sort=department&dir=desc`) and is
+applied in `listEmployees` before the page is cut.
+
+Dates and times are formatted with luxon in Europe/Prague time (`@muni/utils/format`);
+date-only values are formatted as UTC so the day never shifts. Amounts use `Intl.NumberFormat`.
 
 ## Importing
 

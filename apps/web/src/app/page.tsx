@@ -2,7 +2,9 @@ import { getDashboard } from '@muni/db/repositories'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
+import { SectionHeading } from '@muni/ui/section-heading'
 import { StatCard } from '@muni/ui/stat-card'
+import { TextLink } from '@muni/ui/text-link'
 import { formatDate, formatInteger, formatPercent } from '@muni/utils/format'
 import Link from 'next/link'
 import { getLocale, getTranslations } from 'next-intl/server'
@@ -66,12 +68,11 @@ export default async function DashboardPage() {
               {data.byDepartment.map(d => (
                 <li key={d.department}>
                   <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
-                    <Link
-                      href={`/employees?department=${encodeURIComponent(d.department)}`}
-                      className="text-fg hover:underline"
-                    >
-                      {d.department}
-                    </Link>
+                    <TextLink asChild>
+                      <Link href={`/employees?department=${encodeURIComponent(d.department)}`}>
+                        {d.department}
+                      </Link>
+                    </TextLink>
                     <span className="font-medium text-fg tabular-nums">
                       {formatPercent(d.rate, locale)}
                     </span>
@@ -84,7 +85,7 @@ export default async function DashboardPage() {
         </Card>
 
         <div className="min-w-0 lg:col-span-3">
-          <h2 className="mb-3 text-base font-semibold text-fg">{t('upcoming.title')}</h2>
+          <SectionHeading className="mt-0">{t('upcoming.title')}</SectionHeading>
           {data.upcomingSessions.length === 0 ? (
             <EmptyState title={t('upcoming.empty')} />
           ) : (

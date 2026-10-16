@@ -1,5 +1,3 @@
-import { APP_TIME_ZONE } from '@muni/utils/dates'
-
 import type { SessionListItem } from './courses'
 import { dbOf, type RepoOptions } from './context'
 
@@ -64,22 +62,4 @@ export async function getSession(
     include: { course: { select: { code: true, name: true } } },
   })
   return session ? toSessionItem(session) : null
-}
-
-/** Session times split back into the Prague wall-clock fields the edit form shows. */
-export function toWallClock(instant: string): { date: string; time: string } {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: APP_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(new Date(instant))
-  const get = (type: string) => parts.find(p => p.type === type)?.value ?? ''
-  return {
-    date: `${get('year')}-${get('month')}-${get('day')}`,
-    time: `${get('hour')}:${get('minute')}`,
-  }
 }

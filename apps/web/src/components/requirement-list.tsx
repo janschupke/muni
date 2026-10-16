@@ -1,8 +1,8 @@
 import type { RequirementView } from '@muni/db/repositories'
-import { getTranslations } from 'next-intl/server'
+import { useTranslations } from 'next-intl'
 
-export async function RequirementList({ requirements }: { requirements: RequirementView[] }) {
-  const t = await getTranslations('status')
+export function RequirementList({ requirements }: { requirements: RequirementView[] }) {
+  const t = useTranslations('status')
   if (requirements.length === 0) return <span className="text-fg-subtle">{t('optional')}</span>
   return (
     <ul className="flex flex-col gap-0.5">

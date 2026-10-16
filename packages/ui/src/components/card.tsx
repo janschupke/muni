@@ -1,10 +1,17 @@
+import { Slot } from 'radix-ui'
 import type { HTMLAttributes, ReactNode } from 'react'
 
 import { cn } from '../cn'
 
-export function Card({ className, ...props }: HTMLAttributes<HTMLElement>) {
+/** A raised surface; a `<section>`, or with `asChild` its child (`<li>` in a list). */
+export function Card({
+  asChild = false,
+  className,
+  ...props
+}: HTMLAttributes<HTMLElement> & { asChild?: boolean }) {
+  const Comp = asChild ? Slot.Root : 'section'
   return (
-    <section
+    <Comp
       className={cn(
         'rounded-lg border border-border-default bg-surface-elevated shadow-card',
         className

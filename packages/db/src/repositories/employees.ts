@@ -10,6 +10,7 @@ import { fold } from '@muni/utils/text'
 import { isoDateFromUtc, type IsoDate } from '@muni/utils/dates'
 
 import { dbOf, getPolicy, loadCompliance, type RepoOptions } from './context'
+import { sortEmployees, type EmployeeSortKey } from './employee-sort'
 
 export interface EmployeeListItem {
   externalId: string
@@ -28,6 +29,8 @@ export interface EmployeeFilters {
   department?: string
   status?: EmploymentStatus
   compliance?: ComplianceStatus
+  /** Defaults to name, ascending. */
+  sort?: { by: EmployeeSortKey; desc: boolean }
   page?: number
   pageSize?: number
 }
@@ -83,6 +86,11 @@ export async function listEmployees(
     })
     .filter(e => !q || fold(`${e.firstName} ${e.lastName} ${e.externalId}`).includes(q))
     .filter(e => !filters.compliance || e.compliance === filters.compliance)
+
+  // Postgres orders names by its own collation (Č after Z); re-sort by Czech rules, then by
+  // the requested column. The sort is stable, so ties stay in name order.
+  sortEmployees(items, 'name', false)
+  if (filters.sort) sortEmployees(items, filters.sort.by, filters.sort.desc)
 
   const pageSize = Math.min(Math.max(filters.pageSize ?? 25, 1), 100)
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize))

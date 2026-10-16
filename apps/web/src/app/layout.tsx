@@ -1,5 +1,6 @@
 import { ClerkProvider } from '@clerk/nextjs'
 import { csCZ, enUS } from '@clerk/localizations'
+import { Container } from '@muni/ui/layout'
 import { TooltipProvider } from '@muni/ui/tooltip'
 import { THEME_BOOT_SCRIPT } from '@muni/ui/theme/boot'
 import type { Metadata } from 'next'
@@ -34,7 +35,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <NextIntlClientProvider>
           <TooltipProvider>
             <AppHeader viewer={viewer} />
-            <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+            <Container asChild className="py-8">
+              <main>{children}</main>
+            </Container>
           </TooltipProvider>
         </NextIntlClientProvider>
       </body>

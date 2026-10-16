@@ -1,5 +1,6 @@
 import { SignInButton, UserButton } from '@clerk/nextjs'
-import { buttonClass } from '@muni/ui/button'
+import { Button } from '@muni/ui/button'
+import { Container } from '@muni/ui/layout'
 import { ThemeToggle } from '@muni/ui/theme/theme-toggle'
 import { GraduationCap } from 'lucide-react'
 import Link from 'next/link'
@@ -24,7 +25,7 @@ export async function AppHeader({ viewer }: { viewer: Viewer }) {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border-default bg-surface-elevated/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6">
+      <Container className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
         <Link href="/" className="flex items-center gap-2 font-semibold text-fg">
           <GraduationCap aria-hidden className="size-5 text-accent-text" />
           {t('common.appName')}
@@ -58,13 +59,13 @@ export async function AppHeader({ viewer }: { viewer: Viewer }) {
               <UserButton />
             ) : (
               <SignInButton mode="modal">
-                <button type="button" className={buttonClass({ variant: 'primary', size: 'sm' })}>
+                <Button variant="primary" size="sm">
                   {t('common.signIn')}
-                </button>
+                </Button>
               </SignInButton>
             ))}
         </div>
-      </div>
+      </Container>
     </header>
   )
 }

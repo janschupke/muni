@@ -1,18 +1,23 @@
 import { listSessions } from '@muni/db/repositories'
-import { cn } from '@muni/ui/cn'
 import { EmptyState } from '@muni/ui/empty-state'
+import { LinkTab, LinkTabs } from '@muni/ui/nav'
 import { PageHeader } from '@muni/ui/page-header'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 
 import { SessionTable } from '@/components/session-table'
-import { getViewer } from '@/server/auth'
 import { param, type SearchParams } from '@/lib/search-params'
+import { getViewer } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('sessions'))('title') }
 }
+
+const WINDOWS = [
+  { value: 'upcoming', href: '/sessions' },
+  { value: 'past', href: '/sessions?when=past' },
+] as const
 
 export default async function SessionsPage({ searchParams }: { searchParams: SearchParams }) {
   const window = param(await searchParams, 'when') === 'past' ? 'past' : 'upcoming'
@@ -21,25 +26,16 @@ export default async function SessionsPage({ searchParams }: { searchParams: Sea
     getViewer(),
     getTranslations('sessions'),
   ])
-  const tab = (value: 'upcoming' | 'past', href: string) => (
-    <Link
-      href={href}
-      aria-current={window === value ? 'page' : undefined}
-      className={cn(
-        '-mb-px border-b-2 border-transparent px-3 py-2 text-sm font-medium text-fg-muted hover:text-fg',
-        window === value && 'border-accent text-fg'
-      )}
-    >
-      {t(value)}
-    </Link>
-  )
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
-      <nav className="mb-4 flex gap-1 border-b border-border-default">
-        {tab('upcoming', '/sessions')}
-        {tab('past', '/sessions?when=past')}
-      </nav>
+      <LinkTabs aria-label={t('title')}>
+        {WINDOWS.map(w => (
+          <LinkTab key={w.value} asChild active={window === w.value}>
+            <Link href={w.href}>{t(w.value)}</Link>
+          </LinkTab>
+        ))}
+      </LinkTabs>
       {sessions.length === 0 ? (
         <EmptyState title={t('empty')} />
       ) : (

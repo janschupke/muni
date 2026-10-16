@@ -1,7 +1,11 @@
 'use client'
 
-import { Button, buttonClass } from '@muni/ui/button'
-import { Field, Input, Select, Textarea } from '@muni/ui/field'
+import { Alert } from '@muni/ui/alert'
+import { Button } from '@muni/ui/button'
+import { Checkbox } from '@muni/ui/checkbox'
+import { Field, Input, Textarea } from '@muni/ui/field'
+import { Select } from '@muni/ui/select'
+import { PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
@@ -32,21 +36,16 @@ export function FormShell({
   return (
     <form action={formAction} className="flex max-w-2xl flex-col gap-5" noValidate>
       {state.status === 'error' && state.formError && (
-        <p
-          role="alert"
-          className="rounded-md border border-danger-border bg-danger-soft px-3 py-2 text-sm text-danger-fg"
-        >
-          {t(`forms.errors.${state.formError as 'generic'}`)}
-        </p>
+        <Alert tone="danger">{t(`forms.errors.${state.formError as 'generic'}`)}</Alert>
       )}
       <ErrorsContext value={errors}>{children}</ErrorsContext>
       <div className="flex gap-2">
         <Button type="submit" variant="primary" disabled={pending}>
           {pending ? t('common.saving') : t('common.save')}
         </Button>
-        <Link href={cancelHref} className={buttonClass({ variant: 'ghost' })}>
-          {t('common.cancel')}
-        </Link>
+        <Button asChild variant="ghost">
+          <Link href={cancelHref}>{t('common.cancel')}</Link>
+        </Button>
       </div>
     </form>
   )
@@ -73,7 +72,7 @@ export function TextField({
   required,
   className,
   ...input
-}: BaseProps & Omit<InputHTMLAttributes<HTMLInputElement>, 'name'>) {
+}: BaseProps & Omit<InputHTMLAttributes<HTMLInputElement>, 'name' | 'size'>) {
   const error = useFieldError(name)
   return (
     <Field label={label} help={help} error={error} required={required} className={className}>
@@ -110,17 +109,18 @@ export function SelectField({
   allowEmpty?: boolean
 }) {
   const error = useFieldError(name)
+  const t = useTranslations('common')
   return (
     <Field label={label} help={help} error={error} required={required}>
       {props => (
-        <Select name={name} defaultValue={defaultValue ?? ''} {...props}>
-          {allowEmpty && <option value="">—</option>}
-          {options.map(o => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </Select>
+        <Select
+          name={name}
+          defaultValue={defaultValue ?? ''}
+          options={options}
+          emptyLabel={allowEmpty ? PLACEHOLDER : undefined}
+          placeholder={t('choose')}
+          {...props}
+        />
       )}
     </Field>
   )
@@ -135,15 +135,5 @@ export function CheckboxField({
   label: string
   defaultChecked?: boolean
 }) {
-  return (
-    <label className="flex items-center gap-2 text-sm font-medium text-fg">
-      <input
-        type="checkbox"
-        name={name}
-        defaultChecked={defaultChecked}
-        className="size-4 accent-accent"
-      />
-      {label}
-    </label>
-  )
+  return <Checkbox name={name} label={label} defaultChecked={defaultChecked} />
 }

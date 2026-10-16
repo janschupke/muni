@@ -111,6 +111,48 @@ describe('ImportWizard', () => {
     expect(screen.getByText('Completions: 2822 created, 0 updated')).toBeTruthy()
   })
 
+  it('sorts the whole dataset before paging, and keeps the page through an edit', async () => {
+    const user = userEvent.setup()
+    const { container } = renderWizard()
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')
+    if (!input) throw new Error('file input missing')
+    await user.upload(input, [csv('katalog_skoleni.csv'), csv('absolvovana_skoleni.csv')])
+    await user.click(await screen.findByRole('button', { name: 'Review rows' }))
+    await user.click(screen.getByRole('tab', { name: /Completions/ }))
+    const panel = screen.getByRole('tabpanel')
+
+    const lines = () =>
+      within(panel)
+        .getAllByRole('row')
+        .slice(1)
+        .map(row => Number(within(row).getAllByRole('cell')[0]?.textContent))
+
+    const unsorted = lines()
+    expect(unsorted).toHaveLength(50)
+    await user.click(within(panel).getByRole('button', { name: 'Line' }))
+    await user.click(within(panel).getByRole('button', { name: 'Line' }))
+    expect(
+      within(panel).getByRole('columnheader', { name: /Line/ }).getAttribute('aria-sort')
+    ).toBe('descending')
+    // Page 1 now starts at the file's last line, not the last line of the old first page.
+    const page1 = lines()
+    expect(page1[0]).toBeGreaterThan(2800)
+    expect(page1).toEqual([...page1].sort((a, b) => b - a))
+
+    await user.click(within(panel).getByRole('button', { name: /Next/ }))
+    const page2 = lines()
+    expect(page2[0]).toBeLessThan(page1.at(-1) ?? 0)
+    expect(within(panel).getByText(/^Page 2 of/)).toBeTruthy()
+
+    const firstRow = within(panel).getAllByRole('row')[1]
+    if (!firstRow) throw new Error('no rows')
+    const [editButton] = within(firstRow).getAllByRole('button', { name: /^Edit / })
+    if (!editButton) throw new Error('no editable cell')
+    await user.click(editButton)
+    await user.type(within(panel).getByRole('textbox'), ' x{Enter}')
+    expect(within(panel).getByText(/^Page 2 of/)).toBeTruthy()
+  })
+
   it('rejects a file it cannot recognise', async () => {
     const user = userEvent.setup()
     const { container } = renderWizard()

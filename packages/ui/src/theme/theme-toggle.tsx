@@ -3,7 +3,7 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { cn } from '../cn'
+import { SegmentedControl } from '../components/segmented-control'
 import { THEME_STORAGE_KEY, type ThemeChoice } from './boot'
 
 function readChoice(): ThemeChoice {
@@ -27,11 +27,7 @@ function apply(choice: ThemeChoice) {
   }
 }
 
-const OPTIONS = [
-  { value: 'light', Icon: Sun },
-  { value: 'dark', Icon: Moon },
-  { value: 'system', Icon: Monitor },
-] as const
+const ICONS = { light: Sun, dark: Moon, system: Monitor } as const
 
 /** Three-way light / dark / system switch. Labels come from the app (i18n). */
 export function ThemeToggle({
@@ -49,31 +45,17 @@ export function ThemeToggle({
   }, [])
 
   return (
-    <div
-      role="radiogroup"
-      aria-label={groupLabel}
-      className="flex rounded-md border border-border-default p-0.5"
-    >
-      {OPTIONS.map(({ value, Icon }) => (
-        <button
-          key={value}
-          type="button"
-          role="radio"
-          aria-checked={choice === value}
-          aria-label={labels[value]}
-          title={labels[value]}
-          onClick={() => {
-            setChoice(value)
-            apply(value)
-          }}
-          className={cn(
-            'flex size-7 items-center justify-center rounded-sm text-fg-muted hover:text-fg',
-            choice === value && 'bg-state-selected text-fg'
-          )}
-        >
-          <Icon aria-hidden className="size-4" />
-        </button>
-      ))}
-    </div>
+    <SegmentedControl
+      label={groupLabel}
+      value={choice}
+      onValueChange={value => {
+        setChoice(value)
+        apply(value)
+      }}
+      items={(['light', 'dark', 'system'] as const).map(value => {
+        const Icon = ICONS[value]
+        return { value, label: labels[value], content: <Icon aria-hidden /> }
+      })}
+    />
   )
 }

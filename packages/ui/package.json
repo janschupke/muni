@@ -9,29 +9,46 @@
   "exports": {
     "./styles/tokens.css": "./src/styles/tokens.css",
     "./cn": "./src/cn.ts",
+    "./alert": "./src/components/alert.tsx",
     "./badge": "./src/components/badge.tsx",
     "./button": "./src/components/button.tsx",
     "./card": "./src/components/card.tsx",
+    "./checkbox": "./src/components/checkbox.tsx",
+    "./data-table": "./src/components/data-table.tsx",
+    "./description-list": "./src/components/description-list.tsx",
     "./dropzone": "./src/components/dropzone.tsx",
     "./empty-state": "./src/components/empty-state.tsx",
     "./field": "./src/components/field.tsx",
+    "./item-list": "./src/components/item-list.tsx",
+    "./layout": "./src/components/layout.tsx",
     "./meter": "./src/components/meter.tsx",
+    "./nav": "./src/components/nav.tsx",
     "./page-header": "./src/components/page-header.tsx",
+    "./page-message": "./src/components/page-message.tsx",
+    "./pagination": "./src/components/pagination.tsx",
+    "./section-heading": "./src/components/section-heading.tsx",
+    "./segmented-control": "./src/components/segmented-control.tsx",
+    "./select": "./src/components/select.tsx",
     "./stat-card": "./src/components/stat-card.tsx",
     "./step-indicator": "./src/components/step-indicator.tsx",
     "./table": "./src/components/table.tsx",
     "./tabs": "./src/components/tabs.tsx",
+    "./text-link": "./src/components/text-link.tsx",
+    "./toolbar": "./src/components/toolbar.tsx",
     "./tooltip": "./src/components/tooltip.tsx",
-    "./charts/stacked-bar": "./src/charts/stacked-bar.tsx",
     "./charts/heat-cell": "./src/charts/heat-cell.tsx",
+    "./charts/legend": "./src/charts/legend.tsx",
+    "./charts/stacked-bar": "./src/charts/stacked-bar.tsx",
     "./theme/boot": "./src/theme/boot.ts",
     "./theme/theme-toggle": "./src/theme/theme-toggle.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@tanstack/react-table": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "lucide-react": "catalog:",
@@ -43,10 +60,15 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "jsdom": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

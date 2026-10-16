@@ -1,10 +1,10 @@
 'use client'
 
 import type { DatasetKind } from '@muni/importer'
+import { Alert } from '@muni/ui/alert'
 import { Button } from '@muni/ui/button'
-import { Card, CardBody, CardHeader } from '@muni/ui/card'
+import { Card, CardBody } from '@muni/ui/card'
 import { Meter } from '@muni/ui/meter'
-import { CircleCheck, TriangleAlert } from 'lucide-react'
 
 import { useImportText } from './use-issue-text'
 
@@ -34,11 +34,10 @@ export function ProgressStep({ job, onReset }: { job: ImportJob; onReset: () => 
   if (job.status === 'failed') {
     return (
       <Card className="max-w-2xl">
-        <CardBody className="flex flex-col gap-3 text-sm" role="alert">
-          <p className="flex items-center gap-2 font-medium text-danger-fg">
-            <TriangleAlert aria-hidden className="size-4" />
+        <CardBody className="flex flex-col gap-3 text-sm">
+          <Alert tone="danger" variant="inline">
             {t('progress.failed', { message: job.message })}
-          </p>
+          </Alert>
           {job.written > 0 && (
             <p className="text-fg-muted">{t('progress.partial', { count: job.written })}</p>
           )}
@@ -51,15 +50,10 @@ export function ProgressStep({ job, onReset }: { job: ImportJob; onReset: () => 
   }
   return (
     <Card className="max-w-2xl">
-      <CardHeader
-        title={
-          <span className="flex items-center gap-2">
-            <CircleCheck aria-hidden className="size-5 text-success-fg" />
-            {t('progress.doneTitle')}
-          </span>
-        }
-      />
       <CardBody className="flex flex-col gap-3 text-sm">
+        <Alert tone="success" variant="inline" className="text-base">
+          {t('progress.doneTitle')}
+        </Alert>
         <ul className="flex flex-col gap-1">
           {(
             Object.entries(job.results) as [DatasetKind, { created: number; updated: number }][]

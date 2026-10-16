@@ -1,6 +1,7 @@
 'use client'
 
 import { EMPLOYMENT_STATUSES, SESSION_STATUSES } from '@muni/domain/enums'
+import { FieldRow } from '@muni/ui/field'
 import { useTranslations } from 'next-intl'
 
 import type { FormState } from '@/lib/form'
@@ -57,7 +58,7 @@ export function SessionForm({
   const ts = useTranslations('status.session')
   return (
     <FormShell action={action} cancelHref={cancelHref}>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <FieldRow columns={3}>
         <TextField
           name="date"
           type="date"
@@ -79,10 +80,10 @@ export function SessionForm({
           required
           defaultValue={defaults.endTime}
         />
-      </div>
+      </FieldRow>
       <TextField name="location" label={t('location')} required defaultValue={defaults.location} />
       <CheckboxField name="isOnline" label={t('isOnline')} defaultChecked={defaults.isOnline} />
-      <div className="grid gap-4 sm:grid-cols-3">
+      <FieldRow columns={3}>
         <TextField
           name="capacity"
           inputMode="numeric"
@@ -102,7 +103,7 @@ export function SessionForm({
           label={t('pricePerPerson')}
           defaultValue={defaults.pricePerPerson ?? ''}
         />
-      </div>
+      </FieldRow>
       <SelectField
         name="status"
         label={t('status')}
@@ -141,7 +142,7 @@ export function EmployeeForm({
   const ts = useTranslations('status.employment')
   return (
     <FormShell action={action} cancelHref={cancelHref}>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <FieldRow>
         <TextField
           name="firstName"
           label={t('firstName')}
@@ -156,7 +157,7 @@ export function EmployeeForm({
           defaultValue={defaults.lastName}
           autoComplete="off"
         />
-      </div>
+      </FieldRow>
       <TextField
         name="email"
         type="email"
@@ -164,7 +165,7 @@ export function EmployeeForm({
         defaultValue={defaults.email ?? ''}
         autoComplete="off"
       />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <FieldRow>
         <SelectField
           name="department"
           label={t('department')}
@@ -179,8 +180,8 @@ export function EmployeeForm({
           defaultValue={defaults.position ?? ''}
           options={positions.map(p => ({ value: p, label: p }))}
         />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-3">
+      </FieldRow>
+      <FieldRow columns={3}>
         <SelectField
           name="status"
           label={t('status')}
@@ -201,7 +202,7 @@ export function EmployeeForm({
           label={t('leftOn')}
           defaultValue={defaults.leftOn ?? ''}
         />
-      </div>
+      </FieldRow>
       <TextAreaField name="note" label={t('note')} defaultValue={defaults.note ?? ''} />
     </FormShell>
   )
@@ -229,7 +230,7 @@ export function CompletionForm({
         required
         options={courses.map(c => ({ value: c.code, label: `${c.code} · ${c.name}` }))}
       />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <FieldRow>
         <TextField
           name="completedOn"
           type="date"
@@ -243,11 +244,11 @@ export function CompletionForm({
           label={t('validUntil')}
           help={t('validUntilHelp')}
         />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      </FieldRow>
+      <FieldRow>
         <TextField name="provider" label={t('provider')} list="providers" autoComplete="off" />
         <TextField name="price" inputMode="decimal" label={t('price')} />
-      </div>
+      </FieldRow>
       <datalist id="providers">
         {providers.map(p => (
           <option key={p} value={p} />
