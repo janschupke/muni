@@ -49,7 +49,8 @@
     "advisor": "Advisor",
     "rooms": "Rooms",
     "departments": "Departments",
-    "positions": "Positions"
+    "positions": "Positions",
+    "planner": "Planner"
   },
   "status": {
     "employment": {
@@ -206,7 +207,9 @@
       "employee": "Employee",
       "completedOn": "Completed",
       "validUntil": "Valid until"
-    }
+    },
+    "newSession": "New session",
+    "newTitle": "New session of {course}"
   },
   "sessions": {
     "title": "Sessions",
@@ -748,5 +751,43 @@
       "noCourses": "Nothing is required of this position.",
       "people": "People"
     }
+  },
+  "planner": {
+    "title": "Session planner",
+    "description": "New sessions for the training no existing session can take: when, where and for whom, most urgent first.",
+    "empty": "Every training that needs a session has one.",
+    "needs": "{length, plural, other {# min}} · groups of {size}",
+    "needsAny": "{length, plural, other {# min}} · one group",
+    "online": "can be online",
+    "capabilities": "needs {list}",
+    "columns": {
+      "due": "Due by",
+      "slot": "Proposed slot",
+      "room": "Room",
+      "seats": "People · seats",
+      "action": "Action"
+    },
+    "bucket": {
+      "now": "Lapsed now",
+      "month": "Lapsing in {month}"
+    },
+    "late": "After the due date",
+    "alternatives": "{count, plural, one {or # other room} other {or # other rooms}}",
+    "toggle": "People for {course}, session {n}",
+    "panelHeader": "People",
+    "create": "Create session",
+    "creating": "Creating…",
+    "created": "Created session {id}.",
+    "openSession": "Open it",
+    "bookInAdvisor": "Book people in the advisor",
+    "failed": "The session could not be created. Try again.",
+    "signIn": "Sign in to create sessions.",
+    "problems": {
+      "NO_ROOM_WITH": "No room has {missing}.",
+      "NO_ROOM_LARGE_ENOUGH": "No room seats {size}; the largest takes {largest}.",
+      "NO_ONLINE_OR_ROOM": "No room can hold it.",
+      "NO_FREE_SLOT": "No free slot in the next {days} days."
+    },
+    "rule": "Trainings no session can take are grouped by course and due date (lapsed ones within two weeks, the rest the day before they lapse) and split by the course's group size. Each session gets the first working day from tomorrow with a valid room free at the course's usual time: online if the course allows it, otherwise a room with everything the course needs and enough seats, rooms used before first."
   }
 }

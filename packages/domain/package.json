@@ -11,7 +11,8 @@
     "./compliance": "./src/compliance.ts",
     "./sanitize": "./src/sanitize/policy.ts",
     "./sessions": "./src/sessions.ts",
-    "./rooms": "./src/rooms.ts"
+    "./rooms": "./src/rooms.ts",
+    "./planner": "./src/planner.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

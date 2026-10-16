@@ -9,7 +9,7 @@ import { SplitLayout } from '@muni/ui/layout'
 import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { formatInteger, formatPercent, PLACEHOLDER } from '@muni/utils/format'
-import { Pencil } from 'lucide-react'
+import { CalendarPlus, Pencil } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -57,12 +57,20 @@ export default async function CoursePage({ params }: Props) {
         }`}
         actions={
           canEdit && (
-            <Button asChild>
-              <Link href={`/courses/${course.code}/edit`}>
-                <Pencil aria-hidden />
-                {tc('edit')}
-              </Link>
-            </Button>
+            <>
+              <Button asChild variant="primary">
+                <Link href={`/courses/${course.code}/sessions/new`}>
+                  <CalendarPlus aria-hidden />
+                  {t('newSession')}
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href={`/courses/${course.code}/edit`}>
+                  <Pencil aria-hidden />
+                  {tc('edit')}
+                </Link>
+              </Button>
+            </>
           )
         }
       />

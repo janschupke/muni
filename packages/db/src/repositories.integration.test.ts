@@ -17,6 +17,7 @@ import {
   listCourses,
   listEmployees,
   getDepartment,
+  getPlannerInput,
   getPosition,
   getRoom,
   getRoomForEdit,
@@ -438,6 +439,24 @@ describe('departments and positions', () => {
     const drivers = await listEmployees({ positionId: driver.id, pageSize: 100 }, options)
     expect(drivers.total).toBeGreaterThan(0)
     expect(drivers.items.every(e => e.position === 'Řidič')).toBe(true)
+  })
+})
+
+describe('planner input', () => {
+  it('gives each course its needs, usual start and rooms, and the sessions that take rooms', async () => {
+    const now = new Date('2026-10-16T12:00:00Z')
+    const planner = await getPlannerInput({ ...options, now })
+    const bozp = planner.courses.find(c => c.code === 'BOZP-Z')
+    expect(bozp).toMatchObject({ sessionMinutes: 180, groupSize: 30, usualStart: '08:00' })
+    const aula = planner.rooms.find(r => r.name === 'Aula A')
+    expect(bozp?.heldIn).toEqual([aula?.id])
+    expect(planner.courses.find(c => c.code === 'ANGL')).toMatchObject({
+      usualStart: null,
+      heldIn: [],
+    })
+    expect(planner.rooms).toHaveLength(8)
+    expect(planner.sessions.length).toBeGreaterThan(0)
+    expect(planner.sessions.every(s => s.endsAt >= now.toISOString())).toBe(true)
   })
 })
 

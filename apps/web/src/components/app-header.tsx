@@ -7,6 +7,7 @@ import {
   BriefcaseBusiness,
   Building,
   CalendarDays,
+  CalendarRange,
   DoorOpen,
   GraduationCap,
   Grid3x3,
@@ -37,6 +38,7 @@ export async function AppHeader({ viewer }: { viewer: Viewer }) {
     { href: '/rooms', label: t('nav.rooms'), Icon: DoorOpen },
     { href: '/compliance', label: t('nav.compliance'), Icon: Grid3x3 },
     { href: '/advisor', label: t('nav.advisor'), Icon: Lightbulb },
+    { href: '/planner', label: t('nav.planner'), Icon: CalendarRange },
     ...(viewer === 'authenticated'
       ? [{ href: '/import', label: t('nav.import'), Icon: Upload }]
       : []),

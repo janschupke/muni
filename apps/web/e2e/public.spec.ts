@@ -236,6 +236,20 @@ test.describe('public register (signed out)', () => {
       await expect(page.locator(`a[href="/sessions/${id}"]`).first()).toBeVisible()
   })
 
+  test('planner proposes sessions with a room for training nothing else can take', async ({
+    page,
+  }) => {
+    await setLocale(page, 'en')
+    await page.goto('/planner')
+    await expect(page.getByRole('heading', { level: 1, name: 'Session planner' })).toBeVisible()
+    await expect(page.getByText('Sign in to create sessions.')).toBeVisible()
+    const room = page.locator('main table a[href^="/rooms/"]').first()
+    await expect(room).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create session' })).toHaveCount(0)
+    await room.click()
+    await expect(page).toHaveURL(/\/rooms\//)
+  })
+
   test('footer, and tab strips without a scrollbar', async ({ page }) => {
     await setLocale(page, 'en')
     for (const width of [1280, 390]) {

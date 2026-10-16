@@ -16,7 +16,7 @@ import type {
   RoomListItem,
   SessionListItem,
 } from '@muni/db/repositories'
-import type { getCourseForEdit } from '@muni/db/repositories'
+import type { getCourseForEdit, getPlannerInput } from '@muni/db/repositories'
 import type { AdvisorInput } from '@muni/domain/advisor'
 import type { RoomRef } from '@muni/domain/rooms'
 import type { ComplianceCounts } from '@muni/domain/compliance'
@@ -481,5 +481,38 @@ export const positionSummary = (over: Partial<PositionSummary> = {}): PositionSu
 export const positionDetail = (over: Partial<PositionDetail> = {}): PositionDetail => ({
   ...positionSummary(),
   courses: courseCompliance,
+  ...over,
+})
+
+export const plannerInput = (
+  over: Partial<Awaited<ReturnType<typeof getPlannerInput>>> = {}
+): Awaited<ReturnType<typeof getPlannerInput>> => ({
+  courses: [
+    {
+      code: 'POZ-OCH',
+      name: 'Požární ochrana',
+      sessionMinutes: 120,
+      groupSize: 40,
+      onlineAllowed: false,
+      capabilities: ['PROJECTOR'],
+      usualStart: '10:00',
+      heldIn: [AULA_A.id],
+    },
+    {
+      code: 'BOZP-Z',
+      name: 'BOZP – základní školení',
+      sessionMinutes: 180,
+      groupSize: 30,
+      onlineAllowed: true,
+      capabilities: [],
+      usualStart: '08:00',
+      heldIn: [AULA_A.id],
+    },
+  ],
+  rooms: [
+    { ...AULA_A, capacity: 40, capabilities: ['PROJECTOR'] },
+    { ...ONLINE, capacity: null, capabilities: [] },
+  ],
+  sessions: [],
   ...over,
 })

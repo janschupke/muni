@@ -49,7 +49,8 @@
     "advisor": "Poradce",
     "rooms": "Místnosti",
     "departments": "Útvary",
-    "positions": "Pozice"
+    "positions": "Pozice",
+    "planner": "Plánovač"
   },
   "status": {
     "employment": {
@@ -206,7 +207,9 @@
       "employee": "Zaměstnanec",
       "completedOn": "Absolvováno",
       "validUntil": "Platí do"
-    }
+    },
+    "newSession": "Nový termín",
+    "newTitle": "Nový termín kurzu {course}"
   },
   "sessions": {
     "title": "Termíny",
@@ -748,5 +751,43 @@
       "noCourses": "Tato pozice nemá žádná povinná školení.",
       "people": "Lidé"
     }
+  },
+  "planner": {
+    "title": "Plánovač termínů",
+    "description": "Nové termíny pro školení, která žádný stávající termín nepojme: kdy, kde a pro koho, od nejnaléhavějších.",
+    "empty": "Každé školení, které termín potřebuje, ho má.",
+    "needs": "{length, plural, other {# min}} · skupiny po {size}",
+    "needsAny": "{length, plural, other {# min}} · jedna skupina",
+    "online": "lze online",
+    "capabilities": "potřebuje {list}",
+    "columns": {
+      "due": "Splnit do",
+      "slot": "Navržený termín",
+      "room": "Místnost",
+      "seats": "Lidé · místa",
+      "action": "Akce"
+    },
+    "bucket": {
+      "now": "Propadlé teď",
+      "month": "Propadá v {month}"
+    },
+    "late": "Po termínu splnění",
+    "alternatives": "{count, plural, one {nebo # další místnost} few {nebo # další místnosti} other {nebo # dalších místností}}",
+    "toggle": "Lidé pro {course}, termín {n}",
+    "panelHeader": "Lidé",
+    "create": "Vytvořit termín",
+    "creating": "Vytvářím…",
+    "created": "Vytvořen termín {id}.",
+    "openSession": "Otevřít",
+    "bookInAdvisor": "Přihlásit lidi v poradci",
+    "failed": "Termín se nepodařilo vytvořit. Zkuste to znovu.",
+    "signIn": "Pro vytváření termínů se přihlaste.",
+    "problems": {
+      "NO_ROOM_WITH": "Žádná místnost nemá {missing}.",
+      "NO_ROOM_LARGE_ENOUGH": "Žádná místnost nepojme {size} osob; největší má {largest} míst.",
+      "NO_ONLINE_OR_ROOM": "Žádná místnost se nehodí.",
+      "NO_FREE_SLOT": "V příštích {days} dnech není volný termín."
+    },
+    "rule": "Školení, která žádný termín nepojme, se seskupí podle kurzu a termínu splnění (propadlá do dvou týdnů, ostatní den před propadnutím) a rozdělí podle velikosti skupiny kurzu. Každý termín dostane první pracovní den od zítřka, kdy je v obvyklý čas kurzu volná vhodná místnost: online, pokud to kurz dovoluje, jinak místnost se vším, co kurz potřebuje, a s dostatkem míst; dříve použité místnosti mají přednost."
   }
 }

@@ -3,6 +3,7 @@ import {
   applyAssignments,
   createCompletion,
   createRoom,
+  createSession,
   deleteRoom,
   getCourseForEdit,
   updateRoom,
@@ -34,6 +35,7 @@ import {
 } from './actions/assignments'
 import { recordCompletion, saveCourse, saveEmployee, saveSession } from './actions/edit'
 import { removeRoom, saveRoom } from './actions/rooms'
+import { createOfferedSession, saveNewSession } from './actions/sessions'
 import { setLocale } from './actions/locale'
 import { getViewer, requirePageUser, requireUser } from './auth'
 
@@ -51,6 +53,7 @@ vi.mock('@muni/db/repositories', () => ({
   applyAssignments: vi.fn(),
   createCompletion: vi.fn(),
   createRoom: vi.fn(),
+  createSession: vi.fn(),
   deleteRoom: vi.fn(),
   updateRoom: vi.fn(),
   getCourseForEdit: vi.fn(),
@@ -446,5 +449,55 @@ describe('room actions', () => {
     expect(await removeRoom('room_new', idle)).toMatchObject({ formError: 'generic' })
     signedIn(null)
     await expect(removeRoom('room_new', idle)).rejects.toMatchObject({ name: 'UnauthorizedError' })
+  })
+})
+
+describe('session creation', () => {
+  const create = {
+    courseCode: 'POZ-OCH',
+    date: '2026-10-19',
+    startTime: '10:00',
+    endTime: '12:00',
+    roomId: 'room_aula_a',
+    capacity: 40,
+    pricePerPerson: null,
+    status: 'PLANNED' as const,
+  }
+
+  it('creates an offered session and reports its id, or that it failed', async () => {
+    vi.mocked(createSession).mockResolvedValue({ externalId: 'T035', course: { code: 'POZ-OCH' } })
+    expect(await createOfferedSession(create)).toEqual({ ok: true, externalId: 'T035' })
+    expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
+    expect(await createOfferedSession({ ...create, endTime: '09:00' })).toEqual({ ok: false })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(createSession).mockRejectedValueOnce(new Error('down'))
+    expect(await createOfferedSession(create)).toEqual({ ok: false })
+    signedIn(null)
+    await expect(createOfferedSession(create)).rejects.toMatchObject({ name: 'UnauthorizedError' })
+  })
+
+  it('creates a session from the course page form and opens it', async () => {
+    vi.mocked(createSession).mockResolvedValue({ externalId: 'T036', course: { code: 'POZ-OCH' } })
+    const fields = {
+      date: '2026-11-02',
+      startTime: '10:00',
+      endTime: '12:00',
+      roomId: 'room_aula_a',
+      capacity: '40',
+      pricePerPerson: '380',
+      status: 'PLANNED',
+    }
+    expect(await redirectOf(saveNewSession('POZ-OCH', idle, form(fields)))).toBe('/sessions/T036')
+    expect(createSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({ courseCode: 'POZ-OCH', capacity: 40, pricePerPerson: 380 })
+    )
+    expect(await saveNewSession('POZ-OCH', idle, form({ ...fields, roomId: '' }))).toMatchObject({
+      fieldErrors: { roomId: 'required' },
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(createSession).mockRejectedValueOnce(new Error('down'))
+    expect(await saveNewSession('POZ-OCH', idle, form(fields))).toMatchObject({
+      formError: 'generic',
+    })
   })
 })

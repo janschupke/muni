@@ -92,10 +92,13 @@ export function SessionForm({
   cancelHref,
   defaults,
   rooms,
+  mode = 'edit',
 }: {
   action: Action
   cancelHref: string
   rooms: readonly { id: string; name: string }[]
+  /** A new session starts empty: no other bookings to state. */
+  mode?: 'edit' | 'create'
   defaults: {
     date: string
     startTime: string
@@ -151,13 +154,15 @@ export function SessionForm({
           required
           defaultValue={defaults.capacity}
         />
-        <TextField
-          name="unnamedBookings"
-          inputMode="numeric"
-          label={t('unnamedBookings')}
-          help={t('unnamedHelp', { count: defaults.assignedCount })}
-          defaultValue={defaults.unnamedBookings}
-        />
+        {mode === 'edit' && (
+          <TextField
+            name="unnamedBookings"
+            inputMode="numeric"
+            label={t('unnamedBookings')}
+            help={t('unnamedHelp', { count: defaults.assignedCount })}
+            defaultValue={defaults.unnamedBookings}
+          />
+        )}
         <TextField
           name="pricePerPerson"
           inputMode="decimal"
