@@ -39,7 +39,7 @@ export async function AppFooter({ user }: { user: SessionUser | null }) {
             <ul className="flex flex-wrap gap-x-4 gap-y-1">
               {links.map(link => (
                 <li key={link.href}>
-                  <TextLink asChild tone="muted">
+                  <TextLink asChild>
                     <Link href={link.href}>{link.label}</Link>
                   </TextLink>
                 </li>

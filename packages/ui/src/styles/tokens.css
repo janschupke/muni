@@ -102,6 +102,18 @@
   --ramp-red-900: #3b0d0c;
 
   /*
+   * Signal text inks, apart from the neutral text greys and from each other by hue and
+   * chroma at text contrast (tokens.test.ts holds them to it); the ramps above are too grey
+   * at the lightness text needs.
+   */
+  --ramp-ink-warning-light: #945701;
+  --ramp-ink-warning-dark: #ffc216;
+  --ramp-ink-serious-light: #902200;
+  --ramp-ink-serious-dark: #f76f00;
+  --ramp-ink-danger-light: #d2002e;
+  --ramp-ink-danger-dark: #fb888e;
+
+  /*
    * Compliance heat scale, best (full) to worst (poor), in plain sentiment colours: a solid
    * green for 100 %, a lighter green, yellow, orange, red. Adjacent bands stay apart for
    * colour-blind readers (CVD ΔE >= 8.2 light, 12.2 dark) and everyone else (ΔE >= 18.8 light,
@@ -165,23 +177,25 @@
   --p-accent-fg: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-1000));
   --p-accent-soft: light-dark(var(--ramp-blue-50), var(--ramp-blue-900));
   --p-accent-text: light-dark(var(--ramp-blue-550), var(--ramp-blue-250));
+  /* A link before it is hovered: plainly apart from every text grey, in both themes. */
+  --p-link: light-dark(var(--ramp-blue-500), var(--ramp-blue-250));
 
   --p-success-fg: light-dark(var(--ramp-green-700), var(--ramp-green-300));
   --p-success-fill: light-dark(var(--ramp-green-600), var(--ramp-green-500));
   --p-success-soft: light-dark(var(--ramp-green-100), var(--ramp-green-900));
   --p-success-border: light-dark(var(--ramp-green-200), var(--ramp-green-800));
 
-  --p-warning-fg: light-dark(var(--ramp-yellow-700), var(--ramp-yellow-300));
+  --p-warning-fg: light-dark(var(--ramp-ink-warning-light), var(--ramp-ink-warning-dark));
   --p-warning-fill: light-dark(var(--ramp-yellow-550), var(--ramp-yellow-300));
   --p-warning-soft: light-dark(var(--ramp-yellow-100), var(--ramp-yellow-900));
   --p-warning-border: light-dark(var(--ramp-yellow-200), var(--ramp-yellow-800));
 
-  --p-serious-fg: light-dark(var(--ramp-orange-700), var(--ramp-orange-300));
+  --p-serious-fg: light-dark(var(--ramp-ink-serious-light), var(--ramp-ink-serious-dark));
   --p-serious-fill: light-dark(var(--ramp-orange-600), var(--ramp-orange-300));
   --p-serious-soft: light-dark(var(--ramp-orange-100), var(--ramp-orange-900));
   --p-serious-border: light-dark(var(--ramp-orange-200), var(--ramp-orange-800));
 
-  --p-danger-fg: light-dark(var(--ramp-red-700), var(--ramp-red-300));
+  --p-danger-fg: light-dark(var(--ramp-ink-danger-light), var(--ramp-ink-danger-dark));
   --p-danger-fill: light-dark(var(--ramp-red-700), var(--ramp-red-400));
   --p-danger-soft: light-dark(var(--ramp-red-100), var(--ramp-red-900));
   --p-danger-border: light-dark(var(--ramp-red-200), var(--ramp-red-800));
@@ -241,6 +255,7 @@
   --color-accent-fg: var(--p-accent-fg);
   --color-accent-soft: var(--p-accent-soft);
   --color-accent-text: var(--p-accent-text);
+  --color-link: var(--p-link);
 
   --color-success-fg: var(--p-success-fg);
   --color-success-fill: var(--p-success-fill);

@@ -36,6 +36,7 @@ export function RemoveBookingButton({
     <>
       <IconButton
         ref={trigger}
+        tone="danger"
         label={label}
         onClick={() => {
           setOpen(true)

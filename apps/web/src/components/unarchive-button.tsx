@@ -44,7 +44,12 @@ export function UnarchiveButton({
   return (
     <>
       {compact ? (
-        <IconButton ref={trigger} label={t('unarchiveLabel', { name })} onClick={show}>
+        <IconButton
+          ref={trigger}
+          tone="success"
+          label={t('unarchiveLabel', { name })}
+          onClick={show}
+        >
           <ArchiveRestore aria-hidden />
         </IconButton>
       ) : (

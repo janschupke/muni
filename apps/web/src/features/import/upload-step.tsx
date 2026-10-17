@@ -98,6 +98,7 @@ export function UploadStep({
                   </div>
                   <IconButton
                     size="icon"
+                    tone="danger"
                     label={t('upload.removeFile', { name: file.fileName })}
                     onClick={() => {
                       onRemove(file.kind as DatasetKind)

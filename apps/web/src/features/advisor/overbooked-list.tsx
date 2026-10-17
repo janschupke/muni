@@ -51,9 +51,9 @@ export function OverbookedList({
             }
             description={
               <>
-                <SessionDateLink session={o.session} />
+                <SessionDateLink session={o.session} inText />
                 {' · '}
-                <RoomLink room={o.session.room} />
+                <RoomLink room={o.session.room} inText />
               </>
             }
           />
@@ -74,9 +74,9 @@ export function OverbookedList({
                 {o.moves.map(m => (
                   <ItemListRow key={m.to.externalId}>
                     <span>
-                      {t('moveTo', { count: m.count })} <SessionDateLink session={m.to} />
+                      {t('moveTo', { count: m.count })} <SessionDateLink session={m.to} inText />
                       {' · '}
-                      <RoomLink room={m.to.room} />
+                      <RoomLink room={m.to.room} inText />
                     </span>
                   </ItemListRow>
                 ))}

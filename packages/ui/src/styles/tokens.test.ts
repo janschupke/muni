@@ -65,6 +65,9 @@ const CONTAINERS = [CANVAS, RAISED, OVERLAY]
 const SURFACES = [CANVAS, RAISED, OVERLAY, WELL]
 const TRACKS = SURFACES.map(s => [...s, 'chart-track'])
 const SOFT = ['success', 'warning', 'serious', 'danger', 'info'] as const
+const GREYS = [['fg'], ['fg-muted'], ['fg-subtle']]
+/** The coloured text inks; info-fg is accent-text. */
+const INKS = ['link', 'accent-text', 'success-fg', 'warning-fg', 'serious-fg', 'danger-fg']
 
 type Kind = keyof typeof MIN
 interface Pairing {
@@ -138,7 +141,7 @@ const PAIRINGS: Pairing[] = [
   { kind: 'nonText', fg: 'accent', on: [RAISED], why: 'a checked checkbox' },
 
   // Text, WCAG 1.4.3.
-  ...['fg', 'fg-muted', 'fg-subtle', 'accent-text'].map((ink): Pairing => ({
+  ...['fg', 'fg-muted', 'fg-subtle', 'accent-text', 'link'].map((ink): Pairing => ({
     kind: 'text',
     fg: ink,
     on: [
@@ -156,6 +159,23 @@ const PAIRINGS: Pairing[] = [
     why: 'status text, badges, alerts',
   })),
   { kind: 'text', fg: 'accent-text', on: [['accent-soft']], why: 'accent badge' },
+
+  // Coloured text reads as a colour: apart from every grey, and each from the others
+  // (warning beside danger in one table). The link and accent-text are both blue.
+  ...INKS.map((ink): Pairing => ({
+    kind: 'ink',
+    fg: ink,
+    on: GREYS,
+    why: 'a link or status text among plain text',
+  })),
+  ...INKS.slice(1).flatMap((ink, i, all) =>
+    all.slice(i + 1).map((other): Pairing => ({
+      kind: 'categorical',
+      fg: ink,
+      on: [[other]],
+      why: 'status texts side by side',
+    }))
+  ),
   { kind: 'text', fg: 'accent-fg', on: [['accent'], ['accent-hover']], why: 'primary button' },
   { kind: 'text', fg: 'danger-ink', on: [['danger-fill']], why: 'danger button' },
   ...['full', 'high', 'fair', 'low', 'poor'].map((band): Pairing => ({
@@ -194,7 +214,9 @@ const COLOUR_UTILITY =
 const ratio = (kind: Kind, fg: string, on: readonly string[], theme: Theme) => {
   const base = paint(on, theme)
   const top = composite(role(fg, theme), base)
-  return kind === 'separation' || kind === 'categorical' ? deltaE(top, base) : contrast(top, base)
+  return kind === 'separation' || kind === 'categorical' || kind === 'ink'
+    ? deltaE(top, base)
+    : contrast(top, base)
 }
 
 describe('colour contract', () => {

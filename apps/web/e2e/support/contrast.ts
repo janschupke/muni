@@ -152,3 +152,100 @@ export async function expectRowHover(page: Page, label: string) {
   await page.mouse.move(0, 0)
   expect(problems, label).toEqual([])
 }
+
+interface LinkPaint {
+  label: string
+  color: Rgba
+  /** The text colour of the block the link sits in, and of the page's body. */
+  block: Rgba
+  body: Rgba
+  underlined: boolean
+  /** The block has words of its own besides the link: the link sits in running text. */
+  inText: boolean
+}
+
+// Each link that reads as words (icon links are judged as icon buttons, links drawn as
+// buttons or tabs by their fill and border), with its colour and its surroundings'.
+const COLLECT_LINKS = `(({ root }) => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 1
+  canvas.height = 1
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  function rgba(css) {
+    ctx.clearRect(0, 0, 1, 1)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0)'
+    ctx.fillStyle = css
+    ctx.fillRect(0, 0, 1, 1)
+    const d = ctx.getImageData(0, 0, 1, 1).data
+    return [d[0], d[1], d[2], d[3] / 255]
+  }
+  const scope = root ? document.querySelector(root) : document
+  if (!scope) return []
+  return [...scope.querySelectorAll('a[href]')]
+    .filter(el => el.checkVisibility({ opacityProperty: true, visibilityProperty: true }))
+    .filter(el => {
+      const box = el.getBoundingClientRect()
+      return box.width > 1 && box.height > 1
+    })
+    // Navigation and tabs mark the current page their own way; a link drawn as a button
+    // or the app's mark (data-slot) is judged by its shape.
+    .filter(el => !el.closest('nav, [role=tablist], [role=tab]') && !el.hasAttribute('data-slot'))
+    .filter(el => (el.textContent || '').trim() !== '')
+    .filter(el => {
+      const style = getComputedStyle(el)
+      const filled = rgba(style.backgroundColor)[3] > 0
+      const bordered = parseFloat(style.borderTopWidth) > 0 && rgba(style.borderTopColor)[3] > 0
+      return !filled && !bordered
+    })
+    .map(el => {
+      // The block a node's words flow in: its nearest ancestor that is not laid out inline.
+      const blockOf = node => {
+        let at = node.parentElement
+        while (at && getComputedStyle(at).display.startsWith('inline')) at = at.parentElement
+        return at || document.body
+      }
+      const block = blockOf(el)
+      // Words on the link's own lines: text flowing in the same block, not a line of its own.
+      let outside = ''
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT)
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (el.contains(node) || blockOf(node) !== block) continue
+        const host = node.parentElement
+        if (host && (host.closest('a, button, [aria-hidden=true]') || !host.checkVisibility())) continue
+        outside += node.textContent
+      }
+      const style = getComputedStyle(el)
+      return {
+        label: '"' + (el.textContent || '').trim().slice(0, 40) + '" → ' + el.getAttribute('href'),
+        color: rgba(style.color),
+        block: rgba(getComputedStyle(block).color),
+        body: rgba(getComputedStyle(document.body).color),
+        underlined: style.textDecorationLine.includes('underline'),
+        inText: /\\p{L}{2,}/u.test(outside),
+      }
+    })
+})`
+
+/**
+ * A link has to look like one before it is hovered (WCAG 1.4.1): underlined, or a colour
+ * plainly apart from the page's text and from the text around it; in running text, an
+ * underline or 3:1 against the words around it. axe's own rule passes a link the colour of
+ * its text, and skips links alone in a table cell or laid out as flex.
+ */
+export async function expectLinksDistinct(page: Page, label: string, root?: string) {
+  const links: LinkPaint[] = await page.evaluate(`${COLLECT_LINKS}(${JSON.stringify({ root })})`)
+  const problems = links.flatMap(link => {
+    if (link.underlined) return []
+    const fromBody = deltaE(link.color, link.body)
+    const fromBlock = deltaE(link.color, link.block)
+    if (fromBody < MIN.categorical || fromBlock < MIN.categorical)
+      return [
+        `${link.label}: not underlined, ΔE ${Math.min(fromBody, fromBlock).toFixed(3)} from the text`,
+      ]
+    const ratio = contrast(link.color, link.block)
+    return link.inText && ratio < MIN.nonText
+      ? [`${link.label}: in running text, not underlined, ${ratio.toFixed(2)}:1 against it`]
+      : []
+  })
+  expect(problems, `${label}: links that look like text`).toEqual([])
+}

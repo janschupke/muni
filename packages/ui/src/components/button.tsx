@@ -41,6 +41,7 @@ export function Button({
   ...props
 }: ComponentProps<'button'> & ButtonVariants & { asChild?: boolean | undefined }) {
   const classes = cn(buttonClass({ variant, size }), className)
-  if (asChild) return <Slot.Root className={classes} {...props} />
-  return <button type={type} className={classes} {...props} />
+  // Marked, so a link drawn as a button is judged as a button, not as a link in text.
+  if (asChild) return <Slot.Root data-slot="button" className={classes} {...props} />
+  return <button type={type} data-slot="button" className={classes} {...props} />
 }

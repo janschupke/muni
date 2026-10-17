@@ -121,4 +121,22 @@ describe('IconButton', () => {
     await user.click(button)
     expect(onClick).toHaveBeenCalled()
   })
+
+  it('takes the colour of what it does at rest, and a soft fill of it on hover', () => {
+    render(
+      <>
+        <IconButton label="Archivovat" tone="serious">
+          <svg aria-hidden />
+        </IconButton>
+        <IconButton label="Zavřít">
+          <svg aria-hidden />
+        </IconButton>
+      </>
+    )
+    const archive = screen.getByRole('button', { name: 'Archivovat' }).className
+    expect(archive).toContain('text-serious-fg')
+    expect(archive).toContain('hover:bg-serious-soft')
+    expect(archive).not.toContain('text-fg-muted')
+    expect(screen.getByRole('button', { name: 'Zavřít' }).className).toContain('text-fg-muted')
+  })
 })

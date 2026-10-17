@@ -22,7 +22,7 @@ export function RequirementList({ requirements }: { requirements: RequirementVie
               target: r.target ?? '',
               link: chunks =>
                 href ? (
-                  <RecordLink href={href} archived={r.archived}>
+                  <RecordLink href={href} archived={r.archived} inText>
                     {chunks}
                   </RecordLink>
                 ) : (

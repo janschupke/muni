@@ -183,6 +183,7 @@ export function ReviewTable({
               {row.isRemoved ? (
                 <IconButton
                   size="icon"
+                  tone="success"
                   label={t('review.restore', { row: row.rowNumber })}
                   onClick={() => {
                     onRestore(index)
@@ -193,6 +194,7 @@ export function ReviewTable({
               ) : (
                 <IconButton
                   size="icon"
+                  tone="danger"
                   label={t('review.remove', { row: row.rowNumber })}
                   onClick={() => {
                     onRemove(index)
@@ -204,6 +206,7 @@ export function ReviewTable({
               {row.isEdited && (
                 <IconButton
                   size="icon"
+                  tone="accent"
                   label={t('review.revert', { row: row.rowNumber })}
                   onClick={() => {
                     onRevert(index)

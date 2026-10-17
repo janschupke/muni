@@ -27,16 +27,19 @@ export function RecordLink({
   href,
   archived,
   emphasis = false,
+  inText = false,
   children,
 }: {
   href: string
   archived: boolean
   emphasis?: boolean | undefined
+  /** Inside a sentence: underlined (see TextLink). */
+  inText?: boolean | undefined
   children: ReactNode
 }) {
   if (archived) return <ArchivedName>{children}</ArchivedName>
   return (
-    <TextLink asChild emphasis={emphasis} hitArea>
+    <TextLink asChild emphasis={emphasis} inText={inText} hitArea>
       <Link href={href}>{children}</Link>
     </TextLink>
   )

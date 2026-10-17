@@ -43,8 +43,11 @@ export function BreakdownChart({
             const name = bucketName(row.bucket)
             return (
               <li key={row.bucket}>
+                {/* A choice in a list, like a tab: its name in the link colour, the chosen one
+                    filled; judged as a choice, not as a link in text (data-slot). */}
                 <Link
                   href={advisorHref('breakdown', row.bucket)}
+                  data-slot="choice"
                   aria-current={active ? 'true' : undefined}
                   className={cn(
                     'block rounded-md px-2 py-2 transition-colors hover:bg-state-hover focus-visible:outline-2 focus-visible:outline-focus-ring',
@@ -52,7 +55,9 @@ export function BreakdownChart({
                   )}
                 >
                   <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
-                    <span className={cn('min-w-0', active ? 'font-semibold' : 'font-medium')}>
+                    <span
+                      className={cn('min-w-0', active ? 'font-semibold' : 'font-medium text-link')}
+                    >
                       {name}
                     </span>
                     <span className="text-fg tabular-nums">

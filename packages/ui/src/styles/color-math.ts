@@ -70,4 +70,9 @@ export const MIN = {
   text: 4.5,
   /** Signal colours side by side (stacked bar segments, legend dots) told apart by hue. */
   categorical: 0.09,
+  /**
+   * A coloured ink (a link, warning text) against the neutral text greys: read as a colour,
+   * not as one more grey. Amber at text contrast in the light theme reaches about 0.11.
+   */
+  ink: 0.1,
 } as const

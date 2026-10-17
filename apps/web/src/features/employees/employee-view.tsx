@@ -179,6 +179,7 @@ function EmployeeDetail({
                           meta={
                             <>
                               <SessionDateLink
+                                inText
                                 session={{
                                   externalId: b.sessionExternalId,
                                   startsAt: b.startsAt,
@@ -186,7 +187,7 @@ function EmployeeDetail({
                                 }}
                               />
                               {' · '}
-                              <RoomLink room={b.room} />
+                              <RoomLink room={b.room} inText />
                             </>
                           }
                         />

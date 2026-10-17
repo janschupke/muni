@@ -106,7 +106,7 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
               {matrix.courses.map(c => (
                 <Th key={c.code} className={cn(HEAD, 'px-1 text-center')}>
                   <Tooltip content={c.name}>
-                    <TextLink asChild tone="muted">
+                    <TextLink asChild>
                       {/* The column says the code; its link says the whole course. */}
                       <Link href={`/courses/${c.code}`} aria-label={`${c.code} ${c.name}`}>
                         {c.code}

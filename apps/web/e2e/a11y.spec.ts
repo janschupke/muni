@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { setupClerkTestingToken } from '@clerk/testing/playwright'
 import type { Page } from '@playwright/test'
 
-import { expectRenderedContrast, expectRowHover } from './support/contrast'
+import { expectLinksDistinct, expectRenderedContrast, expectRowHover } from './support/contrast'
 import { APP_PAGES, loaded, pathOf } from './support/pages'
 import { baseUrlOf } from './support/server'
 import { expect, test } from './support/test'
@@ -24,6 +24,7 @@ async function expectNoViolations(page: Page, label: string, within?: string) {
   }))
   expect(summary, label).toEqual([])
   await expectRenderedContrast(page, label, within)
+  await expectLinksDistinct(page, label, within)
   if (!within) await expectStructure(page, label)
 }
 

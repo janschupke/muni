@@ -34,8 +34,10 @@ const DESKTOP = '(min-width: 64rem)'
 
 function Brand({ name }: { name: string }) {
   return (
+    // The app's mark and name: known as the way home by its place, not by a link colour.
     <Link
       href="/"
+      data-slot="brand"
       className="flex min-h-9 min-w-0 items-center gap-2.5 rounded-md font-semibold text-fg transition-colors hover:text-accent-text"
     >
       <LogoMark />

@@ -67,6 +67,9 @@ describe('Badge, Button and TextLink', () => {
         <TextLink asChild arrow hitArea>
           <a href="/advisor">Poradce</a>
         </TextLink>
+        <TextLink href="/import" inText>
+          Import
+        </TextLink>
       </>
     )
     expect(screen.getByText('Prošlé').className).toContain('text-danger-fg')
@@ -77,6 +80,10 @@ describe('Badge, Button and TextLink', () => {
     expect(asLink.className).toContain('inline-flex')
     expect(screen.getByRole('link', { name: 'Kurzy' }).className).toContain('font-medium')
     expect(screen.getByRole('link', { name: 'Termíny' }).getAttribute('href')).toBe('/sessions')
+    // In the link colour before any hover; inside a sentence, underlined as well.
+    expect(screen.getByRole('link', { name: 'Kurzy' }).className).toContain('text-link')
+    expect(screen.getByRole('link', { name: 'Kurzy' }).className).not.toMatch(/(^| )underline( |$)/)
+    expect(screen.getByRole('link', { name: 'Import' }).className).toMatch(/(^| )underline( |$)/)
     // A link that leads on ends with an arrow inside it; listed links are 24px tall.
     const onward = screen.getByRole('link', { name: 'Poradce' })
     expect(onward.querySelector('svg')).toBeTruthy()

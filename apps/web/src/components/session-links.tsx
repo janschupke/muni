@@ -17,13 +17,16 @@ const roomHref = (room: RoomRef) => `/rooms/${encodeURIComponent(room.id)}`
 export function SessionDateLink({
   session,
   emphasis = false,
+  inText = false,
 }: {
   session: { externalId: string; startsAt: string; endsAt: string }
   emphasis?: boolean | undefined
+  /** Inside a sentence: underlined (see TextLink). */
+  inText?: boolean | undefined
 }) {
   const locale = useLocale()
   return (
-    <TextLink asChild emphasis={emphasis} hitArea>
+    <TextLink asChild emphasis={emphasis} inText={inText} hitArea>
       <Link href={sessionHref(session.externalId)}>
         {formatTimeRange(session.startsAt, session.endsAt, locale)}
       </Link>
@@ -32,7 +35,14 @@ export function SessionDateLink({
 }
 
 /** A room, linking to its page (its equipment and every session held there); muted once archived. */
-export function RoomLink({ room }: { room: RoomRef }) {
+export function RoomLink({
+  room,
+  inText = false,
+}: {
+  room: RoomRef
+  /** Inside a sentence: underlined (see TextLink). */
+  inText?: boolean | undefined
+}) {
   const t = useTranslations('common')
   return (
     <span className="inline-flex items-center gap-1.5">
@@ -42,7 +52,7 @@ export function RoomLink({ room }: { room: RoomRef }) {
           <span className="sr-only">{t('online')}</span>
         </>
       )}
-      <RecordLink href={roomHref(room)} archived={room.archived ?? false}>
+      <RecordLink href={roomHref(room)} archived={room.archived ?? false} inText={inText}>
         {room.name}
       </RecordLink>
     </span>

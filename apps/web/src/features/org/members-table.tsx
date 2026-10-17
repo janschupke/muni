@@ -108,7 +108,7 @@ export function MembersTable({
                             <Link href={`/courses/${r.courseCode}`}>{r.courseName}</Link>
                           </TextLink>
                           {r.booked && (
-                            <TextLink asChild tone="muted" hitArea className="text-xs">
+                            <TextLink asChild hitArea className="text-xs">
                               <Link href={`/sessions/${r.booked.sessionExternalId}`}>
                                 {t('booked', { date: formatDateTime(r.booked.startsAt, locale) })}
                               </Link>

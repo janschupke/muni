@@ -67,7 +67,7 @@ export function SessionFacts({
       <DescriptionItem label={t('room')}>
         <span className="flex flex-col gap-0.5">
           <span>
-            <RoomLink room={s.room} />
+            <RoomLink room={s.room} inText />
             {' · '}
             {s.roomSeats === null ? t('roomOnline') : t('roomSeats', { seats: s.roomSeats })}
           </span>

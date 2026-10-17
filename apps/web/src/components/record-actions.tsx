@@ -57,7 +57,7 @@ export function RowActions({
   return (
     <div className="flex justify-end gap-1">
       {editHref && (
-        <IconButton asChild label={t('editLabel', { name })}>
+        <IconButton asChild tone="accent" label={t('editLabel', { name })}>
           <Link href={editHref}>
             <Pencil aria-hidden />
           </Link>
