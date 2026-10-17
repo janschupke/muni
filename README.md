@@ -15,10 +15,14 @@ Requirements: Node 24 (`.nvmrc`), pnpm 12 (`corepack enable`), Docker.
 cp .env.example .env
 pnpm install
 pnpm db:up            # Postgres: dev on :5438, test on :5439
-pnpm db:migrate       # apply migrations to the dev database
-pnpm db:seed          # import ./data through the same importer the UI uses
-pnpm dev              # http://localhost:3060
+pnpm db:migrate:deploy  # apply pending migrations to the dev database
+pnpm db:seed            # import ./data through the same importer the UI uses
+pnpm dev                # http://localhost:3060
 ```
+
+`pnpm db:migrate` (`prisma migrate dev`) is for writing a new migration after a schema
+change; `db:migrate:deploy` only applies what is already in `prisma/migrations`. Both read
+`.env` and fail when it names no database.
 
 Clerk keys are required: put development keys from the Clerk dashboard into `.env`
 (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`). Without them every request fails.
@@ -618,7 +622,7 @@ Playwright e2e and Lighthouse are not in `pnpm check` (they need browsers, a pro
 ## Deployment (Vercel + Supabase)
 
 Create a Vercel project with root directory `apps/web`; `apps/web/vercel.json` installs from
-the repo root, applies migrations, then builds.
+the repo root, applies migrations on production deploys, then builds.
 
 | Variable                                                | Value                                                                         |
 | ------------------------------------------------------- | ----------------------------------------------------------------------------- |
@@ -629,5 +633,6 @@ the repo root, applies migrations, then builds.
 | `MUNI_RATE_LIMIT_READS`, `MUNI_RATE_LIMIT_WRITES`       | optional: per user and minute (defaults 300 and 60)                           |
 
 `prisma.config.ts` refuses to run migrations against port 6543. A production deploy without
-`DIRECT_URL` fails; previews without a database skip migrations. The function region is
+`DIRECT_URL` fails. Preview deploys never migrate, whatever database they point at: a branch's
+migrations reach a database only once it is deployed to production. The function region is
 `fra1`; keep the Supabase project in an EU region next to it.

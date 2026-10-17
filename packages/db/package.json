@@ -15,7 +15,7 @@
     "check:schema": "prisma validate && prisma format --check",
     "check:drift": "dotenv -e .env.test -- prisma migrate deploy && dotenv -e .env.test -- prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code",
     "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
-    "migrate:deploy": "tsx scripts/migrate-deploy.ts",
+    "migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
     "migrate:reset": "dotenv -e ../../.env -- prisma migrate reset",
     "seed": "dotenv -e ../../.env -- tsx scripts/seed.ts",
     "studio": "dotenv -e ../../.env -- prisma studio",
