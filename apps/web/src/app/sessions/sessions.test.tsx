@@ -6,6 +6,7 @@ import {
   listEmployeeOptions,
   listRoomOptions,
   listSessions,
+  pageSessions,
 } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -33,6 +34,7 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   getAdvisorInput: vi.fn(),
   getSession: vi.fn(),
   listSessions: vi.fn(),
+  pageSessions: vi.fn(),
   recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 vi.mock('@/server/auth')
@@ -74,6 +76,10 @@ beforeEach(() => {
       capacity: 30,
     }),
   ])
+  vi.mocked(pageSessions).mockImplementation(async () => {
+    const items = await vi.mocked(listSessions)()
+    return { items, total: items.length, page: 1, pageSize: 25, pageCount: 1 }
+  })
   vi.mocked(getSession).mockResolvedValue(session())
   vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
   vi.mocked(listRoomOptions).mockResolvedValue([
@@ -97,7 +103,11 @@ describe('session list', () => {
   it('lists upcoming sessions, linking the date to the session and the place to its room', async () => {
     expect(await listMetadata(search({}))).toEqual({ title: 'Sessions' })
     await renderServer(SessionsPage(search({})))
-    expect(listSessions).toHaveBeenCalledWith({ window: 'upcoming', room: undefined })
+    expect(listSessions).toHaveBeenCalledWith({
+      window: 'upcoming',
+      room: undefined,
+      course: undefined,
+    })
     expect(screen.getByRole('link', { name: 'Upcoming' }).getAttribute('aria-current')).toBe('page')
     const row = screen.getByRole('row', { name: /T020/ })
     expect(within(row).getByRole('link', { name: 'Online' }).getAttribute('href')).toBe(
@@ -119,7 +129,14 @@ describe('session list', () => {
       title: 'Sessions in Aula A',
     })
     await renderServer(SessionsPage(search({ when: 'past', room: 'room_aula_a' })))
-    expect(listSessions).toHaveBeenCalledWith({ window: 'past', room: 'room_aula_a' })
+    // The past comes a page at a time.
+    expect(pageSessions).toHaveBeenCalledWith({
+      window: 'past',
+      room: 'room_aula_a',
+      course: undefined,
+      page: undefined,
+      pageSize: 25,
+    })
     expect(screen.getByRole('heading', { level: 1, name: 'Sessions in Aula A' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Upcoming' }).getAttribute('href')).toBe(
       '/sessions?room=room_aula_a'
@@ -158,6 +175,55 @@ describe('session list', () => {
     expect(await listMetadata(search({ room: 'gone' }))).toEqual({ title: 'Sessions' })
     await renderServer(SessionsPage(search({ room: 'gone' })))
     expect(screen.getByRole('heading', { level: 1, name: 'Sessions' })).toBeTruthy()
+    expect(screen.getByText('No sessions to show.')).toBeTruthy()
+  })
+
+  it('pages the past, and narrows it to one course with a chip that removes it', async () => {
+    vi.mocked(pageSessions).mockResolvedValueOnce({
+      items: [session()],
+      total: 60,
+      page: 2,
+      pageSize: 25,
+      pageCount: 3,
+    })
+    const query = { when: 'past', course: 'BOZP-Z', page: '2' }
+    expect(await listMetadata(search(query))).toEqual({
+      title: 'Sessions of BOZP – základní školení',
+    })
+    await renderServer(SessionsPage(search(query)))
+    expect(pageSessions).toHaveBeenCalledWith({
+      window: 'past',
+      room: undefined,
+      course: 'BOZP-Z',
+      page: 2,
+      pageSize: 25,
+    })
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Sessions of BOZP – základní školení' })
+    ).toBeTruthy()
+    const pages = screen.getByRole('navigation', { name: 'Pages' })
+    expect(within(pages).getByText('Page 2 of 3')).toBeTruthy()
+    // Page 1 is the list without a page; the filters stay on every page.
+    expect(
+      within(pages)
+        .getByRole('link', { name: /Previous/ })
+        .getAttribute('href')
+    ).toBe('/sessions?when=past&course=BOZP-Z')
+    expect(within(pages).getByRole('link', { name: /Next/ }).getAttribute('href')).toBe(
+      '/sessions?when=past&course=BOZP-Z&page=3'
+    )
+    expect(screen.getByText('Course: BOZP – základní školení')).toBeTruthy()
+    expect(
+      screen.getByRole('link', { name: 'Remove the course filter' }).getAttribute('href')
+    ).toBe('/sessions?when=past')
+    // Another window starts again from the first page.
+    expect(screen.getByRole('link', { name: 'Upcoming' }).getAttribute('href')).toBe(
+      '/sessions?course=BOZP-Z'
+    )
+  })
+
+  it('shows nothing for a course that does not exist', async () => {
+    await renderServer(SessionsPage(search({ course: 'GONE' })))
     expect(screen.getByText('No sessions to show.')).toBeTruthy()
   })
 

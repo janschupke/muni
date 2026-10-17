@@ -6,29 +6,49 @@ import {
   listEmployeeOptions,
   listRoomOptions,
   listSessions,
+  pageSessions,
 } from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
 import * as z from 'zod'
 
 import { byExternalId, read } from './define'
 
-/** Upcoming or past sessions, everywhere or in one room. */
+/** Past sessions per page of the list. */
+const PAST_PAGE_SIZE = 25
+
+/**
+ * Upcoming or past sessions, everywhere or in one room or of one course. The past grows
+ * without end, so it comes a page at a time; what is ahead comes whole.
+ */
 export const sessionsList = read({
   guard: 'reader',
   input: z.object({
     when: z.literal('past').optional(),
     room: z.string().min(1).max(64).optional(),
+    course: z.string().min(1).max(64).optional(),
+    page: z.coerce.number().int().min(1).optional(),
   }),
-  load: async ({ when, room: roomId }) => {
-    // Every room, for the filter; the sessions in the one asked for, if it is one.
-    const [rooms, sessions] = await Promise.all([
+  load: async ({ when, room: roomId, course: code, page }) => {
+    const filter = { room: roomId, course: code }
+    // Every room, for the filter; the course, for its chip; then the sessions asked for.
+    const [rooms, courses, past, upcoming] = await Promise.all([
       listRoomOptions(),
-      listSessions({ window: when ?? 'upcoming', room: roomId }),
+      code ? listCourseOptions() : [],
+      when === 'past'
+        ? pageSessions({ ...filter, window: 'past', page, pageSize: PAST_PAGE_SIZE })
+        : null,
+      when === 'past' ? null : listSessions({ ...filter, window: 'upcoming' }),
     ])
     const room = roomId ? (rooms.find(r => r.id === roomId) ?? null) : null
+    const course = code ? (courses.find(c => c.code === code) ?? null) : null
+    // A room or course that is not there (archived, mistyped) shows nothing, not everything.
+    const unknown =
+      (roomId !== undefined && room === null) || (code !== undefined && course === null)
     return {
-      sessions: roomId && !room ? [] : sessions,
+      sessions: unknown ? [] : (past?.items ?? upcoming ?? []),
+      paging: past && { page: past.page, pageCount: past.pageCount, total: past.total },
       room,
+      course: course && { code: course.code, name: course.name },
       rooms: rooms.map(r => ({ id: r.id, name: r.name })),
     }
   },

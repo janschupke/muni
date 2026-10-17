@@ -138,6 +138,23 @@ test.describe('register (viewer)', () => {
     await expect(page).toHaveURL(/when=past/)
   })
 
+  test('past sessions narrow to one course, with a chip that removes it', async ({ page }) => {
+    await setLocale(page, 'en')
+    await page.goto('/sessions?when=past&course=BOZP-Z')
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Sessions of BOZP – základní školení' })
+    ).toBeVisible()
+    await expect(page.getByText('Course: BOZP – základní školení')).toBeVisible()
+    const rows = page.locator('tbody > tr').filter({ has: page.locator('a[href^="/sessions/T"]') })
+    await expect(rows.first()).toBeVisible()
+    for (const text of await rows.allTextContents()) expect(text).toContain('BOZP')
+    // Six past sessions fit one page: no page links.
+    await expect(page.getByRole('navigation', { name: 'Pages' })).toHaveCount(0)
+    await page.getByRole('link', { name: 'Remove the course filter' }).click()
+    await expect(page).toHaveURL(/\/sessions\?when=past$/)
+    await expect(page.getByText('Course: BOZP – základní školení')).toHaveCount(0)
+  })
+
   test('sessions sort by price in the browser, unpriced last', async ({ page }) => {
     await setLocale(page, 'en')
     await page.goto('/sessions')

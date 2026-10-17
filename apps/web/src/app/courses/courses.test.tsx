@@ -204,6 +204,16 @@ describe('course detail', () => {
     expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull()
   })
 
+  it('shows the latest past sessions, and the way to the rest in the sessions list', async () => {
+    await renderServer(CoursePage(props))
+    expect(screen.queryByRole('link', { name: /past sessions/ })).toBeNull()
+    vi.mocked(getCourse).mockResolvedValueOnce(courseDetail({ pastShown: 10, pastTotal: 14 }))
+    await renderServer(CoursePage(props))
+    expect(screen.getByRole('link', { name: 'All 14 past sessions' }).getAttribute('href')).toBe(
+      '/sessions?when=past&course=BOZP-Z'
+    )
+  })
+
   it('lets admins edit and archive the course and its sessions', async () => {
     signInAs('ADMIN')
     await renderServer(CoursePage(props))

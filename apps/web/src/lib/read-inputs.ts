@@ -33,7 +33,23 @@ export const employeesListInput = (
   page: number
 ): ReadInput<'employees-list'> => ({ ...employeesQuery(filters, sort), page })
 
-export const sessionsListInput = (
-  when: 'upcoming' | 'past',
-  room: string | undefined
-): ReadInput<'sessions-list'> => ({ when: when === 'past' ? 'past' : undefined, room })
+/** What the sessions list shows: the window, a room or course, and (past only) the page. */
+export interface SessionListQuery {
+  when: 'upcoming' | 'past'
+  room?: string | undefined
+  course?: string | undefined
+  page?: number | undefined
+}
+
+export const sessionsListInput = ({
+  when,
+  room,
+  course,
+  page,
+}: SessionListQuery): ReadInput<'sessions-list'> => ({
+  when: when === 'past' ? 'past' : undefined,
+  room,
+  course,
+  // The first page is the list without a page.
+  page: when === 'past' && page !== undefined && page > 1 ? page : undefined,
+})

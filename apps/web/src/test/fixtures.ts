@@ -223,6 +223,8 @@ export const courseDetail = (over: Partial<CourseDetail> = {}): CourseDetail => 
     { scope: 'POSITION', target: 'Vedoucí oddělení', targetId: 'pos_head', archived: false },
   ],
   sessions: [session(), session({ externalId: 'T017', status: 'CANCELLED', bookings: [] })],
+  pastShown: 0,
+  pastTotal: 0,
   recentCompletions: [
     {
       id: 'cmp_Z000101',

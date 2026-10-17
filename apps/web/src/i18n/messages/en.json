@@ -233,7 +233,8 @@
       "employee": "Employee",
       "completedOn": "Completed",
       "validUntil": "Valid until",
-      "nobodyRequired": "Nobody must hold this course yet. Add who it is required for on its edit page."
+      "nobodyRequired": "Nobody must hold this course yet. Add who it is required for on its edit page.",
+      "allPast": "All {count, plural, one {# past session} other {# past sessions}}"
     },
     "newSession": "New session",
     "newTitle": "New session of {course}",
@@ -324,7 +325,10 @@
       "id": "ID"
     },
     "roomFilter": "Room",
-    "allRooms": "All rooms"
+    "allRooms": "All rooms",
+    "titleOf": "Sessions of {course}",
+    "courseFilter": "Course: {course}",
+    "clearCourse": "Remove the course filter"
   },
   "compliance": {
     "title": "Compliance matrix",

@@ -264,7 +264,11 @@ Czech collation, and missing values sort last in both directions. Small lists (c
 sessions, completion history, the import review) are sorted in the browser; the review sorts
 every row of the current filter before paging. The employee list is paginated on the server,
 so it is also sorted there: the order lives in the URL (`?sort=department&dir=desc`) and is
-applied in `listEmployees` before the page is cut.
+applied in `listEmployees` before the page is cut. Past sessions grow without end, so
+`/sessions?when=past` comes 25 at a time (`?page=`, `pageSessions`), newest first, and its
+header sorting orders the page in view; upcoming sessions come whole. A course's page shows
+its sessions ahead and its 10 latest past ones, and links to the rest
+(`/sessions?when=past&course=CODE`).
 
 Dates and times are formatted with luxon in Europe/Prague time (`@muni/utils/format`);
 date-only values are formatted as UTC so the day never shifts. Amounts use `Intl.NumberFormat`.

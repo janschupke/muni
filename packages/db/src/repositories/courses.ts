@@ -22,6 +22,7 @@ import { activeDepartments } from './lookups'
 import { needsOf, needsSelect } from './session-fit'
 import {
   isUpcoming,
+  pageSessions,
   sessionInclude,
   type SessionSummary,
   sessionSummarySelect,
@@ -166,9 +167,17 @@ export interface SessionListItem {
   status: SessionStatus
 }
 
+/** How many of a course's past sessions its page shows; the rest are in the sessions list. */
+const COURSE_PAST_SESSIONS = 10
+
 export interface CourseDetail extends Omit<CourseListItem, 'upcoming'> {
-  /** Every session of the course, past and ahead, oldest first. */
+  /**
+   * The sessions still ahead and the `COURSE_PAST_SESSIONS` latest past ones, oldest first.
+   */
   sessions: SessionListItem[]
+  /** Past sessions among `sessions`, and in all (the rest are in the sessions list). */
+  pastShown: number
+  pastTotal: number
   recentCompletions: {
     /** Internal id (editing and archiving act on it). */
     id: string
@@ -181,12 +190,17 @@ export interface CourseDetail extends Omit<CourseListItem, 'upcoming'> {
 
 export async function getCourse(code: string, options?: RepoOptions): Promise<CourseDetail | null> {
   const db = dbOf(options)
+  const now = new Date()
   const course = await db.course.findFirst({
     where: { code, ...ACTIVE },
     include: {
       ...audienceInclude,
       capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
-      sessions: { where: ACTIVE, orderBy: { startsAt: 'asc' }, include: sessionInclude },
+      sessions: {
+        where: { ...ACTIVE, endsAt: { gte: now } },
+        orderBy: { startsAt: 'asc' },
+        include: sessionInclude,
+      },
       completions: {
         where: ACTIVE,
         orderBy: { completedOn: 'desc' },
@@ -197,13 +211,16 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     },
   })
   if (!course) return null
-  const [compliance, departments] = await Promise.all([
+  const [compliance, departments, past] = await Promise.all([
     loadCompliance({ ...options, scope: { courseIds: [course.id] } }),
     activeDepartments(options),
+    pageSessions(
+      { window: 'past', course: code, pageSize: COURSE_PAST_SESSIONS },
+      { ...options, now }
+    ),
   ])
   const cells = countedCells(compliance).filter(c => c.courseId === course.id)
   const counts = countStatuses(cells)
-  const now = new Date()
   const upcoming = course.sessions.filter(s => isUpcoming(s, now))
   return {
     id: course.id,
@@ -217,7 +234,9 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     rate: complianceRate(counts),
     sessionNeeds: sessionNeedsOf(course),
     byDepartment: byDepartment(cells, compliance, departments),
-    sessions: course.sessions.map(toSessionItem),
+    sessions: [...past.items.toReversed(), ...course.sessions.map(toSessionItem)],
+    pastShown: past.items.length,
+    pastTotal: past.total,
     recentCompletions: course.completions.map(c => ({
       id: c.id,
       externalId: c.externalId,

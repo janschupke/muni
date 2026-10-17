@@ -63,7 +63,6 @@ export {
   getEmployee,
   getEmployeeForEdit,
   listEmployees,
-  type Page,
   type TeamMember,
 } from './employees'
 export { isPrismaCode } from './errors'
@@ -118,6 +117,7 @@ export {
   type PositionDetail,
   type PositionSummary,
 } from './org'
+export { type Page } from './paging'
 export { getPlannerInput } from './planner'
 export {
   createProvider,
@@ -144,7 +144,7 @@ export {
   updateEmployee,
 } from './records'
 export { getRoom, getRoomForEdit, listRooms, type RoomDetail, type RoomListItem } from './rooms'
-export { getSession, listSessions, type SessionWindow } from './sessions'
+export { getSession, listSessions, pageSessions, type SessionWindow } from './sessions'
 export {
   type ClerkUserSync,
   findUserByClerkId,

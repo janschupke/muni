@@ -240,6 +240,13 @@ for (const theme of ['light', 'dark'] as const) {
       await page.keyboard.press('Escape')
     })
 
+    test('past sessions of one course, the filter as a chip', async ({ page }) => {
+      await page.goto('/sessions?when=past&course=BOZP-Z')
+      await loaded(page)
+      await expect(page.getByText('Course: BOZP – základní školení')).toBeVisible()
+      await shot(page, 'sessions-past-course')
+    })
+
     test('a session opened, and a failure toast', async ({ page }) => {
       await page.goto('/sessions')
       await loaded(page)

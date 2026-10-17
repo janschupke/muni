@@ -22,6 +22,7 @@ import {
 } from './context'
 import { compareNames, type EmployeeSortKey, sortEmployees } from './employee-sort'
 import { stateOf, stateWhere, stillEmployed } from './employment'
+import { type Page, pageBounds } from './paging'
 import { loadNextBookings, type RequirementContext, requirementOf } from './requirements'
 
 export interface EmployeeListItem {
@@ -107,14 +108,6 @@ export interface EmployeeFilters {
   pageSize?: number | undefined
 }
 
-export interface Page<T> {
-  items: T[]
-  total: number
-  page: number
-  pageSize: number
-  pageCount: number
-}
-
 export async function listEmployees(
   filters: EmployeeFilters = {},
   options?: RepoOptions
@@ -171,11 +164,9 @@ export async function listEmployees(
   sortEmployees(items, 'name', false)
   if (filters.sort) sortEmployees(items, filters.sort.by, filters.sort.desc)
 
-  const pageSize = Math.min(Math.max(filters.pageSize ?? 25, 1), 100)
-  const pageCount = Math.max(1, Math.ceil(items.length / pageSize))
-  const page = Math.min(Math.max(filters.page ?? 1, 1), pageCount)
+  const { page, pageSize, pageCount, skip } = pageBounds(items.length, filters)
   return {
-    items: items.slice((page - 1) * pageSize, page * pageSize),
+    items: items.slice(skip, skip + pageSize),
     total: items.length,
     page,
     pageSize,

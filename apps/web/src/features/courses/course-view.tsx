@@ -9,6 +9,7 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
 import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
+import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent } from '@muni/utils/format'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarPlus } from 'lucide-react'
@@ -145,6 +146,16 @@ function CourseDetail({ course, canEdit }: { course: ReadOutput<'course'>; canEd
           caption={t('detail.sessions')}
           panelLevel={3}
         />
+      )}
+      {/* Only the latest past sessions are here; the rest page in the sessions list. */}
+      {course.pastTotal > course.pastShown && (
+        <p className="mt-3 text-sm">
+          <TextLink asChild arrow>
+            <Link href={`/sessions?when=past&course=${encodeURIComponent(course.code)}`}>
+              {t('detail.allPast', { count: course.pastTotal })}
+            </Link>
+          </TextLink>
+        </p>
       )}
 
       <SectionHeading>{t('detail.recentCompletions')}</SectionHeading>

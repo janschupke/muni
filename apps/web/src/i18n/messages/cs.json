@@ -233,7 +233,8 @@
       "employee": "Zaměstnanec",
       "completedOn": "Absolvováno",
       "validUntil": "Platí do",
-      "nobodyRequired": "Tento kurz zatím nikdo mít nemusí. Pro koho je povinný, nastavíte v jeho úpravě."
+      "nobodyRequired": "Tento kurz zatím nikdo mít nemusí. Pro koho je povinný, nastavíte v jeho úpravě.",
+      "allPast": "{count, plural, one {Jediný proběhlý termín} few {Všechny # proběhlé termíny} other {Všech # proběhlých termínů}}"
     },
     "newSession": "Nový termín",
     "newTitle": "Nový termín kurzu {course}",
@@ -324,7 +325,10 @@
       "id": "ID"
     },
     "roomFilter": "Místnost",
-    "allRooms": "Všechny místnosti"
+    "allRooms": "Všechny místnosti",
+    "titleOf": "Termíny – {course}",
+    "courseFilter": "Kurz: {course}",
+    "clearCourse": "Odebrat filtr kurzu"
   },
   "compliance": {
     "title": "Matice plnění",

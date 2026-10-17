@@ -1,10 +1,12 @@
 import type { RoomKind } from '@muni/domain/enums'
 import type { RoomFacts, RoomRef } from '@muni/domain/rooms'
 
+import type { Prisma } from '../generated/prisma/client'
 import { ACTIVE, isArchived, personSelect, toPersonRef } from './archive'
 import { dbOf, type RepoOptions, toAmount } from './context'
 import type { SessionListItem } from './courses'
 import { needsOf, needsSelect } from './fit-selects'
+import { type Page, pageBounds } from './paging'
 
 /**
  * What "upcoming" means wherever sessions are shown or counted: planned and not yet ended,
@@ -172,37 +174,75 @@ export function toSessionItem(s: SessionRow): SessionListItem {
   }
 }
 
+/** Which sessions a list shows: the window, and optionally one course, room or state. */
+export interface SessionFilter {
+  window?: SessionWindow | undefined
+  /** A course's code. */
+  course?: string | undefined
+  room?: string | undefined
+  /** Only sessions in this state; both by default (the lists show cancelled ones marked). */
+  status?: SessionListItem['status'] | undefined
+}
+
+function sessionWhere(
+  { window = 'upcoming', course, room, status }: SessionFilter,
+  now: Date
+): Prisma.CourseSessionWhereInput {
+  return {
+    ...ACTIVE,
+    ...(window === 'upcoming' ? { endsAt: { gte: now } } : { endsAt: { lt: now } }),
+    ...(course && { course: { code: course, ...ACTIVE } }),
+    ...(room && { roomId: room }),
+    ...(status && { status }),
+  }
+}
+
+/** Upcoming soonest first, past newest first; sessions at the same time by ID. */
+const sessionOrder = (window: SessionWindow | undefined) => [
+  { startsAt: window === 'past' ? ('desc' as const) : ('asc' as const) },
+  { externalId: 'asc' as const },
+]
+
 export async function listSessions(
-  {
-    window = 'upcoming',
-    course,
-    room,
-    status,
-    limit,
-  }: {
-    window?: SessionWindow | undefined
-    course?: string | undefined
-    room?: string | undefined
-    /** Only sessions in this state; both by default (the lists show cancelled ones marked). */
-    status?: SessionListItem['status'] | undefined
-    limit?: number | undefined
-  } = {},
+  { limit, ...filter }: SessionFilter & { limit?: number | undefined } = {},
   options?: RepoOptions & { now?: Date }
 ): Promise<SessionListItem[]> {
-  const now = options?.now ?? new Date()
   const sessions = await dbOf(options).courseSession.findMany({
-    where: {
-      ...ACTIVE,
-      ...(window === 'upcoming' ? { endsAt: { gte: now } } : { endsAt: { lt: now } }),
-      ...(course && { course: { code: course, ...ACTIVE } }),
-      ...(room && { roomId: room }),
-      ...(status && { status }),
-    },
+    where: sessionWhere(filter, options?.now ?? new Date()),
     include: sessionInclude,
-    orderBy: { startsAt: window === 'upcoming' ? 'asc' : 'desc' },
+    orderBy: sessionOrder(filter.window),
     ...(limit && { take: limit }),
   })
   return sessions.map(toSessionItem)
+}
+
+/**
+ * One page of sessions (the past grows without end), in the list's order, with how many
+ * there are in all.
+ */
+export async function pageSessions(
+  {
+    page: askedPage,
+    pageSize: askedSize,
+    ...filter
+  }: SessionFilter & { page?: number | undefined; pageSize?: number | undefined },
+  options?: RepoOptions & { now?: Date }
+): Promise<Page<SessionListItem>> {
+  const db = dbOf(options)
+  const where = sessionWhere(filter, options?.now ?? new Date())
+  const total = await db.courseSession.count({ where })
+  const { page, pageSize, pageCount, skip } = pageBounds(total, {
+    page: askedPage,
+    pageSize: askedSize,
+  })
+  const sessions = await db.courseSession.findMany({
+    where,
+    include: sessionInclude,
+    orderBy: sessionOrder(filter.window),
+    skip,
+    take: pageSize,
+  })
+  return { items: sessions.map(toSessionItem), total, page, pageSize, pageCount }
 }
 
 export async function getSession(
