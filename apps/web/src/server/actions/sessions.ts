@@ -3,39 +3,46 @@
 import {
   checkSessionSlot,
   createSession,
-  type SessionProblem,
+  createSessionWithBookings,
+  type PlannedSessionWrite,
   type SessionWrite,
 } from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
-import { type SessionCreate, sessionCreateSchema } from '@muni/domain/schemas'
+import { sessionCreateSchema } from '@muni/domain/schemas'
 import * as z from 'zod'
 
 import { formError, type FormState, sessionProblem } from '@/lib/form'
 import { parseForm, sessionCreateSpec } from '@/lib/form-inputs'
 import { getSessionUser, requireAdmin } from '@/server/auth'
 
-export type CreateOutcome =
-  | { ok: true; externalId: string }
-  | { ok: false; reason: 'unauthorized' | 'invalid' | 'failed' | SessionProblem }
+const plannedInput = z.object({
+  session: sessionCreateSchema,
+  people: z.array(z.string().trim().min(1).max(32)).max(500),
+  dryRun: z.boolean(),
+})
+
+/** What creating a planned session came to, or why the server would not take it at all. */
+export type PlannedOutcome =
+  PlannedSessionWrite | { ok: false; problem: 'unauthorized' | 'invalid' | 'failed'; refusals: [] }
 
 /**
- * Creates the session a planner offer describes; the planner stays open for the next one.
- * Every way it can fail comes back as a reason the planner shows next to the offer.
+ * Creates the session a planner offer turned into, and books the people chosen on it, all or
+ * nothing. `dryRun` checks the same way and writes nothing: the review the user sees first.
+ * Every way it can fail comes back as an answer the review shows.
  */
-export async function createOfferedSession(input: SessionCreate): Promise<CreateOutcome> {
+export async function createPlannedSessionAction(input: unknown): Promise<PlannedOutcome> {
   // Signed out meanwhile (an expired session) or no longer an admin: say so, rather than
   // throwing into the page.
   const user = await getSessionUser()
-  if (!user || !canWrite(user.role)) return { ok: false, reason: 'unauthorized' }
-  const parsed = sessionCreateSchema.safeParse(input)
-  if (!parsed.success) return { ok: false, reason: 'invalid' }
+  if (!user || !canWrite(user.role)) return { ok: false, problem: 'unauthorized', refusals: [] }
+  const parsed = plannedInput.safeParse(input)
+  if (!parsed.success) return { ok: false, problem: 'invalid', refusals: [] }
+  const { session, people, dryRun } = parsed.data
   try {
-    const result = await createSession(parsed.data)
-    if (!result.ok) return { ok: false, reason: result.problem }
-    return { ok: true, externalId: result.externalId }
+    return await createSessionWithBookings(session, people, user.id, { dryRun })
   } catch (error) {
     console.error(error)
-    return { ok: false, reason: 'failed' }
+    return { ok: false, problem: 'failed', refusals: [] }
   }
 }
 

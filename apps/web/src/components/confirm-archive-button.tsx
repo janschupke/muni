@@ -47,7 +47,9 @@ export function ConfirmArchiveButton({
     if (next.status === 'done') setOpen(false)
     return next
   }, ARCHIVE_IDLE)
-  useWhenWritten(state, state.status === 'done', state.status === 'done' ? state.href : undefined)
+  useWhenWritten(state, state.status === 'done', state.status === 'done' ? state.href : undefined, {
+    title: t('archive.archivedToast', { name }),
+  })
 
   const show = () => {
     setOpen(true)

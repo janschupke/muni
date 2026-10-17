@@ -5,7 +5,6 @@
   },
   "common": {
     "appName": "Registr školení",
-    "save": "Uložit",
     "saving": "Ukládám…",
     "cancel": "Zrušit",
     "edit": "Upravit",
@@ -25,7 +24,12 @@
     "editLabel": "Upravit {name}",
     "actions": "Akce",
     "remove": "Odebrat",
-    "loading": "Načítání…"
+    "loading": "Načítání…",
+    "notifications": "Oznámení",
+    "keepAsIs": "Ponechat beze změny",
+    "working": "Pracuji…",
+    "failed": "Akce se nepodařila. Zkontrolujte stránku a zkuste to znovu.",
+    "keepEditing": "Pokračovat v úpravách"
   },
   "nav": {
     "primary": "Hlavní navigace",
@@ -198,7 +202,8 @@
       "status": "Stav",
       "validUntil": "Platí do",
       "completedOn": "Naposledy absolvováno",
-      "booked": "Přihlášený termín"
+      "booked": "Přihlášený termín",
+      "title": "Povinná školení"
     },
     "new": "Nový zaměstnanec"
   },
@@ -238,10 +243,16 @@
       "noMinutes": "Délka nenastavena",
       "group": "Skupiny po {size}",
       "noGroup": "Velikost skupiny nenastavena",
-      "online": "Lze konat online",
       "byDepartment": "Plnění podle útvarů",
       "noDepartments": "Nikdo aktivní ho nemusí mít.",
-      "departmentTitle": "{department}: splněno {held} z {total}"
+      "departmentTitle": "{department}: splněno {held} z {total}",
+      "length": "Délka",
+      "groupSize": "Velikost skupiny",
+      "onlineLabel": "Online",
+      "onlineYes": "Lze vést online",
+      "onlineNo": "Jen prezenčně",
+      "equipment": "Vybavení",
+      "noEquipment": "Nic zvláštního"
     },
     "new": "Nový kurz"
   },
@@ -284,7 +295,36 @@
     },
     "nearlyFull": "Téměř plno",
     "newTitle": "Nový termín",
-    "new": "Nový termín"
+    "new": "Nový termín",
+    "expanded": {
+      "session": "Termín",
+      "when": "Kdy",
+      "room": "Místnost",
+      "roomSeats": "{seats, plural, one {# místo} few {# místa} other {# míst}}",
+      "roomOnline": "online",
+      "needs": "Kurz potřebuje",
+      "minutes": "{count, plural, other {# min}}",
+      "groupSize": "skupiny po {count}",
+      "canBeOnline": "lze online",
+      "equipment": "potřebuje {list}",
+      "fits": "Místnost kurzu vyhovuje.",
+      "unfit": "Místnost kurzu nevyhovuje: {reason}.",
+      "seats": "Místa",
+      "seatsText": "{named} jménem · {unnamed} bez jména · {free, plural, =0 {žádné volné} other {# volných}}",
+      "over": "{count, plural, one {# nad kapacitu} other {# nad kapacitu}}",
+      "price": "Cena",
+      "priceText": "{price} za osobu · {total} za {booked, plural, one {# přihlášeného} other {# přihlášených}}",
+      "noPrice": "Nestanovena",
+      "status": "Stav",
+      "people": "Přihlášení jménem",
+      "person": "Osoba",
+      "department": "Oddělení",
+      "position": "Pozice",
+      "via": "Přihlášen přes",
+      "viaAdvisor": "Poradce",
+      "viaManual": "Ručně",
+      "bookedOn": "Přihlášen dne"
+    }
   },
   "compliance": {
     "title": "Matice plnění",
@@ -431,7 +471,16 @@
       },
       "roomHolds": "Místnost má {seats, plural, one {# místo} few {# místa} other {# míst}}.",
       "bookedSeats": "{count, plural, one {Obsazené je # místo.} few {Obsazená jsou # místa.} other {Obsazeno je # míst.}}",
-      "courseKeepsBookings": "{count, plural, one {# osoba přihlášená jménem zůstane přihlášená} few {# osoby přihlášené jménem zůstanou přihlášené} other {# osob přihlášených jménem zůstane přihlášeno}}, i když se kurz změní."
+      "courseKeepsBookings": "{count, plural, one {# osoba přihlášená jménem zůstane přihlášená} few {# osoby přihlášené jménem zůstanou přihlášené} other {# osob přihlášených jménem zůstane přihlášeno}}, i když se kurz změní.",
+      "confirm": {
+        "cancelTitle": "Zrušit tento termín?",
+        "cancelBody": "{count, plural, =0 {Nikdo na něm není přihlášen jménem.} one {# přihlášená osoba na něm zůstane uvedena, ale zrušený termín se jí jako školení nepočítá: poradce ji znovu ukáže jako vyžadující akci.} few {# přihlášené osoby na něm zůstanou uvedeny, ale zrušený termín se jim jako školení nepočítá: poradce je znovu ukáže jako vyžadující akci.} other {# přihlášených osob na něm zůstane uvedeno, ale zrušený termín se jim jako školení nepočítá: poradce je znovu ukáže jako vyžadující akci.}}",
+        "cancelConfirm": "Zrušit termín",
+        "courseTitle": "Změnit kurz?",
+        "courseBody": "{count, plural, one {# přihlášená osoba zůstane přihlášena} few {# přihlášené osoby zůstanou přihlášeny} other {# přihlášených osob zůstane přihlášeno}}, nyní na {course}. Ověřte, že jde o školení, které potřebují.",
+        "courseConfirm": "Změnit kurz",
+        "bothConfirm": "Uložit a zrušit termín"
+      }
     },
     "employee": {
       "title": "Upravit: {name}",
@@ -488,7 +537,11 @@
       "nextYear": "Další rok",
       "today": "Dnes",
       "clear": "Vymazat",
-      "format": { "day": "dd", "month": "mm", "year": "rrrr" },
+      "format": {
+        "day": "dd",
+        "month": "mm",
+        "year": "rrrr"
+      },
       "hours": "Hodiny",
       "minutes": "Minuty"
     },
@@ -499,6 +552,33 @@
       "headNoMembers": "Zatím tu nikdo nepracuje; vedoucího nastavíte, až tu někdo bude.",
       "departments": "Útvary",
       "departmentsHelp": "Kde pozice existuje: lidé ji mohou mít jen v těchto útvarech."
+    },
+    "save": {
+      "changes": "Uložit změny",
+      "course": "Vytvořit kurz",
+      "courseCreated": "Kurz vytvořen",
+      "courseSaved": "Kurz uložen",
+      "employee": "Přidat zaměstnance",
+      "employeeCreated": "Zaměstnanec přidán",
+      "employeeSaved": "Zaměstnanec uložen",
+      "completion": "Zapsat absolvování",
+      "completionCreated": "Absolvování zapsáno",
+      "completionSaved": "Absolvování uloženo",
+      "department": "Vytvořit oddělení",
+      "departmentCreated": "Oddělení vytvořeno",
+      "departmentSaved": "Oddělení uloženo",
+      "position": "Vytvořit pozici",
+      "positionCreated": "Pozice vytvořena",
+      "positionSaved": "Pozice uložena",
+      "room": "Vytvořit místnost",
+      "roomCreated": "Místnost vytvořena",
+      "roomSaved": "Místnost uložena",
+      "provider": "Přidat dodavatele",
+      "providerCreated": "Dodavatel přidán",
+      "providerSaved": "Dodavatel uložen",
+      "session": "Naplánovat termín",
+      "sessionCreated": "Termín naplánován",
+      "sessionSaved": "Termín uložen"
     }
   },
   "import": {
@@ -568,7 +648,13 @@
       "result": "{kind}: vytvořeno {created}, aktualizováno {updated}{skipped, plural, =0 {} other {, přeskočeno # (archivované)}}",
       "failed": "Import selhal: {message}",
       "partial": "Před selháním se zapsalo {count, plural, one {# záznam} few {# záznamy} other {# záznamů}}.",
-      "again": "Importovat další soubory"
+      "again": "Importovat další soubory",
+      "errors": {
+        "unauthorized": "vaše přihlášení už import nedovoluje; přihlaste se znovu",
+        "invalid": "server záznamy odmítl jako neplatné",
+        "failed": "databáze zápis odmítla",
+        "network": "server nebyl dostupný"
+      }
     },
     "fields": {
       "row": "Řádek",
@@ -783,9 +869,6 @@
       "inTime": "Skončí před propadnutím",
       "gap": "{days, plural, =0 {Skončí v den propadnutí} one {Začíná po propadnutí: # den bez školení} few {Začíná po propadnutí: # dny bez školení} other {Začíná po propadnutí: # dní bez školení}}",
       "coveredOn": "Bez školení do {until}",
-      "saveAll": "Uložit {count, plural, one {# navrženou přihlášku} few {všechny # navržené přihlášky} other {všech # navržených přihlášek}} · {cost}",
-      "save": "Uložit",
-      "saveOne": "Přihlásit {name} na {session}",
       "reasons": {
         "NO_SESSION": "Žádný termín není vypsán",
         "NO_SEATS": "Všechny termíny jsou plné",
@@ -798,7 +881,31 @@
       "shortfallTitle": "Vypište další termíny",
       "shortfall": "{course}: {people, plural, one {# osoba nemá} few {# osoby nemají} other {# osob nemá}} kam se přihlásit.",
       "empty": "Každé školení v přehledu má přihlášku.",
-      "readOnly": "Přihlášky mohou ukládat jen správci."
+      "readOnly": "Přihlašovat lidi mohou jen správci.",
+      "book": "Přihlásit…",
+      "bookOne": "Přihlásit {name}…",
+      "bookSelected": "Přihlásit {count, plural, one {# vybraného} few {# vybrané} other {# vybraných}} · {cost}",
+      "selectAll": "Vybrat všech {count} navržených",
+      "clearSelection": "Zrušit výběr",
+      "selectRow": "Vybrat {name}, {course}",
+      "selectPage": "Vybrat všechny navržené řádky na této stránce",
+      "sessionFor": "Termín pro {name}",
+      "choice": "{date} · {room} · {free, plural, =0 {plno} other {# volných}}",
+      "choiceLate": "{choice} · pozdě",
+      "dialog": {
+        "title": "Přihlásit {count, plural, one {# osobu} few {# osoby} other {# osob}}?",
+        "body": "Každá osoba bude přihlášena na uvedený termín. Každá přihláška se při ukládání znovu ověří: volná místa, kolize a zda je školení stále potřeba.",
+        "person": "Osoba",
+        "training": "Školení",
+        "session": "Termín",
+        "price": "Cena",
+        "total": "Celkem: {cost}",
+        "over": "{session}: vybráno {count}, {free, plural, =0 {žádné volné místo} one {# volné místo} few {# volná místa} other {# volných míst}}. Zvolte pro některé jiný termín, nebo je vynechte.",
+        "confirm": "Přihlásit {count, plural, one {# osobu} few {# osoby} other {# osob}}",
+        "done": "Přihlášeno: {count, plural, one {# osoba} few {# osoby} other {# osob}}",
+        "partial": "Přihlášeno {applied}; {failed, plural, one {# odmítnuta} few {# odmítnuty} other {# odmítnuto}}:",
+        "refused": "Nikdo nebyl přihlášen:"
+      }
     },
     "planned": {
       "rows": "Každý řádek je jedno školení v nesouladu nebo před propadnutím, které už má přihlášku jménem. Termín, který skončí po propadnutí, nechá mezeru.",
@@ -826,14 +933,56 @@
       "none": "Žádný termín není přeplněný.",
       "booked": "Obsazeno",
       "over": "{booked} z {capacity} · o {excess} víc",
-      "moveTo": "Přesunout {count, plural, one {# místo} few {# místa} other {# míst}} na",
+      "moveTo": "Návrh: přesunout {count, plural, one {# místo} few {# místa} other {# míst}} na",
       "remaining": "{count, plural, one {# místo zůstává} few {# místa zůstávají} other {# míst zůstává}} nad kapacitou: v jiných termínech není místo, nebo jde o přihlášky jménem. Vypište další termín, nebo přihlášky zrušte.",
-      "apply": "Přesunout {count, plural, one {# místo} few {# místa} other {# míst}}"
+      "resolve": "Vyřešit…",
+      "resolveLabel": "Vyřešit přeplnění: {course}, {date}",
+      "dialog": {
+        "title": "Vyřešit přeplnění: {course}, {date}",
+        "explain": "Přihlášeno {booked} na {capacity} míst, {excess} navíc: {named} jménem a {unnamed} bez jména.",
+        "namedStay": "Lidé přihlášení jménem zůstávají; přesunout lze jen místa přihlášená bez jména.",
+        "how": "Jak přeplnění vyřešit",
+        "move": "Přesunout místa na jiné termíny",
+        "moveHint": "Nejvýše {count, plural, one {# místo} few {# místa} other {# míst}} přihlášených bez jména.",
+        "raise": "Navýšit kapacitu",
+        "raiseHint": "Dát místo všem přihlášeným na tomto termínu.",
+        "target": "{date} · {room}",
+        "free": "{free, plural, one {# volné místo} few {# volná místa} other {# volných míst}}",
+        "noTargets": "Žádný jiný termín tohoto kurzu nemá volná místa: naplánujte nový, nebo navyšte kapacitu.",
+        "noUnnamed": "Všechna místa jsou přihlášena jménem, žádné nelze přesunout.",
+        "after": "Poté: přihlášeno {booked} na {capacity} míst{over, plural, =0 {.} other {, stále # navíc.}}",
+        "tooMany": "Přesunout lze nejvýše {count, plural, one {# místo} few {# místa} other {# míst}}: ta přihlášená bez jména.",
+        "overTarget": "{session} má volných jen {free, plural, one {# místo} few {# místa} other {# míst}}.",
+        "nothing": "Zvolte, kolik míst kam přesunout.",
+        "raiseRoom": "{room} má {seats} míst: kapacita se zvýší z {capacity} na {to}, takže každý přihlášený bude mít místo.",
+        "raiseOnline": "{room} je online: kapacita se zvýší z {capacity} na {to}, takže každý přihlášený bude mít místo.",
+        "raiseNo": "{room} má {seats} míst, méně než {booked} přihlášených. Přesuňte místa, nebo termín přesuňte do větší místnosti.",
+        "confirmMove": "Přesunout {count, plural, one {# místo} few {# místa} other {# míst}}",
+        "confirmRaise": "Navýšit kapacitu na {to}",
+        "moved": "Přesunuto {count, plural, one {# místo} few {# místa} other {# míst}} z termínu {session}",
+        "raised": "Kapacita termínu {session} navýšena na {to}"
+      },
+      "refused": {
+        "invalid": "Požadavek nebyl platný. Načtěte stránku znovu a zkuste to znovu.",
+        "SESSION_NOT_FOUND": "Termín už neexistuje. Načtěte stránku znovu.",
+        "SAME_SESSION": "Místa nelze přesunout na tentýž termín.",
+        "DIFFERENT_COURSE": "Místa lze přesunout jen na termín stejného kurzu.",
+        "NOT_PLANNED": "Zvolený termín byl mezitím zrušen.",
+        "PAST": "Zvolený termín mezitím začal.",
+        "NOT_ENOUGH_UNNAMED": "Bez jména je přihlášeno méně míst, než se má přesunout.",
+        "TARGET_FULL": "Zvolený termín se mezitím zaplnil.",
+        "NOT_FOUND": "Termín už neexistuje. Načtěte stránku znovu.",
+        "NOT_RAISED": "Kapacita už je tak vysoká nebo vyšší.",
+        "ROOM_TOO_SMALL": "Místnost tolik míst nemá.",
+        "ROOM_BUSY": "Místnost je v tu dobu obsazená.",
+        "ROOM_ONLINE_NOT_ALLOWED": "Kurz nelze vést online.",
+        "ROOM_MISSING_CAPABILITIES": "Místnosti chybí, co kurz potřebuje.",
+        "ROOM_ARCHIVED": "Místnost byla archivována.",
+        "COURSE_ARCHIVED": "Kurz byl archivován.",
+        "OVER_CAPACITY": "Přihlášeno je víc lidí, než tato kapacita pojme."
+      }
     },
     "outcome": {
-      "error": "Uložení selhalo. Nic se nezměnilo; zkuste to znovu.",
-      "moved": "{moved, plural, one {Přesunuto # místo} few {Přesunuta # místa} other {Přesunuto # míst}}{failed, plural, =0 {.} other {; # nešlo přesunout (termíny se mezitím změnily).}}",
-      "applied": "{applied, plural, =0 {Žádná přihláška neuložena} one {Uložena # přihláška} few {Uloženy # přihlášky} other {Uloženo # přihlášek}}{failed, plural, =0 {.} other {; # odmítnuto:}}",
       "failure": "{name} na {session}: {reason}",
       "reasons": {
         "SESSION_NOT_FOUND": "termín už neexistuje",
@@ -1002,7 +1151,8 @@
       "allValid": "Vše splněno",
       "nothingRequired": "Nic povinného",
       "booked": "termín {date}",
-      "none": "Nikdo tu nepracuje."
+      "none": "Nikdo tu nepracuje.",
+      "title": "Lidé"
     }
   },
   "departments": {
@@ -1066,25 +1216,19 @@
       "month": "Propadá: {month}"
     },
     "late": "Po termínu splnění",
-    "alternatives": "{count, plural, one {nebo # další místnost} few {nebo # další místnosti} other {nebo # dalších místností}}",
     "toggle": "Lidé pro {course}, termín {n}",
     "panelHeader": "Lidé",
-    "create": "Vytvořit termín",
-    "creating": "Vytvářím…",
-    "created": "Vytvořen termín {id}.",
-    "openSession": "Otevřít",
-    "bookInAdvisor": "Přihlásit lidi v poradci",
     "refused": {
-      "unauthorized": "Termíny už vytvářet nemůžete. Přihlaste se jako správce a zkuste to znovu.",
-      "invalid": "Tento návrh už neplatí. Načtěte plánovač znovu.",
+      "unauthorized": "Už nemůžete vytvářet termíny. Přihlaste se jako správce a zkuste to znovu.",
+      "invalid": "Něco tu není platné: zkontrolujte datum, časy, kapacitu a cenu.",
       "failed": "Termín se nepodařilo vytvořit. Zkuste to znovu.",
-      "ROOM_BUSY": "Místnost mezitím někdo v tu dobu obsadil. Obnovený plán nabízí jiný termín.",
-      "ROOM_ONLINE_NOT_ALLOWED": "Tento kurz se online nekoná. Obnovený plán nabízí jinou místnost.",
-      "ROOM_TOO_SMALL": "Místnost má méně míst, než termín otevírá. Obnovený plán nabízí jinou místnost.",
-      "ROOM_MISSING_CAPABILITIES": "Místnosti chybí vybavení, které kurz potřebuje. Obnovený plán nabízí jinou místnost.",
-      "ROOM_ARCHIVED": "Místnost byla mezitím archivována. Obnovený plán nabízí jinou místnost.",
+      "ROOM_BUSY": "Místnost je v tu dobu obsazená. Zvolte jiný čas nebo místnost.",
+      "ROOM_ONLINE_NOT_ALLOWED": "Tento kurz se nekoná online. Zvolte místnost.",
+      "ROOM_TOO_SMALL": "Místnost má méně míst, než je kapacita. Snižte kapacitu, nebo zvolte větší místnost.",
+      "ROOM_MISSING_CAPABILITIES": "Místnosti chybí vybavení, které kurz potřebuje. Zvolte jinou místnost.",
+      "ROOM_ARCHIVED": "Místnost byla mezitím archivována. Zvolte jinou místnost.",
       "COURSE_ARCHIVED": "Kurz byl mezitím archivován. Načtěte plánovač znovu.",
-      "OVER_CAPACITY": "Obsazeno je víc míst, než termín otevírá. Načtěte plánovač znovu."
+      "OVER_CAPACITY": "Kapacita je nižší než počet lidí k přihlášení. Zvyšte ji, nebo přihlaste méně lidí."
     },
     "problems": {
       "NO_ROOM_WITH": "I nejlépe vybavené místnosti chybí {missing}.",
@@ -1094,7 +1238,47 @@
       "NO_FREE_SLOT": "V příštích {days} dnech není volný termín."
     },
     "rule": "Školení, která žádný termín nepojme, se seskupí podle kurzu a termínu splnění (propadlá do dvou týdnů, ostatní den před propadnutím) a rozdělí podle velikosti skupiny kurzu, případně podle největší vhodné místnosti. Každý termín dostane první pracovní den od zítřka (víkendy a státní svátky se nepočítají), kdy je v obvyklý čas kurzu volná vhodná místnost: online, pokud to kurz dovoluje, jinak místnost se vším, co kurz potřebuje, a s dostatkem míst; dříve použité místnosti mají přednost.",
-    "readOnly": "Termíny mohou vytvářet jen správci."
+    "readOnly": "Termíny mohou vytvářet jen správci.",
+    "otherRooms": "nebo {rooms}",
+    "review": {
+      "open": "Zkontrolovat…",
+      "openLabel": "Zkontrolovat termín {n} kurzu {course}",
+      "title": "Nový termín: {course}",
+      "intro": "Cokoli níže upravte a pak to nechte ověřit. Nic se nevytvoří, dokud to nepotvrdíte.",
+      "people": "Koho přihlásit",
+      "peopleHelp": "{count, plural, =0 {Nikdo nevybrán: termín vznikne prázdný.} one {Vybrána # osoba.} few {Vybrány # osoby.} other {Vybráno # osob.}} Odškrtněte, koho nepřihlašovat.",
+      "lapses": "vyprší {date}",
+      "neverHeld": "nikdy neabsolvováno",
+      "capacityLow": "Kapacita je nižší než {count} vybraných lidí.",
+      "notWorking": "{date} je víkend nebo svátek.",
+      "late": "To je po termínu splnění, {deadline}.",
+      "check": "Ověřit",
+      "checking": "Ověřuji…",
+      "back": "Zpět k úpravám",
+      "summaryTitle": "Co se vytvoří",
+      "course": "Kurz",
+      "when": "Kdy",
+      "room": "Místnost",
+      "capacity": "Kapacita",
+      "price": "Cena za osobu",
+      "booked": "Přihlášeni",
+      "total": "Cena těchto přihlášek",
+      "nobody": "Nikdo: termín vznikne prázdný.",
+      "refusedPeople": "Tyto lidi na něj nelze přihlásit; odškrtněte je, nebo termín změňte:",
+      "refusal": "{name}: {reason}",
+      "confirm": "Vytvořit termín a přihlásit {count, plural, =0 {nikoho} one {# osobu} few {# osoby} other {# osob}}",
+      "creating": "Vytvářím…",
+      "created": "Vytvořen {id}, přihlášeno: {count, plural, =0 {nikdo} one {# osoba} few {# osoby} other {# osob}}",
+      "openSession": "Otevřít termín"
+    },
+    "expanded": {
+      "people": "Lidé",
+      "person": "Osoba",
+      "department": "Oddělení",
+      "lapses": "Vyprší",
+      "rooms": "Další místnosti volné v tu dobu",
+      "noRooms": "Žádná jiná vhodná místnost není v tu dobu volná."
+    }
   },
   "landing": {
     "title": "Registr školení",
@@ -1159,7 +1343,16 @@
       "lastSignIn": "Poslední přihlášení",
       "since": "Přístup od",
       "bookingsMade": "Vytvořené rezervace",
-      "email": "E-mail"
+      "email": "E-mail",
+      "roleTitle": "Změnit roli na {role}?",
+      "roleGrants": {
+        "VIEWER": "Osobní údaje uvidí skryté a nebude nic měnit.",
+        "FULL": "Uvidí celé záznamy, ale nebude upravovat, přihlašovat ani importovat.",
+        "ADMIN": "Bude moci upravovat všechny záznamy, přihlašovat lidi, importovat data a měnit komukoli roli."
+      },
+      "roleLosesAdmin": "Přestane být správcem: už nebude upravovat, přihlašovat, importovat ani měnit role.",
+      "roleApplies": "Projeví se do pěti minut, nebo při příštím přihlášení.",
+      "roleChanged": "Role změněna na {role}"
     }
   },
   "archive": {
@@ -1270,16 +1463,26 @@
       "archivedAt": "Archivováno",
       "archivedBy": "Archivoval(a)"
     },
-    "leaves": "Vede útvar {department}; ten zůstane bez vedoucího, dokud se nový nenastaví."
+    "leaves": "Vede útvar {department}; ten zůstane bez vedoucího, dokud se nový nenastaví.",
+    "archivedToast": "Archivováno: {name}",
+    "unarchiveTitle": "Vrátit zpět {name}?",
+    "unarchiveBody": "Znovu se objeví v seznamech a součtech a půjde upravovat a přihlašovat jako dřív.",
+    "unarchivedToast": "Vráceno zpět: {name}"
   },
   "bookings": {
     "add": "Rezervovat",
     "choose": "Nejdřív vyberte, koho nebo co rezervovat.",
     "noneLeft": "Tady už není co rezervovat.",
     "refused": "Nerezervováno: {reason}.",
-    "person": "Přidat člověka",
-    "session": "Rezervovat termín",
+    "person": "Koho přihlásit",
+    "session": "Na který termín přihlásit",
     "sessionOption": "{when} · {course} ({free, plural, one {volné # místo} few {volná # místa} other {volných # míst}})",
-    "removeConfirm": "Odebrat {name} z tohoto termínu?"
+    "removeConfirm": "Odebrat {name} z tohoto termínu?",
+    "booked": "Přihlášeno: {what}",
+    "removeBody": "Místo se vrátí termínu. Pokud školení stále potřebuje, poradce mu znovu navrhne termín.",
+    "keep": "Ponechat přihlášku",
+    "cancel": "Zrušit přihlášku",
+    "cancelled": "Přihláška zrušena",
+    "alreadyGone": "Tato přihláška už byla zrušena."
   }
 }

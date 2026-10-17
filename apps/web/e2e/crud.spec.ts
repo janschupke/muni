@@ -19,8 +19,8 @@ test.beforeEach(async ({ page, baseURL }) => {
 
 test.afterAll(removeE2eRecords)
 
-/** The form's own Save, on its heading row. */
-const save = (page: Page) => page.getByRole('main').getByRole('button', { name: 'Save' })
+/** The form's own submit button, on its heading row ("Create department", "Save changes"). */
+const save = (page: Page) => page.getByRole('main').locator('form button[type="submit"]')
 
 test('creates, renames, archives and brings back a department', async ({ page }) => {
   await page.goto('/departments')
@@ -48,6 +48,11 @@ test('creates, renames, archives and brings back a department', async ({ page })
   await page.goto('/departments/archived')
   await page.getByRole('main').getByRole('link', { name: 'E2E útvar 2', exact: true }).click()
   await page.getByRole('button', { name: 'Bring back' }).click()
+  // It asks first, then says why it cannot.
+  await page
+    .getByRole('dialog', { name: 'Bring back E2E útvar 2?' })
+    .getByRole('button', { name: 'Bring back' })
+    .click()
   await expect(
     page.getByText('An active record now uses its name. Rename or archive that one first.')
   ).toBeVisible()
@@ -91,7 +96,7 @@ test('adds a person with typed and picked dates, then archives them', async ({ p
   await expect(page).toHaveURL(/\/employees$/)
   await page.getByRole('link', { name: 'Archived' }).click()
   // Listed by tag only, even to an admin; their own page says who it was.
-  await expect(page.getByText('Eva E2E Testová')).toHaveCount(0)
+  await expect(page.getByRole('main').getByText('Eva E2E Testová')).toHaveCount(0)
   await page
     .getByRole('link', { name: /^Archived employee #[0-9a-f]{6}$/ })
     .first()
@@ -124,11 +129,12 @@ test('plans a session with the time picker, books a person by hand, and cancels 
   await save(page).click()
   await expect(page).toHaveURL(/\/sessions\/S\d{3}$/)
 
-  await page.getByRole('combobox', { name: 'Add a person' }).click()
+  await page.getByRole('combobox', { name: 'Person to book' }).click()
   await page.getByRole('option', { name: 'Malá Alena' }).click()
   await page.getByRole('button', { name: 'Book' }).click()
   const booked = page.getByRole('main').getByRole('link', { name: 'Malá Alena' })
   await expect(booked).toBeVisible()
+  await expect(page.getByText('Booked: Malá Alena', { exact: true })).toBeVisible()
 
   // Booked, it cannot be archived; the dialog says why.
   await page.getByRole('main').getByRole('button', { name: 'Archive' }).click()
@@ -141,9 +147,10 @@ test('plans a session with the time picker, books a person by hand, and cancels 
   await page.getByRole('button', { name: 'Cancel the booking of Malá Alena' }).click()
   await page
     .getByRole('dialog', { name: 'Remove Malá Alena from this session?' })
-    .getByRole('button', { name: 'Remove' })
+    .getByRole('button', { name: 'Cancel booking' })
     .click()
   await expect(booked).toHaveCount(0)
+  await expect(page.getByText('Booking cancelled', { exact: true })).toBeVisible()
 })
 
 test('gives a position its departments and a department its head', async ({ page }) => {
@@ -227,4 +234,38 @@ test('checks a session’s room and seats as they are typed, and changes its cou
       .getByText(/Ochrana osobních údajů/)
       .first()
   ).toBeVisible()
+})
+
+test('reviews a planner offer, checks it, then creates the session with its people booked', async ({
+  page,
+}) => {
+  await page.goto('/planner')
+  await page
+    .getByRole('button', { name: /^Review session 1 of / })
+    .first()
+    .click()
+  const dialog = page.getByRole('dialog', { name: /^New session: / })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('textbox', { name: /Price per person/ }).fill('450')
+  await dialog.getByRole('button', { name: 'Check' }).click()
+  await expect(dialog.getByText('What will be created')).toBeVisible()
+  await dialog.getByRole('button', { name: /^Create session and book / }).click()
+  await expect(dialog).toHaveCount(0)
+  const toast = page.getByText(/^Created S\d{3} and booked \d+ (person|people)$/)
+  await expect(toast).toBeVisible()
+  await page.getByRole('link', { name: 'Open session' }).click()
+  await expect(page).toHaveURL(/\/sessions\/S\d{3}$/)
+  await expect(page.getByText('CZK 450').first()).toBeVisible()
+})
+
+test('books a person from the advisor after confirming who goes where', async ({ page }) => {
+  await page.goto('/advisor?view=action')
+  const book = page.getByRole('button', { name: /^Book .+…$/ }).first()
+  const name = ((await book.getAttribute('aria-label')) ?? '').replace(/^Book (.+)…$/, '$1')
+  await book.click()
+  const dialog = page.getByRole('dialog', { name: 'Book 1 person?' })
+  await expect(dialog.getByRole('cell', { name })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Book 1 person' }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByText('Booked 1 person', { exact: true })).toBeVisible()
 })

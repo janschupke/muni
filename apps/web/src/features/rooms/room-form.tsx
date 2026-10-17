@@ -32,6 +32,7 @@ export function RoomForm({
   }
   isNew?: boolean | undefined
 }) {
+  const tsave = useTranslations('forms.save')
   const t = useTranslations('rooms.form')
   const tp = useTranslations('forms.placeholders')
   const tk = useTranslations('status.roomKind')
@@ -39,7 +40,12 @@ export function RoomForm({
   // Seats are required unless the room is online (no seat limit).
   const [kind, setKind] = useState<string>(defaults.kind)
   return (
-    <FormShell {...shell} spec={roomSpec}>
+    <FormShell
+      {...shell}
+      spec={roomSpec}
+      submitLabel={shell.isNew ? tsave('room') : tsave('changes')}
+      savedMessage={shell.isNew ? tsave('roomCreated') : tsave('roomSaved')}
+    >
       <TextField
         name="name"
         label={t('name')}

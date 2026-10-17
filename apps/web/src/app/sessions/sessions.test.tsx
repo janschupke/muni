@@ -131,22 +131,25 @@ describe('session list', () => {
     )
   })
 
-  it('opens a session row to the people booked by name', async () => {
+  it('opens a session row to the session and the people booked on it', async () => {
     const user = userEvent.setup()
     await renderServer(SessionsPage(search({})))
-    // Only sessions with named bookings open.
+    // Every session opens, with or without named bookings.
+    await user.click(screen.getByRole('button', { name: 'Who is booked on T020' }))
     expect(
-      within(screen.getByRole('row', { name: /T020/ })).queryByRole('button', {
-        name: /Who is booked/,
-      })
-    ).toBeNull()
-    await user.click(screen.getByRole('button', { name: 'Who is booked on T016' }))
-    expect(
-      screen.getByText('1 person booked by name, 29 seats booked without a name.')
+      screen.getByText('Nobody is booked by name yet; the advisor can suggest people.')
     ).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Černá Marie' }).getAttribute('href')).toBe(
+    await user.click(screen.getByRole('button', { name: 'Who is booked on T016' }))
+    expect(screen.getAllByText(/29 without a name/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('The room suits it.').length).toBeGreaterThan(0)
+    // The people, with where they work and how they were booked.
+    const people = screen.getByRole('table', { name: 'Booked by name' })
+    expect(within(people).getByRole('link', { name: 'Černá Marie' }).getAttribute('href')).toBe(
       '/employees/E0153'
     )
+    expect(within(people).getByText('Laboratoře')).toBeTruthy()
+    expect(within(people).getByText('Advisor')).toBeTruthy()
+    await expectNoAxeViolations()
   })
 
   it('ignores a room that does not exist', async () => {
@@ -205,7 +208,7 @@ describe('session detail', () => {
     )
     expect(screen.getByRole('button', { name: 'Archive' })).toBeTruthy()
     // People not yet booked can be added by hand; the booked one is not offered.
-    await user.click(screen.getByRole('combobox', { name: 'Add a person' }))
+    await user.click(screen.getByRole('combobox', { name: 'Person to book' }))
     expect(screen.getByRole('option', { name: 'Urbanová Tereza' })).toBeTruthy()
     expect(screen.queryByRole('option', { name: 'Černá Marie' })).toBeNull()
     await user.keyboard('{Escape}')
@@ -214,11 +217,14 @@ describe('session detail', () => {
     const confirm = await screen.findByRole('dialog', {
       name: 'Remove Černá Marie from this session?',
     })
-    await user.click(within(confirm).getByRole('button', { name: 'Remove' }))
+    // The buttons say what each does: keep it, or cancel it.
+    expect(within(confirm).getByRole('button', { name: 'Keep booking' })).toBeTruthy()
+    await user.click(within(confirm).getByRole('button', { name: 'Cancel booking' }))
     expect(removeAssignmentAction).toHaveBeenCalledWith({
       sessionExternalId: 'T016',
       employeeExternalId: 'E0153',
     })
+    expect(await screen.findByText('Booking cancelled')).toBeTruthy()
   })
 
   it('says when nobody is booked by name', async () => {
@@ -283,7 +289,7 @@ describe('advisor page', () => {
     expect(await advisorMetadata()).toEqual({ title: 'Advisor' })
     await renderServer(AdvisorPage(search({ view: 'action' })))
     expect(screen.getByRole('link', { name: /^Action required/, current: 'page' })).toBeTruthy()
-    expect(screen.getByText('Only admins can save bookings.')).toBeTruthy()
+    expect(screen.getByText('Only admins can book people.')).toBeTruthy()
   })
 
   it('falls back to the breakdown of what is non-compliant now on anything unknown', async () => {

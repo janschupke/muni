@@ -12,8 +12,10 @@ import {
   createProvider,
   createRoom,
   createSession,
+  createSessionWithBookings,
   findUserByClerkId,
-  moveSeats,
+  moveSeatsMany,
+  raiseCapacity,
   removeAssignment,
   saveDepartment,
   savePosition,
@@ -48,15 +50,19 @@ import { archiveAction, previewArchive, unarchiveAction } from './actions/archiv
 import {
   addBookingAction,
   applyAssignmentsAction,
-  moveSeatsAction,
   removeAssignmentAction,
+  resolveOverbookingAction,
 } from './actions/assignments'
 import { saveCompletion, saveCourse, saveEmployee, saveSession } from './actions/edit'
 import { saveDepartmentAction, savePositionAction } from './actions/groups'
 import { setLocale } from './actions/locale'
 import { saveProvider } from './actions/providers'
 import { saveRoom } from './actions/rooms'
-import { checkSessionSlotAction, createOfferedSession, saveNewSession } from './actions/sessions'
+import {
+  checkSessionSlotAction,
+  createPlannedSessionAction,
+  saveNewSession,
+} from './actions/sessions'
 import { saveUserRole } from './actions/users'
 import {
   getSessionUser,
@@ -92,7 +98,9 @@ vi.mock('@muni/db/repositories', () => ({
   findUserByClerkId: vi.fn(),
   updateProvider: vi.fn(),
   updateRoom: vi.fn(),
-  moveSeats: vi.fn(),
+  moveSeatsMany: vi.fn(),
+  raiseCapacity: vi.fn(),
+  createSessionWithBookings: vi.fn(),
   removeAssignment: vi.fn(),
   updateCourse: vi.fn(),
   updateEmployee: vi.fn(),
@@ -834,17 +842,35 @@ describe('booking actions', () => {
     await expect(applyAssignmentsAction([{ ...pair, score: 1, source: 'GUESS' }])).rejects.toThrow()
   })
 
-  it('cancel a booking and move seats', async () => {
+  it('cancel a booking, and resolve overbooking the way the admin chose', async () => {
     vi.mocked(removeAssignment).mockResolvedValue(true)
     expect(
       await removeAssignmentAction({ sessionExternalId: 'T018', employeeExternalId: 'E0153' })
     ).toBe(true)
-    vi.mocked(moveSeats).mockResolvedValue({ ok: false, reason: 'TARGET_FULL' })
-    expect(await moveSeatsAction({ from: 'T016', to: 'T018', count: 1 })).toEqual({
-      ok: false,
-      reason: 'TARGET_FULL',
-    })
-    await expect(moveSeatsAction({ from: 'T016', to: 'T018', count: 0 })).rejects.toThrow()
+    // Seats moved to the sessions picked, all at once, or why not and where.
+    vi.mocked(moveSeatsMany).mockResolvedValueOnce({ ok: false, reason: 'TARGET_FULL', to: 'T018' })
+    const moves = [{ to: 'T018', count: 1 }]
+    expect(
+      await resolveOverbookingAction({ from: 'T016', resolution: { kind: 'move', moves } })
+    ).toEqual({ ok: false, reason: 'TARGET_FULL', to: 'T018' })
+    expect(moveSeatsMany).toHaveBeenCalledWith('T016', moves)
+    vi.mocked(moveSeatsMany).mockResolvedValueOnce({ ok: true, moved: 1 })
+    expect(
+      await resolveOverbookingAction({ from: 'T016', resolution: { kind: 'move', moves } })
+    ).toEqual({ ok: true })
+    // Or the capacity raised, when the room has the seats.
+    vi.mocked(raiseCapacity).mockResolvedValueOnce({ ok: false, problem: 'ROOM_TOO_SMALL' })
+    expect(
+      await resolveOverbookingAction({ from: 'T016', resolution: { kind: 'raise', capacity: 31 } })
+    ).toEqual({ ok: false, reason: 'ROOM_TOO_SMALL' })
+    vi.mocked(raiseCapacity).mockResolvedValueOnce({ ok: true })
+    expect(
+      await resolveOverbookingAction({ from: 'T016', resolution: { kind: 'raise', capacity: 31 } })
+    ).toEqual({ ok: true })
+    // Nonsense never reaches the database.
+    expect(
+      await resolveOverbookingAction({ from: 'T016', resolution: { kind: 'move', moves: [] } })
+    ).toEqual({ ok: false, reason: 'invalid' })
   })
 
   it('book one person by hand, as the admin, and say why the server refused', async () => {
@@ -1134,25 +1160,43 @@ describe('session creation', () => {
     status: 'PLANNED' as const,
   }
 
-  it('creates an offered session and reports its id, or why it could not', async () => {
-    vi.mocked(createSession).mockResolvedValue({
-      ok: true,
+  it('checks, then creates a planned session with its people, or says why not', async () => {
+    const created = {
+      ok: true as const,
       externalId: 'S001',
       courseCode: 'POZ-OCH',
+      booked: 2,
+      dryRun: true,
+    }
+    vi.mocked(createSessionWithBookings).mockResolvedValue(created)
+    const people = ['E0153', 'E0002']
+    expect(await createPlannedSessionAction({ session: create, people, dryRun: true })).toEqual(
+      created
+    )
+    expect(createSessionWithBookings).toHaveBeenCalledWith(create, people, 'usr_1', {
+      dryRun: true,
     })
-    expect(await createOfferedSession(create)).toEqual({ ok: true, externalId: 'S001' })
-    expect(await createOfferedSession({ ...create, endTime: '09:00' })).toEqual({
-      ok: false,
-      reason: 'invalid',
-    })
-    vi.mocked(createSession).mockResolvedValueOnce({ ok: false, problem: 'ROOM_BUSY' })
-    expect(await createOfferedSession(create)).toEqual({ ok: false, reason: 'ROOM_BUSY' })
+    expect(
+      await createPlannedSessionAction({
+        session: { ...create, endTime: '09:00' },
+        people,
+        dryRun: false,
+      })
+    ).toEqual({ ok: false, problem: 'invalid', refusals: [] })
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    vi.mocked(createSession).mockRejectedValueOnce(new Error('down'))
-    expect(await createOfferedSession(create)).toEqual({ ok: false, reason: 'failed' })
+    vi.mocked(createSessionWithBookings).mockRejectedValueOnce(new Error('down'))
+    expect(await createPlannedSessionAction({ session: create, people, dryRun: false })).toEqual({
+      ok: false,
+      problem: 'failed',
+      refusals: [],
+    })
     // Signed out meanwhile: a reason to show, not an error page.
     signedIn(null)
-    expect(await createOfferedSession(create)).toEqual({ ok: false, reason: 'unauthorized' })
+    expect(await createPlannedSessionAction({ session: create, people, dryRun: false })).toEqual({
+      ok: false,
+      problem: 'unauthorized',
+      refusals: [],
+    })
   })
 
   it('creates a session from the form and opens it', async () => {

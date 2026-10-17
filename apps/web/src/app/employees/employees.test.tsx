@@ -341,7 +341,7 @@ describe('employee detail', () => {
     const user = userEvent.setup()
     signInAs('ADMIN')
     await renderServer(EmployeePage(props))
-    await user.click(screen.getByRole('combobox', { name: 'Book on a session' }))
+    await user.click(screen.getByRole('combobox', { name: 'Session to book on' }))
     await user.click(
       screen.getByRole('option', { name: /BOZP – základní školení \(3 seats free\)/ })
     )

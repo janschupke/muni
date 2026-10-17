@@ -1,4 +1,6 @@
 import type { EmployeeListRequirement } from '@muni/db/repositories'
+import { DetailPanel } from '@muni/ui/detail-panel'
+import { EmptyState } from '@muni/ui/empty-state'
 import { Table, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDate, formatDateTime, formatRelativeDays, PLACEHOLDER } from '@muni/utils/format'
@@ -10,12 +12,29 @@ import { ComplianceBadge } from './status-badges'
 /** One person's required courses: state, expiry and any booking (an employee row's detail). */
 export function RequirementPanel({ requirements }: { requirements: EmployeeListRequirement[] }) {
   const t = useTranslations('employees.panel')
+  return (
+    <DetailPanel
+      title={t('title')}
+      count={requirements.length}
+      flush={requirements.length > 0}
+      className="max-w-5xl"
+    >
+      {requirements.length === 0 ? (
+        <EmptyState variant="inline" title={t('none')} />
+      ) : (
+        <RequirementTable requirements={requirements} />
+      )}
+    </DetailPanel>
+  )
+}
+
+function RequirementTable({ requirements }: { requirements: EmployeeListRequirement[] }) {
+  const t = useTranslations('employees.panel')
   const tc = useTranslations('common')
   const locale = useLocale()
-  if (requirements.length === 0) return <p className="text-sm text-fg-muted">{t('none')}</p>
   return (
-    <Table density="compact" className="max-w-4xl">
-      <THead className="bg-transparent">
+    <Table density="compact" aria-label={t('title')}>
+      <THead>
         <tr>
           <Th>{t('course')}</Th>
           <Th>{t('status')}</Th>

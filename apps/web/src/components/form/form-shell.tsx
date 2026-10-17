@@ -5,6 +5,7 @@ import { Button } from '@muni/ui/button'
 import { Card, CardBody } from '@muni/ui/card'
 import { Checkbox } from '@muni/ui/checkbox'
 import { DatePicker } from '@muni/ui/date-picker'
+import { Dialog } from '@muni/ui/dialog'
 import { Field, Input, Textarea } from '@muni/ui/field'
 import { PageHeader } from '@muni/ui/page-header'
 import { Select } from '@muni/ui/select'
@@ -33,6 +34,8 @@ import {
 import { type FieldErrorKey, type FormState, IDLE } from '@/lib/form'
 import { type FormSpec, parseForm } from '@/lib/form-inputs'
 import { useWhenWritten } from '@/lib/query/use-after-write'
+
+import { useDateLabels, useTimeLabels } from './session-fields'
 
 /** An error the form knows before it is sent (a key under forms.errors, and its values). */
 export interface ClientError {
@@ -97,6 +100,17 @@ function focusField(form: HTMLFormElement, pick: (name: string) => boolean) {
   }
 }
 
+/**
+ * A save that does more than its form shows (cancelling a session with people on it): the
+ * form asks before sending. `body` says exactly what will happen; `confirmLabel` names it.
+ */
+export interface SaveConfirmation {
+  title: string
+  body: ReactNode
+  confirmLabel: string
+  tone?: 'primary' | 'danger' | undefined
+}
+
 /** What every form page's heading row says: the title, and where the back link goes. */
 export interface FormHeading {
   title: string
@@ -123,6 +137,9 @@ export function FormShell({
   cancelHref,
   heading,
   clientErrors: live,
+  submitLabel,
+  savedMessage,
+  confirm,
   children,
 }: {
   action: (state: FormState, form: FormData) => Promise<FormState>
@@ -132,12 +149,24 @@ export function FormShell({
   cancelHref: string
   heading: FormHeading
   clientErrors?: Partial<Record<string, ClientError>> | undefined
+  /** What the button does: "Schedule session", "Record completion", "Save changes". */
+  submitLabel: string
+  /** The toast once it is saved: "Course created". */
+  savedMessage: string
+  /** Asks before a save that does more than it shows; null when this one needs no asking. */
+  confirm?: ((form: FormData) => SaveConfirmation | null) | undefined
   children: ReactNode
 }) {
   const t = useTranslations()
   const formRef = useRef<HTMLFormElement>(null)
   const [state, formAction, pending] = useActionState(action, IDLE)
-  useWhenWritten(state, state.status === 'saved', state.status === 'saved' ? state.href : undefined)
+  useWhenWritten(
+    state,
+    state.status === 'saved',
+    state.status === 'saved' ? state.href : undefined,
+    { title: savedMessage }
+  )
+  const [asking, setAsking] = useState<{ data: FormData; question: SaveConfirmation } | null>(null)
   // Saved: the next page is on its way; nothing more to send from here.
   const busy = pending || state.status === 'saved'
 
@@ -227,6 +256,15 @@ export function FormShell({
       focusField(form, name => wrong.has(name))
       return
     }
+    const question = confirm?.(data) ?? null
+    if (question) {
+      setAsking({ data, question })
+      return
+    }
+    send(form, data)
+  }
+
+  const send = (form: HTMLFormElement, data: FormData) => {
     setSent(snapshot(form))
     startTransition(() => {
       formAction(data)
@@ -269,7 +307,7 @@ export function FormShell({
             </Button>
             <Button type="submit" variant="primary" disabled={busy || (!isNew && clean)}>
               <Save aria-hidden />
-              {busy ? t('common.saving') : t('common.save')}
+              {busy ? t('common.saving') : submitLabel}
             </Button>
           </>
         }
@@ -284,6 +322,40 @@ export function FormShell({
           <Context value={context}>{children}</Context>
         </CardBody>
       </Card>
+      {asking && (
+        <Dialog
+          open
+          onOpenChange={open => {
+            if (!open) setAsking(null)
+          }}
+          title={asking.question.title}
+          closeLabel={t('common.close')}
+          footer={
+            <>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setAsking(null)
+                }}
+              >
+                {t('common.keepEditing')}
+              </Button>
+              <Button
+                variant={asking.question.tone === 'danger' ? 'danger' : 'primary'}
+                onClick={() => {
+                  const form = formRef.current
+                  setAsking(null)
+                  if (form) send(form, asking.data)
+                }}
+              >
+                {asking.question.confirmLabel}
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-3 text-sm">{asking.question.body}</div>
+        </Dialog>
+      )}
     </form>
   )
 }
@@ -369,7 +441,7 @@ export function DateField({
   max?: string | undefined
 }) {
   const { changed, ...field } = useField(name)
-  const t = useTranslations('forms.picker')
+  const dateLabels = useDateLabels()
   const locale = useLocale()
   return (
     <Field name={name} label={label} help={help} required={required} {...field}>
@@ -386,16 +458,7 @@ export function DateField({
           max={max}
           today={todayIn()}
           locale={locale}
-          labels={{
-            open: t('chooseDate', { field: label }),
-            previousMonth: t('previousMonth'),
-            nextMonth: t('nextMonth'),
-            previousYear: t('previousYear'),
-            nextYear: t('nextYear'),
-            today: t('today'),
-            clear: t('clear'),
-            format: { day: t('format.day'), month: t('format.month'), year: t('format.year') },
-          }}
+          labels={dateLabels(label)}
           {...props}
         />
       )}
@@ -418,7 +481,7 @@ export function TimeField({
   onValueChange?: ((value: string) => void) | undefined
 }) {
   const { changed, ...field } = useField(name)
-  const t = useTranslations('forms.picker')
+  const timeLabels = useTimeLabels()
   return (
     <Field name={name} label={label} help={help} required={required} {...field}>
       {props => (
@@ -430,11 +493,7 @@ export function TimeField({
             onValueChange?.(next)
             changed()
           }}
-          labels={{
-            open: t('chooseTime', { field: label }),
-            hours: t('hours'),
-            minutes: t('minutes'),
-          }}
+          labels={timeLabels(label)}
           {...props}
         />
       )}

@@ -1,14 +1,14 @@
 'use client'
 
-import { Button } from '@muni/ui/button'
-import { Dialog } from '@muni/ui/dialog'
 import { IconButton } from '@muni/ui/icon-button'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useRef, useState, useTransition } from 'react'
+import { useRef, useState } from 'react'
 
 import { useAfterWrite } from '@/lib/query/use-after-write'
 import { removeAssignmentAction } from '@/server/actions/assignments'
+
+import { ConfirmDialog } from './confirm-dialog'
 
 /**
  * Cancels one named booking, after asking (admins only; the action checks again). The seat
@@ -27,55 +27,39 @@ export function RemoveBookingButton({
   /** The question: "Remove Novák Jan from this session?" */
   confirmTitle: string
 }) {
-  const t = useTranslations('common')
+  const t = useTranslations('bookings')
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
-  const [pending, startTransition] = useTransition()
   const afterWrite = useAfterWrite()
   return (
     <>
       <IconButton
         ref={trigger}
         label={label}
-        disabled={pending}
         onClick={() => {
           setOpen(true)
         }}
       >
         <X aria-hidden />
       </IconButton>
-      <Dialog
+      <ConfirmDialog
         open={open}
         onOpenChange={setOpen}
         title={confirmTitle}
-        closeLabel={t('close')}
+        tone="danger"
+        confirmLabel={t('cancel')}
+        cancelLabel={t('keep')}
         returnFocusTo={() => trigger.current}
+        onConfirm={async () => {
+          const removed = await removeAssignmentAction({ sessionExternalId, employeeExternalId })
+          afterWrite()
+          return removed
+            ? { kind: 'done', toast: { title: t('cancelled') } }
+            : { kind: 'refused', message: t('alreadyGone') }
+        }}
       >
-        <div className="flex justify-end gap-2">
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setOpen(false)
-            }}
-          >
-            {t('cancel')}
-          </Button>
-          <Button
-            variant="danger"
-            disabled={pending}
-            onClick={() => {
-              startTransition(async () => {
-                await removeAssignmentAction({ sessionExternalId, employeeExternalId })
-                setOpen(false)
-                afterWrite()
-              })
-            }}
-          >
-            <X aria-hidden />
-            {t('remove')}
-          </Button>
-        </div>
-      </Dialog>
+        <p className="text-sm text-fg-muted">{t('removeBody')}</p>
+      </ConfirmDialog>
     </>
   )
 }

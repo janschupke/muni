@@ -18,6 +18,7 @@ import {
   validateBatch,
 } from '@muni/importer'
 import { StepIndicator } from '@muni/ui/step-indicator'
+import { useTranslations } from 'next-intl'
 import { useState, useTransition } from 'react'
 
 import { useAfterWrite } from '@/lib/query/use-after-write'
@@ -53,6 +54,7 @@ export function ImportWizard({
   const reference = { ...snapshot, archived }
   const { t } = useImportText()
   const afterWrite = useAfterWrite()
+  const tp = useTranslations('import.progress')
   const ctx = { today }
   const [step, setStep] = useState(0)
   const [files, setFiles] = useState<Partial<Record<DatasetKind, ParsedFile>>>({})
@@ -112,9 +114,15 @@ export function ImportWizard({
     for (const kind of kinds) {
       const records = committable(batch, kind)
       for (let i = 0; i < records.length; i += CHUNK) {
-        const result = await commitImportChunk(kind, records.slice(i, i + CHUNK))
+        const result = await commitImportChunk(kind, records.slice(i, i + CHUNK)).catch(() => ({
+          ok: false as const,
+          error: 'network' as const,
+          detail: undefined,
+        }))
         if (!result.ok) {
-          setJob({ status: 'failed', total, written: done, message: result.detail ?? result.error })
+          const reason = tp(`errors.${result.error}`)
+          const message = result.detail ? `${reason} (${result.detail})` : reason
+          setJob({ status: 'failed', total, written: done, message })
           afterWrite()
           return
         }

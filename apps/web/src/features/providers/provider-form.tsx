@@ -26,10 +26,16 @@ export function ProviderForm({
   defaults: ProviderDefaults
   isNew?: boolean | undefined
 }) {
+  const tsave = useTranslations('forms.save')
   const t = useTranslations('providers.form')
   const tp = useTranslations('forms.placeholders')
   return (
-    <FormShell {...shell} spec={providerSpec}>
+    <FormShell
+      {...shell}
+      spec={providerSpec}
+      submitLabel={shell.isNew ? tsave('provider') : tsave('changes')}
+      savedMessage={shell.isNew ? tsave('providerCreated') : tsave('providerSaved')}
+    >
       <TextField
         name="name"
         label={t('name')}

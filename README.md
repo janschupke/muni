@@ -248,6 +248,31 @@ Every amount is in Czech crowns (`CURRENCY` in `@muni/utils/format`):
 - The forms read an amount with the import's parser (`money()` → `parseCzk`), so `1 200,50 Kč` and `zdarma` work in both.
 - The database stores decimals, and the repositories convert them with `toAmount`.
 
+### Writes: confirmations and toasts
+
+Every write says how it went, in a toast at the bottom right (`components/toasts.tsx`, Radix
+Toast): "Course created", "Booked 3 people", "Booking cancelled". Toasts live in the root
+layout, so a save that goes on to the record still shows on the page it lands on; a failure
+stays until it is closed, the rest leave after six seconds. A form's button says what it does
+("Schedule session", "Record completion", "Save changes"), never just "Save".
+
+A write asks first (`components/confirm-dialog.tsx`) when it cannot be undone, touches many
+records, costs money or does more than its button shows: cancelling a booking, changing a role
+(with what the new role can do, and what an admin loses), archiving and bringing back,
+cancelling a session or moving its bookings to another course (from the edit form), booking from
+the advisor, resolving overbooking and creating from the planner. The dialog says exactly what
+will change; its confirm button names the act and the other one keeps things as they are. A
+refusal shows in the dialog, which stays open; a partial result lists what was refused.
+
+### Opened rows
+
+A table row that opens shows its details as panels (`DetailGrid`, `DetailPanel` in the UI kit),
+each with a heading and its count: a session's facts (when, the room against what the course
+needs, the seats by name and without, the price, the status) beside the people booked on it
+with their department, position and how they were booked; a course's planned sessions, what a
+session needs and compliance by department; a person's required trainings; a department's or
+position's people; a planner offer's people and the other rooms free then.
+
 ### Colour
 
 One palette, defined once in `packages/ui/src/styles/tokens.css`:
@@ -348,8 +373,8 @@ links to its parent list.
 
 `/advisor` shows every required training that is **non-compliant now** (expired or never
 completed) or **lapses within the next 6 months**, what is being done about each, and which
-session would cover the rest. Every role can read it; admins can save the proposals (as
-`ADVISOR` bookings) and move unnamed seats out of overbooked sessions.
+session would cover the rest. Every role can read it; admins book people from it and resolve
+overbooked sessions, always through a dialog that shows what will happen first.
 
 - **Breakdown** (the default view): one bar per bucket, "non-compliant now" and then each month
   in which trainings lapse, split into **planned in time** (a named booking that ends before the
@@ -358,9 +383,20 @@ session would cover the rest. Every role can read it; admins can save the propos
   the **non-compliance window**: from the day the training lapses (`validUntil + 1`) until the
   booked session ends, or open when nothing is booked.
 - **Action required**: the unbooked trainings in queue order, each with the proposed session and
-  the gap it would leave, or the reason there is none and what to do.
-- **Remediation planned** and **Overbooked**: the booked trainings with their windows, and the
-  sessions over capacity with the seat moves that fix them.
+  the gap it would leave, or the reason there is none and what to do. An admin picks rows (a
+  checkbox each, or all proposed at once) and, per row, the session: the proposal or one of up
+  to five alternatives (other sessions with a free seat and no clash, those that end before
+  the training lapses first). **Book…** opens the decision: who goes on which session, the
+  price of each and the total, and, per session, people chosen against seats free (a session
+  that would overfill stops the confirm). The confirm button names the count ("Book 3
+  people"); refusals the server finds are listed in the dialog, the rest are booked.
+- **Remediation planned**: the booked trainings with their windows; cancelling one asks first.
+- **Overbooked**: the sessions over capacity with the advisor's suggestion. **Resolve…**
+  explains the session (booked by name and without a name, against capacity) and offers two
+  ways: move seats booked without a name to sessions of the course the admin picks, how many
+  to each (the suggestion fills it in; each capped at its seats free, the total at the seats
+  without a name), or raise the capacity to fit everyone when the room has the seats. Either
+  is one transaction (`moveSeatsMany`, `raiseCapacity`): every move goes through or none.
 
 The plan is `planAssignments` in `packages/domain/src/advisor.ts`, one fixed and deterministic
 rule with no settings. The page prints the same rule:
@@ -399,8 +435,15 @@ course ahead, or every one full), with one fixed rule (`packages/domain/src/plan
 - A slot after the due date is offered and marked late. Otherwise the offer says why: what
   even the best-equipped room lacks, that the equipped rooms are too small, that a session
   would end after midnight, or that no slot is free in 120 days.
-- Signed-in users create the session from an offer. The server checks the room again (it
-  may have been taken meanwhile), and the result stays at the screen's foot.
+- An offer is not created as it stands. **Review…** opens it for editing: day, start and end,
+  room (every room, each labelled with its seats and whether it suits the course), capacity,
+  price, and the people to book (all ticked; untick to leave someone out). The dialog checks as
+  the user types: the room taken then, a room that does not suit, fewer seats than people,
+  the end before the start; a weekend, a holiday or a date after the due date is a warning.
+  **Check** runs the real transaction on the server and undoes it (`dryRun`), answering what
+  would be refused and why; the review then shows exactly what will be created and what the
+  bookings cost. Only **Create session and book N people** writes, all or nothing
+  (`createSessionWithBookings`): one person who cannot be booked stops the session too.
 
 ## Importing
 
@@ -467,16 +510,16 @@ Prisma models directly.
 
 ## Commands
 
-| Command                 | What it does                                                                           |
-| ----------------------- | -------------------------------------------------------------------------------------- |
-| `pnpm check`            | every gate below except e2e and Lighthouse (needs `db:up`)                             |
-| `pnpm test`             | unit tests in every package                                                            |
-| `pnpm coverage`         | tests with coverage in every package; fails below 90 %                                 |
-| `pnpm test:integration` | repositories and seed against the test database (port 5439)                            |
-| `pnpm test:e2e`         | Playwright access, smoke and axe tests on `next start`, test DB                        |
-| `pnpm test:lighthouse`  | Lighthouse on every page; reports in `test-results/lighthouse`                         |
-| `pnpm test:visual`      | screenshots of every page and state, both themes, in `test-results/visual`, for review |
-| `pnpm db:studio`        | Prisma Studio on the dev database                                                      |
+| Command                 | What it does                                                                             |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| `pnpm check`            | every gate below except e2e and Lighthouse (needs `db:up`)                               |
+| `pnpm test`             | unit tests in every package                                                              |
+| `pnpm coverage`         | tests with coverage in every package; fails below 90 %                                   |
+| `pnpm test:integration` | repositories and seed against the test database (port 5439)                              |
+| `pnpm test:e2e`         | Playwright access, smoke and axe tests on `next start`, test DB                          |
+| `pnpm test:lighthouse`  | Lighthouse on every page; reports in `test-results/lighthouse`                           |
+| `pnpm test:visual`      | screenshots of every page and state, both themes, in `apps/web/visual-shots`, for review |
+| `pnpm db:studio`        | Prisma Studio on the dev database                                                        |
 
 The integration tests apply migrations and seed the test database; run them before
 `pnpm test:e2e` and `pnpm test:lighthouse`, which also need `pnpm --filter @muni/web build`

@@ -4,7 +4,9 @@ import {
   applyAssignments,
   type AssignmentFailure,
   type MoveFailure,
-  moveSeats,
+  moveSeatsMany,
+  raiseCapacity,
+  type RaiseProblem,
   removeAssignment,
 } from '@muni/db/repositories'
 import { bookingSchema } from '@muni/domain/schemas'
@@ -86,13 +88,40 @@ export async function removeAssignmentAction(input: unknown): Promise<boolean> {
   return removed
 }
 
-export async function moveSeatsAction(
-  input: unknown
-): Promise<{ ok: true } | { ok: false; reason: MoveFailure }> {
+const resolveInput = z.object({
+  from: externalId,
+  resolution: z.discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('move'),
+      moves: z
+        .array(z.object({ to: externalId, count: z.int().min(1).max(10_000) }))
+        .min(1)
+        .max(50),
+    }),
+    z.object({ kind: z.literal('raise'), capacity: z.int().min(1).max(10_000) }),
+  ]),
+})
+
+/** What resolving an overbooked session came to. */
+export type ResolveOutcome =
+  { ok: true } | { ok: false; reason: MoveFailure | RaiseProblem | 'invalid'; to?: string }
+
+/**
+ * Resolves an overbooked session the way the admin chose, in one transaction: anonymous seats
+ * moved to the sessions picked (all of them or none), or the capacity raised to fit everyone
+ * when the room has the seats.
+ */
+export async function resolveOverbookingAction(input: unknown): Promise<ResolveOutcome> {
   await requireAdmin()
-  const { from, to, count } = z
-    .object({ from: externalId, to: externalId, count: z.int().min(1).max(10_000) })
-    .parse(input)
-  const result = await moveSeats(from, to, count)
-  return result
+  const parsed = resolveInput.safeParse(input)
+  if (!parsed.success) return { ok: false, reason: 'invalid' }
+  const { from, resolution } = parsed.data
+  if (resolution.kind === 'raise') {
+    const raised = await raiseCapacity(from, resolution.capacity)
+    return raised.ok ? { ok: true } : { ok: false, reason: raised.problem }
+  }
+  const moved = await moveSeatsMany(from, resolution.moves)
+  return moved.ok
+    ? { ok: true }
+    : { ok: false, reason: moved.reason, ...(moved.to && { to: moved.to }) }
 }

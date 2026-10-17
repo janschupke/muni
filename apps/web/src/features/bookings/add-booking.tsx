@@ -8,6 +8,7 @@ import { UserPlus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useActionState, useState } from 'react'
 
+import { useToast } from '@/components/toasts'
 import { useAfterWrite } from '@/lib/query/use-after-write'
 import { addBookingAction, type BookingState } from '@/server/actions/assignments'
 
@@ -33,14 +34,22 @@ export function AddBookingForm({
   // A booked choice leaves the list; the select starts over.
   const [round, setRound] = useState(0)
   const afterWrite = useAfterWrite()
+  const toast = useToast()
   const [state, formAction, pending] = useActionState(
-    async (previous: BookingState, form: FormData) => {
-      const next = await addBookingAction(fixed, previous, form)
-      if (next.status === 'done') {
-        setRound(r => r + 1)
-        afterWrite()
+    async (previous: BookingState, form: FormData): Promise<BookingState> => {
+      const chosen = options.find(o => o.value === form.get(field))?.label ?? ''
+      try {
+        const next = await addBookingAction(fixed, previous, form)
+        if (next.status === 'done') {
+          setRound(r => r + 1)
+          afterWrite()
+          toast({ title: t('bookings.booked', { what: chosen }) })
+        }
+        return next
+      } catch {
+        toast({ tone: 'danger', title: t('common.failed') })
+        return IDLE
       }
-      return next
     },
     IDLE
   )

@@ -5,7 +5,6 @@
   },
   "common": {
     "appName": "Training register",
-    "save": "Save",
     "saving": "Saving…",
     "cancel": "Cancel",
     "edit": "Edit",
@@ -25,7 +24,12 @@
     "editLabel": "Edit {name}",
     "actions": "Actions",
     "remove": "Remove",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "notifications": "Notifications",
+    "keepAsIs": "Keep as is",
+    "working": "Working…",
+    "failed": "That did not go through. Check the page and try again.",
+    "keepEditing": "Keep editing"
   },
   "nav": {
     "primary": "Main navigation",
@@ -198,7 +202,8 @@
       "status": "Status",
       "validUntil": "Valid until",
       "completedOn": "Last completed",
-      "booked": "Booked session"
+      "booked": "Booked session",
+      "title": "Required trainings"
     },
     "new": "New employee"
   },
@@ -238,10 +243,16 @@
       "noMinutes": "Length not set",
       "group": "Groups of {size}",
       "noGroup": "No group size set",
-      "online": "Can be held online",
       "byDepartment": "Compliance by department",
       "noDepartments": "Nobody active must hold it.",
-      "departmentTitle": "{department}: {held} of {total} held"
+      "departmentTitle": "{department}: {held} of {total} held",
+      "length": "Length",
+      "groupSize": "Group size",
+      "onlineLabel": "Online",
+      "onlineYes": "Can be held online",
+      "onlineNo": "On site only",
+      "equipment": "Equipment",
+      "noEquipment": "Nothing special"
     },
     "new": "New course"
   },
@@ -284,7 +295,36 @@
     },
     "nearlyFull": "Almost full",
     "newTitle": "New session",
-    "new": "New session"
+    "new": "New session",
+    "expanded": {
+      "session": "Session",
+      "when": "When",
+      "room": "Room",
+      "roomSeats": "{seats, plural, one {# seat} other {# seats}}",
+      "roomOnline": "online",
+      "needs": "The course needs",
+      "minutes": "{count, plural, other {# min}}",
+      "groupSize": "groups of {count}",
+      "canBeOnline": "can be online",
+      "equipment": "needs {list}",
+      "fits": "The room suits it.",
+      "unfit": "The room does not suit it: {reason}.",
+      "seats": "Seats",
+      "seatsText": "{named} by name · {unnamed} without a name · {free, plural, =0 {none free} other {# free}}",
+      "over": "{count, plural, one {# over capacity} other {# over capacity}}",
+      "price": "Price",
+      "priceText": "{price} per person · {total} for {booked, plural, one {# booked} other {# booked}}",
+      "noPrice": "Not set",
+      "status": "Status",
+      "people": "Booked by name",
+      "person": "Person",
+      "department": "Department",
+      "position": "Position",
+      "via": "Booked through",
+      "viaAdvisor": "Advisor",
+      "viaManual": "By hand",
+      "bookedOn": "Booked on"
+    }
   },
   "compliance": {
     "title": "Compliance matrix",
@@ -431,7 +471,16 @@
       },
       "roomHolds": "The room holds {seats, plural, one {# seat} other {# seats}}.",
       "bookedSeats": "{count, plural, one {# seat is booked.} other {# seats are booked.}}",
-      "courseKeepsBookings": "{count, plural, one {# person booked by name stays booked} other {# people booked by name stay booked}} if the course changes."
+      "courseKeepsBookings": "{count, plural, one {# person booked by name stays booked} other {# people booked by name stay booked}} if the course changes.",
+      "confirm": {
+        "cancelTitle": "Cancel this session?",
+        "cancelBody": "{count, plural, =0 {Nobody is booked on it by name.} one {The # person booked stays listed on it, but a cancelled session no longer counts as their training: the advisor shows them as action required again.} other {The # people booked stay listed on it, but a cancelled session no longer counts as their training: the advisor shows them as action required again.}}",
+        "cancelConfirm": "Cancel session",
+        "courseTitle": "Change the course?",
+        "courseBody": "{count, plural, one {The # person booked stays booked} other {The # people booked stay booked}}, now for {course}. Check that it is the training they need.",
+        "courseConfirm": "Change course",
+        "bothConfirm": "Save and cancel session"
+      }
     },
     "employee": {
       "title": "Edit {name}",
@@ -488,7 +537,11 @@
       "nextYear": "Next year",
       "today": "Today",
       "clear": "Clear",
-      "format": { "day": "dd", "month": "mm", "year": "yyyy" },
+      "format": {
+        "day": "dd",
+        "month": "mm",
+        "year": "yyyy"
+      },
       "hours": "Hours",
       "minutes": "Minutes"
     },
@@ -499,6 +552,33 @@
       "headNoMembers": "Nobody works here yet; set the head once someone does.",
       "departments": "Departments",
       "departmentsHelp": "Where the position exists: people hold it only in these departments."
+    },
+    "save": {
+      "changes": "Save changes",
+      "course": "Create course",
+      "courseCreated": "Course created",
+      "courseSaved": "Course saved",
+      "employee": "Add employee",
+      "employeeCreated": "Employee added",
+      "employeeSaved": "Employee saved",
+      "completion": "Record completion",
+      "completionCreated": "Completion recorded",
+      "completionSaved": "Completion saved",
+      "department": "Create department",
+      "departmentCreated": "Department created",
+      "departmentSaved": "Department saved",
+      "position": "Create position",
+      "positionCreated": "Position created",
+      "positionSaved": "Position saved",
+      "room": "Create room",
+      "roomCreated": "Room created",
+      "roomSaved": "Room saved",
+      "provider": "Add provider",
+      "providerCreated": "Provider added",
+      "providerSaved": "Provider saved",
+      "session": "Schedule session",
+      "sessionCreated": "Session scheduled",
+      "sessionSaved": "Session saved"
     }
   },
   "import": {
@@ -568,7 +648,13 @@
       "result": "{kind}: {created} created, {updated} updated{skipped, plural, =0 {} other {, # skipped (archived)}}",
       "failed": "The import failed: {message}",
       "partial": "{count, plural, one {# record was} other {# records were}} written before the failure.",
-      "again": "Import more files"
+      "again": "Import more files",
+      "errors": {
+        "unauthorized": "your session no longer allows importing; sign in again",
+        "invalid": "the server refused the records as invalid",
+        "failed": "the database refused the write",
+        "network": "the server could not be reached"
+      }
     },
     "fields": {
       "row": "Row",
@@ -783,9 +869,6 @@
       "inTime": "Ends before the training lapses",
       "gap": "{days, plural, =0 {Ends the day it lapses} one {Starts after it lapses: # day without it} other {Starts after it lapses: # days without it}}",
       "coveredOn": "Without it until {until}",
-      "saveAll": "Save {count, plural, one {# proposed booking} other {all # proposed bookings}} · {cost}",
-      "save": "Save",
-      "saveOne": "Book {name} on {session}",
       "reasons": {
         "NO_SESSION": "No session scheduled",
         "NO_SEATS": "Every session is full",
@@ -798,7 +881,31 @@
       "shortfallTitle": "Schedule more sessions",
       "shortfall": "{course}: {people, plural, one {# person} other {# people}} with no session to join.",
       "empty": "Every training in scope has a booking.",
-      "readOnly": "Only admins can save bookings."
+      "readOnly": "Only admins can book people.",
+      "book": "Book…",
+      "bookOne": "Book {name}…",
+      "bookSelected": "Book {count, plural, one {# selected} other {# selected}} · {cost}",
+      "selectAll": "Select all {count} proposed",
+      "clearSelection": "Clear selection",
+      "selectRow": "Select {name}, {course}",
+      "selectPage": "Select every proposed row on this page",
+      "sessionFor": "Session for {name}",
+      "choice": "{date} · {room} · {free, plural, =0 {full} other {# free}}",
+      "choiceLate": "{choice} · late",
+      "dialog": {
+        "title": "Book {count, plural, one {# person} other {# people}}?",
+        "body": "Each person is booked on the session shown. Every booking is checked again as it is saved: free seats, clashes, and whether the training is still due.",
+        "person": "Person",
+        "training": "Training",
+        "session": "Session",
+        "price": "Price",
+        "total": "Total: {cost}",
+        "over": "{session}: {count} chosen, {free, plural, =0 {no seat free} one {# seat free} other {# seats free}}. Choose another session for some of them, or leave them out.",
+        "confirm": "Book {count, plural, one {# person} other {# people}}",
+        "done": "Booked {count, plural, one {# person} other {# people}}",
+        "partial": "Booked {applied}; {failed, plural, one {# was} other {# were}} refused:",
+        "refused": "Nobody was booked:"
+      }
     },
     "planned": {
       "rows": "Each row is one training that is non-compliant or lapsing and already has a named booking. A booking that ends after the lapse leaves a gap.",
@@ -826,14 +933,56 @@
       "none": "No session is overbooked.",
       "booked": "Booked",
       "over": "{booked} of {capacity} · {excess} over",
-      "moveTo": "Move {count, plural, one {# seat} other {# seats}} to",
+      "moveTo": "Suggested: move {count, plural, one {# seat} other {# seats}} to",
       "remaining": "{count, plural, one {# seat stays} other {# seats stay}} over capacity: there is no room in other sessions of this course, or the bookings are named. Schedule another session or cancel bookings.",
-      "apply": "Move {count, plural, one {# seat} other {# seats}}"
+      "resolve": "Resolve…",
+      "resolveLabel": "Resolve the overbooking of {course}, {date}",
+      "dialog": {
+        "title": "Resolve overbooking: {course}, {date}",
+        "explain": "{booked} booked for {capacity} seats, {excess} over: {named} by name and {unnamed} without a name.",
+        "namedStay": "People booked by name stay where they are; only seats booked without a name can move.",
+        "how": "How to resolve it",
+        "move": "Move seats to other sessions",
+        "moveHint": "Up to {count, plural, one {# seat} other {# seats}} booked without a name.",
+        "raise": "Raise the capacity",
+        "raiseHint": "Give every booking a seat here.",
+        "target": "{date} · {room}",
+        "free": "{free, plural, one {# seat free} other {# seats free}}",
+        "noTargets": "No other session of this course has free seats: schedule one, or raise the capacity.",
+        "noUnnamed": "Every seat here is booked by name, so none can move.",
+        "after": "After this: {booked} booked for {capacity} seats{over, plural, =0 {.} other {, # still over.}}",
+        "tooMany": "At most {count, plural, one {# seat} other {# seats}} can move: those booked without a name.",
+        "overTarget": "{session} has only {free, plural, one {# seat} other {# seats}} free.",
+        "nothing": "Choose how many seats go where.",
+        "raiseRoom": "{room} has {seats} seats: the capacity goes from {capacity} to {to}, so everyone booked has a seat.",
+        "raiseOnline": "{room} is online: the capacity goes from {capacity} to {to}, so everyone booked has a seat.",
+        "raiseNo": "{room} has {seats} seats, fewer than the {booked} booked. Move seats instead, or edit the session to a larger room.",
+        "confirmMove": "Move {count, plural, one {# seat} other {# seats}}",
+        "confirmRaise": "Raise capacity to {to}",
+        "moved": "Moved {count, plural, one {# seat} other {# seats}} out of {session}",
+        "raised": "Capacity of {session} raised to {to}"
+      },
+      "refused": {
+        "invalid": "The request was not valid. Reload the page and try again.",
+        "SESSION_NOT_FOUND": "A session no longer exists. Reload the page.",
+        "SAME_SESSION": "Seats cannot move to the session they are in.",
+        "DIFFERENT_COURSE": "Seats can only move to a session of the same course.",
+        "NOT_PLANNED": "A chosen session was cancelled meanwhile.",
+        "PAST": "A chosen session has started meanwhile.",
+        "NOT_ENOUGH_UNNAMED": "There are fewer seats booked without a name than asked to move.",
+        "TARGET_FULL": "A chosen session filled up meanwhile.",
+        "NOT_FOUND": "The session no longer exists. Reload the page.",
+        "NOT_RAISED": "The capacity is already that high or higher.",
+        "ROOM_TOO_SMALL": "The room does not have that many seats.",
+        "ROOM_BUSY": "The room is taken then.",
+        "ROOM_ONLINE_NOT_ALLOWED": "The course cannot be held online.",
+        "ROOM_MISSING_CAPABILITIES": "The room lacks what the course needs.",
+        "ROOM_ARCHIVED": "The room was archived.",
+        "COURSE_ARCHIVED": "The course was archived.",
+        "OVER_CAPACITY": "More people are booked than that capacity holds."
+      }
     },
     "outcome": {
-      "error": "Saving failed. Nothing was changed; try again.",
-      "moved": "{moved, plural, one {# seat moved} other {# seats moved}}{failed, plural, =0 {.} other {; # could not be moved (the sessions changed meanwhile).}}",
-      "applied": "{applied, plural, =0 {No booking saved} one {# booking saved} other {# bookings saved}}{failed, plural, =0 {.} other {; # refused:}}",
       "failure": "{name} on {session}: {reason}",
       "reasons": {
         "SESSION_NOT_FOUND": "the session no longer exists",
@@ -1002,7 +1151,8 @@
       "allValid": "All held",
       "nothingRequired": "Nothing required",
       "booked": "booked for {date}",
-      "none": "Nobody works here."
+      "none": "Nobody works here.",
+      "title": "People"
     }
   },
   "departments": {
@@ -1066,25 +1216,19 @@
       "month": "Lapsing in {month}"
     },
     "late": "After the due date",
-    "alternatives": "{count, plural, one {or # other room} other {or # other rooms}}",
     "toggle": "People for {course}, session {n}",
     "panelHeader": "People",
-    "create": "Create session",
-    "creating": "Creating…",
-    "created": "Created session {id}.",
-    "openSession": "Open it",
-    "bookInAdvisor": "Book people in the advisor",
     "refused": {
       "unauthorized": "You can no longer create sessions. Sign in as an admin and try again.",
-      "invalid": "This offer is no longer valid. Reload the planner.",
+      "invalid": "Something here is not valid: check the date, times, capacity and price.",
       "failed": "The session could not be created. Try again.",
-      "ROOM_BUSY": "The room has been taken at that time meanwhile. The refreshed plan offers another slot.",
-      "ROOM_ONLINE_NOT_ALLOWED": "This course is not held online. The refreshed plan offers another room.",
-      "ROOM_TOO_SMALL": "The room has fewer seats than the session opens. The refreshed plan offers another room.",
-      "ROOM_MISSING_CAPABILITIES": "The room lacks equipment the course needs. The refreshed plan offers another room.",
-      "ROOM_ARCHIVED": "The room has been archived meanwhile. The refreshed plan offers another room.",
+      "ROOM_BUSY": "The room is taken at that time. Choose another time or room.",
+      "ROOM_ONLINE_NOT_ALLOWED": "This course is not held online. Choose a room.",
+      "ROOM_TOO_SMALL": "The room has fewer seats than the capacity. Lower the capacity or choose a larger room.",
+      "ROOM_MISSING_CAPABILITIES": "The room lacks equipment the course needs. Choose another room.",
+      "ROOM_ARCHIVED": "The room has been archived meanwhile. Choose another room.",
       "COURSE_ARCHIVED": "The course has been archived meanwhile. Reload the planner.",
-      "OVER_CAPACITY": "More seats are booked than the session opens. Reload the planner."
+      "OVER_CAPACITY": "The capacity is below the people to book. Raise it, or book fewer people."
     },
     "problems": {
       "NO_ROOM_WITH": "Even the best-equipped room lacks {missing}.",
@@ -1094,7 +1238,47 @@
       "NO_FREE_SLOT": "No free slot in the next {days} days."
     },
     "rule": "Trainings no session can take are grouped by course and due date (lapsed ones within two weeks, the rest the day before they lapse) and split by the course's group size, or by the largest room that suits it. Each session gets the first working day from tomorrow (weekends and public holidays are not) with a valid room free at the course's usual time: online if the course allows it, otherwise a room with everything the course needs and enough seats, rooms used before first.",
-    "readOnly": "Only admins can create sessions."
+    "readOnly": "Only admins can create sessions.",
+    "otherRooms": "or {rooms}",
+    "review": {
+      "open": "Review…",
+      "openLabel": "Review session {n} of {course}",
+      "title": "New session: {course}",
+      "intro": "Change anything below, then check it. Nothing is created until you confirm.",
+      "people": "People to book",
+      "peopleHelp": "{count, plural, =0 {Nobody ticked: the session is created empty.} one {# person ticked.} other {# people ticked.}} Untick anyone who should not be booked.",
+      "lapses": "lapses {date}",
+      "neverHeld": "never held",
+      "capacityLow": "The capacity is below the {count} people ticked.",
+      "notWorking": "{date} is a weekend or public holiday.",
+      "late": "This is after the due date, {deadline}.",
+      "check": "Check",
+      "checking": "Checking…",
+      "back": "Back to editing",
+      "summaryTitle": "What will be created",
+      "course": "Course",
+      "when": "When",
+      "room": "Room",
+      "capacity": "Capacity",
+      "price": "Price per person",
+      "booked": "Booked",
+      "total": "Cost of these bookings",
+      "nobody": "Nobody: the session is created empty.",
+      "refusedPeople": "These people cannot be booked on it; untick them or change the session:",
+      "refusal": "{name}: {reason}",
+      "confirm": "Create session and book {count, plural, =0 {nobody} one {# person} other {# people}}",
+      "creating": "Creating…",
+      "created": "Created {id} and booked {count, plural, =0 {nobody} one {# person} other {# people}}",
+      "openSession": "Open session"
+    },
+    "expanded": {
+      "people": "People",
+      "person": "Person",
+      "department": "Department",
+      "lapses": "Lapses on",
+      "rooms": "Other rooms free then",
+      "noRooms": "No other suitable room is free then."
+    }
   },
   "landing": {
     "title": "Training register",
@@ -1159,7 +1343,16 @@
       "lastSignIn": "Last sign-in",
       "since": "Has access since",
       "bookingsMade": "Bookings made",
-      "email": "Email"
+      "email": "Email",
+      "roleTitle": "Change the role to {role}?",
+      "roleGrants": {
+        "VIEWER": "They will see personal data redacted, and cannot change anything.",
+        "FULL": "They will see whole records, but cannot edit, book or import.",
+        "ADMIN": "They will be able to edit every record, book people, import data and change anyone’s role."
+      },
+      "roleLosesAdmin": "They stop being an admin: no more editing, booking, importing or changing roles.",
+      "roleApplies": "It applies within five minutes, or at their next sign-in.",
+      "roleChanged": "Role changed to {role}"
     }
   },
   "archive": {
@@ -1270,16 +1463,26 @@
       "archivedAt": "Archived on",
       "archivedBy": "Archived by"
     },
-    "leaves": "They lead {department}; it will have no head until one is set."
+    "leaves": "They lead {department}; it will have no head until one is set.",
+    "archivedToast": "Archived: {name}",
+    "unarchiveTitle": "Bring back {name}?",
+    "unarchiveBody": "It shows in lists and counts again, and can be edited and booked as before.",
+    "unarchivedToast": "Brought back: {name}"
   },
   "bookings": {
     "add": "Book",
     "choose": "Choose whom or what to book first.",
     "noneLeft": "Nothing left to book here.",
     "refused": "Not booked: {reason}.",
-    "person": "Add a person",
-    "session": "Book on a session",
+    "person": "Person to book",
+    "session": "Session to book on",
     "sessionOption": "{when} · {course} ({free, plural, one {# seat free} other {# seats free}})",
-    "removeConfirm": "Remove {name} from this session?"
+    "removeConfirm": "Remove {name} from this session?",
+    "booked": "Booked: {what}",
+    "removeBody": "The seat goes back to the session. If they still need the training, the advisor proposes a session for them again.",
+    "keep": "Keep booking",
+    "cancel": "Cancel booking",
+    "cancelled": "Booking cancelled",
+    "alreadyGone": "This booking was already cancelled."
   }
 }

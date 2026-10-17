@@ -1,22 +1,23 @@
 'use client'
 
 import type { Archivable } from '@muni/domain/archive'
-import { Alert } from '@muni/ui/alert'
 import { Button } from '@muni/ui/button'
 import { IconButton } from '@muni/ui/icon-button'
 import { ArchiveRestore } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useActionState } from 'react'
+import { useRef, useState } from 'react'
 
-import { ARCHIVE_IDLE, type ArchiveState } from '@/lib/form'
-import { useWhenWritten } from '@/lib/query/use-after-write'
+import { ARCHIVE_IDLE } from '@/lib/form'
+import { useAfterWrite } from '@/lib/query/use-after-write'
 import { unarchiveAction } from '@/server/actions/archive'
 
+import { ConfirmDialog } from './confirm-dialog'
 import { useRefusalText } from './use-refusal-text'
 
 /**
- * Brings an archived record back (admins). It may not come back while an active record holds
- * its name or ID, or while something it belongs to is archived; the reason shows beside it.
+ * Brings an archived record back (admins), after saying what that means. It may not come
+ * back while an active record holds its name or ID, or while something it belongs to is
+ * archived; the dialog then says why.
  */
 export function UnarchiveButton({
   kind,
@@ -33,28 +34,39 @@ export function UnarchiveButton({
 }) {
   const t = useTranslations('archive')
   const refusal = useRefusalText(kind)
-  const [state, formAction, pending] = useActionState(
-    async (previous: ArchiveState) => unarchiveAction(kind, id, then, previous),
-    ARCHIVE_IDLE
-  )
-  useWhenWritten(state, state.status === 'done', state.status === 'done' ? state.href : undefined)
+  const afterWrite = useAfterWrite()
+  const trigger = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  const show = () => {
+    setOpen(true)
+  }
   return (
-    <form action={formAction} className="flex flex-wrap items-center gap-2">
+    <>
       {compact ? (
-        <IconButton type="submit" label={t('unarchiveLabel', { name })} disabled={pending}>
+        <IconButton ref={trigger} label={t('unarchiveLabel', { name })} onClick={show}>
           <ArchiveRestore aria-hidden />
         </IconButton>
       ) : (
-        <Button type="submit" disabled={pending}>
+        <Button ref={trigger} onClick={show}>
           <ArchiveRestore aria-hidden />
           {t('unarchive')}
         </Button>
       )}
-      {state.status === 'refused' && (
-        <Alert tone="danger" className="w-full">
-          {refusal(state)}
-        </Alert>
-      )}
-    </form>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t('unarchiveTitle', { name })}
+        confirmLabel={t('unarchive')}
+        returnFocusTo={() => trigger.current}
+        onConfirm={async () => {
+          const state = await unarchiveAction(kind, id, then, ARCHIVE_IDLE)
+          if (state.status === 'refused') return { kind: 'refused', message: refusal(state) }
+          afterWrite(state.status === 'done' ? state.href : undefined)
+          return { kind: 'done', toast: { title: t('unarchivedToast', { name }) } }
+        }}
+      >
+        <p className="text-sm text-fg-muted">{t('unarchiveBody')}</p>
+      </ConfirmDialog>
+    </>
   )
 }

@@ -9,24 +9,33 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { Meter } from '@muni/ui/meter'
 import { TextLink } from '@muni/ui/text-link'
+import { formatTimeRange } from '@muni/utils/format'
 import { ArrowRightLeft } from 'lucide-react'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
+import { useState } from 'react'
 
 import { RoomLink, SessionDateLink } from '@/components/session-links'
 
-/** Sessions over capacity, with the seat moves that bring them back under it. */
+import { ResolveDialog } from './resolve-dialog'
+
+/**
+ * Sessions over capacity, with the advisor's suggestion. An admin resolves each one in a
+ * dialog: moving seats where they choose, or raising the capacity.
+ */
 export function OverbookedList({
   overbooked,
-  onMove,
-  pending,
+  canResolve,
 }: {
   overbooked: OverbookedSession[]
-  /** Signed-in only: applies all moves proposed for one session. */
-  onMove?: ((item: OverbookedSession) => void) | undefined
-  pending: boolean
+  /** Admins only. */
+  canResolve: boolean
 }) {
   const t = useTranslations('advisor.overbooked')
+  const locale = useLocale()
+  const [resolving, setResolving] = useState<{ item: OverbookedSession; from: HTMLElement } | null>(
+    null
+  )
   if (overbooked.length === 0) return <EmptyState title={t('none')} />
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -81,23 +90,37 @@ export function OverbookedList({
                 {t('remaining', { count: o.remaining })}
               </Alert>
             )}
-            {onMove && o.moves.length > 0 && (
+            {canResolve && (
               <div>
                 <Button
                   size="sm"
-                  disabled={pending}
-                  onClick={() => {
-                    onMove(o)
+                  aria-label={t('resolveLabel', {
+                    course: o.session.courseName,
+                    date: formatTimeRange(o.session.startsAt, o.session.endsAt, locale),
+                  })}
+                  onClick={event => {
+                    setResolving({ item: o, from: event.currentTarget })
                   }}
                 >
                   <ArrowRightLeft aria-hidden />
-                  {t('apply', { count: o.moves.reduce((n, m) => n + m.count, 0) })}
+                  {t('resolve')}
                 </Button>
               </div>
             )}
           </CardBody>
         </Card>
       ))}
+      {resolving && (
+        <ResolveDialog
+          key={resolving.item.session.externalId}
+          open
+          overbooked={resolving.item}
+          onOpenChange={open => {
+            if (!open) setResolving(null)
+          }}
+          returnFocusTo={() => resolving.from}
+        />
+      )}
     </div>
   )
 }

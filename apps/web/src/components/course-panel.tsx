@@ -1,6 +1,10 @@
 import type { CourseListItem } from '@muni/db/repositories'
 import { complianceBand } from '@muni/domain/compliance'
 import { HeatCell } from '@muni/ui/charts/heat-cell'
+import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
+import { DetailGrid, DetailPanel } from '@muni/ui/detail-panel'
+import { EmptyState } from '@muni/ui/empty-state'
+import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { Meter } from '@muni/ui/meter'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent } from '@muni/utils/format'
@@ -18,15 +22,14 @@ export function CoursePanel({ course }: { course: CourseListItem }) {
   const locale = useLocale()
   const { sessionNeeds: needs } = course
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div role="group" aria-label={t('sessions')} className="flex flex-col gap-2">
-        <p className="text-xs font-medium text-fg-muted">{t('sessions')}</p>
+    <DetailGrid className="lg:grid-cols-3">
+      <DetailPanel title={t('sessions')} count={course.upcoming.length}>
         {course.upcoming.length === 0 ? (
-          <p className="text-sm text-fg-subtle">{t('noSessions')}</p>
+          <EmptyState variant="inline" title={t('noSessions')} />
         ) : (
-          <ul className="flex flex-col gap-2 text-sm">
+          <ItemList>
             {course.upcoming.map(s => (
-              <li key={s.externalId} className="flex flex-col gap-1">
+              <ItemListRow key={s.externalId} className="flex-col items-stretch gap-1">
                 <span className="flex flex-wrap items-center gap-x-2">
                   <SessionDateLink session={s} emphasis />
                   <span className="text-fg-subtle">·</span>
@@ -45,32 +48,36 @@ export function CoursePanel({ course }: { course: CourseListItem }) {
                   </span>
                   <OccupancyBadge booked={s.bookedCount} capacity={s.capacity} />
                 </span>
-              </li>
+              </ItemListRow>
             ))}
-          </ul>
+          </ItemList>
         )}
-      </div>
-      <div role="group" aria-label={t('needs')} className="flex flex-col gap-2 text-sm">
-        <p className="text-xs font-medium text-fg-muted">{t('needs')}</p>
-        <p>
-          {[
-            needs.minutes === null ? t('noMinutes') : t('minutes', { minutes: needs.minutes }),
-            needs.groupSize === null ? t('noGroup') : t('group', { size: needs.groupSize }),
-            ...(needs.onlineAllowed ? [t('online')] : []),
-          ].join(' · ')}
-        </p>
-        <CapabilityList capabilities={needs.capabilities} />
-      </div>
-      <div role="group" aria-label={t('byDepartment')} className="flex flex-col gap-2">
-        <p className="text-xs font-medium text-fg-muted">{t('byDepartment')}</p>
+      </DetailPanel>
+      <DetailPanel title={t('needs')}>
+        <DescriptionList>
+          <DescriptionItem label={t('length')}>
+            {needs.minutes === null ? t('noMinutes') : t('minutes', { minutes: needs.minutes })}
+          </DescriptionItem>
+          <DescriptionItem label={t('groupSize')}>
+            {needs.groupSize === null ? t('noGroup') : t('group', { size: needs.groupSize })}
+          </DescriptionItem>
+          <DescriptionItem label={t('onlineLabel')}>
+            {needs.onlineAllowed ? t('onlineYes') : t('onlineNo')}
+          </DescriptionItem>
+          <DescriptionItem label={t('equipment')}>
+            <CapabilityList capabilities={needs.capabilities} empty={t('noEquipment')} />
+          </DescriptionItem>
+        </DescriptionList>
+      </DetailPanel>
+      <DetailPanel title={t('byDepartment')} count={course.byDepartment.length}>
         {course.byDepartment.length === 0 ? (
-          <p className="text-sm text-fg-subtle">{t('noDepartments')}</p>
+          <EmptyState variant="inline" title={t('noDepartments')} />
         ) : (
-          <ul className="grid gap-1.5 sm:grid-cols-2">
+          <ItemList>
             {course.byDepartment.map(d => {
               const held = d.counts.VALID + d.counts.EXPIRING
               return (
-                <li key={d.id} className="flex items-center gap-2 text-sm">
+                <ItemListRow key={d.id} className="gap-2">
                   <HeatCell
                     band={complianceBand(d.rate)}
                     tooltip={t('departmentTitle', {
@@ -83,19 +90,19 @@ export function CoursePanel({ course }: { course: CourseListItem }) {
                     {formatPercent(d.rate, locale)}
                   </HeatCell>
                   <TextLink asChild>
-                    <Link href={`/departments/${d.id}`} className="truncate">
+                    <Link href={`/departments/${d.id}`} className="min-w-0 truncate">
                       {d.name}
                     </Link>
                   </TextLink>
                   <span className="ml-auto text-xs text-fg-muted tabular-nums">
                     {formatInteger(held, locale)}/{formatInteger(d.counts.total, locale)}
                   </span>
-                </li>
+                </ItemListRow>
               )
             })}
-          </ul>
+          </ItemList>
         )}
-      </div>
-    </div>
+      </DetailPanel>
+    </DetailGrid>
   )
 }

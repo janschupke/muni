@@ -4,6 +4,7 @@ import { render, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react'
 
+import { ToastsProvider } from '@/components/toasts'
 import en from '@/i18n/messages/en.json'
 
 type Props = Record<string, unknown>
@@ -49,7 +50,9 @@ export function Providers({
   return (
     <NextIntlClientProvider locale="en" messages={en} timeZone="Europe/Prague">
       <QueryClientProvider client={client}>
-        <TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>
+          <ToastsProvider>{children}</ToastsProvider>
+        </TooltipProvider>
       </QueryClientProvider>
     </NextIntlClientProvider>
   )

@@ -2,7 +2,6 @@
 
 import type { CourseOption, RoomOption } from '@muni/db/repositories'
 import { SESSION_STATUSES } from '@muni/domain/enums'
-import { roomMismatch } from '@muni/domain/rooms'
 import { type SessionIssue, sessionIssues } from '@muni/domain/sessions'
 import { FieldRow } from '@muni/ui/field'
 import { currencySymbol } from '@muni/utils/format'
@@ -18,10 +17,12 @@ import {
   DateField,
   type FormHeading,
   FormShell,
+  type SaveConfirmation,
   SelectField,
   TextField,
   TimeField,
 } from './form-shell'
+import { useRoomLabel } from './session-fields'
 
 export interface SessionDefaults {
   courseId: string
@@ -80,6 +81,8 @@ export function SessionForm({
   mode?: 'edit' | 'create' | undefined
 }) {
   const t = useTranslations('forms.session')
+  const tq = useTranslations('forms.session.confirm')
+  const tsave = useTranslations('forms.save')
   const ts = useTranslations('status')
   const tp = useTranslations('forms.placeholders')
   const locale = useLocale()
@@ -180,14 +183,8 @@ export function SessionForm({
     }
   }
 
-  const roomLabel = (r: RoomOption) => {
-    const base =
-      r.capacity === null
-        ? t('roomOnline', { name: r.name })
-        : t('roomOption', { name: r.name, seats: r.capacity })
-    const unfit = course ? roomMismatch(r, course.needs, planned ? seats : null) : null
-    return unfit ? `${base} · ${t(`unfit.${unfit.kind}`)}` : base
-  }
+  const label = useRoomLabel()
+  const roomLabel = (r: RoomOption) => label(r, course?.needs ?? null, planned ? seats : null)
 
   const capacityHelp = [
     room?.capacity != null ? t('roomHolds', { seats: room.capacity }) : null,
@@ -195,6 +192,31 @@ export function SessionForm({
   ]
     .filter(Boolean)
     .join(' ')
+
+  // Cancelling a session, or moving its bookings to another course, does more than the form
+  // shows: ask first, saying what happens to the people on it.
+  const confirm = (): SaveConfirmation | null => {
+    if (mode !== 'edit') return null
+    const cancelling = status === 'CANCELLED' && defaults.status !== 'CANCELLED'
+    const moving = named > 0 && courseId !== defaults.courseId
+    if (!cancelling && !moving) return null
+    const body = (
+      <>
+        {cancelling && <p>{tq('cancelBody', { count: named })}</p>}
+        {moving && <p>{tq('courseBody', { count: named, course: course?.name ?? '' })}</p>}
+      </>
+    )
+    return {
+      title: cancelling ? tq('cancelTitle') : tq('courseTitle'),
+      body,
+      confirmLabel: cancelling
+        ? moving
+          ? tq('bothConfirm')
+          : tq('cancelConfirm')
+        : tq('courseConfirm'),
+      tone: cancelling ? 'danger' : 'primary',
+    }
+  }
 
   return (
     <FormShell
@@ -204,6 +226,9 @@ export function SessionForm({
       spec={mode === 'create' ? sessionCreateSpec : sessionEditSpec}
       isNew={mode === 'create'}
       clientErrors={clientErrors}
+      submitLabel={mode === 'create' ? tsave('session') : tsave('changes')}
+      savedMessage={mode === 'create' ? tsave('sessionCreated') : tsave('sessionSaved')}
+      confirm={confirm}
     >
       <SelectField
         name="courseId"

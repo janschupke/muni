@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod'
 
@@ -13,6 +14,7 @@ import { renderClient } from '@/test/render'
 
 import { BackLink } from './back-link'
 import { CompletionHistoryTable } from './completion-tables'
+import { ConfirmDialog, type ConfirmOutcome } from './confirm-dialog'
 import {
   CompletionForm,
   CourseForm,
@@ -75,7 +77,9 @@ describe('forms', () => {
     // The heading is part of the form, its actions on the right.
     const title = screen.getByRole('heading', { level: 1, name: 'Edit course BOZP-Z' })
     const header = title.closest('div')?.parentElement
-    expect(within(header ?? document.body).getByRole('button', { name: 'Save' })).toBeTruthy()
+    expect(
+      within(header ?? document.body).getByRole('button', { name: 'Save changes' })
+    ).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'Valid for (months)' })).toHaveProperty('value', '')
     // Who must hold it, and what a session needs.
     expect(screen.getByRole('group', { name: 'Who must hold it' })).toBeTruthy()
@@ -95,9 +99,9 @@ describe('forms', () => {
     )
     expect(screen.queryByRole('textbox', { name: /Code/ })).toBeNull()
     // Nothing changed yet: nothing to save.
-    expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Save changes' })).toHaveProperty('disabled', true)
     await user.type(screen.getByRole('textbox', { name: 'Valid for (months)' }), '24')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(await screen.findByRole('button', { name: 'Saving…' })).toHaveProperty('disabled', true)
     act(() => {
       finish({ status: 'error', fieldErrors: { name: 'required' }, formError: 'not_found' })
@@ -141,7 +145,7 @@ describe('forms', () => {
     )
     await user.type(screen.getByRole('textbox', { name: /Code/ }), 'bozp-n')
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'BOZP')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'Create course' }))
     expect(await screen.findByText('Some fields need a change; each says what below.')).toBeTruthy()
     expect(screen.getByText('Another record already uses this.')).toBeTruthy()
     const code = screen.getByRole('textbox', { name: /Code/ })
@@ -312,7 +316,7 @@ describe('forms', () => {
   it('keep Save off until something changed, and again once it is changed back', async () => {
     const user = userEvent.setup()
     renderClient(employeeForm())
-    const save = screen.getByRole('button', { name: 'Save' })
+    const save = screen.getByRole('button', { name: 'Save changes' })
     expect(save).toHaveProperty('disabled', true)
     const note = screen.getByRole('textbox', { name: 'Note' })
     expect(note.getAttribute('placeholder')).toBe('Optional')
@@ -331,7 +335,7 @@ describe('forms', () => {
     renderClient(employeeForm(action))
     await user.type(screen.getByRole('textbox', { name: 'Birth number' }), '12')
     await user.clear(screen.getByRole('textbox', { name: 'Last name' }))
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(action).not.toHaveBeenCalled()
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Last name' }))
     expect(
@@ -915,5 +919,184 @@ describe('tables', () => {
     const compact = screen.getAllByRole('table').at(-1) as HTMLElement
     expect(within(compact).queryByText('Aula A')).toBeNull()
     expect(within(compact).queryByRole('link', { name: /Edit session/ })).toBeNull()
+  })
+})
+
+describe('saving and deciding', () => {
+  it('says a save went through, in a toast, on the page the form goes on to', async () => {
+    const user = userEvent.setup()
+    renderClient(
+      <DepartmentForm
+        isNew
+        action={() => Promise.resolve({ status: 'saved', href: '/departments/dep_new' })}
+        cancelHref="/departments"
+        heading={{ title: 'New department' }}
+        defaults={{ name: '', headId: null }}
+        members={[]}
+      />
+    )
+    await user.type(screen.getByRole('textbox', { name: /Name/ }), 'Kvalita')
+    // The button says what it does.
+    await user.click(screen.getByRole('button', { name: 'Create department' }))
+    expect(await screen.findByText('Department created')).toBeTruthy()
+    expect(router.push).toHaveBeenCalledWith('/departments/dep_new')
+    // A toast can be closed before it leaves on its own.
+    const toasts = screen.getByRole('region', { name: /Notifications/ })
+    await user.click(within(toasts).getByRole('button', { name: 'Close' }))
+    await waitFor(() => {
+      expect(screen.queryByText('Department created')).toBeNull()
+    })
+  })
+
+  it('asks before moving the people booked on a session to another course', async () => {
+    const user = userEvent.setup()
+    vi.mocked(checkSessionSlotAction).mockResolvedValue(null)
+    const action = vi.fn(() =>
+      Promise.resolve<FormState>({ status: 'saved', href: '/sessions/T016' })
+    )
+    renderClient(
+      <SessionForm
+        action={action}
+        cancelHref="/sessions/T016"
+        heading={{ title: 'Edit T016' }}
+        rooms={[ROOMS.aula]}
+        courses={[COURSES.bozp, { ...COURSES.fire, needs: { ...COURSES.bozp.needs } }]}
+        named={1}
+        defaults={{
+          courseId: 'course_bozp',
+          date: '2026-11-04',
+          startTime: '08:00',
+          endTime: '11:00',
+          roomId: 'room_aula_a',
+          capacity: 30,
+          unnamedBookings: 0,
+          pricePerPerson: null,
+          status: 'PLANNED',
+        }}
+      />
+    )
+    await user.click(screen.getByRole('combobox', { name: /Course/ }))
+    await user.click(screen.getByRole('option', { name: /Požární ochrana/ }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Change the course?' })
+    expect(within(dialog).getByText(/now for Požární ochrana/)).toBeTruthy()
+    await user.click(within(dialog).getByRole('button', { name: 'Change course' }))
+    await waitFor(() => {
+      expect(action).toHaveBeenCalled()
+    })
+  })
+
+  it('asks before cancelling a session with people on it, and saves only when told', async () => {
+    const user = userEvent.setup()
+    vi.mocked(checkSessionSlotAction).mockResolvedValue(null)
+    const action = vi.fn(() =>
+      Promise.resolve<FormState>({ status: 'saved', href: '/sessions/T016' })
+    )
+    renderClient(
+      <SessionForm
+        action={action}
+        cancelHref="/sessions/T016"
+        heading={{ title: 'Edit T016' }}
+        rooms={[ROOMS.aula]}
+        courses={[COURSES.bozp]}
+        named={2}
+        defaults={{
+          courseId: 'course_bozp',
+          date: '2026-11-04',
+          startTime: '08:00',
+          endTime: '11:00',
+          roomId: 'room_aula_a',
+          capacity: 30,
+          unnamedBookings: 0,
+          pricePerPerson: null,
+          status: 'PLANNED',
+        }}
+      />
+    )
+    await user.click(screen.getByRole('combobox', { name: /Status/ }))
+    await user.click(screen.getByRole('option', { name: 'Cancelled' }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Cancel this session?' })
+    expect(within(dialog).getByText(/The 2 people booked stay listed on it/)).toBeTruthy()
+    expect(action).not.toHaveBeenCalled()
+    await user.click(within(dialog).getByRole('button', { name: 'Keep editing' }))
+    expect(action).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel session' })
+    )
+    await waitFor(() => {
+      expect(action).toHaveBeenCalled()
+    })
+    expect(await screen.findByText('Session saved')).toBeTruthy()
+  })
+})
+
+describe('ConfirmDialog', () => {
+  function Harness({ onConfirm }: { onConfirm: () => Promise<ConfirmOutcome> }) {
+    const [open, setOpen] = useState(true)
+    return (
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Cancel the booking?"
+        confirmLabel="Cancel booking"
+        cancelLabel="Keep booking"
+        tone="danger"
+        onConfirm={onConfirm}
+      >
+        <p>The seat goes back to the session.</p>
+      </ConfirmDialog>
+    )
+  }
+
+  it('does it on confirm, then closes and says so', async () => {
+    const user = userEvent.setup()
+    renderClient(
+      <Harness onConfirm={() => Promise.resolve({ kind: 'done', toast: { title: 'Cancelled' } })} />
+    )
+    await user.click(screen.getByRole('button', { name: 'Cancel booking' }))
+    expect(await screen.findByText('Cancelled')).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('stays open to say why it was refused, or why it failed', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi
+      .fn<() => Promise<ConfirmOutcome>>()
+      .mockResolvedValueOnce({ kind: 'refused', message: 'Already cancelled.' })
+      .mockRejectedValueOnce(new Error('offline'))
+    renderClient(<Harness onConfirm={onConfirm} />)
+    const dialog = screen.getByRole('dialog', { name: 'Cancel the booking?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel booking' }))
+    expect(await within(dialog).findByText('Already cancelled.')).toBeTruthy()
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel booking' }))
+    expect(
+      await within(dialog).findByText('That did not go through. Check the page and try again.')
+    ).toBeTruthy()
+    await user.click(within(dialog).getByRole('button', { name: 'Keep booking' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('after a partial result, lists what was refused and offers only Close', async () => {
+    const user = userEvent.setup()
+    renderClient(
+      <Harness
+        onConfirm={() =>
+          Promise.resolve({
+            kind: 'partial',
+            toast: { title: 'Booked 1 person' },
+            message: 'Bílá Jana: the session is full',
+          })
+        }
+      />
+    )
+    await user.click(screen.getByRole('button', { name: 'Cancel booking' }))
+    const dialog = screen.getByRole('dialog')
+    expect(await within(dialog).findByText('Bílá Jana: the session is full')).toBeTruthy()
+    expect(screen.getByText('Booked 1 person')).toBeTruthy()
+    expect(within(dialog).queryByRole('button', { name: 'Cancel booking' })).toBeNull()
+    await user.click(within(dialog).getAllByRole('button', { name: 'Close' }).at(-1) as HTMLElement)
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

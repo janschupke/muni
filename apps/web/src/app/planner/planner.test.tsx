@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-import { getAdvisorInput, getPlannerInput } from '@muni/db/repositories'
+import { getAdvisorInput, getPlannerInput, listRoomOptions } from '@muni/db/repositories'
 import type { SessionOffer } from '@muni/domain/planner'
-import { act, screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PlannerView } from '@/features/planner/planner-view'
-import { createOfferedSession } from '@/server/actions/sessions'
+import { checkSessionSlotAction, createPlannedSessionAction } from '@/server/actions/sessions'
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { advisorInput, plannerInput } from '@/test/fixtures'
@@ -18,11 +18,13 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
   getAdvisorInput: vi.fn(),
   getPlannerInput: vi.fn(),
+  listRoomOptions: vi.fn(),
   recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/sessions', () => ({
-  createOfferedSession: vi.fn(),
+  createPlannedSessionAction: vi.fn(),
+  checkSessionSlotAction: vi.fn(() => Promise.resolve(null)),
   saveNewSession: vi.fn(),
 }))
 
@@ -31,6 +33,7 @@ beforeEach(() => {
   // POZ-OCH has nothing scheduled: Adámek Petr needs a new session.
   vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
   vi.mocked(getPlannerInput).mockResolvedValue(plannerInput())
+  vi.mocked(listRoomOptions).mockResolvedValue([...plannerInput().rooms])
 })
 
 describe('session planner', () => {
@@ -52,13 +55,16 @@ describe('session planner', () => {
       '/rooms/room_aula_a'
     )
     expect(within(row).getByText('1 · 40')).toBeTruthy()
-    expect(within(row).queryByRole('button', { name: 'Create session' })).toBeNull()
+    expect(within(row).queryByRole('button', { name: /^Review/ })).toBeNull()
     await user.click(
       within(row).getByRole('button', { name: 'People for Požární ochrana, session 1' })
     )
-    expect(screen.getByRole('link', { name: 'Adámek Petr' }).getAttribute('href')).toBe(
+    // Opened: the people as a table, and the other rooms free then.
+    const people = screen.getByRole('table', { name: 'People' })
+    expect(within(people).getByRole('link', { name: 'Adámek Petr' }).getAttribute('href')).toBe(
       '/employees/E0002'
     )
+    expect(screen.getByRole('heading', { level: 3, name: /Other rooms free then/ })).toBeTruthy()
     await expectNoAxeViolations()
   })
 
@@ -80,40 +86,97 @@ describe('session planner', () => {
     expect(screen.getByText('Every training that needs a session has one.')).toBeTruthy()
   })
 
-  it('lets admins create the offered session, and says why when it cannot', async () => {
+  it('lets admins change the offer, checks it, shows what will happen, then creates it', async () => {
     const user = userEvent.setup()
     signInAs('ADMIN')
-    vi.mocked(createOfferedSession).mockResolvedValueOnce({ ok: true, externalId: 'S001' })
     await renderServer(PlannerPage())
-    await user.click(screen.getByRole('button', { name: 'Create session' }))
-    expect(createOfferedSession).toHaveBeenCalledWith({
-      courseId: 'course_poz',
-      date: '2026-10-19',
-      startTime: '10:00',
-      endTime: '12:00',
-      roomId: 'room_aula_a',
-      capacity: 40,
-      pricePerPerson: null,
-      status: 'PLANNED',
-    })
-    // The result stays in view, focused, whatever happens to the offer's row.
-    const result = await screen.findByText(/Created session S001\./)
-    expect(screen.getByRole('link', { name: 'Open it' }).getAttribute('href')).toBe(
-      '/sessions/S001'
-    )
-    expect(result.closest('[tabindex="-1"]')).toBe(document.activeElement)
+    await user.click(screen.getByRole('button', { name: 'Review session 1 of Požární ochrana' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New session: Požární ochrana' })
+    // The offer, ready to change: its seats, and its people ticked.
+    expect(within(dialog).getByRole('textbox', { name: /Capacity/ })).toHaveProperty('value', '40')
+    expect(
+      within(dialog)
+        .getByRole('checkbox', { name: /Adámek Petr/ })
+        .getAttribute('aria-checked')
+    ).toBe('true')
+    await user.type(within(dialog).getByRole('textbox', { name: /Price per person/ }), '380')
+    await expectNoAxeViolations()
 
-    vi.mocked(createOfferedSession).mockResolvedValueOnce({ ok: false, reason: 'ROOM_BUSY' })
-    await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'Create session' }))
+    // The check runs everything on the server and writes nothing; a refusal names the person.
+    vi.mocked(createPlannedSessionAction).mockResolvedValueOnce({
+      ok: false,
+      problem: null,
+      refusals: [{ employeeExternalId: 'E0002', reason: 'CONFLICT' }],
+    })
+    await user.click(within(dialog).getByRole('button', { name: 'Check' }))
+    expect(createPlannedSessionAction).toHaveBeenLastCalledWith({
+      session: {
+        courseId: 'course_poz',
+        date: '2026-10-19',
+        startTime: '10:00',
+        endTime: '12:00',
+        roomId: 'room_aula_a',
+        capacity: 40,
+        pricePerPerson: 380,
+        status: 'PLANNED',
+      },
+      people: ['E0002'],
+      dryRun: true,
     })
     expect(
-      await screen.findByText(
-        'The room has been taken at that time meanwhile. The refreshed plan offers another slot.'
+      await within(dialog).findByText('Adámek Petr: clashes with another booking')
+    ).toBeTruthy()
+
+    // Checked clean: the review says exactly what will be created.
+    vi.mocked(createPlannedSessionAction).mockResolvedValueOnce({
+      ok: true,
+      externalId: 'S001',
+      courseCode: 'POZ-OCH',
+      booked: 1,
+      dryRun: true,
+    })
+    const check = within(dialog).getByRole('button', { name: 'Check' })
+    await waitFor(() => {
+      expect(check).toHaveProperty('disabled', false)
+    })
+    await user.click(check)
+    expect(await within(dialog).findByText('What will be created')).toBeTruthy()
+    // Price per person, and the cost of the one booking.
+    expect(within(dialog).getAllByText('CZK 380')).toHaveLength(2)
+    vi.mocked(createPlannedSessionAction).mockResolvedValueOnce({
+      ok: true,
+      externalId: 'S001',
+      courseCode: 'POZ-OCH',
+      booked: 1,
+      dryRun: false,
+    })
+    await user.click(
+      await within(dialog).findByRole('button', { name: 'Create session and book 1 person' })
+    )
+    expect(createPlannedSessionAction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ dryRun: false, people: ['E0002'] })
+    )
+    expect(await screen.findByText('Created S001 and booked 1 person')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Open session' }).getAttribute('href')).toBe(
+      '/sessions/S001'
+    )
+  })
+
+  it('will not check a session whose room is taken then', async () => {
+    const user = userEvent.setup()
+    signInAs('ADMIN')
+    vi.mocked(checkSessionSlotAction).mockResolvedValue('ROOM_BUSY')
+    await renderServer(PlannerPage())
+    await user.click(screen.getByRole('button', { name: 'Review session 1 of Požární ochrana' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New session: Požární ochrana' })
+    expect(
+      await within(dialog).findByText(
+        'Another planned session uses this room at that time.',
+        {},
+        { timeout: 2000 }
       )
     ).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Close' }))
-    expect(screen.queryByRole('alert')).toBeNull()
+    expect(within(dialog).getByRole('button', { name: 'Check' })).toHaveProperty('disabled', true)
   })
 })
 
@@ -142,10 +205,11 @@ describe('planner offers', () => {
     ...over,
   })
 
-  it('mark a late slot, count the other rooms, and explain every kind of failure', () => {
+  it('mark a late slot, name the other rooms, and explain every kind of failure', () => {
     renderClient(
       <PlannerView
         canCreate
+        rooms={[]}
         groups={[
           {
             course: {
@@ -189,15 +253,15 @@ describe('planner offers', () => {
     expect(screen.getByText('180 min · as many as the room seats · can be online')).toBeTruthy()
     expect(screen.getAllByText('Lapsing in December 2026')).toHaveLength(5)
     expect(screen.getByText('After the due date')).toBeTruthy()
-    expect(screen.getByText('or 2 other rooms')).toBeTruthy()
+    expect(screen.getByText('or A, B')).toBeTruthy()
     expect(screen.getByText('No equipped room seats 12 people; the largest takes 8.')).toBeTruthy()
     expect(screen.getByText('No free slot in the next 120 days.')).toBeTruthy()
     expect(screen.getByText('The course is held on site, and there is no room.')).toBeTruthy()
     expect(
       screen.getByText('At its usual time and length a session would end after midnight.')
     ).toBeTruthy()
-    // Only the offer with a slot can be created.
-    expect(screen.getAllByRole('button', { name: 'Create session' })).toHaveLength(1)
+    // Only the offer with a slot can be reviewed.
+    expect(screen.getAllByRole('button', { name: /^Review session/ })).toHaveLength(1)
     expect(screen.getAllByText('12')).toHaveLength(4)
   })
 })

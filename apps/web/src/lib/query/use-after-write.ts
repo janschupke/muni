@@ -2,7 +2,9 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useEffectEvent } from 'react'
+
+import { type ToastMessage, useToast } from '@/components/toasts'
 
 /**
  * What every successful write does next. Pages not on screen drop their cached data, so the
@@ -25,12 +27,24 @@ export function useAfterWrite(): (href?: string) => void {
 }
 
 /**
- * Runs `useAfterWrite` once for each write that finished (`written`), after its outcome has
- * rendered: never inside the server action's own transition, which Next is still settling.
+ * For each write that finished (`written`), after its outcome has rendered (never inside the
+ * server action's own transition, which Next is still settling): says so in a toast, then
+ * runs `useAfterWrite`.
  */
-export function useWhenWritten(outcome: object, written: boolean, href?: string): void {
+export function useWhenWritten(
+  outcome: object,
+  written: boolean,
+  href: string | undefined,
+  message: ToastMessage
+): void {
   const afterWrite = useAfterWrite()
+  const toast = useToast()
+  const announce = useEffectEvent(() => {
+    toast(message)
+  })
   useEffect(() => {
-    if (written) afterWrite(href)
+    if (!written) return
+    announce()
+    afterWrite(href)
   }, [outcome, written, href, afterWrite])
 }

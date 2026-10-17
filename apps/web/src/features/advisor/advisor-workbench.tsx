@@ -1,30 +1,14 @@
 'use client'
 
-import {
-  type AdvisorPlan,
-  type BreakdownRow,
-  type Bucket,
-  NOW,
-  type OverbookedSession,
-} from '@muni/domain/advisor'
-import { Alert } from '@muni/ui/alert'
+import { type AdvisorPlan, type BreakdownRow, type Bucket, NOW } from '@muni/domain/advisor'
 import { Badge } from '@muni/ui/badge'
 import { LinkTab, LinkTabs } from '@muni/ui/nav'
 import { StatCard } from '@muni/ui/stat-card'
-import { toZonedParts } from '@muni/utils/dates'
-import { formatDate, formatInteger } from '@muni/utils/format'
+import { formatInteger } from '@muni/utils/format'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { useState, useTransition } from 'react'
 
-import { useAfterWrite } from '@/lib/query/use-after-write'
-import {
-  applyAssignmentsAction,
-  type ApplyResult,
-  moveSeatsAction,
-} from '@/server/actions/assignments'
-
-import { ActionTable, type ProposedItem } from './action-table'
+import { ActionTable } from './action-table'
 import { BreakdownChart } from './breakdown-chart'
 import { BreakdownTable } from './breakdown-table'
 import { advisorHref, type AdvisorView, VIEW_ICON } from './labels'
@@ -32,20 +16,10 @@ import { OverbookedList } from './overbooked-list'
 import { PlannedTable } from './planned-table'
 import { AdvisorRules } from './rules'
 
-type Outcome =
-  | {
-      kind: 'applied'
-      result: ApplyResult
-      names: Map<string, string>
-      sessions: Map<string, string>
-    }
-  | { kind: 'moved'; moved: number; failed: number }
-  | { kind: 'error' }
-
 /**
  * The advisor: counts that link to their view, the view itself (breakdown by month, the
  * trainings that need action, the ones already booked, overbooked sessions) and the rule.
- * The plan is computed on the server; saving re-checks every pair there and re-renders.
+ * The plan is computed on the server; booking and resolving re-check everything there.
  */
 export function AdvisorWorkbench({
   plan,
@@ -62,57 +36,7 @@ export function AdvisorWorkbench({
 }) {
   const t = useTranslations('advisor')
   const locale = useLocale()
-  const [pending, startTransition] = useTransition()
-  const afterWrite = useAfterWrite()
-  const [outcome, setOutcome] = useState<Outcome | null>(null)
   const n = (value: number) => formatInteger(value, locale)
-
-  const save = (items: ProposedItem[]) => {
-    startTransition(async () => {
-      try {
-        const result = await applyAssignmentsAction(
-          items.map(i => ({
-            sessionExternalId: i.proposal.session.externalId,
-            employeeExternalId: i.need.employee.externalId,
-            source: 'ADVISOR' as const,
-          }))
-        )
-        const names = new Map(items.map(i => [i.need.employee.externalId, i.need.employee.name]))
-        const sessions = new Map(
-          items.map(({ proposal: { session: s } }) => [
-            s.externalId,
-            `${s.courseName} (${formatDate(toZonedParts(s.startsAt).date, locale)})`,
-          ])
-        )
-        setOutcome({ kind: 'applied', result, names, sessions })
-        afterWrite()
-      } catch {
-        setOutcome({ kind: 'error' })
-      }
-    })
-  }
-
-  const move = (item: OverbookedSession) => {
-    startTransition(async () => {
-      try {
-        let moved = 0
-        let failed = 0
-        for (const m of item.moves) {
-          const result = await moveSeatsAction({
-            from: item.session.externalId,
-            to: m.to.externalId,
-            count: m.count,
-          })
-          if (result.ok) moved += m.count
-          else failed += m.count
-        }
-        setOutcome({ kind: 'moved', moved, failed })
-        afterWrite()
-      } catch {
-        setOutcome({ kind: 'error' })
-      }
-    })
-  }
 
   const [nowRow, ...months] = plan.breakdown
   const split = (rows: BreakdownRow[]) => ({
@@ -175,8 +99,6 @@ export function AdvisorWorkbench({
         />
       </div>
 
-      {outcome && <OutcomeAlert outcome={outcome} />}
-
       <div>
         <LinkTabs aria-label={t('views.label')}>
           {tabs.map(tab => {
@@ -207,56 +129,17 @@ export function AdvisorWorkbench({
           <ActionTable
             items={actionItems}
             shortfall={plan.shortfall}
-            cost={plan.cost}
             asOf={asOf}
-            onSave={canApply ? save : undefined}
-            pending={pending}
+            canBook={canApply}
           />
         )}
         {view === 'planned' && <PlannedTable items={plannedItems} asOf={asOf} canEdit={canApply} />}
         {view === 'overbooked' && (
-          <OverbookedList
-            overbooked={plan.overbooked}
-            onMove={canApply ? move : undefined}
-            pending={pending}
-          />
+          <OverbookedList overbooked={plan.overbooked} canResolve={canApply} />
         )}
       </div>
 
       <AdvisorRules />
     </div>
-  )
-}
-
-function OutcomeAlert({ outcome }: { outcome: Outcome }) {
-  const t = useTranslations('advisor.outcome')
-  if (outcome.kind === 'error') return <Alert tone="danger">{t('error')}</Alert>
-  if (outcome.kind === 'moved') {
-    return (
-      <Alert tone={outcome.failed > 0 ? 'warning' : 'success'}>
-        {t('moved', { moved: outcome.moved, failed: outcome.failed })}
-      </Alert>
-    )
-  }
-  const { result, names, sessions } = outcome
-  return (
-    <Alert
-      tone={result.failed.length > 0 ? 'warning' : 'success'}
-      title={t('applied', { applied: result.applied, failed: result.failed.length })}
-    >
-      {result.failed.length > 0 && (
-        <ul className="mt-1 flex flex-col gap-0.5">
-          {result.failed.map(f => (
-            <li key={`${f.employeeExternalId}|${f.sessionExternalId}`}>
-              {t('failure', {
-                name: names.get(f.employeeExternalId) ?? f.employeeExternalId,
-                session: sessions.get(f.sessionExternalId) ?? f.sessionExternalId,
-                reason: t(`reasons.${f.reason}`),
-              })}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Alert>
   )
 }

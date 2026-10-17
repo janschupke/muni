@@ -85,9 +85,14 @@ describe('a user', () => {
     await expectNoAxeViolations()
     await u.click(screen.getByRole('combobox', { name: 'Role' }))
     await u.click(screen.getByRole('option', { name: 'Full access' }))
+    // Nothing chosen yet: nothing to change.
     await u.click(screen.getByRole('button', { name: 'Change role' }))
+    // The change is confirmed first, saying what an admin loses.
+    const confirm = await screen.findByRole('dialog', { name: 'Change the role to Full access?' })
+    expect(within(confirm).getByText(/They stop being an admin/)).toBeTruthy()
+    await u.click(within(confirm).getByRole('button', { name: 'Change role' }))
     expect(
-      await screen.findByText('This is the last admin; make someone else an admin first.')
+      await within(confirm).findByText('This is the last admin; make someone else an admin first.')
     ).toBeTruthy()
   })
 

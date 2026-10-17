@@ -18,11 +18,13 @@ const actions = vi.hoisted(() => ({
   applyAssignmentsAction: vi.fn((pairs: unknown[]) =>
     Promise.resolve({ applied: pairs.length, failed: [] as unknown[] })
   ),
-  moveSeatsAction: vi.fn((): Promise<{ ok: boolean }> => Promise.resolve({ ok: true })),
+  resolveOverbookingAction: vi.fn((): Promise<{ ok: true } | { ok: false; reason: string }> =>
+    Promise.resolve({ ok: true })
+  ),
   removeAssignmentAction: vi.fn(() => Promise.resolve(true)),
 }))
 vi.mock('@/server/actions/assignments', () => actions)
-const { applyAssignmentsAction, moveSeatsAction, removeAssignmentAction } = actions
+const { applyAssignmentsAction, resolveOverbookingAction, removeAssignmentAction } = actions
 
 afterEach(() => {
   vi.clearAllMocks()
@@ -37,6 +39,7 @@ const session = (
   courseCode: 'BOZP-Z',
   courseName: 'BOZP – základní školení',
   room: { id: 'room_aula_a', name: 'Aula A', kind: 'CLASSROOM' as const },
+  roomCapacity: 40,
   startsAt: `${date}T07:00:00.000Z`,
   endsAt: `${date}T10:00:00.000Z`,
   capacity: 1,
@@ -152,25 +155,68 @@ describe('AdvisorWorkbench', () => {
     expect(hrefOf('Schedule a session', bila)).toBe('/courses/BOZP-Z')
   })
 
-  it('lets visitors look but not save', () => {
+  it('lets visitors look but not book', () => {
     renderWorkbench({ view: 'action' })
-    expect(screen.getByText('Only admins can save bookings.')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /^Save|^Book/ })).toBeNull()
+    expect(screen.getByText('Only admins can book people.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^Book/ })).toBeNull()
+    expect(screen.queryByRole('checkbox')).toBeNull()
   })
 
-  it('saves a proposal as an advisor booking', async () => {
+  it('books a person on the session the admin chose, after showing what it does', async () => {
     const user = userEvent.setup()
-    renderWorkbench({ view: 'action', canApply: true })
+    const plan = planAssignments({
+      ...INPUT,
+      needs: [need('E0001', 'Adámek Petr', 'EXPIRED', '2026-09-01')],
+      sessions: [
+        session('T018', '2026-11-20', { capacity: 2 }),
+        session('T021', '2026-12-01', { capacity: 5, pricePerPerson: 600 }),
+      ],
+    })
+    renderWorkbench({ plan, view: 'action', canApply: true })
     await expectNoAxeViolations()
-    await user.click(
-      screen.getByRole('button', {
-        name: 'Book Adámek Petr on BOZP – základní školení, Nov 20, 2026',
-      })
-    )
+    // The proposal, with the other session that could take them to choose instead.
+    const choice = screen.getByRole('combobox', { name: 'Session for Adámek Petr' })
+    expect(choice.textContent).toMatch(/Nov 20, 2026.*Aula A.*2 free/)
+    await user.click(choice)
+    await user.click(screen.getByRole('option', { name: /Dec 1, 2026/ }))
+    await user.click(screen.getByRole('button', { name: 'Book Adámek Petr…' }))
+    // Nothing is booked before the admin confirms what the dialog shows.
+    const dialog = await screen.findByRole('dialog', { name: 'Book 1 person?' })
+    expect(applyAssignmentsAction).not.toHaveBeenCalled()
+    expect(within(dialog).getByText(/Dec 1, 2026/)).toBeTruthy()
+    expect(within(dialog).getByText('Total: CZK 600')).toBeTruthy()
+    await user.click(within(dialog).getByRole('button', { name: 'Book 1 person' }))
     expect(applyAssignmentsAction).toHaveBeenCalledWith([
-      { sessionExternalId: 'T018', employeeExternalId: 'E0001', source: 'ADVISOR' },
+      { sessionExternalId: 'T021', employeeExternalId: 'E0001', source: 'ADVISOR' },
     ])
-    expect(await screen.findByText('1 booking saved.')).toBeTruthy()
+    expect(await screen.findByText('Booked 1 person')).toBeTruthy()
+  })
+
+  it('stops a booking that would overfill a session, until some are moved or left out', async () => {
+    const user = userEvent.setup()
+    const plan = planAssignments({
+      ...INPUT,
+      needs: [
+        need('E0001', 'Adámek Petr', 'EXPIRED', '2026-09-01'),
+        need('E0002', 'Bílá Jana', 'MISSING', null),
+      ],
+      sessions: [
+        session('T018', '2026-11-20', { capacity: 1 }),
+        session('T021', '2026-12-01', { capacity: 1 }),
+      ],
+    })
+    renderWorkbench({ plan, view: 'action', canApply: true })
+    // The first moved onto the one-seat session the second is proposed.
+    await user.click(screen.getByRole('combobox', { name: 'Session for Adámek Petr' }))
+    await user.click(screen.getByRole('option', { name: /Dec 1, 2026/ }))
+    await user.click(screen.getByRole('button', { name: 'Select all 2 proposed' }))
+    await user.click(screen.getByRole('button', { name: /^Book 2 selected/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Book 2 people?' })
+    expect(within(dialog).getByText(/2 chosen, 1 seat free/)).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: 'Book 2 people' })).toHaveProperty(
+      'disabled',
+      true
+    )
   })
 
   it('links every view and count to its own URL', () => {
@@ -181,11 +227,12 @@ describe('AdvisorWorkbench', () => {
     expect(hrefOf(/^Lapsing in the next 6 months/)).toBe('/advisor?bucket=2026-12')
   })
 
-  it('shows overbooked sessions and where their seats go', () => {
+  it('shows overbooked sessions and where the advisor suggests their seats go', () => {
     renderWorkbench({ view: 'overbooked' })
     expect(screen.getByText('3 of 2 · 1 over')).toBeTruthy()
-    const move = screen.getByText(/Move 1 seat to/)
+    const move = screen.getByText(/Suggested: move 1 seat to/)
     expect(hrefOf(/Nov 20, 2026/, move)).toBe('/sessions/T018')
+    expect(screen.queryByRole('button', { name: /^Resolve/ })).toBeNull()
   })
 
   it('lists what is already booked, with the gap each booking leaves', async () => {
@@ -207,59 +254,107 @@ describe('AdvisorWorkbench', () => {
     const confirm = await screen.findByRole('dialog', {
       name: 'Cancel the booking of Cibulka Ota on BOZP – základní školení?',
     })
-    await user.click(within(confirm).getByRole('button', { name: 'Remove' }))
+    await user.click(within(confirm).getByRole('button', { name: 'Cancel booking' }))
     expect(removeAssignmentAction).toHaveBeenCalledWith({
       sessionExternalId: 'T019',
       employeeExternalId: 'E0003',
     })
   })
 
-  it('moves seats out of an overbooked session and reports the outcome', async () => {
+  it('resolves overbooking the way the admin chooses: seats moved, or capacity raised', async () => {
     const user = userEvent.setup()
     renderWorkbench({ view: 'overbooked', canApply: true })
-    await user.click(screen.getByRole('button', { name: 'Move 1 seat' }))
-    expect(moveSeatsAction).toHaveBeenCalledTimes(1)
-    expect(await screen.findByText('1 seat moved.')).toBeTruthy()
-
-    moveSeatsAction.mockResolvedValueOnce({ ok: false })
-    await user.click(screen.getByRole('button', { name: 'Move 1 seat' }))
-    expect(
-      await screen.findByText(
-        '0 seats moved; 1 could not be moved (the sessions changed meanwhile).'
-      )
-    ).toBeTruthy()
-
-    moveSeatsAction.mockRejectedValueOnce(new Error('offline'))
-    await user.click(screen.getByRole('button', { name: 'Move 1 seat' }))
-    expect((await screen.findByRole('alert')).textContent).toBe(
-      'Saving failed. Nothing was changed; try again.'
+    await user.click(screen.getByRole('button', { name: /^Resolve the overbooking of/ }))
+    const dialog = await screen.findByRole('dialog', { name: /^Resolve overbooking:/ })
+    // What is wrong, what can move, and the suggestion filled in.
+    expect(within(dialog).getByText(/3 booked for 2 seats, 1 over/)).toBeTruthy()
+    const target = within(dialog).getByRole('textbox', { name: /Nov 20, 2026/ })
+    expect(target).toHaveProperty('value', '1')
+    expect(within(dialog).getByText('After this: 2 booked for 2 seats.')).toBeTruthy()
+    // More than the session can take is refused before anything is sent.
+    await user.clear(target)
+    await user.type(target, '5')
+    expect(within(dialog).getByText(/has only 2 seats free/)).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: 'Move 5 seats' })).toHaveProperty(
+      'disabled',
+      true
     )
+    await user.clear(target)
+    await user.type(target, '1')
+    await user.click(within(dialog).getByRole('button', { name: 'Move 1 seat' }))
+    expect(resolveOverbookingAction).toHaveBeenCalledWith({
+      from: 'T016',
+      resolution: { kind: 'move', moves: [{ to: 'T018', count: 1 }] },
+    })
+    expect(await screen.findByText(/^Moved 1 seat out of/)).toBeTruthy()
+
+    // The other way: raise the capacity, which the 40-seat room allows.
+    await user.click(screen.getByRole('button', { name: /^Resolve the overbooking of/ }))
+    const again = await screen.findByRole('dialog', { name: /^Resolve overbooking:/ })
+    await user.click(within(again).getByRole('radio', { name: /Raise the capacity/ }))
+    expect(
+      within(again).getByText(/Aula A has 40 seats: the capacity goes from 2 to 3/)
+    ).toBeTruthy()
+    resolveOverbookingAction.mockResolvedValueOnce({ ok: false, reason: 'ROOM_BUSY' })
+    await user.click(within(again).getByRole('button', { name: 'Raise capacity to 3' }))
+    expect(resolveOverbookingAction).toHaveBeenLastCalledWith({
+      from: 'T016',
+      resolution: { kind: 'raise', capacity: 3 },
+    })
+    // Refused: the dialog stays and says why.
+    expect(await within(again).findByText('The room is taken then.')).toBeTruthy()
   })
 
-  it('saves every proposal at once and names each refusal', async () => {
+  it('books every selected proposal and names each refusal', async () => {
     const user = userEvent.setup()
     applyAssignmentsAction.mockResolvedValueOnce({
       applied: 0,
       failed: [{ sessionExternalId: 'T018', employeeExternalId: 'E0001', reason: 'SESSION_FULL' }],
     })
     renderWorkbench({ view: 'action', canApply: true })
-    await user.click(screen.getByRole('button', { name: /^Save 1 proposed booking/ }))
-    expect(await screen.findByText('No booking saved; 1 refused:')).toBeTruthy()
+    await user.click(screen.getByRole('checkbox', { name: /^Select Adámek Petr/ }))
+    await user.click(screen.getByRole('button', { name: /^Book 1 selected/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Book 1 person?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Book 1 person' }))
+    expect(await within(dialog).findByText('Nobody was booked:')).toBeTruthy()
     expect(
-      screen.getByText('Adámek Petr on BOZP – základní školení (Nov 20, 2026): the session is full')
+      within(dialog).getByText(/^Adámek Petr on BOZP – základní školení, .*: the session is full$/)
     ).toBeTruthy()
 
     applyAssignmentsAction.mockRejectedValueOnce(new Error('offline'))
-    // The outcome can show before the save stops pending; until then the button is disabled
-    // and a click would do nothing.
-    const save = screen.getByRole('button', { name: /^Save 1 proposed booking/ })
+    const book = within(dialog).getByRole('button', { name: 'Book 1 person' })
     await waitFor(() => {
-      expect(save).toHaveProperty('disabled', false)
+      expect(book).toHaveProperty('disabled', false)
     })
-    await user.click(save)
-    expect((await screen.findByRole('alert')).textContent).toBe(
-      'Saving failed. Nothing was changed; try again.'
-    )
+    await user.click(book)
+    expect(
+      await within(dialog).findByText('That did not go through. Check the page and try again.')
+    ).toBeTruthy()
+  })
+
+  it('books what it can and lists what was refused, then offers only Close', async () => {
+    const user = userEvent.setup()
+    const plan = planAssignments({
+      ...INPUT,
+      needs: [
+        need('E0001', 'Adámek Petr', 'EXPIRED', '2026-09-01'),
+        need('E0002', 'Bílá Jana', 'MISSING', null),
+      ],
+      sessions: [session('T018', '2026-11-20', { capacity: 5 })],
+    })
+    applyAssignmentsAction.mockResolvedValueOnce({
+      applied: 1,
+      failed: [{ sessionExternalId: 'T018', employeeExternalId: 'E0002', reason: 'CONFLICT' }],
+    })
+    renderWorkbench({ plan, view: 'action', canApply: true })
+    await user.click(screen.getByRole('button', { name: 'Select all 2 proposed' }))
+    await user.click(screen.getByRole('button', { name: /^Book 2 selected/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Book 2 people?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Book 2 people' }))
+    expect(await within(dialog).findByText(/^Booked 1; 1 was refused:/)).toBeTruthy()
+    expect(within(dialog).getByText(/Bílá Jana on .*: clashes with another booking/)).toBeTruthy()
+    expect(screen.getByText('Booked 1 person')).toBeTruthy()
+    expect(within(dialog).queryByRole('button', { name: 'Book 2 people' })).toBeNull()
   })
 
   it('sorts the action list by any column', async () => {

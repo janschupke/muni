@@ -107,6 +107,53 @@ for (const theme of ['light', 'dark'] as const) {
       await expectNoViolations(page, 'own user')
     })
 
+    test('the dialogs that ask before booking, resolving and creating', async ({ page }) => {
+      await page.goto('/advisor?view=action')
+      await loaded(page)
+      await page
+        .getByRole('button', { name: /^Book .+…$/ })
+        .first()
+        .click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await expectNoViolations(page, 'advisor book dialog', '[role="dialog"]')
+      await page.keyboard.press('Escape')
+
+      await page.goto('/advisor?view=overbooked')
+      await loaded(page)
+      await page
+        .getByRole('button', { name: /^Resolve the overbooking of/ })
+        .first()
+        .click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await expectNoViolations(page, 'resolve dialog', '[role="dialog"]')
+      await page.keyboard.press('Escape')
+
+      await page.goto('/planner')
+      await loaded(page)
+      await page
+        .getByRole('button', { name: /^Review session 1 of / })
+        .first()
+        .click()
+      const review = page.getByRole('dialog')
+      await expect(review).toBeVisible()
+      await expectNoViolations(page, 'planner review', '[role="dialog"]')
+      // The check writes nothing.
+      await review.getByRole('button', { name: 'Check' }).click()
+      await expect(review.getByText('What will be created')).toBeVisible()
+      await expectNoViolations(page, 'planner review summary', '[role="dialog"]')
+    })
+
+    test('a session row opened to its details and people', async ({ page }) => {
+      await page.goto('/sessions')
+      await loaded(page)
+      await page
+        .getByRole('button', { name: /^Who is booked on / })
+        .first()
+        .click()
+      await expect(page.getByRole('heading', { level: 2, name: /^Booked by name/ })).toBeVisible()
+      await expectNoViolations(page, 'session opened')
+    })
+
     test('collapsed sidebar, and the navigation drawer on a phone', async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 900 })
       await page.goto('/courses')

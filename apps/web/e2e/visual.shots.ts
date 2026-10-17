@@ -11,13 +11,19 @@ import { storageState } from './support/users'
 // Shots for review, not comparison: every page, and the states a page-load never shows.
 // Nothing here saves a form or confirms a dialog, so the test database stays as seeded.
 
-const SHOTS = path.join(import.meta.dirname, '../test-results/visual')
+// Outside test-results/, which every Playwright run empties first.
+const SHOTS = path.join(import.meta.dirname, '../visual-shots')
 
 test.use({ storageState: storageState('admin'), viewport: { width: 1440, height: 900 } })
 
 for (const theme of ['light', 'dark'] as const) {
-  const shot = (page: Page, name: string, fullPage = true) =>
-    page.screenshot({ path: path.join(SHOTS, theme, `${name}.png`), fullPage })
+  // Two frames first: a state just changed (a click, a hover) paints on the next one.
+  const shot = async (page: Page, name: string, fullPage = true) => {
+    await page.evaluate(
+      'new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))'
+    )
+    await page.screenshot({ path: path.join(SHOTS, theme, `${name}.png`), fullPage })
+  }
 
   test.describe(`${theme} theme`, () => {
     test.beforeEach(async ({ page, baseURL }) => {
@@ -122,7 +128,7 @@ for (const theme of ['light', 'dark'] as const) {
       await page.goto('/employees/new')
       await loaded(page)
       await shot(page, 'form-employee-new-disabled-checkbox')
-      await page.getByRole('button', { name: 'Save' }).click()
+      await page.getByRole('button', { name: 'Add employee' }).click()
       await shot(page, 'form-employee-new-submitted')
 
       await page.goto('/users')
@@ -168,6 +174,84 @@ for (const theme of ['light', 'dark'] as const) {
       await page.getByRole('button', { name: 'Menu', exact: true }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
       await shot(page, 'phone-drawer', false)
+    })
+
+    test('advisor: choosing, booking and resolving, asked before anything is done', async ({
+      page,
+    }) => {
+      await page.goto('/advisor?view=action')
+      await loaded(page)
+      await page.getByRole('link', { name: /^Remediation planned/ }).hover()
+      await shot(page, 'advisor-tab-hover', false)
+      await page
+        .getByRole('checkbox', { name: /^Select .+, / })
+        .first()
+        .click()
+      await shot(page, 'advisor-selected', false)
+      await page.getByRole('button', { name: /^Book 1 selected/ }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await shot(page, 'advisor-book-dialog', false)
+      await page.keyboard.press('Escape')
+
+      await page.goto('/advisor?view=overbooked')
+      await loaded(page)
+      await page
+        .getByRole('button', { name: /^Resolve the overbooking of/ })
+        .first()
+        .click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await shot(page, 'advisor-resolve-move', false)
+      await dialog.getByRole('radio', { name: /Raise the capacity/ }).click()
+      await shot(page, 'advisor-resolve-raise', false)
+      await page.keyboard.press('Escape')
+    })
+
+    test('planner: an opened offer, its review and the checked summary', async ({ page }) => {
+      await page.goto('/planner')
+      await loaded(page)
+      await page
+        .getByRole('button', { name: /^People for / })
+        .first()
+        .click()
+      await shot(page, 'planner-row-open', false)
+      await page
+        .getByRole('button', { name: /^Review session 1 of / })
+        .first()
+        .click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await shot(page, 'planner-review-edit', false)
+      // The check runs on the server and writes nothing.
+      await dialog.getByRole('button', { name: 'Check' }).click()
+      await expect(dialog.getByText('What will be created')).toBeVisible()
+      await shot(page, 'planner-review-summary', false)
+      await page.keyboard.press('Escape')
+    })
+
+    test('a session opened, and a failure toast', async ({ page }) => {
+      await page.goto('/sessions')
+      await loaded(page)
+      await page
+        .getByRole('button', { name: /^Who is booked on / })
+        .first()
+        .click()
+      await shot(page, 'sessions-row-open', false)
+      // A booking that cannot reach the server: nothing is written, a toast says so.
+      await page.goto('/employees/E0153')
+      await loaded(page)
+      await page.route('**/employees/E0153', route =>
+        route.request().method() === 'POST' ? route.abort() : route.continue()
+      )
+      await page.getByRole('combobox', { name: 'Session to book on' }).click()
+      await page.getByRole('option').first().click()
+      await page.getByRole('button', { name: 'Book', exact: true }).click()
+      await expect(
+        page.getByText('That did not go through. Check the page and try again.', {
+          exact: true,
+        })
+      ).toBeVisible()
+      await shot(page, 'toast-failure', false)
     })
   })
 }

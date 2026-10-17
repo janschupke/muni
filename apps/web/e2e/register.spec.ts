@@ -218,7 +218,7 @@ test.describe('register (viewer)', () => {
       .first()
       .click()
     await expect(page).toHaveURL(/view=action/)
-    await expect(page.getByText('Only admins can save bookings.')).toBeVisible()
+    await expect(page.getByText('Only admins can book people.')).toBeVisible()
     await expect(page.getByRole('button', { name: /^Save|^Book/ })).toHaveCount(0)
 
     // A room opens its page, which lists the sessions held there.
@@ -254,7 +254,7 @@ test.describe('register (viewer)', () => {
     await expect(page.getByText('Only admins can create sessions.')).toBeVisible()
     const room = page.locator('main table a[href^="/rooms/"]').first()
     await expect(room).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Create session' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^Review session/ })).toHaveCount(0)
     await room.click()
     await expect(page).toHaveURL(/\/rooms\//)
   })

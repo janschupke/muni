@@ -10,7 +10,7 @@ import {
   recordExists,
 } from '@muni/db/repositories'
 import { EMPTY_REFERENCE } from '@muni/importer'
-import { screen, within } from '@testing-library/react'
+import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -118,15 +118,24 @@ describe('course list', () => {
     ])
     await renderServer(CoursesPage())
     await user.click(screen.getByRole('button', { name: 'Details for BOZP – základní školení' }))
-    const sessions = screen.getByRole('group', { name: 'Planned sessions' })
+    // Each part of the opened row is a panel with its own heading (the latest row opened).
+    const panel = (name: RegExp) => {
+      const heading = screen.getAllByRole('heading', { level: 2, name }).at(-1)
+      const section = heading?.closest('section')
+      if (!section) throw new Error(`no panel ${String(name)}`)
+      return section
+    }
+    const sessions = panel(/^Planned sessions/)
     expect(within(sessions).getByRole('link', { name: 'Online' }).getAttribute('href')).toBe(
       '/rooms/room_online'
     )
     expect(within(sessions).getByText('Full')).toBeTruthy()
-    const needs = screen.getByRole('group', { name: 'A session needs' })
-    expect(within(needs).getByText('180 min · Groups of 30')).toBeTruthy()
+    const needs = panel(/^A session needs/)
+    expect(within(needs).getByText('180 min')).toBeTruthy()
+    expect(within(needs).getByText('Groups of 30')).toBeTruthy()
+    expect(within(needs).getByText('On site only')).toBeTruthy()
     expect(within(needs).getByText('Projector')).toBeTruthy()
-    const departments = screen.getByRole('group', { name: 'Compliance by department' })
+    const departments = panel(/^Compliance by department/)
     expect(within(departments).getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
       '/departments/dep_lab'
     )
@@ -135,7 +144,11 @@ describe('course list', () => {
 
     await user.click(screen.getByRole('button', { name: 'Details for Anglický jazyk – kurz' }))
     expect(screen.getByText('Nothing is planned.')).toBeTruthy()
-    expect(screen.getByText('Length not set · No group size set · Can be held online')).toBeTruthy()
+    const angl = panel(/^A session needs/)
+    expect(within(angl).getByText('Length not set')).toBeTruthy()
+    expect(within(angl).getByText('No group size set')).toBeTruthy()
+    expect(within(angl).getByText('Can be held online')).toBeTruthy()
+    expect(within(angl).getByText('Nothing special')).toBeTruthy()
     expect(screen.getByText('Nobody active must hold it.')).toBeTruthy()
     await expectNoAxeViolations()
   })
@@ -272,6 +285,7 @@ describe('new session', () => {
     expect(screen.getByRole('link', { name: 'New session' }).getAttribute('href')).toBe(
       '/courses/BOZP-Z/sessions/new'
     )
+    cleanup()
     await renderServer(NewSessionPage(props))
     expect(requireAdminPage).toHaveBeenCalled()
     expect(

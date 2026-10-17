@@ -1,8 +1,13 @@
+import { configure } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 
 import { installMatchMedia, resetMedia } from './media'
 import { resetNext } from './next'
 import { routeReadsToHandler } from './reads'
+
+// The whole suite runs with coverage, every file in parallel: a dialog that renders pickers
+// can take longer than Testing Library's 1 s default to settle, though nothing is wrong.
+configure({ asyncUtilTimeout: 3000 })
 
 // Next's server modules only work inside a request; these stand in for them in every test.
 // A test file can still replace one with its own `vi.mock`.

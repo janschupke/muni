@@ -10,6 +10,7 @@ import { COMPLIANCE_STATUSES, type ComplianceStatus } from '@muni/domain/enums'
 import { HeatCell, HeatLegend } from '@muni/ui/charts/heat-cell'
 import { cn } from '@muni/ui/cn'
 import { Dialog } from '@muni/ui/dialog'
+import { ExpandButton } from '@muni/ui/expand-button'
 import { Table, TableContainer, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { Tooltip } from '@muni/ui/tooltip'
@@ -21,7 +22,7 @@ import {
   formatRelativeDays,
   PLACEHOLDER,
 } from '@muni/utils/format'
-import { ArrowRight, BookOpen, CalendarCheck, ChevronRight, Users } from 'lucide-react'
+import { ArrowRight, BookOpen, CalendarCheck, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { Fragment, useId, useRef, useState } from 'react'
@@ -124,9 +125,8 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
                       className={cn('border-b-0 px-1 py-1 text-sm text-fg', STICKY)}
                     >
                       <span className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          aria-expanded={isOpen}
+                        <ExpandButton
+                          open={isOpen}
                           aria-controls={
                             isOpen
                               ? row.people.map(p => personRowId(rowIndex, p.externalId)).join(' ')
@@ -136,16 +136,7 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
                           onClick={() => {
                             toggle(row.department)
                           }}
-                          className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-fg-muted hover:bg-state-hover hover:text-fg"
-                        >
-                          <ChevronRight
-                            aria-hidden
-                            className={cn(
-                              'size-4 transition-transform duration-(--motion-fast)',
-                              isOpen && 'rotate-90'
-                            )}
-                          />
-                        </button>
+                        />
                         <TextLink asChild>
                           <Link href={employeesHref(row.department)}>{row.department}</Link>
                         </TextLink>

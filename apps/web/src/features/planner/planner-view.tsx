@@ -1,5 +1,6 @@
 'use client'
 
+import type { RoomOption } from '@muni/db/repositories'
 import {
   DEFAULT_SESSION_MINUTES,
   type OfferCourse,
@@ -10,19 +11,27 @@ import { Alert } from '@muni/ui/alert'
 import { Badge } from '@muni/ui/badge'
 import { Button } from '@muni/ui/button'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
-import { IconButton } from '@muni/ui/icon-button'
+import { DetailGrid, DetailPanel } from '@muni/ui/detail-panel'
+import { EmptyState } from '@muni/ui/empty-state'
+import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { SectionHeading } from '@muni/ui/section-heading'
-import { CellStack } from '@muni/ui/table'
+import { CellStack, Table, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
-import { formatDate, formatInteger, formatMonth, formatTimeRange } from '@muni/utils/format'
-import { ArrowRight, CalendarPlus, Clock, TriangleAlert, X } from 'lucide-react'
+import {
+  formatDate,
+  formatInteger,
+  formatMonth,
+  formatTimeRange,
+  PLACEHOLDER,
+} from '@muni/utils/format'
+import { CalendarPlus, Clock, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useMemo, useState } from 'react'
 
 import { RoomLink } from '@/components/session-links'
-import { useAfterWrite } from '@/lib/query/use-after-write'
-import { createOfferedSession, type CreateOutcome } from '@/server/actions/sessions'
+
+import { OfferReview } from './offer-review'
 
 export interface PlannerGroup {
   course: OfferCourse
@@ -31,9 +40,19 @@ export interface PlannerGroup {
 
 const col = createDataColumns<SessionOffer>()
 
-export function PlannerView({ groups, canCreate }: { groups: PlannerGroup[]; canCreate: boolean }) {
+export function PlannerView({
+  groups,
+  rooms,
+  canCreate,
+}: {
+  groups: PlannerGroup[]
+  rooms: readonly RoomOption[]
+  canCreate: boolean
+}) {
   const t = useTranslations('planner')
-  const [result, setResult] = useState<CreateOutcome | null>(null)
+  const [reviewing, setReviewing] = useState<{ offer: SessionOffer; from: HTMLElement } | null>(
+    null
+  )
   return (
     <div className="flex flex-col gap-8">
       {!canCreate && (
@@ -44,60 +63,27 @@ export function PlannerView({ groups, canCreate }: { groups: PlannerGroup[]; can
       {groups.map(group => (
         <section key={group.course.code} aria-label={group.course.name}>
           <CourseHeading course={group.course} />
-          <OfferTable group={group} canCreate={canCreate} onResult={setResult} />
+          <OfferTable
+            group={group}
+            canCreate={canCreate}
+            onReview={(offer, from) => {
+              setReviewing({ offer, from })
+            }}
+          />
         </section>
       ))}
-      {result && (
-        <ResultPanel
-          result={result}
-          onClose={() => {
-            setResult(null)
+      {reviewing && (
+        <OfferReview
+          key={reviewing.offer.id}
+          open
+          offer={reviewing.offer}
+          rooms={rooms}
+          onOpenChange={open => {
+            if (!open) setReviewing(null)
           }}
+          returnFocusTo={() => (reviewing.from.isConnected ? reviewing.from : null)}
         />
       )}
-    </div>
-  )
-}
-
-/**
- * What creating a session did. Created, the offer leaves the refreshed plan (often its whole
- * course with it), so the result stays in view at the screen's foot, focused, until closed.
- */
-function ResultPanel({ result, onClose }: { result: CreateOutcome; onClose: () => void }) {
-  const t = useTranslations('planner')
-  const tc = useTranslations('common')
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    ref.current?.focus()
-  }, [result])
-  return (
-    <div
-      ref={ref}
-      tabIndex={-1}
-      className="fixed inset-x-4 bottom-4 z-40 flex items-start gap-2 rounded-md bg-surface-overlay shadow-overlay outline-none sm:left-auto sm:w-[28rem]"
-    >
-      {result.ok ? (
-        <Alert tone="success" className="flex-1">
-          {t('created', { id: result.externalId })}{' '}
-          <TextLink asChild tone="inherit">
-            <Link href={`/sessions/${result.externalId}`}>{t('openSession')}</Link>
-          </TextLink>{' '}
-          ·{' '}
-          <TextLink asChild tone="inherit">
-            <Link href="/advisor?view=action" className="inline-flex items-center gap-1">
-              {t('bookInAdvisor')}
-              <ArrowRight aria-hidden className="size-3.5" />
-            </Link>
-          </TextLink>
-        </Alert>
-      ) : (
-        <Alert tone="danger" className="flex-1">
-          {t(`refused.${result.reason}`)}
-        </Alert>
-      )}
-      <IconButton label={tc('close')} onClick={onClose} className="mt-1 mr-1">
-        <X aria-hidden />
-      </IconButton>
     </div>
   )
 }
@@ -127,11 +113,11 @@ function CourseHeading({ course }: { course: OfferCourse }) {
 function OfferTable({
   group,
   canCreate,
-  onResult,
+  onReview,
 }: {
   group: PlannerGroup
   canCreate: boolean
-  onResult: (result: CreateOutcome) => void
+  onReview: (offer: SessionOffer, from: HTMLElement) => void
 }) {
   const t = useTranslations('planner')
   const locale = useLocale()
@@ -186,7 +172,9 @@ function OfferTable({
                 title={<RoomLink room={row.original.room} />}
                 meta={
                   row.original.alternatives.length > 0
-                    ? t('alternatives', { count: row.original.alternatives.length })
+                    ? t('otherRooms', {
+                        rooms: row.original.alternatives.map(r => r.name).join(', '),
+                      })
                     : undefined
                 }
               />
@@ -208,12 +196,31 @@ function OfferTable({
                 id: 'action',
                 header: t('columns.action'),
                 meta: { headerClassName: 'sr-only' },
-                cell: ({ row }) => <CreateButton offer={row.original} onResult={onResult} />,
+                cell: ({ row }) => {
+                  const offer = row.original
+                  if (!offer.slot || !offer.room || offer.capacity === null) return null
+                  return (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      aria-label={t('review.openLabel', {
+                        course: offer.course.name,
+                        n: group.offers.indexOf(offer) + 1,
+                      })}
+                      onClick={event => {
+                        onReview(offer, event.currentTarget)
+                      }}
+                    >
+                      <CalendarPlus aria-hidden />
+                      {t('review.open')}
+                    </Button>
+                  )
+                },
               }),
             ]
           : []),
       ]),
-    [canCreate, locale, onResult, t]
+    [canCreate, group.offers, locale, onReview, t]
   )
   return (
     <DataTable
@@ -221,7 +228,7 @@ function OfferTable({
       columns={columns}
       data={group.offers}
       getRowId={o => o.id}
-      renderExpanded={o => <PeopleList offer={o} />}
+      renderExpanded={o => <OfferDetails offer={o} />}
       expandLabel={o => t('toggle', { course: o.course.name, n: group.offers.indexOf(o) + 1 })}
       expandHeader={t('panelHeader')}
     />
@@ -254,61 +261,50 @@ function ProblemText({ offer }: { offer: SessionOffer }) {
   )
 }
 
-function PeopleList({ offer }: { offer: SessionOffer }) {
+/** An opened offer: the people it is for, and the other rooms free at its slot. */
+function OfferDetails({ offer }: { offer: SessionOffer }) {
+  const t = useTranslations('planner.expanded')
+  const tr = useTranslations('planner.review')
   const locale = useLocale()
   return (
-    <ul className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2 xl:grid-cols-3">
-      {offer.people.map(p => (
-        <li key={p.externalId} className="flex items-baseline justify-between gap-3">
-          <TextLink asChild>
-            <Link href={`/employees/${p.externalId}`}>{p.name}</Link>
-          </TextLink>
-          <span className="text-xs text-fg-muted">
-            {[p.department, p.lapses && formatDate(p.lapses, locale)].filter(Boolean).join(' · ')}
-          </span>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function CreateButton({
-  offer,
-  onResult,
-}: {
-  offer: SessionOffer
-  onResult: (result: CreateOutcome) => void
-}) {
-  const t = useTranslations('planner')
-  const [pending, startTransition] = useTransition()
-  const afterWrite = useAfterWrite()
-  const { slot, room, capacity } = offer
-  if (!slot || !room || capacity === null) return null
-  return (
-    <Button
-      size="sm"
-      variant="primary"
-      disabled={pending}
-      onClick={() => {
-        startTransition(async () => {
-          const outcome = await createOfferedSession({
-            courseId: offer.course.id,
-            date: slot.date,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            roomId: room.id,
-            capacity,
-            pricePerPerson: null,
-            status: 'PLANNED',
-          })
-          // A created session leaves the refreshed plan by itself.
-          if (outcome.ok) afterWrite()
-          onResult(outcome)
-        })
-      }}
-    >
-      <CalendarPlus aria-hidden />
-      {pending ? t('creating') : t('create')}
-    </Button>
+    <DetailGrid className="lg:grid-cols-[2fr_1fr]">
+      <DetailPanel title={t('people')} count={offer.people.length} level={3} flush>
+        <Table density="compact" aria-label={t('people')}>
+          <THead>
+            <tr>
+              <Th>{t('person')}</Th>
+              <Th>{t('department')}</Th>
+              <Th>{t('lapses')}</Th>
+            </tr>
+          </THead>
+          <TBody>
+            {offer.people.map(p => (
+              <Tr key={p.externalId}>
+                <Td>
+                  <TextLink asChild>
+                    <Link href={`/employees/${p.externalId}`}>{p.name}</Link>
+                  </TextLink>
+                </Td>
+                <Td>{p.department ?? PLACEHOLDER}</Td>
+                <Td nowrap>{p.lapses ? formatDate(p.lapses, locale) : tr('neverHeld')}</Td>
+              </Tr>
+            ))}
+          </TBody>
+        </Table>
+      </DetailPanel>
+      <DetailPanel title={t('rooms')} count={offer.alternatives.length} level={3}>
+        {offer.alternatives.length === 0 ? (
+          <EmptyState variant="inline" title={t('noRooms')} />
+        ) : (
+          <ItemList>
+            {offer.alternatives.map(r => (
+              <ItemListRow key={r.id}>
+                <RoomLink room={r} />
+              </ItemListRow>
+            ))}
+          </ItemList>
+        )}
+      </DetailPanel>
+    </DetailGrid>
   )
 }

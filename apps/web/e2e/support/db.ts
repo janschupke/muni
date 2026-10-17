@@ -11,7 +11,14 @@ export async function removeE2eRecords(): Promise<void> {
   try {
     const sessions = { externalId: { startsWith: 'S' } }
     await db.sessionAssignment.deleteMany({
-      where: { OR: [{ session: sessions }, { employee: { lastName: { startsWith: 'E2E' } } }] },
+      where: {
+        OR: [
+          { session: sessions },
+          { employee: { lastName: { startsWith: 'E2E' } } },
+          // Bookings the e2e accounts made on seeded sessions (the advisor's).
+          { createdBy: { email: { endsWith: '+clerk_test@example.com' } } },
+        ],
+      },
     })
     await db.courseSession.deleteMany({ where: sessions })
     await db.courseCompletion.deleteMany({

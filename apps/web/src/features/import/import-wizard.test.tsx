@@ -267,7 +267,9 @@ describe('ImportWizard', () => {
     await user.click(screen.getByRole('button', { name: 'Back to review' }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Import 3 records' }))
-    expect(await screen.findByText('The import failed: failed')).toBeTruthy()
+    expect(
+      await screen.findByText('The import failed: the database refused the write')
+    ).toBeTruthy()
     expect(screen.getByText('2 records were written before the failure.')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Import more files' }))
     expect(screen.getByRole('button', { name: 'Review rows' }).hasAttribute('disabled')).toBe(true)

@@ -70,13 +70,20 @@ export function CourseForm({
   departments: readonly Option[]
   positions: readonly Option[]
 }) {
+  const tsave = useTranslations('forms.save')
   const t = useTranslations('forms.course')
   const tp = useTranslations('forms.placeholders')
   const tc = useTranslations('status.capability')
   const derived = (value: number | null) =>
     value === null ? t('derivedNone') : t('derivedValue', { value })
   return (
-    <FormShell {...shell} isNew={isNew} spec={isNew ? courseCreateSpec : courseEditSpec}>
+    <FormShell
+      {...shell}
+      isNew={isNew}
+      spec={isNew ? courseCreateSpec : courseEditSpec}
+      submitLabel={isNew ? tsave('course') : tsave('changes')}
+      savedMessage={isNew ? tsave('courseCreated') : tsave('courseSaved')}
+    >
       <FieldRow>
         {isNew && (
           <TextField
@@ -209,6 +216,7 @@ export function EmployeeForm({
   /** Who leads each department now, by department id. */
   heads: Readonly<Record<string, string>>
 }) {
+  const tsave = useTranslations('forms.save')
   const t = useTranslations('forms.employee')
   const tp = useTranslations('forms.placeholders')
   const ts = useTranslations('status.employment')
@@ -222,7 +230,12 @@ export function EmployeeForm({
   const head = departmentId ? heads[departmentId] : undefined
   const otherHead = head && !(defaults.leadsDepartment && departmentId === defaults.departmentId)
   return (
-    <FormShell {...shell} spec={employeeSpec}>
+    <FormShell
+      {...shell}
+      spec={employeeSpec}
+      submitLabel={shell.isNew ? tsave('employee') : tsave('changes')}
+      savedMessage={shell.isNew ? tsave('employeeCreated') : tsave('employeeSaved')}
+    >
       <FieldRow>
         <TextField
           name="firstName"
@@ -370,6 +383,7 @@ export function CompletionForm({
   providers: readonly Option[]
   defaults: CompletionDefaults
 }) {
+  const tsave = useTranslations('forms.save')
   const t = useTranslations('forms.completion')
   const tp = useTranslations('forms.placeholders')
   const locale = useLocale()
@@ -386,7 +400,12 @@ export function CompletionForm({
     />
   )
   return (
-    <FormShell {...shell} spec={completionSpec}>
+    <FormShell
+      {...shell}
+      spec={completionSpec}
+      submitLabel={shell.isNew ? tsave('completion') : tsave('changes')}
+      savedMessage={shell.isNew ? tsave('completionCreated') : tsave('completionSaved')}
+    >
       {defaults.imported && <Alert tone="info">{t('importedHint')}</Alert>}
       <FieldRow>
         <SelectField
@@ -471,10 +490,16 @@ export function DepartmentForm({
   /** Its members who can lead it; none on a new department. */
   members: readonly Option[]
 }) {
+  const tsave = useTranslations('forms.save')
   const t = useTranslations('forms.group')
   const tp = useTranslations('forms.placeholders')
   return (
-    <FormShell {...shell} spec={departmentSpec}>
+    <FormShell
+      {...shell}
+      spec={departmentSpec}
+      submitLabel={shell.isNew ? tsave('department') : tsave('changes')}
+      savedMessage={shell.isNew ? tsave('departmentCreated') : tsave('departmentSaved')}
+    >
       <FieldRow>
         <TextField
           name="name"
@@ -505,10 +530,16 @@ export function PositionForm({
   defaults: { name: string; departmentIds: readonly string[] }
   departments: readonly Option[]
 }) {
+  const tsave = useTranslations('forms.save')
   const t = useTranslations('forms.group')
   const tp = useTranslations('forms.placeholders')
   return (
-    <FormShell {...shell} spec={positionSpec}>
+    <FormShell
+      {...shell}
+      spec={positionSpec}
+      submitLabel={shell.isNew ? tsave('position') : tsave('changes')}
+      savedMessage={shell.isNew ? tsave('positionCreated') : tsave('positionSaved')}
+    >
       <TextField
         name="name"
         label={t('name')}

@@ -201,6 +201,11 @@ describe('archive and bring-back buttons', () => {
     })
     renderClient(<UnarchiveButton kind="provider" id="prov_1" name="Vzor" />)
     await user.click(screen.getByRole('button', { name: 'Bring back' }))
+    // It asks first, saying what coming back means.
+    const confirm = await screen.findByRole('dialog', { name: 'Bring back Vzor?' })
+    expect(within(confirm).getByText(/shows in lists and counts again/)).toBeTruthy()
+    expect(unarchiveAction).not.toHaveBeenCalled()
+    await user.click(within(confirm).getByRole('button', { name: 'Bring back' }))
     expect(
       await screen.findByText(
         'An active record now uses its name, IČO. Rename or archive that one first.'

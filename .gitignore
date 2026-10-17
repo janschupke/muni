@@ -11,6 +11,7 @@ coverage/
 packages/db/src/generated/
 apps/web/playwright-report/
 apps/web/test-results/
+apps/web/visual-shots/
 apps/web/e2e/.auth/
 .clerk/
 .DS_Store

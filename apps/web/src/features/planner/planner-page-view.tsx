@@ -19,11 +19,11 @@ export function PlannerPageView({ canCreate }: { canCreate: boolean }) {
     <>
       <PageHeader title={t('title')} description={t('description')} />
       <ReadView query={read} skeleton={<ListSkeleton columns={6} />}>
-        {groups =>
+        {({ groups, rooms }) =>
           groups.length === 0 ? (
             <EmptyState title={t('empty')} />
           ) : (
-            <PlannerView groups={groups} canCreate={canCreate} />
+            <PlannerView groups={groups} rooms={rooms} canCreate={canCreate} />
           )
         }
       </ReadView>

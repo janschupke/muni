@@ -7,6 +7,7 @@ import {
   getComplianceMatrix,
   getDashboard,
   getPlannerInput,
+  listRoomOptions,
 } from '@muni/db/repositories'
 import { planAssignments } from '@muni/domain/advisor'
 import { planSessions } from '@muni/domain/planner'
@@ -50,7 +51,7 @@ export const advisor = read({
   },
 })
 
-/** The sessions the planner offers, one group per course, most urgent first. */
+/** The sessions the planner offers, one group per course, most urgent first, and the rooms. */
 export const planner = read({
   guard: 'reader',
   input: none,
@@ -61,12 +62,14 @@ export const planner = read({
       items: planAssignments(advisorInput).items,
       ...plannerInput,
     })
-    return [...Map.groupBy(offers, o => o.course.code).values()].map(
+    const groups = [...Map.groupBy(offers, o => o.course.code).values()].map(
       (courseOffers): PlannerGroup => ({
         course: (courseOffers[0] as (typeof offers)[number]).course,
         offers: courseOffers,
       })
     )
+    // Every room, so a review can move an offer to another one (with its fit shown).
+    return { groups, rooms: await listRoomOptions() }
   },
 })
 

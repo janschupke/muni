@@ -7,7 +7,8 @@ import { loadRootEnv, productionServer } from './e2e/support/server'
  * errors, dialogs, popovers, skeletons), in both themes, for a person to review
  * (e2e/visual.shots.ts), on the production build:
  *   pnpm --filter @muni/web build && pnpm test:visual
- * Nothing is compared automatically; the shots land in test-results/visual/<theme>/.
+ * Nothing is compared automatically; the shots land in visual-shots/<theme>/ (outside
+ * test-results/, which every Playwright run empties).
  */
 loadRootEnv()
 const PORT = 3063
