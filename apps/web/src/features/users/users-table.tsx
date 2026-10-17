@@ -3,16 +3,14 @@
 import type { UserListItem } from '@muni/db/repositories'
 import { type Role, ROLES } from '@muni/domain/enums'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
-import { TextLink } from '@muni/ui/text-link'
 import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { EmailLink } from '@/components/email-link'
 import { usePaginationLabels } from '@/components/pagination-labels'
-import { RowActions } from '@/components/record-actions'
 import { RoleBadge } from '@/components/status-badges'
+import { nameColumn, rowActionsColumn } from '@/components/table-columns'
 
 const col = createDataColumns<UserListItem>()
 
@@ -31,19 +29,10 @@ export function UsersTable({ users, paging }: { users: UserListItem[]; paging: T
   const columns = useMemo(
     () =>
       col.columns([
-        col.accessor(u => u.name ?? undefined, {
-          id: 'name',
+        nameColumn(col, {
           header: t('name'),
-          // On a phone the table scrolls sideways; the name stays in view.
-          meta: { sticky: 'left' },
-          sortFn: 'text',
-          cell: ({ row, getValue }) => (
-            <TextLink asChild emphasis>
-              <Link href={`/users/${row.original.id}`}>
-                {getValue() ?? row.original.email ?? PLACEHOLDER}
-              </Link>
-            </TextLink>
-          ),
+          name: u => u.name ?? u.email ?? undefined,
+          href: u => `/users/${u.id}`,
         }),
         col.accessor(u => u.email ?? undefined, {
           id: 'email',
@@ -67,18 +56,11 @@ export function UsersTable({ users, paging }: { users: UserListItem[]; paging: T
             return value === undefined ? PLACEHOLDER : formatDateTime(value)
           },
         }),
-        col.display({
-          id: 'actions',
-          header: () => <span className="sr-only">{tcommon('actions')}</span>,
-          meta: { headerClassName: 'w-0', align: 'right' },
-          cell: ({ row }) => (
-            <RowActions
-              kind="user"
-              id={row.original.id}
-              name={row.original.name ?? row.original.email ?? row.original.id}
-            />
-          ),
-        }),
+        rowActionsColumn(col, tcommon('actions'), r => ({
+          kind: 'user',
+          id: r.id,
+          name: r.name ?? r.email ?? r.id,
+        })),
       ]),
     [t, tcommon]
   )

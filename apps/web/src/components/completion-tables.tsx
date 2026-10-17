@@ -10,6 +10,7 @@ import { useMemo } from 'react'
 import { PersonLink, personText, RecordLink } from './archived'
 import { usePaginationLabels } from './pagination-labels'
 import { RowActions } from './record-actions'
+import { actionsColumn } from './table-columns'
 
 type EmployeeCompletion = EmployeeDetail['completions'][number]
 type CourseCompletion = CourseDetail['completionList'][number]
@@ -108,18 +109,13 @@ export function CompletionHistoryTable({
           : []),
         ...(editFor
           ? [
-              history.display({
-                id: 'actions',
-                header: () => <span className="sr-only">{t('common.actions')}</span>,
-                meta: { headerClassName: 'w-0', align: 'right' },
-                cell: ({ row }) => (
-                  <CompletionActions
-                    completion={row.original}
-                    personId={editFor}
-                    courseName={row.original.courseName}
-                  />
-                ),
-              }),
+              actionsColumn(history, t('common.actions'), row => (
+                <CompletionActions
+                  completion={row}
+                  personId={editFor}
+                  courseName={row.courseName}
+                />
+              )),
             ]
           : []),
       ]),
@@ -210,20 +206,13 @@ export function CourseCompletionsTable({
         }),
         ...(canEdit
           ? [
-              ofCourse.display({
-                id: 'actions',
-                header: () => <span className="sr-only">{t('common.actions')}</span>,
-                meta: { headerClassName: 'w-0', align: 'right' },
-                cell: ({ row }) => (
-                  <CompletionActions
-                    completion={row.original}
-                    personId={
-                      row.original.employee.archived ? null : row.original.employee.externalId
-                    }
-                    courseName={courseName}
-                  />
-                ),
-              }),
+              actionsColumn(ofCourse, t('common.actions'), row => (
+                <CompletionActions
+                  completion={row}
+                  personId={row.employee.archived ? null : row.employee.externalId}
+                  courseName={courseName}
+                />
+              )),
             ]
           : []),
       ]),

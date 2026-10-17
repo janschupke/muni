@@ -68,11 +68,12 @@ export function createDataColumns<TData extends RowData>() {
   return createColumnHelper<Features, TData>()
 }
 
-type Columns<TData extends RowData> = ReturnType<
-  ReturnType<typeof createDataColumns<TData>>['columns']
->
+/** The column helper for a table of `TData` rows. */
+export type DataColumns<TData extends RowData> = ReturnType<typeof createDataColumns<TData>>
 
-export type { PaginationState, SortingState }
+type Columns<TData extends RowData> = ReturnType<DataColumns<TData>['columns']>
+
+export type { PaginationState, RowData, SortingState }
 
 const ARIA_SORT = { asc: 'ascending', desc: 'descending' } as const
 

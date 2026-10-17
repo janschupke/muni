@@ -3,28 +3,24 @@
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { SplitLayout } from '@muni/ui/layout'
-import { PageHeader } from '@muni/ui/page-header'
 import { formatDateTime, formatInteger, PLACEHOLDER } from '@muni/utils/format'
-import { useQuery } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { BackLink } from '@/components/back-link'
-import { ConfirmArchiveButton } from '@/components/confirm-archive-button'
 import { EmailLink } from '@/components/email-link'
 import { ReadView } from '@/components/read-view'
+import { RecordHeader, useRecordRead } from '@/components/record-view'
 import { DetailSkeleton } from '@/components/skeletons'
 import { RoleBadge } from '@/components/status-badges'
 import { RoleForm } from '@/features/users/role-form'
-import { readQuery } from '@/lib/query/queries'
-import { useDocumentTitle } from '@/lib/query/use-document-title'
 import { saveUserRole } from '@/server/actions/users'
 import type { ReadOutput } from '@/server/reads/registry'
 
+/** A user by what is known of them: their name, else their email, else their sign-in id. */
+const nameOf = (user: { name: string | null; email: string | null; clerkId: string }) =>
+  user.name ?? user.email ?? user.clerkId
+
 export function UserView({ id }: { id: string }) {
-  const read = useQuery(readQuery('user', { id }))
-  useDocumentTitle(
-    read.data && (read.data.user.name ?? read.data.user.email ?? read.data.user.clerkId)
-  )
+  const read = useRecordRead('user', { id }, ({ user }) => nameOf(user))
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="users">
       {data => <UserDetail data={data} />}
@@ -36,16 +32,15 @@ function UserDetail({ data }: { data: ReadOutput<'user'> }) {
   const { user, self } = data
   const t = useTranslations('users')
   const locale = useLocale()
-  const name = user.name ?? user.email ?? user.clerkId
+  const name = nameOf(user)
   return (
     <>
-      <PageHeader
-        eyebrow={<BackLink fallback={{ href: '/users', label: t('title') }} />}
+      <RecordHeader
+        list={{ href: '/users', label: t('title') }}
         title={name}
         description={<RoleBadge value={user.role} />}
-        actions={
-          !self && <ConfirmArchiveButton kind="user" id={user.id} name={name} then="/users" />
-        }
+        // Nobody archives themselves; a user has no form, only the role below.
+        record={!self && { kind: 'user', id: user.id, name }}
       />
       <SplitLayout
         side={

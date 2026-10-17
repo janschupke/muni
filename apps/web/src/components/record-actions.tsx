@@ -8,18 +8,19 @@ import type { ReactNode } from 'react'
 
 import { ConfirmArchiveButton } from './confirm-archive-button'
 
-interface Target {
+/** The record an action acts on, and its edit form when it has one. */
+export interface Target {
   kind: Archivable
   id: string
   /** What the record is called in labels and the confirm dialog. */
   name: string
-  editHref: string
+  editHref?: string | undefined
 }
 
 /**
- * A record page's header actions for admins, left to right: Archive, Edit, then the page's own
- * primary action (`children`) last; with none, Edit is the primary. Archiving leaves for
- * `then`, the list the record was in.
+ * A record page's header actions for admins, left to right: Archive, Edit (when the record
+ * has a form), then the page's own primary action (`children`) last; with none, Edit is the
+ * primary. Archiving leaves for `then`, the list the record was in.
  */
 export function RecordActions({
   kind,
@@ -33,12 +34,14 @@ export function RecordActions({
   return (
     <>
       <ConfirmArchiveButton kind={kind} id={id} name={name} then={then} />
-      <Button asChild variant={children ? 'secondary' : 'primary'}>
-        <Link href={editHref}>
-          <Pencil aria-hidden />
-          {t('edit')}
-        </Link>
-      </Button>
+      {editHref && (
+        <Button asChild variant={children ? 'secondary' : 'primary'}>
+          <Link href={editHref}>
+            <Pencil aria-hidden />
+            {t('edit')}
+          </Link>
+        </Button>
+      )}
       {children}
     </>
   )
@@ -48,12 +51,7 @@ export function RecordActions({
  * A table row's actions for admins: a pencil to edit (when the record has an edit form) and
  * archive (the row then leaves the list).
  */
-export function RowActions({
-  kind,
-  id,
-  name,
-  editHref,
-}: Omit<Target, 'editHref'> & { editHref?: string | undefined }) {
+export function RowActions({ kind, id, name, editHref }: Target) {
   const t = useTranslations('common')
   return (
     <div className="flex justify-end gap-1">

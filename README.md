@@ -138,10 +138,17 @@ session times are `timestamptz` converted from Europe/Prague wall-clock time.
 
 Bookings: a session's seats are `unnamedBookings` (anonymous seats from the export) plus
 `SessionAssignment` rows (a named person on a session, with FKs to both and to the `User` who
-booked it). Admins add them from the advisor, from a session's page (a person) or from a
-person's page (a session with a free seat). The booked total is always derived,
-never stored twice. Saving a booking locks the session row (`SELECT … FOR UPDATE`) and
-re-checks seats, status, clashes and need, so two people can never take the last seat.
+booked it). Only what a person needs is booked: a training required of them that they do not
+hold, lapsed or lapsing soon, with nothing booked (`needsBooking`). Admins book from every place
+such a training shows, always through one **Book…** dialog that lists each training with the
+session proposed for it (the advisor's plan) and up to five alternatives to choose from: the
+advisor's two tables, a person's required trainings, the people of the employee list and of a
+department or position (each person, or each training of an opened row), and a compliance
+matrix cell (each person, or all who need it). A session's page offers only the people who
+need its course. The booked total is always derived, never stored twice. Saving a booking
+locks the session row (`SELECT … FOR UPDATE`) and re-checks seats, status, clashes and need,
+so two people can never take the last seat and nobody is booked on a training that is not
+required of them or that they hold past the advisor's forecast.
 `capacity >= 0` and `unnamed_bookings >= 0` are CHECK constraints in the migration SQL.
 Re-importing a session stores `max(0, exported total − named bookings)` as unnamed seats.
 
@@ -427,7 +434,10 @@ has its own not-found page naming the missing record.
 The compliance matrix opens each department into one row per person, under the course
 columns, and each cell into a dialog listing its people, most urgent first. The department
 and position lists open each row to its people's records: position or department,
-employment, the share held, and every training that needs attention with its booking.
+employment, the share held, and every training that needs attention with its booking, or the
+way to book it. Their "Upcoming bookings" count links to the bookings it counts
+(`/departments/[id]/bookings`, `/positions/[id]/bookings`): its people's named bookings on
+sessions still ahead, a page at a time.
 
 A detail page has its facts card beside the main section (`SplitLayout`). Long tables follow it
 at full width: the people of a department or position, a course's sessions and completions,
@@ -469,13 +479,14 @@ overbooked sessions, always through a dialog that shows what will happen first.
   the **non-compliance window**: from the day the training lapses (`validUntil + 1`) until the
   booked session ends, or open when nothing is booked.
 - **Action required**: the unbooked trainings in queue order, each with the proposed session and
-  the gap it would leave, or the reason there is none and what to do. An admin picks rows (a
-  checkbox each, or all proposed at once) and, per row, the session: the proposal or one of up
-  to five alternatives (other sessions with a free seat and no clash, those that end before
-  the training lapses first). **Book…** opens the decision: who goes on which session, the
-  price of each and the total, and, per session, people chosen against seats free (a session
-  that would overfill stops the confirm). The confirm button names the count ("Book 3
-  people"); refusals the server finds are listed in the dialog, the rest are booked.
+  the gap it would leave, or the reason there is none and what to do. Booking works the same
+  here and in the breakdown: **Book…** on a row, or rows picked and **Book N selected…**,
+  opens the decision: each training with a session select (the proposal or one of up to five
+  alternatives: other sessions with a free seat and no clash, those that end before the
+  training lapses first), the price of each and the total, a box to leave one out, and, per
+  session, people chosen against seats free (a session that would overfill stops the
+  confirm). The confirm button names the count and the cost ("Book 3 trainings · 1 350,00
+  Kč"); refusals the server finds are listed in the dialog, the rest are booked.
 - **Remediation planned**: the booked trainings with their windows; cancelling one asks first.
 - **Overbooked**: the sessions over capacity with the advisor's suggestion. **Resolve…**
   explains the session (booked by name and without a name, against capacity) and offers two

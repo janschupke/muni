@@ -8,27 +8,22 @@ import type { TablePaging } from '@muni/ui/data-table'
 import { StatItem, StatList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
-import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent } from '@muni/utils/format'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { CalendarPlus } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { BackLink } from '@/components/back-link'
 import { CourseCompletionsTable } from '@/components/completion-tables'
 import { ComplianceBar, ComplianceLegend } from '@/components/compliance-breakdown'
 import { CourseByDepartment, CourseNeeds } from '@/components/course-panel'
 import { ReadView } from '@/components/read-view'
-import { RecordActions } from '@/components/record-actions'
+import { RecordHeader, useRecordRead } from '@/components/record-view'
 import { RequirementList } from '@/components/requirement-list'
 import { SessionTable } from '@/components/session-table'
 import { DetailSkeleton } from '@/components/skeletons'
 import { COMPLETION_SORT, SESSION_SORT } from '@/lib/list-keys'
-import { readQuery } from '@/lib/query/queries'
-import { useDocumentTitle } from '@/lib/query/use-document-title'
 import { type PageInfo, useListUrl } from '@/lib/use-list-url'
 import type { ReadOutput } from '@/server/reads/registry'
 
@@ -40,11 +35,11 @@ import type { ReadOutput } from '@/server/reads/registry'
 export function CourseView({ code, canEdit }: { code: string; canEdit: boolean }) {
   const sessions = useListUrl(SESSION_SORT, { id: 'date', desc: false }, 'sessions')
   const completions = useListUrl(COMPLETION_SORT, { id: 'completedOn', desc: true }, 'completions')
-  const read = useQuery({
-    ...readQuery('course', { code, ...sessions.input, ...completions.input }),
-    placeholderData: keepPreviousData,
-  })
-  useDocumentTitle(read.data?.name)
+  const read = useRecordRead(
+    'course',
+    { code, ...sessions.input, ...completions.input },
+    course => course.name
+  )
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="courses">
       {course => (
@@ -75,33 +70,30 @@ function CourseDetail({
 
   return (
     <>
-      <PageHeader
-        eyebrow={<BackLink fallback={{ href: '/courses', label: t('title') }} />}
+      <RecordHeader
+        list={{ href: '/courses', label: t('title') }}
         title={course.name}
         description={`${course.code} · ${
           course.validityMonths === null
             ? tc('noExpiry')
             : tc('months', { count: course.validityMonths })
         }`}
-        actions={
-          canEdit && (
-            <RecordActions
-              kind="course"
-              id={course.id}
-              name={course.name}
-              editHref={`/courses/${course.code}/edit`}
-              then="/courses"
-            >
-              <Button asChild variant="primary">
-                <Link href={`/courses/${course.code}/sessions/new`}>
-                  <CalendarPlus aria-hidden />
-                  {t('newSession')}
-                </Link>
-              </Button>
-            </RecordActions>
-          )
+        record={
+          canEdit && {
+            kind: 'course',
+            id: course.id,
+            name: course.name,
+            editHref: `/courses/${course.code}/edit`,
+          }
         }
-      />
+      >
+        <Button asChild variant="primary">
+          <Link href={`/courses/${course.code}/sessions/new`}>
+            <CalendarPlus aria-hidden />
+            {t('newSession')}
+          </Link>
+        </Button>
+      </RecordHeader>
 
       <SplitLayout
         side={

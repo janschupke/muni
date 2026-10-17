@@ -105,6 +105,18 @@ describe('a user', () => {
     ).toBeTruthy()
   })
 
+  it('names a user without a name by their email, else by their sign-in id', async () => {
+    vi.mocked(getUser).mockResolvedValueOnce({ ...detail, name: null, email: 'petr@vzor.cz' })
+    const { unmount } = await renderServer(UserPage({ params: params({ id: 'usr_2' }) }))
+    expect(screen.getByRole('heading', { level: 1, name: 'petr@vzor.cz' })).toBeTruthy()
+    expect(document.title).toMatch(/^petr@vzor\.cz · /)
+    unmount()
+    vi.mocked(getUser).mockResolvedValueOnce({ ...detail, name: null, email: null })
+    await renderServer(UserPage({ params: params({ id: 'usr_2' }) }))
+    expect(screen.getByRole('heading', { level: 1, name: detail.clerkId })).toBeTruthy()
+    expect(screen.getByText('—')).toBeTruthy()
+  })
+
   it('does not let admins change or archive themselves, and 404s for an unknown user', async () => {
     vi.mocked(getUser).mockResolvedValue({ ...detail, id: 'usr_admin' })
     await renderServer(UserPage({ params: params({ id: 'usr_admin' }) }))

@@ -139,12 +139,16 @@ test('plans a session with the time picker, books a person by hand, and cancels 
   await save(page).click()
   await expect(page).toHaveURL(/\/sessions\/S\d{3}$/)
 
+  // Offered: the people who need GDPR, each with why.
   await page.getByRole('combobox', { name: 'Person to book' }).click()
-  await page.getByRole('option', { name: 'Malá Alena' }).click()
-  await page.getByRole('button', { name: 'Book' }).click()
-  const booked = page.getByRole('main').getByRole('link', { name: 'Malá Alena' })
+  const option = page.getByRole('option').first()
+  const label = (await option.textContent()) ?? ''
+  const name = label.split(' · ')[0] ?? ''
+  await option.click()
+  await page.getByRole('button', { name: 'Book', exact: true }).click()
+  const booked = page.getByRole('main').getByRole('link', { name, exact: true })
   await expect(booked).toBeVisible()
-  await expect(page.getByText('Booked: Malá Alena', { exact: true })).toBeVisible()
+  await expect(page.getByText(`Booked: ${label}`, { exact: true })).toBeVisible()
 
   // Booked, it cannot be archived; the dialog says why.
   await page.getByRole('main').getByRole('button', { name: 'Archive' }).click()
@@ -154,9 +158,9 @@ test('plans a session with the time picker, books a person by hand, and cancels 
   ).toBeVisible()
   await refusal.getByRole('button', { name: 'Keep as is' }).click()
 
-  await page.getByRole('button', { name: 'Cancel the booking of Malá Alena' }).click()
+  await page.getByRole('button', { name: `Cancel the booking of ${name}` }).click()
   await page
-    .getByRole('dialog', { name: 'Remove Malá Alena from this session?' })
+    .getByRole('dialog', { name: `Remove ${name} from this session?` })
     .getByRole('button', { name: 'Cancel booking' })
     .click()
   await expect(booked).toHaveCount(0)
@@ -378,8 +382,9 @@ test('offers booking on a department’s people and in a compliance cell', async
   // Its row in the matrix: a course it does not fully hold opens the people to book.
   await page.goto('/compliance')
   await page
-    .getByRole('row', { name: new RegExp(`^${escape(name)}`) })
-    .getByRole('button', { name: /: (?!100%)\d+%, show people$/ })
+    .getByRole('row')
+    .filter({ has: page.getByRole('link', { name, exact: true }) })
+    .getByRole('button', { name: /: (?!100\s?%)\d+\s?%, show people$/ })
     .first()
     .click()
   await page
@@ -392,6 +397,13 @@ test('offers booking on a department’s people and in a compliance cell', async
 })
 
 test('lists a department’s upcoming bookings behind its count', async ({ page }) => {
+  // One booking at least, whatever the tests before left.
+  await page.goto('/advisor?view=action')
+  await page
+    .getByRole('button', { name: /^Book .+ for .+…$/ })
+    .first()
+    .click()
+  await confirmBooking(page, await bookDialog(page))
   await page.goto('/departments')
   const link = page.getByRole('link', { name: /upcoming bookings? of / }).first()
   const count = Number(((await link.textContent()) ?? '').replace(/\D/g, ''))

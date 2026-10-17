@@ -3,15 +3,13 @@
 import type { ArchivedItem } from '@muni/db/repositories'
 import type { Archivable } from '@muni/domain/archive'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
-import { CellStack } from '@muni/ui/table'
-import { TextLink } from '@muni/ui/text-link'
 import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { UserName } from '@/components/archived'
 import { usePaginationLabels } from '@/components/pagination-labels'
+import { actionsColumn, nameColumn } from '@/components/table-columns'
 import { UnarchiveButton } from '@/components/unarchive-button'
 
 import { ArchivedValue } from './archived-value'
@@ -39,22 +37,11 @@ export function ArchivedTable({
     const nameOf = (item: ArchivedItem) =>
       item.label ?? t(kind === 'user' ? 'user' : 'person', { tag: item.tag })
     return col.columns([
-      col.accessor(nameOf, {
-        id: 'name',
+      nameColumn(col, {
         header: t('list.columns.name'),
-        // On a phone the table scrolls sideways; the name stays in view.
-        meta: { sticky: 'left' },
-        sortFn: 'text',
-        cell: ({ row }) => (
-          <CellStack
-            title={
-              <TextLink asChild emphasis>
-                <Link href={archivedRecordPath(kind, row.original.id)}>{nameOf(row.original)}</Link>
-              </TextLink>
-            }
-            meta={row.original.detail ?? undefined}
-          />
-        ),
+        name: nameOf,
+        href: item => archivedRecordPath(kind, item.id),
+        meta: item => item.detail ?? undefined,
       }),
       col.accessor(i => i.when?.value ?? undefined, {
         id: 'when',
@@ -76,14 +63,9 @@ export function ArchivedTable({
         cell: ({ row }) =>
           row.original.archivedBy ? <UserName user={row.original.archivedBy} /> : PLACEHOLDER,
       }),
-      col.display({
-        id: 'actions',
-        header: () => <span className="sr-only">{tc('actions')}</span>,
-        meta: { align: 'right' },
-        cell: ({ row }) => (
-          <UnarchiveButton kind={kind} id={row.original.id} name={nameOf(row.original)} compact />
-        ),
-      }),
+      actionsColumn(col, tc('actions'), row => (
+        <UnarchiveButton kind={kind} id={row.id} name={nameOf(row)} compact />
+      )),
     ])
   }, [t, tc, kind])
   return (

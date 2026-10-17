@@ -181,7 +181,7 @@ export function RequirementRows({
                 )}
               </Td>
               {booking && (
-                <Td align="right">
+                <Td align="right" nowrap>
                   {bookable(row) && (
                     <BookNeedButton
                       query={{ employee: row.person.externalId, course: r.courseCode }}

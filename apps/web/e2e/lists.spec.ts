@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 
+import { removeE2eRecords } from './support/db'
 import { loaded } from './support/pages'
 import { baseUrlOf } from './support/server'
 import { expect, test } from './support/test'
@@ -71,3 +72,38 @@ for (const path of ['/employees', '/advisor?view=action']) {
     expect(second[0]).not.toEqual(first[0])
   })
 }
+
+test.describe('a department’s upcoming bookings', () => {
+  // The seed books nobody by name: a page of the advisor's proposals first, removed after.
+  test.afterAll(removeE2eRecords)
+
+  test('sort on the server', async ({ page }) => {
+    await page.goto('/advisor?view=action')
+    await loaded(page)
+    await page.getByRole('checkbox', { name: /^Select every proposed row/ }).click()
+    await page.getByRole('button', { name: /^Book \d+ selected…$/ }).click()
+    await page
+      .getByRole('dialog', { name: 'Book trainings' })
+      .getByRole('button', { name: /^Book \d+ trainings? · / })
+      .click()
+    await expect(page.getByText(/^Booked \d+ trainings?$/)).toBeVisible()
+
+    await page.goto('/departments?sort=bookings&dir=desc')
+    await loaded(page)
+    await page
+      .getByRole('link', { name: /upcoming bookings? of / })
+      .first()
+      .click()
+    await expect(page).toHaveURL(/\/bookings$/)
+    await loaded(page)
+    const before = await rows(page)
+    const header = page.getByRole('button', { name: 'Person', exact: true })
+    await header.click()
+    await expect(page).toHaveURL(/[?&]sort=person(&|$)/)
+    await loaded(page)
+    await header.click()
+    await expect(page).toHaveURL(/[?&]dir=desc(&|$)/)
+    await loaded(page)
+    expect(await rows(page)).not.toEqual(before)
+  })
+})

@@ -5,18 +5,13 @@ import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
-import { PageHeader } from '@muni/ui/page-header'
 import { PLACEHOLDER } from '@muni/utils/format'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
 import { PersonLink } from '@/components/archived'
-import { BackLink } from '@/components/back-link'
 import { ReadView } from '@/components/read-view'
-import { RecordActions } from '@/components/record-actions'
+import { RecordHeader, useRecordRead } from '@/components/record-view'
 import { DetailSkeleton } from '@/components/skeletons'
-import { readQuery } from '@/lib/query/queries'
-import { useDocumentTitle } from '@/lib/query/use-document-title'
 import { useListUrl } from '@/lib/use-list-url'
 import type { ReadOutput } from '@/server/reads/registry'
 
@@ -42,28 +37,21 @@ export function GroupView({
   const plural = PLURAL[kind]
   const t = useTranslations(plural)
   const people = useListUrl(EMPLOYEE_SORT_KEYS, undefined, 'people')
-  const read = useQuery({
-    ...readQuery(kind, { id, ...people.input }),
-    placeholderData: keepPreviousData,
-  })
-  useDocumentTitle(read.data?.name)
+  const read = useRecordRead(kind, { id, ...people.input }, group => group.name)
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity={plural}>
       {group => (
         <>
-          <PageHeader
-            eyebrow={<BackLink fallback={{ href: `/${plural}`, label: t('title') }} />}
+          <RecordHeader
+            list={{ href: `/${plural}`, label: t('title') }}
             title={group.name}
-            actions={
-              canEdit && (
-                <RecordActions
-                  kind={kind}
-                  id={group.id}
-                  name={group.name}
-                  editHref={`/${plural}/${group.id}/edit`}
-                  then={`/${plural}`}
-                />
-              )
+            record={
+              canEdit && {
+                kind,
+                id: group.id,
+                name: group.name,
+                editHref: `/${plural}/${group.id}/edit`,
+              }
             }
           />
           <SplitLayout

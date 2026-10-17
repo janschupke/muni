@@ -5,25 +5,20 @@ import type { TablePaging } from '@muni/ui/data-table'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
-import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatDate, formatOptional } from '@muni/utils/format'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
-import { BackLink } from '@/components/back-link'
 import { EmailLink } from '@/components/email-link'
 import { ReadView } from '@/components/read-view'
-import { RecordActions } from '@/components/record-actions'
+import { RecordHeader, useRecordRead } from '@/components/record-view'
 import { DetailSkeleton } from '@/components/skeletons'
 import {
   ProviderCompletionsTable,
   ProviderCoursesTable,
 } from '@/features/providers/provider-tables'
 import { COMPLETION_SORT, PROVIDER_COURSE_SORT } from '@/lib/list-keys'
-import { readQuery } from '@/lib/query/queries'
-import { useDocumentTitle } from '@/lib/query/use-document-title'
 import { type PageInfo, useListUrl } from '@/lib/use-list-url'
 import type { ReadOutput } from '@/server/reads/registry'
 
@@ -31,11 +26,11 @@ import type { ReadOutput } from '@/server/reads/registry'
 export function ProviderView({ id, canEdit }: { id: string; canEdit: boolean }) {
   const courses = useListUrl(PROVIDER_COURSE_SORT, undefined, 'courses')
   const completions = useListUrl(COMPLETION_SORT, { id: 'completedOn', desc: true }, 'completions')
-  const read = useQuery({
-    ...readQuery('provider', { id, ...courses.input, ...completions.input }),
-    placeholderData: keepPreviousData,
-  })
-  useDocumentTitle(read.data?.name)
+  const read = useRecordRead(
+    'provider',
+    { id, ...courses.input, ...completions.input },
+    provider => provider.name
+  )
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="providers">
       {data => (
@@ -65,19 +60,16 @@ function ProviderDetail({
 
   return (
     <>
-      <PageHeader
-        eyebrow={<BackLink fallback={{ href: '/providers', label: t('title') }} />}
+      <RecordHeader
+        list={{ href: '/providers', label: t('title') }}
         title={provider.name}
-        actions={
-          canEdit && (
-            <RecordActions
-              kind="provider"
-              id={provider.id}
-              name={provider.name}
-              editHref={`/providers/${provider.id}/edit`}
-              then="/providers"
-            />
-          )
+        record={
+          canEdit && {
+            kind: 'provider',
+            id: provider.id,
+            name: provider.name,
+            editHref: `/providers/${provider.id}/edit`,
+          }
         }
       />
       <SplitLayout

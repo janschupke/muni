@@ -3,20 +3,15 @@
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
-import { PageHeader } from '@muni/ui/page-header'
 import { formatDate, formatTimeRange } from '@muni/utils/format'
-import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
-import { BackLink } from '@/components/back-link'
 import { ReadView } from '@/components/read-view'
-import { RecordActions } from '@/components/record-actions'
+import { RecordHeader, useRecordRead } from '@/components/record-view'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { SessionAttendees, SessionFacts } from '@/components/session-details'
 import { DetailSkeleton } from '@/components/skeletons'
 import { AddBookingForm } from '@/features/bookings/add-booking'
-import { readQuery } from '@/lib/query/queries'
-import { useDocumentTitle } from '@/lib/query/use-document-title'
 import { sessionTitle } from '@/lib/titles'
 import type { ReadOutput } from '@/server/reads/registry'
 
@@ -34,9 +29,7 @@ export function SessionView({
   /** The person the booking form starts with (from the advisor's link). */
   employee?: string | undefined
 }) {
-  const read = useQuery(readQuery('session', { externalId }))
-  const found = read.data?.session
-  useDocumentTitle(found && sessionTitle(found))
+  const read = useRecordRead('session', { externalId }, data => sessionTitle(data.session))
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="sessions">
       {data => <SessionDetail {...data} canEdit={canEdit} employee={employee} />}
@@ -59,20 +52,17 @@ function SessionDetail({
 
   return (
     <>
-      <PageHeader
-        eyebrow={<BackLink fallback={{ href: '/sessions', label: t('title') }} />}
+      <RecordHeader
+        list={{ href: '/sessions', label: t('title') }}
         title={session.courseName}
         description={formatTimeRange(session.startsAt, session.endsAt)}
-        actions={
-          canEdit && (
-            <RecordActions
-              kind="session"
-              id={session.id}
-              name={`${session.externalId} · ${session.courseName}`}
-              editHref={`/sessions/${session.externalId}/edit`}
-              then="/sessions"
-            />
-          )
+        record={
+          canEdit && {
+            kind: 'session',
+            id: session.id,
+            name: `${session.externalId} · ${session.courseName}`,
+            editHref: `/sessions/${session.externalId}/edit`,
+          }
         }
       />
       <SplitLayout

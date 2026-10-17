@@ -121,7 +121,7 @@ for (const theme of ['light', 'dark'] as const) {
       await page.goto('/advisor?view=action')
       await loaded(page)
       await page
-        .getByRole('button', { name: /^Book .+…$/ })
+        .getByRole('button', { name: /^Book .+ for .+…$/ })
         .first()
         .click()
       await expect(page.getByRole('dialog').getByRole('combobox').first()).toBeVisible()
@@ -143,7 +143,7 @@ for (const theme of ['light', 'dark'] as const) {
       await page.goto('/compliance')
       await loaded(page)
       await page
-        .getByRole('button', { name: /: (?!100%)\d+%, show people$/ })
+        .getByRole('button', { name: /: (?!100\s?%)\d+\s?%, show people$/ })
         .first()
         .click()
       await expect(
@@ -152,6 +152,8 @@ for (const theme of ['light', 'dark'] as const) {
           .getByRole('button', { name: /^Book / })
           .first()
       ).toBeVisible()
+      // The pointer off the rows: a hovered row is the scan's subject only in its own test.
+      await page.mouse.move(0, 0)
       await expectNoViolations(page, 'compliance cell with booking', '[role="dialog"]')
       await page.keyboard.press('Escape')
 
@@ -163,7 +165,8 @@ for (const theme of ['light', 'dark'] as const) {
         .first()
         .click()
       const archive = page.getByRole('dialog')
-      await expect(archive.getByRole('button', { name: 'Archive', exact: true })).toBeEnabled()
+      // Checked first: the confirm says so until the server has answered.
+      await expect(archive.getByRole('button', { name: /^Checking/ })).toHaveCount(0)
       await expect(archive.getByText(/^It leaves every list and count/)).toBeVisible()
       await expectNoViolations(page, 'archive dialog', '[role="dialog"]')
       await page.keyboard.press('Escape')

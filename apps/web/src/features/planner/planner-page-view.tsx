@@ -3,16 +3,15 @@
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
 import { Pagination } from '@muni/ui/pagination'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
+import { useListRead } from '@/components/list-view'
 import { usePaginationLabels } from '@/components/pagination-labels'
 import { ReadView } from '@/components/read-view'
 import { RulesCard } from '@/components/rules-card'
 import { PlannerSkeleton } from '@/components/skeletons'
 import { OFFER_SORT } from '@/lib/list-keys'
-import { readQuery } from '@/lib/query/queries'
 import { useListUrl } from '@/lib/use-list-url'
 
 import { PlannerView } from './planner-view'
@@ -27,7 +26,7 @@ export function PlannerPageView({ canCreate }: { canCreate: boolean }) {
   const t = useTranslations('planner')
   const labels = usePaginationLabels()
   const list = useListUrl(OFFER_SORT, { id: 'due', desc: false })
-  const read = useQuery({ ...readQuery('planner', list.input), placeholderData: keepPreviousData })
+  const read = useListRead('planner', list.input)
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />

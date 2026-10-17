@@ -9,24 +9,21 @@ import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { SplitLayout } from '@muni/ui/layout'
-import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDate, formatOptional, formatPercent, PLACEHOLDER } from '@muni/utils/format'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { PersonLink } from '@/components/archived'
-import { BackLink } from '@/components/back-link'
 import { CompletionHistoryTable } from '@/components/completion-tables'
 import { HeldMeter } from '@/components/compliance-breakdown'
 import { EmailLink } from '@/components/email-link'
 import { OrgLink } from '@/components/org-links'
 import { ReadView } from '@/components/read-view'
-import { RecordActions } from '@/components/record-actions'
+import { RecordHeader, useRecordRead } from '@/components/record-view'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RequirementTable } from '@/components/requirement-panel'
 import { RoomLink, SessionDateLink } from '@/components/session-links'
@@ -35,20 +32,15 @@ import { EmploymentBadge } from '@/components/status-badges'
 import { TeamCard } from '@/components/team-card'
 import { BookNeedButton } from '@/features/bookings/book-button'
 import { HISTORY_SORT } from '@/lib/list-keys'
-import { readQuery } from '@/lib/query/queries'
-import { useDocumentTitle } from '@/lib/query/use-document-title'
 import { type PageInfo, useListUrl } from '@/lib/use-list-url'
 import type { ReadOutput } from '@/server/reads/registry'
 
 /** A person's page: profile, bookings, requirements and history, read for the signed-in role. */
 export function EmployeeView({ externalId, canEdit }: { externalId: string; canEdit: boolean }) {
   const completions = useListUrl(HISTORY_SORT, { id: 'completedOn', desc: true }, 'completions')
-  const read = useQuery({
-    ...readQuery('employee', { externalId, ...completions.input }),
-    placeholderData: keepPreviousData,
-  })
-  const data = read.data
-  useDocumentTitle(data && displayName(data.employee))
+  const read = useRecordRead('employee', { externalId, ...completions.input }, data =>
+    displayName(data.employee)
+  )
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="employees">
       {data => <EmployeeDetail {...data} canEdit={canEdit} paging={completions.paging} />}
@@ -74,29 +66,26 @@ function EmployeeDetail({
 
   return (
     <>
-      <PageHeader
-        eyebrow={<BackLink fallback={{ href: '/employees', label: te('title') }} />}
+      <RecordHeader
+        list={{ href: '/employees', label: te('title') }}
         title={name}
         description={<PlaceLinks employee={employee} />}
-        actions={
-          canEdit && (
-            <RecordActions
-              kind="employee"
-              id={employee.id}
-              name={name}
-              editHref={`/employees/${employee.externalId}/edit`}
-              then="/employees"
-            >
-              <Button asChild variant="primary">
-                <Link href={`/employees/${employee.externalId}/completions/new`}>
-                  <Plus aria-hidden />
-                  {t('recordCompletion')}
-                </Link>
-              </Button>
-            </RecordActions>
-          )
+        record={
+          canEdit && {
+            kind: 'employee',
+            id: employee.id,
+            name,
+            editHref: `/employees/${employee.externalId}/edit`,
+          }
         }
-      />
+      >
+        <Button asChild variant="primary">
+          <Link href={`/employees/${employee.externalId}/completions/new`}>
+            <Plus aria-hidden />
+            {t('recordCompletion')}
+          </Link>
+        </Button>
+      </RecordHeader>
 
       <SplitLayout
         side={

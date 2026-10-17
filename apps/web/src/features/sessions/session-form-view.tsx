@@ -1,14 +1,12 @@
 'use client'
 
 import { toZonedParts } from '@muni/utils/dates'
-import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
-import { BackLink } from '@/components/back-link'
+import { formShell, useFormRead } from '@/components/form/form-view'
 import { SessionForm } from '@/components/form/session-form'
 import { ReadView } from '@/components/read-view'
 import { FormSkeleton } from '@/components/skeletons'
-import { FORM_READ, readQuery } from '@/lib/query/queries'
 import { saveSession } from '@/server/actions/edit'
 import { saveNewSession } from '@/server/actions/sessions'
 
@@ -26,10 +24,7 @@ export function SessionFormView({
   courseCode?: string | undefined
 }) {
   const t = useTranslations()
-  const read = useQuery({
-    ...readQuery('session-form', { externalId }),
-    ...FORM_READ,
-  })
+  const read = useFormRead('session-form', { externalId })
   return (
     <ReadView
       query={read}
@@ -43,15 +38,14 @@ export function SessionFormView({
           const href = `/sessions/${session.externalId}`
           return (
             <SessionForm
-              action={saveSession.bind(null, session.externalId)}
-              cancelHref={href}
-              heading={{
+              {...formShell({
+                action: saveSession.bind(null, session.externalId),
+                back: { href, label: session.courseName },
                 title: t('sessions.editTitle', {
                   name: `${session.externalId} · ${session.courseName}`,
                 }),
-                eyebrow: <BackLink fallback={{ href, label: session.courseName }} />,
                 description: `${session.courseCode} · ${session.courseName}`,
-              }}
+              })}
               courses={courses}
               rooms={rooms}
               self={session.externalId}
@@ -73,26 +67,19 @@ export function SessionFormView({
         const course = courseCode ? courses.find(c => c.code === courseCode) : undefined
         return (
           <SessionForm
-            mode="create"
-            action={saveNewSession}
-            cancelHref={course ? `/courses/${course.code}` : '/sessions'}
-            heading={
-              course
+            {...formShell({
+              action: saveNewSession,
+              isNew: true,
+              ...(course
                 ? {
+                    back: { href: `/courses/${course.code}`, label: course.name },
                     title: t('courses.newTitle', { course: course.name }),
-                    eyebrow: (
-                      <BackLink
-                        fallback={{ href: `/courses/${course.code}`, label: course.name }}
-                      />
-                    ),
                   }
                 : {
+                    back: { href: '/sessions', label: t('sessions.title') },
                     title: t('sessions.newTitle'),
-                    eyebrow: (
-                      <BackLink fallback={{ href: '/sessions', label: t('sessions.title') }} />
-                    ),
-                  }
-            }
+                  }),
+            })}
             courses={courses}
             rooms={rooms}
             defaults={newSessionDefaults(course ?? null)}

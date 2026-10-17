@@ -9,13 +9,12 @@ import { parseCount } from '@muni/utils/money'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
-import type { FormState } from '@/lib/form'
 import { sessionCreateSpec, sessionEditSpec } from '@/lib/form-inputs'
 
+import type { FormProps } from './form-props'
 import {
   type ClientError,
   DateField,
-  type FormHeading,
   FormShell,
   type SaveConfirmation,
   SelectField,
@@ -54,20 +53,16 @@ export function SessionForm({
   defaults,
   self = null,
   named = 0,
-  mode = 'edit',
-}: {
-  action: (state: FormState, form: FormData) => Promise<FormState>
-  cancelHref: string
-  heading: FormHeading
+  isNew = false,
+}: FormProps & {
   courses: readonly CourseOption[]
   rooms: readonly RoomOption[]
   defaults: SessionDefaults
   /** The session being edited (its ID): it never clashes with itself. */
   self?: string | null | undefined
-  /** Named bookings, managed on the session's page; they hold seats too. */
+  /** Named bookings, managed on the session's page; they hold seats too. (A new session has none,
+   * and no unnamed seats to set.) */
   named?: number | undefined
-  /** A new session starts with no bookings: no unnamed seats to set. */
-  mode?: 'edit' | 'create' | undefined
 }) {
   const t = useTranslations('forms.session')
   const tq = useTranslations('forms.session.confirm')
@@ -87,7 +82,7 @@ export function SessionForm({
   const course = courses.find(c => c.id === courseId)
   const room = rooms.find(r => r.id === roomId)
   const seats = parseCount(capacity)
-  const unnamedSeats = mode === 'edit' ? (parseCount(unnamed) ?? 0) : 0
+  const unnamedSeats = isNew ? 0 : (parseCount(unnamed) ?? 0)
   const booked = unnamedSeats + named
   const planned = status === 'PLANNED'
 
@@ -146,7 +141,7 @@ export function SessionForm({
   // Cancelling a session, or moving its bookings to another course, does more than the form
   // shows: ask first, saying what happens to the people on it.
   const confirm = (): SaveConfirmation | null => {
-    if (mode !== 'edit') return null
+    if (isNew) return null
     const cancelling = status === 'CANCELLED' && defaults.status !== 'CANCELLED'
     const moving = named > 0 && courseId !== defaults.courseId
     if (!cancelling && !moving) return null
@@ -174,11 +169,11 @@ export function SessionForm({
       action={action}
       cancelHref={cancelHref}
       heading={heading}
-      spec={mode === 'create' ? sessionCreateSpec : sessionEditSpec}
-      isNew={mode === 'create'}
+      spec={isNew ? sessionCreateSpec : sessionEditSpec}
+      isNew={isNew}
       clientErrors={clientErrors}
-      submitLabel={mode === 'create' ? tsave('session') : tsave('changes')}
-      savedMessage={mode === 'create' ? tsave('sessionCreated') : tsave('sessionSaved')}
+      submitLabel={isNew ? tsave('session') : tsave('changes')}
+      savedMessage={isNew ? tsave('sessionCreated') : tsave('sessionSaved')}
       confirm={confirm}
     >
       <SelectField
@@ -237,7 +232,7 @@ export function SessionForm({
             setCapacity(event.target.value)
           }}
         />
-        {mode === 'edit' && (
+        {!isNew && (
           <TextField
             name="unnamedBookings"
             inputMode="numeric"

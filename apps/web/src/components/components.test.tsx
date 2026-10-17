@@ -430,7 +430,7 @@ describe('the session form checks itself as the user types', () => {
   const renderForm = (over: Partial<Parameters<typeof SessionForm>[0]> = {}) =>
     renderClient(
       <SessionForm
-        mode="create"
+        isNew
         action={vi.fn()}
         cancelHref="/sessions"
         heading={{ title: 'New session' }}
@@ -527,7 +527,7 @@ describe('the session form checks itself as the user types', () => {
     vi.mocked(checkSessionSlotAction).mockResolvedValue(null)
     const user = userEvent.setup()
     renderForm({
-      mode: 'edit',
+      isNew: false,
       self: 'T016',
       named: 3,
       defaults: { ...defaultsOf('room_aula_a'), capacity: 10, unnamedBookings: 5 },

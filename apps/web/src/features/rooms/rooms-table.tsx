@@ -5,15 +5,13 @@ import { UTILISATION_DAYS } from '@muni/domain/rooms'
 import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { Meter } from '@muni/ui/meter'
-import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent, PLACEHOLDER } from '@muni/utils/format'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { usePaginationLabels } from '@/components/pagination-labels'
-import { RowActions } from '@/components/record-actions'
 import { CapabilityList, RoomKindBadge } from '@/components/room-badges'
+import { nameColumn, rowActionsColumn } from '@/components/table-columns'
 
 const col = createDataColumns<RoomListItem>()
 
@@ -35,16 +33,10 @@ export function RoomsTable({
   const columns = useMemo(
     () =>
       col.columns([
-        col.accessor('name', {
+        nameColumn(col, {
           header: t('columns.name'),
-          // On a phone the table scrolls sideways; the name stays in view.
-          meta: { sticky: 'left' },
-          sortFn: 'text',
-          cell: ({ row }) => (
-            <TextLink asChild emphasis>
-              <Link href={`/rooms/${row.original.id}`}>{row.original.name}</Link>
-            </TextLink>
-          ),
+          name: r => r.name,
+          href: r => `/rooms/${r.id}`,
         }),
         col.accessor(r => tk(r.kind), {
           id: 'kind',
@@ -102,19 +94,12 @@ export function RoomsTable({
         }),
         ...(canEdit
           ? [
-              col.display({
-                id: 'actions',
-                header: () => <span className="sr-only">{tcommon('actions')}</span>,
-                meta: { headerClassName: 'w-0', align: 'right' },
-                cell: ({ row }) => (
-                  <RowActions
-                    kind="room"
-                    id={row.original.id}
-                    name={row.original.name}
-                    editHref={`/rooms/${row.original.id}/edit`}
-                  />
-                ),
-              }),
+              rowActionsColumn(col, tcommon('actions'), r => ({
+                kind: 'room',
+                id: r.id,
+                name: r.name,
+                editHref: `/rooms/${r.id}/edit`,
+              })),
             ]
           : []),
       ]),

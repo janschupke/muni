@@ -8,6 +8,7 @@ import { useMemo } from 'react'
 
 import { usePaginationLabels } from '@/components/pagination-labels'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
+import { hiddenHeader } from '@/components/table-columns'
 import { itemId } from '@/features/bookings/book-dialog'
 import { SessionCell } from '@/features/bookings/choice-cells'
 
@@ -56,7 +57,7 @@ export function PlannedTable({
           ? [
               col.display({
                 id: 'remove',
-                header: () => <span className="sr-only">{t('planned.cancel')}</span>,
+                header: hiddenHeader(t('planned.cancel')),
                 meta: { headerClassName: 'w-0' },
                 cell: ({ row }) => {
                   const { booked, need } = row.original

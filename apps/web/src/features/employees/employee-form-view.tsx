@@ -2,23 +2,18 @@
 
 import { displayName } from '@muni/domain/names'
 import { todayIn } from '@muni/utils/dates'
-import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
-import { BackLink } from '@/components/back-link'
 import { EmployeeForm } from '@/components/form/employee-form'
+import { formShell, useFormRead } from '@/components/form/form-view'
 import { ReadView } from '@/components/read-view'
 import { FormSkeleton } from '@/components/skeletons'
-import { FORM_READ, readQuery } from '@/lib/query/queries'
 import { saveEmployee } from '@/server/actions/edit'
 
 /** A new person (no `externalId`), or one to edit; the form opens once its choices are read. */
 export function EmployeeFormView({ externalId }: { externalId?: string | undefined }) {
   const t = useTranslations()
-  const read = useQuery({
-    ...readQuery('employee-form', { externalId }),
-    ...FORM_READ,
-  })
+  const read = useFormRead('employee-form', { externalId })
   return (
     <ReadView query={read} skeleton={<FormSkeleton fields={10} />} entity="employees">
       {({ employee, departments, positions, pairs, heads, managers }) => {
@@ -32,16 +27,13 @@ export function EmployeeFormView({ externalId }: { externalId?: string | undefin
         if (!employee)
           return (
             <EmployeeForm
-              isNew
-              action={saveEmployee.bind(null, null)}
-              cancelHref="/employees"
-              heading={{
+              {...formShell({
+                action: saveEmployee.bind(null, null),
+                back: { href: '/employees', label: t('employees.title') },
                 title: t('forms.employee.newTitle'),
-                eyebrow: (
-                  <BackLink fallback={{ href: '/employees', label: t('employees.title') }} />
-                ),
                 description: t('forms.employee.newHelp'),
-              }}
+                isNew: true,
+              })}
               defaults={{
                 firstName: '',
                 lastName: '',
@@ -63,12 +55,11 @@ export function EmployeeFormView({ externalId }: { externalId?: string | undefin
         const href = `/employees/${employee.externalId}`
         return (
           <EmployeeForm
-            action={saveEmployee.bind(null, employee.externalId)}
-            cancelHref={href}
-            heading={{
+            {...formShell({
+              action: saveEmployee.bind(null, employee.externalId),
+              back: { href, label: name },
               title: t('forms.employee.title', { name }),
-              eyebrow: <BackLink fallback={{ href, label: name }} />,
-            }}
+            })}
             defaults={employee}
             {...choices}
           />

@@ -6,7 +6,8 @@ import Link from 'next/link'
 
 import { ArchivedListLink } from '@/features/archive/archived-list-link'
 
-interface Create {
+/** A list's new record: where it is made, and the button's label. */
+export interface Create {
   href: string
   label: string
 }
@@ -36,6 +37,6 @@ export function ListActions({ kind, create }: { kind: Archivable; create?: Creat
  * A list with nothing in it, in place of its table: what is missing and, for whoever can
  * edit, the way to create the first one.
  */
-export function ListEmpty({ title, create }: { title: string; create?: Create | false }) {
+export function ListEmpty({ title, create }: { title: string; create?: Create | undefined }) {
   return <EmptyState title={title} action={create && <CreateButton create={create} />} />
 }

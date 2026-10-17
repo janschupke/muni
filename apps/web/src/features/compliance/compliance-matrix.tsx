@@ -421,6 +421,8 @@ function CellDialog({
       }
       closeLabel={tc('close')}
       returnFocusTo={returnFocusTo}
+      // Wide enough for the people's table with its dates and the booking column.
+      className="max-w-4xl"
       footer={
         canBook &&
         row &&
@@ -503,7 +505,7 @@ function CellPeople({
       rows={people.map(({ person, requirement }) => ({
         key: person.externalId,
         lead: (
-          <TextLink asChild hitArea>
+          <TextLink asChild hitArea className="whitespace-nowrap">
             <Link href={`/employees/${person.externalId}`}>{person.name}</Link>
           </TextLink>
         ),

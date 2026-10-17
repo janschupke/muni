@@ -4,10 +4,7 @@ import type { EmployeeListItem } from '@muni/db/repositories'
 import { needsBooking } from '@muni/domain/advisor'
 import { sortName } from '@muni/domain/names'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
-import { CellStack } from '@muni/ui/table'
-import { TextLink } from '@muni/ui/text-link'
 import { PLACEHOLDER } from '@muni/utils/format'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
@@ -16,9 +13,9 @@ import { BookNeedButton } from '@/features/bookings/book-button'
 import { HeldMeter } from './compliance-breakdown'
 import { OrgLink } from './org-links'
 import { usePaginationLabels } from './pagination-labels'
-import { RowActions } from './record-actions'
 import { RequirementPanel } from './requirement-panel'
 import { ComplianceBadge, EmploymentBadge } from './status-badges'
+import { hiddenHeader, nameColumn, rowActionsColumn } from './table-columns'
 
 const col = createDataColumns<EmployeeListItem>()
 
@@ -57,23 +54,11 @@ export function EmployeesTable({
     () =>
       col.columns([
         // Accessors only make the columns sortable here; the server does the ordering.
-        col.accessor(e => sortName(e), {
-          id: 'name',
+        nameColumn(col, {
           header: t('columns.name'),
-          // On a phone the table scrolls sideways; the name stays in view.
-          meta: { sticky: 'left' },
-          cell: ({ row }) => (
-            <CellStack
-              title={
-                <TextLink asChild emphasis>
-                  <Link href={`/employees/${row.original.externalId}`}>
-                    {row.original.lastName} {row.original.firstName}
-                  </Link>
-                </TextLink>
-              }
-              meta={row.original.externalId}
-            />
-          ),
+          name: sortName,
+          href: e => `/employees/${e.externalId}`,
+          meta: e => e.externalId,
         }),
         ...(omit === 'department'
           ? []
@@ -132,7 +117,7 @@ export function EmployeesTable({
           ? [
               col.display({
                 id: 'book',
-                header: () => <span className="sr-only">{t('panel.book')}</span>,
+                header: hiddenHeader(t('panel.book')),
                 meta: { headerClassName: 'w-0', nowrap: true },
                 cell: ({ row }) =>
                   row.original.requirements.some(r => needsBooking(r, row.original.status)) && (
@@ -146,19 +131,12 @@ export function EmployeesTable({
           : []),
         ...(canEdit
           ? [
-              col.display({
-                id: 'actions',
-                header: () => <span className="sr-only">{tcommon('actions')}</span>,
-                meta: { headerClassName: 'w-0', align: 'right' },
-                cell: ({ row }) => (
-                  <RowActions
-                    kind="employee"
-                    id={row.original.id}
-                    name={sortName(row.original)}
-                    editHref={`/employees/${row.original.externalId}/edit`}
-                  />
-                ),
-              }),
+              rowActionsColumn(col, tcommon('actions'), r => ({
+                kind: 'employee',
+                id: r.id,
+                name: sortName(r),
+                editHref: `/employees/${r.externalId}/edit`,
+              })),
             ]
           : []),
       ]),

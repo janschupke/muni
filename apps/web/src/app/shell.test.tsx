@@ -16,6 +16,7 @@ import { navigate, requestCookies, route, router } from '@/test/next'
 import { Providers, renderClient, renderServer, resolveServer } from '@/test/render'
 
 import ErrorPage from './error'
+import GlobalError from './global-error'
 import RootLayout, { generateMetadata } from './layout'
 import NotFound from './not-found'
 import DashboardPage from './page'
@@ -311,6 +312,51 @@ describe('error pages', () => {
     expect(screen.getByRole('link', { name: 'All employees' }).getAttribute('href')).toBe(
       '/employees'
     )
+  })
+
+  it('a failure of the whole app still says so, in its own document', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const error = Object.assign(new Error('boom'), { digest: '2731823015' })
+    let tag: unknown = null
+    // Rendered where a document cannot be: what its <html><body> holds, the app's failure.
+    function Inside() {
+      const page = GlobalError({ error, reset: vi.fn() })
+      tag = isValidElement(page) && page.type
+      const body = (page as { props: { children: { props: { children: ReactNode } } } }).props
+        .children
+      return body.props.children
+    }
+    renderClient(<Inside />)
+    expect(tag).toBe('html')
+    expect(screen.getByRole('heading', { level: 1 })).toBeTruthy()
+    expect(screen.getByText(/2731823015/)).toBeTruthy()
+  })
+
+  it('every record route has its own not-found page, leading back to its list', () => {
+    const pages = import.meta.glob<{ default: () => ReactNode }>('./*/*/not-found.tsx', {
+      eager: true,
+    })
+    const lists = Object.keys(pages).map(path => path.split('/')[1])
+    expect(lists.toSorted()).toEqual([
+      'courses',
+      'departments',
+      'employees',
+      'positions',
+      'providers',
+      'rooms',
+      'sessions',
+      'users',
+    ])
+    for (const [path, page] of Object.entries(pages)) {
+      const list = path.split('/')[1] ?? ''
+      route.pathname = `/${list}/X1`
+      const { unmount } = renderClient(<page.default />)
+      expect(screen.getByRole('heading', { level: 1 }).textContent, path).toMatch(/ not found$/)
+      expect(screen.getByRole('link', { name: /^All / }).getAttribute('href'), path).toBe(
+        `/${list}`
+      )
+      unmount()
+    }
   })
 
   it('an error is logged, shows its reference, and retries with fresh data', async () => {

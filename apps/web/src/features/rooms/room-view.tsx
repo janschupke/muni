@@ -8,36 +8,27 @@ import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
 import { Meter } from '@muni/ui/meter'
-import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent } from '@muni/utils/format'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { History } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { BackLink } from '@/components/back-link'
 import { ReadView } from '@/components/read-view'
-import { RecordActions } from '@/components/record-actions'
+import { RecordHeader, useRecordRead } from '@/components/record-view'
 import { CapabilityList, RoomKindBadge } from '@/components/room-badges'
 import { SessionTable } from '@/components/session-table'
 import { DetailSkeleton } from '@/components/skeletons'
 import { RoomFitTable } from '@/features/rooms/room-fit-table'
 import { SESSION_SORT } from '@/lib/list-keys'
-import { readQuery } from '@/lib/query/queries'
-import { useDocumentTitle } from '@/lib/query/use-document-title'
 import { type PageInfo, useListUrl } from '@/lib/use-list-url'
 import type { ReadOutput } from '@/server/reads/registry'
 
 /** A room's page: what it holds and has, a page of its sessions ahead, the courses it fits. */
 export function RoomView({ id, canEdit }: { id: string; canEdit: boolean }) {
   const sessions = useListUrl(SESSION_SORT, { id: 'date', desc: false }, 'sessions')
-  const read = useQuery({
-    ...readQuery('room', { id, ...sessions.input }),
-    placeholderData: keepPreviousData,
-  })
-  useDocumentTitle(read.data?.name)
+  const read = useRecordRead('room', { id, ...sessions.input }, room => room.name)
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="rooms">
       {data => <RoomDetail data={data} canEdit={canEdit} paging={sessions.paging} />}
@@ -61,20 +52,17 @@ function RoomDetail({
 
   return (
     <>
-      <PageHeader
-        eyebrow={<BackLink fallback={{ href: '/rooms', label: t('title') }} />}
+      <RecordHeader
+        list={{ href: '/rooms', label: t('title') }}
         title={room.name}
         description={<RoomKindBadge kind={room.kind} />}
-        actions={
-          canEdit && (
-            <RecordActions
-              kind="room"
-              id={room.id}
-              name={room.name}
-              editHref={`/rooms/${room.id}/edit`}
-              then="/rooms"
-            />
-          )
+        record={
+          canEdit && {
+            kind: 'room',
+            id: room.id,
+            name: room.name,
+            editHref: `/rooms/${room.id}/edit`,
+          }
         }
       />
       <SplitLayout

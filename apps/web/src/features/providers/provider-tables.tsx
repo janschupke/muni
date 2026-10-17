@@ -12,6 +12,7 @@ import { useMemo } from 'react'
 import { PersonLink, personText, RecordLink } from '@/components/archived'
 import { CompletionActions } from '@/components/completion-tables'
 import { usePaginationLabels } from '@/components/pagination-labels'
+import { actionsColumn } from '@/components/table-columns'
 
 type CourseRow = ProviderDetail['byCourse'][number]
 type CompletionRow = ProviderDetail['completionList'][number]
@@ -179,20 +180,13 @@ export function ProviderCompletionsTable({
           : []),
         ...(canEdit
           ? [
-              completed.display({
-                id: 'actions',
-                header: () => <span className="sr-only">{t('common.actions')}</span>,
-                meta: { headerClassName: 'w-0', align: 'right' },
-                cell: ({ row }) => (
-                  <CompletionActions
-                    completion={row.original}
-                    personId={
-                      row.original.employee.archived ? null : row.original.employee.externalId
-                    }
-                    courseName={row.original.courseName}
-                  />
-                ),
-              }),
+              actionsColumn(completed, t('common.actions'), row => (
+                <CompletionActions
+                  completion={row}
+                  personId={row.employee.archived ? null : row.employee.externalId}
+                  courseName={row.courseName}
+                />
+              )),
             ]
           : []),
       ]),

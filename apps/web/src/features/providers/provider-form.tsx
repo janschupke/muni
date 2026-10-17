@@ -3,8 +3,8 @@
 import { FieldRow } from '@muni/ui/field'
 import { useTranslations } from 'next-intl'
 
-import { type FormHeading, FormShell, TextAreaField, TextField } from '@/components/form/form-shell'
-import type { FormState } from '@/lib/form'
+import type { FormProps } from '@/components/form/form-props'
+import { FormShell, TextAreaField, TextField } from '@/components/form/form-shell'
 import { providerSpec } from '@/lib/form-inputs'
 
 export interface ProviderDefaults {
@@ -19,12 +19,8 @@ export interface ProviderDefaults {
 export function ProviderForm({
   defaults,
   ...shell
-}: {
-  action: (state: FormState, form: FormData) => Promise<FormState>
-  cancelHref: string
-  heading: FormHeading
+}: FormProps & {
   defaults: ProviderDefaults
-  isNew?: boolean | undefined
 }) {
   const tsave = useTranslations('forms.save')
   const t = useTranslations('providers.form')

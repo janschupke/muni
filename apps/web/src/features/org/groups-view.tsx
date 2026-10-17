@@ -1,28 +1,18 @@
 'use client'
 
-import type { Page } from '@muni/db/repositories'
-import { PageHeader } from '@muni/ui/page-header'
-import { keepPreviousData, useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import type { ReactNode } from 'react'
 
-import { ListActions, ListEmpty } from '@/components/list-actions'
-import { ReadView } from '@/components/read-view'
+import { ListView, useListRead } from '@/components/list-view'
 import { TableSkeleton } from '@/components/skeletons'
 import { GROUP_SORT } from '@/lib/list-keys'
-import { readQuery } from '@/lib/query/queries'
 import { useListUrl } from '@/lib/use-list-url'
 
 import { GroupsTable } from './groups-table'
 
+type Kind = 'departments' | 'positions'
+
 /** The departments or the positions, each with its people and compliance, a page at a time. */
-export function GroupsView({
-  kind,
-  canEdit,
-}: {
-  kind: 'departments' | 'positions'
-  canEdit: boolean
-}) {
+export function GroupsView({ kind, canEdit }: { kind: Kind; canEdit: boolean }) {
   return kind === 'departments' ? (
     <DepartmentsList canEdit={canEdit} />
   ) : (
@@ -30,14 +20,28 @@ export function GroupsView({
   )
 }
 
+/** What both lists share but their rows. */
+function useGroupList(kind: Kind, canEdit: boolean) {
+  const t = useTranslations(kind)
+  return {
+    list: useListUrl(GROUP_SORT),
+    view: {
+      kind: kind === 'departments' ? ('department' as const) : ('position' as const),
+      title: t('title'),
+      description: t('description'),
+      empty: t('empty'),
+      canEdit,
+      create: { href: `/${kind}/new`, label: t('new') },
+      skeleton: <TableSkeleton columns={4} />,
+      totalOf: (groups: { total: number }) => groups.total,
+    },
+  }
+}
+
 function DepartmentsList({ canEdit }: { canEdit: boolean }) {
-  const list = useListUrl(GROUP_SORT)
-  const read = useQuery({
-    ...readQuery('departments-list', list.input),
-    placeholderData: keepPreviousData,
-  })
+  const { list, view } = useGroupList('departments', canEdit)
   return (
-    <GroupsPage kind="departments" canEdit={canEdit} read={read}>
+    <ListView {...view} read={useListRead('departments-list', list.input)}>
       {groups => (
         <GroupsTable
           kind="departments"
@@ -46,18 +50,14 @@ function DepartmentsList({ canEdit }: { canEdit: boolean }) {
           canEdit={canEdit}
         />
       )}
-    </GroupsPage>
+    </ListView>
   )
 }
 
 function PositionsList({ canEdit }: { canEdit: boolean }) {
-  const list = useListUrl(GROUP_SORT)
-  const read = useQuery({
-    ...readQuery('positions-list', list.input),
-    placeholderData: keepPreviousData,
-  })
+  const { list, view } = useGroupList('positions', canEdit)
   return (
-    <GroupsPage kind="positions" canEdit={canEdit} read={read}>
+    <ListView {...view} read={useListRead('positions-list', list.input)}>
       {groups => (
         <GroupsTable
           kind="positions"
@@ -66,42 +66,6 @@ function PositionsList({ canEdit }: { canEdit: boolean }) {
           canEdit={canEdit}
         />
       )}
-    </GroupsPage>
-  )
-}
-
-function GroupsPage<G>({
-  kind,
-  canEdit,
-  read,
-  children,
-}: {
-  kind: 'departments' | 'positions'
-  canEdit: boolean
-  read: UseQueryResult<Page<G>>
-  children: (groups: Page<G>) => ReactNode
-}) {
-  const t = useTranslations(kind)
-  const create = canEdit && { href: `/${kind}/new`, label: t('new') }
-  return (
-    <>
-      <PageHeader
-        title={t('title')}
-        description={t('description')}
-        actions={
-          create && (
-            <ListActions
-              kind={kind === 'departments' ? 'department' : 'position'}
-              create={create}
-            />
-          )
-        }
-      />
-      <ReadView titled query={read} skeleton={<TableSkeleton columns={4} />}>
-        {groups =>
-          groups.total === 0 ? <ListEmpty title={t('empty')} create={create} /> : children(groups)
-        }
-      </ReadView>
-    </>
+    </ListView>
   )
 }

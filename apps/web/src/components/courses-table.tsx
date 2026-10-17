@@ -3,18 +3,15 @@
 import type { CourseListItem } from '@muni/db/repositories'
 import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
-import { CellStack } from '@muni/ui/table'
-import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent, PLACEHOLDER } from '@muni/utils/format'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { ComplianceBar } from './compliance-breakdown'
 import { CoursePanel } from './course-panel'
 import { usePaginationLabels } from './pagination-labels'
-import { RowActions } from './record-actions'
 import { RequirementList } from './requirement-list'
+import { nameColumn, rowActionsColumn } from './table-columns'
 
 const col = createDataColumns<CourseListItem>()
 
@@ -36,21 +33,11 @@ export function CoursesTable({
   const columns = useMemo(
     () =>
       col.columns([
-        col.accessor('name', {
+        nameColumn(col, {
           header: t('columns.name'),
-          // On a phone the table scrolls sideways; the name stays in view.
-          meta: { sticky: 'left' },
-          sortFn: 'text',
-          cell: ({ row }) => (
-            <CellStack
-              title={
-                <TextLink asChild emphasis>
-                  <Link href={`/courses/${row.original.code}`}>{row.original.name}</Link>
-                </TextLink>
-              }
-              meta={row.original.code}
-            />
-          ),
+          name: c => c.name,
+          href: c => `/courses/${c.code}`,
+          meta: c => c.code,
         }),
         // Courses that never expire sort after every finite validity.
         col.accessor(c => c.validityMonths ?? undefined, {
@@ -100,19 +87,12 @@ export function CoursesTable({
         }),
         ...(canEdit
           ? [
-              col.display({
-                id: 'actions',
-                header: () => <span className="sr-only">{tc('actions')}</span>,
-                meta: { headerClassName: 'w-0', align: 'right' },
-                cell: ({ row }) => (
-                  <RowActions
-                    kind="course"
-                    id={row.original.id}
-                    name={row.original.name}
-                    editHref={`/courses/${row.original.code}/edit`}
-                  />
-                ),
-              }),
+              rowActionsColumn(col, tc('actions'), r => ({
+                kind: 'course',
+                id: r.id,
+                name: r.name,
+                editHref: `/courses/${r.code}/edit`,
+              })),
             ]
           : []),
       ]),

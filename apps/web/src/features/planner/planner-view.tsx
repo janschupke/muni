@@ -32,6 +32,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useMemo, useState } from 'react'
 
 import { RoomLink } from '@/components/session-links'
+import { hiddenHeader } from '@/components/table-columns'
 
 // Loaded when needed: the review opens when an offer is chosen.
 const OfferReview = dynamic(() => import('./offer-review').then(m => m.OfferReview))
@@ -197,7 +198,7 @@ function OfferTable({
               col.display({
                 id: 'action',
                 // Named for screen readers; the buttons say what they do.
-                header: () => <span className="sr-only">{t('columns.action')}</span>,
+                header: hiddenHeader(t('columns.action')),
                 cell: ({ row }) => {
                   const offer = row.original
                   if (!offer.slot || !offer.room || offer.capacity === null) return null

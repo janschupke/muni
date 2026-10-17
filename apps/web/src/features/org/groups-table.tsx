@@ -6,18 +6,17 @@ import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-ta
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, PLACEHOLDER } from '@muni/utils/format'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo, useState } from 'react'
 
 import { PersonLink, personText } from '@/components/archived'
 import { HeldMeter } from '@/components/compliance-breakdown'
+import { useListRead } from '@/components/list-view'
 import { usePaginationLabels } from '@/components/pagination-labels'
 import { ReadView } from '@/components/read-view'
-import { RowActions } from '@/components/record-actions'
 import { TableSkeleton } from '@/components/skeletons'
-import { readQuery } from '@/lib/query/queries'
+import { nameColumn, rowActionsColumn } from '@/components/table-columns'
 
 import { MembersTable } from './members-table'
 
@@ -48,16 +47,10 @@ export function GroupsTable(
   const columns = useMemo(() => {
     const n = (value: number) => formatInteger(value, locale)
     return col.columns([
-      col.accessor('name', {
+      nameColumn(col, {
         header: t('columns.name'),
-        // On a phone the table scrolls sideways; the name stays in view.
-        meta: { sticky: 'left' },
-        sortFn: 'text',
-        cell: ({ row }) => (
-          <TextLink asChild emphasis>
-            <Link href={`/${kind}/${row.original.id}`}>{row.original.name}</Link>
-          </TextLink>
-        ),
+        name: g => g.name,
+        href: g => `/${kind}/${g.id}`,
       }),
       kind === 'departments'
         ? col.accessor(g => ('head' in g && g.head ? personText(g.head) : undefined), {
@@ -142,19 +135,12 @@ export function GroupsTable(
       }),
       ...(canEdit
         ? [
-            col.display({
-              id: 'actions',
-              header: () => <span className="sr-only">{tcommon('actions')}</span>,
-              meta: { headerClassName: 'w-0', align: 'right' },
-              cell: ({ row }) => (
-                <RowActions
-                  kind={kind === 'departments' ? 'department' : 'position'}
-                  id={row.original.id}
-                  name={row.original.name}
-                  editHref={`/${kind}/${row.original.id}/edit`}
-                />
-              ),
-            }),
+            rowActionsColumn(col, tcommon('actions'), r => ({
+              kind: kind === 'departments' ? 'department' : 'position',
+              id: r.id,
+              name: r.name,
+              editHref: `/${kind}/${r.id}/edit`,
+            })),
           ]
         : []),
     ])
@@ -192,10 +178,7 @@ function GroupMembers({
   canBook: boolean
 }) {
   const [page, setPage] = useState(1)
-  const read = useQuery({
-    ...readQuery('group-members', { kind, id: group.id, ...(page > 1 && { page }) }),
-    placeholderData: keepPreviousData,
-  })
+  const read = useListRead('group-members', { kind, id: group.id, ...(page > 1 && { page }) })
   return (
     <ReadView
       titled

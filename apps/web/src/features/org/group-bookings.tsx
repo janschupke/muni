@@ -5,19 +5,19 @@ import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-ta
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
 import { TextLink } from '@muni/ui/text-link'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { BackLink } from '@/components/back-link'
+import { useListRead } from '@/components/list-view'
 import { usePaginationLabels } from '@/components/pagination-labels'
 import { ReadView } from '@/components/read-view'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RoomLink, SessionDateLink } from '@/components/session-links'
 import { TableSkeleton } from '@/components/skeletons'
+import { actionsColumn } from '@/components/table-columns'
 import { BOOKING_SORT } from '@/lib/list-keys'
-import { readQuery } from '@/lib/query/queries'
 import { useDocumentTitle } from '@/lib/query/use-document-title'
 import { useListUrl } from '@/lib/use-list-url'
 
@@ -41,10 +41,7 @@ export function GroupBookingsView({
 }) {
   const t = useTranslations('org.bookings')
   const list = useListUrl(BOOKING_SORT, { id: 'date', desc: false })
-  const read = useQuery({
-    ...readQuery('group-bookings', { kind, id, ...list.input }),
-    placeholderData: keepPreviousData,
-  })
+  const read = useListRead('group-bookings', { kind, id, ...list.input })
   const title = read.data && `${t('title')}: ${read.data.name}`
   useDocumentTitle(title)
   return (
@@ -137,22 +134,16 @@ function BookingsTable({
         }),
         ...(canEdit
           ? [
-              col.display({
-                id: 'actions',
-                header: () => <span className="sr-only">{tc('actions')}</span>,
-                meta: { headerClassName: 'w-0', align: 'right' },
-                cell: ({ row }) => {
-                  const b = row.original
-                  const names = { name: b.person.name, course: b.courseName }
-                  return (
-                    <RemoveBookingButton
-                      sessionExternalId={b.sessionExternalId}
-                      employeeExternalId={b.person.externalId}
-                      label={t('remove', names)}
-                      confirmTitle={t('removeConfirm', names)}
-                    />
-                  )
-                },
+              actionsColumn(col, tc('actions'), b => {
+                const names = { name: b.person.name, course: b.courseName }
+                return (
+                  <RemoveBookingButton
+                    sessionExternalId={b.sessionExternalId}
+                    employeeExternalId={b.person.externalId}
+                    label={t('remove', names)}
+                    confirmTitle={t('removeConfirm', names)}
+                  />
+                )
               }),
             ]
           : []),

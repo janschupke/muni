@@ -1,5 +1,4 @@
-import { NotFoundMessage } from '@/components/not-found-message'
+import { notFoundOf } from '@/components/not-found-page'
 
-export default function NotFound() {
-  return <NotFoundMessage entity="employees" />
-}
+/** A employee record that is not there (or archived). */
+export default notFoundOf('employees')

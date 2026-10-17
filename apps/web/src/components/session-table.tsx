@@ -11,11 +11,11 @@ import { useMemo } from 'react'
 
 import { RecordLink } from './archived'
 import { usePaginationLabels } from './pagination-labels'
-import { RowActions } from './record-actions'
 import { SeatMeter } from './seat-meter'
 import { SessionAttendees, SessionFacts } from './session-details'
 import { RoomLink, SessionDateLink } from './session-links'
 import { SessionStatusBadge } from './status-badges'
+import { rowActionsColumn } from './table-columns'
 
 const col = createDataColumns<SessionListItem>()
 
@@ -131,19 +131,12 @@ export function SessionTable({
             ]),
         ...(canEdit && !compact
           ? [
-              col.display({
-                id: 'actions',
-                header: () => <span className="sr-only">{tc('actions')}</span>,
-                meta: { headerClassName: 'w-0', align: 'right' },
-                cell: ({ row }) => (
-                  <RowActions
-                    kind="session"
-                    id={row.original.id}
-                    name={`${row.original.externalId} · ${row.original.courseName}`}
-                    editHref={`/sessions/${row.original.externalId}/edit`}
-                  />
-                ),
-              }),
+              rowActionsColumn(col, tc('actions'), r => ({
+                kind: 'session',
+                id: r.id,
+                name: `${r.externalId} · ${r.courseName}`,
+                editHref: `/sessions/${r.externalId}/edit`,
+              })),
             ]
           : []),
       ]),

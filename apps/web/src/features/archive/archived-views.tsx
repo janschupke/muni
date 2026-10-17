@@ -8,13 +8,14 @@ import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
 import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Archive } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
 import { ArchivedBadge, UserName } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
+import { useListRead } from '@/components/list-view'
 import { ReadView } from '@/components/read-view'
 import { ArchivedRecordSkeleton, TableSkeleton } from '@/components/skeletons'
 import { UnarchiveButton } from '@/components/unarchive-button'
@@ -40,10 +41,7 @@ export function ArchivedListView({ kind }: { kind: Archivable }) {
   const t = useTranslations('archive')
   const tk = useTranslations('archive.kinds')
   const list = useListUrl(ARCHIVED_SORT, { id: 'archivedAt', desc: true })
-  const read = useQuery({
-    ...readQuery('archived-list', { kind, ...list.input }),
-    placeholderData: keepPreviousData,
-  })
+  const read = useListRead('archived-list', { kind, ...list.input })
   return (
     <>
       <PageHeader

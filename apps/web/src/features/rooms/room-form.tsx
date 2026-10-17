@@ -5,24 +5,20 @@ import { FieldRow } from '@muni/ui/field'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
+import type { FormProps } from '@/components/form/form-props'
 import {
   CheckboxGroupField,
-  type FormHeading,
   FormShell,
   SelectField,
   TextAreaField,
   TextField,
 } from '@/components/form/form-shell'
-import type { FormState } from '@/lib/form'
 import { roomSpec } from '@/lib/form-inputs'
 
 export function RoomForm({
   defaults,
   ...shell
-}: {
-  action: (state: FormState, form: FormData) => Promise<FormState>
-  cancelHref: string
-  heading: FormHeading
+}: FormProps & {
   defaults: {
     name: string
     kind: RoomKind
@@ -30,7 +26,6 @@ export function RoomForm({
     capabilities: readonly Capability[]
     note: string | null
   }
-  isNew?: boolean | undefined
 }) {
   const tsave = useTranslations('forms.save')
   const t = useTranslations('rooms.form')

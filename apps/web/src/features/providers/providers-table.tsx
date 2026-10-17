@@ -2,14 +2,12 @@
 
 import type { ProviderListItem } from '@muni/db/repositories'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
-import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatDate, formatInteger, PLACEHOLDER } from '@muni/utils/format'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { usePaginationLabels } from '@/components/pagination-labels'
-import { RowActions } from '@/components/record-actions'
+import { nameColumn, rowActionsColumn } from '@/components/table-columns'
 
 const col = createDataColumns<ProviderListItem>()
 
@@ -34,17 +32,7 @@ export function ProvidersTable({
   const columns = useMemo(
     () =>
       col.columns([
-        col.accessor('name', {
-          header: t('name'),
-          // On a phone the table scrolls sideways; the name stays in view.
-          meta: { sticky: 'left' },
-          sortFn: 'text',
-          cell: ({ row }) => (
-            <TextLink asChild emphasis>
-              <Link href={`/providers/${row.original.id}`}>{row.original.name}</Link>
-            </TextLink>
-          ),
-        }),
+        nameColumn(col, { header: t('name'), name: p => p.name, href: p => `/providers/${p.id}` }),
         col.accessor(p => p.companyId ?? undefined, {
           id: 'companyId',
           header: t('companyId'),
@@ -93,19 +81,12 @@ export function ProvidersTable({
         }),
         ...(canEdit
           ? [
-              col.display({
-                id: 'actions',
-                header: () => <span className="sr-only">{tcommon('actions')}</span>,
-                meta: { headerClassName: 'w-0', align: 'right' },
-                cell: ({ row }) => (
-                  <RowActions
-                    kind="provider"
-                    id={row.original.id}
-                    name={row.original.name}
-                    editHref={`/providers/${row.original.id}/edit`}
-                  />
-                ),
-              }),
+              rowActionsColumn(col, tcommon('actions'), r => ({
+                kind: 'provider',
+                id: r.id,
+                name: r.name,
+                editHref: `/providers/${r.id}/edit`,
+              })),
             ]
           : []),
       ]),

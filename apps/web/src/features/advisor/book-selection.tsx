@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { type ReactNode, useMemo, useState } from 'react'
 
+import { hiddenHeader } from '@/components/table-columns'
 import { BookButton } from '@/features/bookings/book-button'
 import { itemId } from '@/features/bookings/book-dialog'
 import { scheduleHref } from '@/features/bookings/choice-cells'
@@ -54,7 +55,7 @@ export function useBookSelection({
         ? [
             col.display({
               id: 'book',
-              header: () => <span className="sr-only">{tc('remedy')}</span>,
+              header: hiddenHeader(tc('remedy')),
               // Pinned: the session column can be wide, and booking must stay in reach.
               meta: { nowrap: true, sticky: 'right', headerClassName: 'w-0' },
               cell: ({ row }) => (
