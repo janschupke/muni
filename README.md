@@ -91,16 +91,34 @@ Internal packages ship TypeScript source (`exports` point at `src/`); Next compi
     against seats there, each needed piece of equipment held or lacking), then the first reason
     it fails, in numbers ("Needs 100 seats, has 40").
   - **An online room:** judged only on whether the course may be held online.
-- **What a session needs:** `Course.sessionMinutes`, `groupSize`, `onlineAllowed` and its
-  capabilities. Every sessions import derives them from the course's sessions (usual length,
-  median size, online if ever held online) until someone sets them in the course form
-  (`needsManual`); after that imports leave them alone.
-- **Sessions created in the app** are checked on the server, under a lock: the room must suit
-  the course (online allowed, its equipment, a seat for every place the session opens) and
-  no other planned session may hold it then (online rooms never clash).
-- **Department heads** are not stored: the head is the member with the most other members
-  anywhere beneath them in the reporting chain (so a head over two team leads outranks
-  either lead); when no member manages another, the outside manager most members report to.
+- **What a session needs:** `Course.sessionMinutes`, `groupSize`, `onlineAllowed` (what
+  every sessions import derives from the course's sessions: usual length, median size, online
+  if ever held online) next to `…Override` columns the course form sets, which imports never
+  touch. The effective need is the override, else the derived value (`effectiveNeeds`).
+  Equipment is only set in the app.
+- **Sessions** are checked on the server, under the sessions lock and the session's row lock:
+  the room must suit the course (online allowed, its equipment, a seat for every place the
+  session opens), no other planned session may hold it then (online rooms never clash), and
+  the seats never drop below the bookings (unnamed plus named). `sessionIssues` in
+  `@muni/domain/sessions` holds the rules, and the session form runs it as the user types.
+  A room or course edit that would leave upcoming sessions unfit is refused with the count.
+- **Positions and departments:** a position is a title shared by departments ("Vedoucí" in
+  every one), so `department_positions` lists the departments each position exists in, and a
+  person's (department, position) pair must be one of them (a composite foreign key).
+  Imports add the pairs their rows hold; the position form edits them, and refuses to drop a
+  department where people still hold the position.
+- **Department heads:** `Employee.leadsDepartment`, unique per department among active
+  people (a partial index) and only for someone in one (a CHECK). Set on the department's
+  form or the person's; moving or archiving the head leaves the department without one.
+  Heads were filled once from the reporting lines (`fillDepartmentHeads`, which the seed
+  runs too).
+- **Leaving is a date:** `EmploymentStatus` is `ACTIVE` or `PARENTAL_LEAVE`; someone has
+  left from their `leftOn` on (`stillEmployed`, `employmentState`), and stops counting then.
+- **CHECKs** keep single-row rules whatever writes: sessions end after they start, nobody
+  leaves before they were hired or manages themselves, validity never ends before the
+  completion, prices are not negative, validity and override sizes are positive.
+- **Names** of departments, positions, providers and rooms are `citext`: unique whatever the
+  case. Imports match them ignoring case and accents too.
 
 Source IDs (`E0001`,
 `T001`, `Z000001`) are kept as `externalId`, and imports upsert on them, so re-importing a file
@@ -157,7 +175,10 @@ them back from there.
 Forms put the page heading inside the form, with Cancel and Save on its right, and the
 fields in one full-width card. Dates and times are typed or picked: `DatePicker` (a calendar
 on Radix Popover, driven fully from the keyboard) and `TimePicker` (hour and minute lists),
-both posting ISO dates and `HH:mm`.
+both posting ISO dates and `HH:mm`. Forms pick records by id from selects, never by a typed
+name: a new provider is named on purpose ("New provider…"). A form can show errors it finds
+itself (`clientErrors` on `FormShell`): the session form checks the room, seats, course and
+times as they change, and asks the server whether the room is free then.
 
 Pages are built from `@muni/ui` primitives, one subpath export each (`@muni/ui/select`,
 `@muni/ui/data-table`, …). Primitives that wrap a link take `asChild`
@@ -238,7 +259,7 @@ Providers (`/providers`) list who delivered the completions on record:
 
 - **Each provider shows:** its IČO, its completions, people and courses, what was spent and the last completion.
 - **Its page adds:** contact details, a breakdown by course and the latest 20 completions; the employee's completion history links to it.
-- **Records:** imports and the completion form still create a provider by name. Its details (IČO with its check digit, email, phone, website, note) are entered in the app, and imports leave them alone.
+- **Records:** imports create a provider by name (matched ignoring case and accents); the completion form picks one, or names a new one on purpose and is refused if that name is taken. Its details (IČO with its check digit, email, phone, website, note) are entered in the app, and imports leave them alone.
 - **Rename and archive:** renaming changes the name on every completion. An archived provider stays on its completions, shown muted.
 - **Prices:** the spend follows the `completion.price` policy. A viewer who may not see prices sees no sums of them either.
 
@@ -319,6 +340,11 @@ The wizard at `/import` follows the same flow as ceum: upload, review, confirm, 
   is a lab), sized by the largest session held there; spelling variants of a known room are
   unified, in a rooms file too. A rooms file without an equipment column leaves equipment as
   it is.
+- **Same rules as the forms, as warnings:** a planned session in a room too small for it
+  (`ROOM_TOO_SMALL`), lacking what the course needs (`ROOM_UNSUITABLE`) or taken then by
+  another (`ROOM_BUSY`); a manager link that would make someone manage themselves is
+  dropped (`MANAGER_CYCLE`). Each department, position and provider the import will create is
+  named once (`WILL_CREATE`). Someone who left needs a leaving date (`LEFT_WITHOUT_DATE`).
 - **Commit:** in dependency order (rooms, courses, employees, sessions, completions), in
   chunks of 500.
   The server re-validates every record with the domain schemas before writing.
