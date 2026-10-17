@@ -152,7 +152,7 @@
       "status": "Pracovní poměr",
       "compliance": "Má školení",
       "any": "Vše",
-      "apply": "Filtrovat",
+      "apply": "Hledat",
       "reset": "Zrušit filtry",
       "manager": "Přímí podřízení: {name}",
       "clearManager": "Odebrat tento filtr",

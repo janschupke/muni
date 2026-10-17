@@ -7,7 +7,7 @@ import { Field, Input } from '@muni/ui/field'
 import { IconButton } from '@muni/ui/icon-button'
 import { Select } from '@muni/ui/select'
 import { Toolbar, ToolbarChip, ToolbarSummary } from '@muni/ui/toolbar'
-import { Filter, FilterX, Search, SlidersHorizontal, X } from 'lucide-react'
+import { ChevronDown, FilterX, Search, SlidersHorizontal, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -97,6 +97,10 @@ export function EmployeeFilters({
         >
           <SlidersHorizontal aria-hidden />
           {t('filters.toggle', { count: applied })}
+          <ChevronDown
+            aria-hidden
+            className={cn('motion-safe:transition-transform', open && 'rotate-180')}
+          />
         </Button>
         {/* On a phone the four selects fold away behind the button; from `sm` up they sit in the row. */}
         <div
@@ -171,8 +175,9 @@ export function EmployeeFilters({
             {manager.label}
           </ToolbarChip>
         )}
+        {/* The selects apply as they change; this sends the search box. */}
         <Button type="submit" variant="primary">
-          <Filter aria-hidden />
+          <Search aria-hidden />
           {t('filters.apply')}
         </Button>
         <Button asChild variant="ghost">

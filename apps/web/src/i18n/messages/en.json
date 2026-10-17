@@ -152,7 +152,7 @@
       "status": "Employment",
       "compliance": "Has training",
       "any": "Any",
-      "apply": "Filter",
+      "apply": "Search",
       "reset": "Reset",
       "manager": "Direct reports of {name}",
       "clearManager": "Remove this filter",

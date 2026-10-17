@@ -206,7 +206,7 @@ describe('employee list', () => {
     const user = userEvent.setup()
     await renderServer(EmployeesPage(search({ sort: 'name', page: '3' })))
     await user.type(screen.getByRole('searchbox', { name: 'Search' }), '  Novák  ')
-    await user.click(screen.getByRole('button', { name: 'Filter' }))
+    await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(router.replace).toHaveBeenLastCalledWith('/employees?q=Nov%C3%A1k&sort=name', {
       scroll: false,
     })
@@ -580,6 +580,10 @@ describe('employee filters on a phone', () => {
     expect(panel?.className).toContain('sm:contents')
     await userEvent.setup().click(toggle)
     expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    // Its chevron turns to say it is open.
+    expect(toggle.querySelector('svg.lucide-chevron-down')?.getAttribute('class')).toContain(
+      'rotate-180'
+    )
     expect(panel?.className).not.toContain('hidden')
     expect(within(panel as HTMLElement).getAllByRole('combobox')).toHaveLength(4)
   })
