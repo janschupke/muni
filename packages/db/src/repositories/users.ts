@@ -25,9 +25,20 @@ export interface UserListItem {
   email: string | null
   name: string | null
   role: Role
-  lastSignInAt: Date | null
-  createdAt: Date
+  /** ISO timestamps: the list goes to the browser as JSON. */
+  lastSignInAt: string | null
+  createdAt: string
 }
+
+const listItemOf = <T extends { lastSignInAt: Date | null; createdAt: Date }>({
+  lastSignInAt,
+  createdAt,
+  ...rest
+}: T) => ({
+  ...rest,
+  lastSignInAt: lastSignInAt?.toISOString() ?? null,
+  createdAt: createdAt.toISOString(),
+})
 
 const RECORD = {
   id: true,
@@ -104,8 +115,8 @@ export async function upsertUserFromClerk(
 }
 
 /** Everyone who has signed in (or booked a seat before users existed), admins first. */
-export function listUsers(options?: RepoOptions): Promise<UserListItem[]> {
-  return dbOf(options).user.findMany({
+export async function listUsers(options?: RepoOptions): Promise<UserListItem[]> {
+  const users = await dbOf(options).user.findMany({
     where: ACTIVE,
     select: {
       id: true,
@@ -119,6 +130,7 @@ export function listUsers(options?: RepoOptions): Promise<UserListItem[]> {
     // The enum's declared order is VIEWER, FULL, ADMIN.
     orderBy: [{ role: 'desc' }, { name: 'asc' }, { email: 'asc' }],
   })
+  return users.map(listItemOf)
 }
 
 export interface UserDetail extends UserListItem {
@@ -143,7 +155,7 @@ export async function getUser(id: string, options?: RepoOptions): Promise<UserDe
   })
   if (!user) return null
   const { _count, ...rest } = user
-  return { ...rest, bookingsMade: _count.assignments }
+  return { ...listItemOf(rest), bookingsMade: _count.assignments }
 }
 
 export type RoleChange =

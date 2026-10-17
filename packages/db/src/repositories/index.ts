@@ -63,6 +63,7 @@ export {
   type Page,
   type TeamMember,
 } from './employees'
+export { recordExists } from './exists'
 export {
   fillDepartmentHeads,
   getDepartmentForEdit,

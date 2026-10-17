@@ -40,6 +40,7 @@ import {
   listProviders,
   listRoomOptions,
   listSessions,
+  recordExists,
   unarchiveRecord,
 } from './repositories'
 import { loadCompliance } from './repositories/context'
@@ -672,8 +673,30 @@ describe('archived records, for admins', () => {
       ['position', position.id, `${NAME} pozice L`],
       ['user', user.id, null],
     ] as const
+    // A page finds its record by the key in its address: external IDs, a course code, ids.
+    const keys = {
+      completion: completion.id,
+      session: 'XA-S10',
+      employee: 'XA0010',
+      course: 'TEST-ARCH-L',
+      room,
+      provider: provider.id,
+      department: department.id,
+      position: position.id,
+      user: user.id,
+    }
+    for (const [kind] of records) {
+      expect(await recordExists(kind, keys[kind], options), kind).toBe(true)
+      expect(await recordExists(kind, 'nope', options), kind).toBe(false)
+    }
     for (const [kind, id] of records)
       expect(await archive(kind, id), kind).toMatchObject({ ok: true })
+    for (const [kind, id] of records) {
+      expect(await recordExists(kind, keys[kind], options), kind).toBe(false)
+      expect(await recordExists(kind, id, { ...options, archived: true }), kind).toBe(true)
+    }
+    expect(await recordExists('course', course.id, { ...options, archived: true })).toBe(true)
+    expect(await recordExists('room', 'nope', { ...options, archived: true })).toBe(false)
 
     for (const [kind, id, label] of records) {
       const listed = (await listArchived(kind, 'ADMIN', options)).find(i => i.id === id)
