@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 
 import { type FormHeading, FormShell, TextAreaField, TextField } from '@/components/form/form-shell'
 import type { FormState } from '@/lib/form'
+import { providerSpec } from '@/lib/form-inputs'
 
 export interface ProviderDefaults {
   name: string
@@ -23,16 +24,19 @@ export function ProviderForm({
   cancelHref: string
   heading: FormHeading
   defaults: ProviderDefaults
+  isNew?: boolean | undefined
 }) {
   const t = useTranslations('providers.form')
+  const tp = useTranslations('forms.placeholders')
   return (
-    <FormShell {...shell}>
+    <FormShell {...shell} spec={providerSpec}>
       <TextField
         name="name"
         label={t('name')}
         help={defaults.name ? t('nameHelp') : undefined}
         required
         defaultValue={defaults.name}
+        placeholder={tp('providerName')}
       />
       <FieldRow>
         <TextField
@@ -42,6 +46,7 @@ export function ProviderForm({
           inputMode="numeric"
           autoComplete="off"
           defaultValue={defaults.companyId ?? ''}
+          placeholder={tp('companyId')}
         />
         <TextField
           name="phone"
@@ -49,6 +54,7 @@ export function ProviderForm({
           label={t('phone')}
           autoComplete="off"
           defaultValue={defaults.phone ?? ''}
+          placeholder={tp('phone')}
         />
       </FieldRow>
       <FieldRow>
@@ -58,6 +64,7 @@ export function ProviderForm({
           label={t('email')}
           autoComplete="off"
           defaultValue={defaults.email ?? ''}
+          placeholder={tp('email')}
         />
         <TextField
           name="website"
@@ -66,9 +73,15 @@ export function ProviderForm({
           help={t('websiteHelp')}
           autoComplete="off"
           defaultValue={defaults.website ?? ''}
+          placeholder={tp('website')}
         />
       </FieldRow>
-      <TextAreaField name="note" label={t('note')} defaultValue={defaults.note ?? undefined} />
+      <TextAreaField
+        name="note"
+        label={t('note')}
+        defaultValue={defaults.note ?? undefined}
+        placeholder={tp('note')}
+      />
     </FormShell>
   )
 }

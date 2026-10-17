@@ -176,9 +176,29 @@ Forms put the page heading inside the form, with Cancel and Save on its right, a
 fields in one full-width card. Dates and times are typed or picked: `DatePicker` (a calendar
 on Radix Popover, driven fully from the keyboard) and `TimePicker` (hour and minute lists),
 both posting ISO dates and `HH:mm`. Forms pick records by id from selects, never by a typed
-name: a new provider is named on purpose ("New provider…"). A form can show errors it finds
-itself (`clientErrors` on `FormShell`): the session form checks the room, seats, course and
-times as they change, and asks the server whether the room is free then.
+name: a new provider is named on purpose ("New provider…").
+
+Forms check themselves as the user types, with the same reader and schema the server action
+runs on save (`apps/web/src/lib/form-inputs.ts`), so the browser and the server cannot
+disagree about what is valid:
+
+- **When a field shows its error:** once it has been left. A required field that is emptied
+  goes red at once, and after a save attempt every field shows its error. Once an error is
+  showing, it updates on every keystroke.
+- **Errors say what is wrong:** an email, phone, web address, birth number, course code,
+  date or time each have their own message. Limits carry their number ("Enter at most 720").
+- **A form with errors is not sent.** The first field with an error gets the focus, as it
+  does after the server refuses a save. A server error stays on its field until that field
+  changes, and a refused save keeps everything that was typed.
+- **Field state for styles and tests:** each field marks whether it changed (`data-dirty`),
+  was visited (`data-touched`) or is wrong (`data-invalid`).
+- **Save on an edit form** stays off until something differs from what was loaded.
+- **When the form opens,** the first field has the focus.
+- **Placeholders** show example values (`jana.novakova@firma.cz`, `BOZP-01`, a date in the
+  locale's order).
+- **Checks the form makes on its own** (`clientErrors` on `FormShell`): the session form
+  checks the room, seats, course and times as they change, and asks the server whether the
+  room is free then.
 
 Pages are built from `@muni/ui` primitives, one subpath export each (`@muni/ui/select`,
 `@muni/ui/data-table`, …). Primitives that wrap a link take `asChild`

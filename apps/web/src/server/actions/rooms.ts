@@ -1,19 +1,11 @@
 'use server'
 
 import { createRoom, type RoomWrite, updateRoom } from '@muni/db/repositories'
-import { roomSchema } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import {
-  fieldErrors,
-  formError,
-  type FormState,
-  list,
-  number,
-  refusedField,
-  text,
-} from '@/lib/form'
+import { formError, type FormState, refusedField } from '@/lib/form'
+import { parseForm, roomSpec } from '@/lib/form-inputs'
 import { requireAdmin } from '@/server/auth'
 
 const codeOf = (error: unknown) => (error as { code?: unknown } | null)?.code
@@ -25,15 +17,8 @@ export async function saveRoom(
   form: FormData
 ): Promise<FormState> {
   await requireAdmin()
-  const input = {
-    name: text(form, 'name'),
-    kind: text(form, 'kind'),
-    capacity: number(form, 'capacity'),
-    capabilities: list(form, 'capabilities'),
-    note: text(form, 'note'),
-  }
-  const parsed = roomSchema.safeParse(input)
-  if (!parsed.success) return fieldErrors(parsed.error, input)
+  const parsed = parseForm(roomSpec, form)
+  if (!parsed.ok) return parsed.state
   let saved: RoomWrite
   try {
     saved = id ? await updateRoom(id, parsed.data) : await createRoom(parsed.data)

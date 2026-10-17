@@ -16,6 +16,8 @@ export function Checkbox({
   checked,
   onCheckedChange,
   disabled,
+  'aria-invalid': invalid,
+  'aria-describedby': describedBy,
 }: {
   label: ReactNode
   name?: string | undefined
@@ -25,6 +27,8 @@ export function Checkbox({
   checked?: boolean | undefined
   onCheckedChange?: ((checked: boolean) => void) | undefined
   disabled?: boolean | undefined
+  'aria-invalid'?: boolean | undefined
+  'aria-describedby'?: string | undefined
 }) {
   const id = useId()
   return (
@@ -37,7 +41,9 @@ export function Checkbox({
         checked={checked}
         onCheckedChange={state => onCheckedChange?.(state === true)}
         disabled={disabled}
-        className="flex size-4 shrink-0 items-center justify-center rounded-sm border border-border-emphasis bg-control text-accent-fg disabled:opacity-60 data-[state=checked]:border-accent data-[state=checked]:bg-accent"
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
+        className="flex size-4 shrink-0 items-center justify-center rounded-sm border border-border-emphasis bg-control text-accent-fg disabled:opacity-60 aria-invalid:border-danger-fill data-[state=checked]:border-accent data-[state=checked]:bg-accent"
       >
         <CheckboxPrimitive.Indicator>
           <Check aria-hidden className="size-3" strokeWidth={3} />

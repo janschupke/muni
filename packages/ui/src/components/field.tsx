@@ -11,17 +11,24 @@ import { cn } from '../cn'
 
 /** Shared by Input, Textarea and the Select trigger. */
 export const controlClass =
-  'w-full rounded-md border border-border-default bg-control px-3 py-2 text-sm text-fg placeholder:text-fg-subtle hover:border-border-emphasis aria-invalid:border-danger-fill disabled:opacity-60'
+  'w-full rounded-md border border-border-default bg-control px-3 py-2 text-sm text-fg placeholder:text-fg-subtle hover:border-border-emphasis aria-invalid:border-danger-fill aria-invalid:focus-visible:outline-danger-fill disabled:opacity-60'
 
 /**
  * Label, control, help and error. The label wraps nothing: help and error are linked with
  * aria-describedby so they don't leak into the control's accessible name.
+ *
+ * In a form that tracks its fields, `name` marks the field (`data-field`) and `dirty` /
+ * `touched` say whether it changed or was visited (`data-dirty`, `data-touched`); with
+ * `data-invalid` they are there for styles and tests.
  */
 export function Field({
   label,
   help,
   error,
   required,
+  name,
+  dirty,
+  touched,
   children,
   className,
 }: {
@@ -29,6 +36,9 @@ export function Field({
   help?: ReactNode | undefined
   error?: ReactNode | undefined
   required?: boolean | undefined
+  name?: string | undefined
+  dirty?: boolean | undefined
+  touched?: boolean | undefined
   children: (props: {
     id: string
     'aria-describedby'?: string | undefined
@@ -43,7 +53,13 @@ export function Field({
   const describedBy =
     [help ? helpId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
+    <div
+      data-field={name}
+      data-dirty={dirty ? true : undefined}
+      data-touched={touched ? true : undefined}
+      data-invalid={error ? true : undefined}
+      className={cn('flex flex-col gap-1.5', className)}
+    >
       <label
         htmlFor={id}
         className={cn(
@@ -65,7 +81,7 @@ export function Field({
         </p>
       )}
       {error && (
-        <p id={errorId} className="text-xs text-danger-fg">
+        <p id={errorId} aria-live="polite" className="text-xs text-danger-fg">
           {error}
         </p>
       )}

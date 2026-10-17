@@ -6,11 +6,11 @@ import {
   saveDepartment,
   savePosition,
 } from '@muni/db/repositories'
-import { departmentSchema, positionSchema } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { fieldErrors, formError, type FormState, list, refusedField, text } from '@/lib/form'
+import { formError, type FormState, refusedField } from '@/lib/form'
+import { departmentSpec, parseForm, positionSpec } from '@/lib/form-inputs'
 import { requireAdmin } from '@/server/auth'
 
 /** A refused group write, on the field to change. */
@@ -46,9 +46,8 @@ export async function saveDepartmentAction(
   form: FormData
 ): Promise<FormState> {
   await requireAdmin()
-  const input = { name: text(form, 'name'), headId: text(form, 'headId') }
-  const parsed = departmentSchema.safeParse(input)
-  if (!parsed.success) return fieldErrors(parsed.error, input)
+  const parsed = parseForm(departmentSpec, form)
+  if (!parsed.ok) return parsed.state
   return finish(() => saveDepartment(id, parsed.data), '/departments')
 }
 
@@ -59,8 +58,7 @@ export async function savePositionAction(
   form: FormData
 ): Promise<FormState> {
   await requireAdmin()
-  const input = { name: text(form, 'name'), departmentIds: list(form, 'departmentIds') }
-  const parsed = positionSchema.safeParse(input)
-  if (!parsed.success) return fieldErrors(parsed.error, input)
+  const parsed = parseForm(positionSpec, form)
+  if (!parsed.ok) return parsed.state
   return finish(() => savePosition(id, parsed.data), '/positions')
 }

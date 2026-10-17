@@ -47,6 +47,8 @@ describe('DatePicker', () => {
     const { input, posted } = renderDate({ defaultValue: '2026-03-01' })
     expect(input.value).toBe('1. 3. 2026')
     expect(posted()).toBe('2026-03-01')
+    // Empty, it shows an example in the same order.
+    expect(input.getAttribute('placeholder')).toBe('31. 3. 2026')
   })
 
   it('reads a typed date on leaving the field, and posts what it cannot read as typed', async () => {

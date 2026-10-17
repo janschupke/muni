@@ -10,6 +10,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
 import type { FormState } from '@/lib/form'
+import { sessionCreateSpec, sessionEditSpec } from '@/lib/form-inputs'
 import { checkSessionSlotAction } from '@/server/actions/sessions'
 
 import {
@@ -80,6 +81,7 @@ export function SessionForm({
 }) {
   const t = useTranslations('forms.session')
   const ts = useTranslations('status')
+  const tp = useTranslations('forms.placeholders')
   const locale = useLocale()
 
   const [courseId, setCourseId] = useState(defaults.courseId)
@@ -199,6 +201,8 @@ export function SessionForm({
       action={action}
       cancelHref={cancelHref}
       heading={heading}
+      spec={mode === 'create' ? sessionCreateSpec : sessionEditSpec}
+      isNew={mode === 'create'}
       clientErrors={clientErrors}
     >
       <SelectField
@@ -280,6 +284,7 @@ export function SessionForm({
           inputMode="decimal"
           label={t('pricePerPerson', { currency: currencySymbol(locale) })}
           defaultValue={defaults.pricePerPerson ?? ''}
+          placeholder={tp('price')}
         />
       </FieldRow>
     </FormShell>

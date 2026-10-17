@@ -15,6 +15,7 @@ export default async function NewRoomPage() {
   const t = await getTranslations('rooms')
   return (
     <RoomForm
+      isNew
       action={saveRoom.bind(null, null)}
       cancelHref="/rooms"
       heading={{

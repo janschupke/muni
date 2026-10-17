@@ -32,6 +32,7 @@ export function RoleForm({
       <div className="flex flex-wrap items-end gap-2">
         <Field
           label={t('users.detail.role')}
+          required
           help={disabled ? t('forms.errors.own_role') : undefined}
           error={error ? t(`forms.errors.${error}`) : undefined}
           className="min-w-48 flex-1"

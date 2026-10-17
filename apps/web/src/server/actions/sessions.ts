@@ -12,15 +12,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import * as z from 'zod'
 
-import {
-  fieldErrors,
-  formError,
-  type FormState,
-  money,
-  number,
-  sessionProblem,
-  text,
-} from '@/lib/form'
+import { formError, type FormState, sessionProblem } from '@/lib/form'
+import { parseForm, sessionCreateSpec } from '@/lib/form-inputs'
 import { getSessionUser, requireAdmin } from '@/server/auth'
 
 export type CreateOutcome =
@@ -55,18 +48,8 @@ export async function createOfferedSession(input: SessionCreate): Promise<Create
  */
 export async function saveNewSession(_state: FormState, form: FormData): Promise<FormState> {
   await requireAdmin()
-  const input = {
-    courseId: text(form, 'courseId'),
-    date: text(form, 'date'),
-    startTime: text(form, 'startTime'),
-    endTime: text(form, 'endTime'),
-    roomId: text(form, 'roomId'),
-    capacity: number(form, 'capacity'),
-    pricePerPerson: money(form, 'pricePerPerson'),
-    status: text(form, 'status'),
-  }
-  const parsed = sessionCreateSchema.safeParse(input)
-  if (!parsed.success) return fieldErrors(parsed.error, input)
+  const parsed = parseForm(sessionCreateSpec, form)
+  if (!parsed.ok) return parsed.state
   let result: SessionWrite
   try {
     result = await createSession(parsed.data)

@@ -8,6 +8,14 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 import { type FormState, NEW_PROVIDER } from '@/lib/form'
+import {
+  completionSpec,
+  courseCreateSpec,
+  courseEditSpec,
+  departmentSpec,
+  employeeSpec,
+  positionSpec,
+} from '@/lib/form-inputs'
 
 import {
   CheckboxField,
@@ -27,6 +35,8 @@ interface FormProps {
   action: Action
   cancelHref: string
   heading: FormHeading
+  /** A new record: savable as it is (an edit needs a change first). */
+  isNew?: boolean | undefined
 }
 
 interface Option {
@@ -59,14 +69,14 @@ export function CourseForm({
   defaults: CourseDefaults
   departments: readonly Option[]
   positions: readonly Option[]
-  isNew?: boolean | undefined
 }) {
   const t = useTranslations('forms.course')
+  const tp = useTranslations('forms.placeholders')
   const tc = useTranslations('status.capability')
   const derived = (value: number | null) =>
     value === null ? t('derivedNone') : t('derivedValue', { value })
   return (
-    <FormShell {...shell}>
+    <FormShell {...shell} isNew={isNew} spec={isNew ? courseCreateSpec : courseEditSpec}>
       <FieldRow>
         {isNew && (
           <TextField
@@ -75,9 +85,16 @@ export function CourseForm({
             help={t('codeHelp')}
             required
             autoComplete="off"
+            placeholder={tp('code')}
           />
         )}
-        <TextField name="name" label={t('name')} required defaultValue={defaults.name} />
+        <TextField
+          name="name"
+          label={t('name')}
+          required
+          defaultValue={defaults.name}
+          placeholder={tp('courseName')}
+        />
       </FieldRow>
       <FieldRow>
         <TextField
@@ -86,6 +103,7 @@ export function CourseForm({
           help={t('validityHelp')}
           inputMode="numeric"
           defaultValue={defaults.validityMonths ?? ''}
+          placeholder={tp('months')}
         />
       </FieldRow>
       <FormSection title={t('audience')} description={t('audienceHelp')}>
@@ -192,6 +210,7 @@ export function EmployeeForm({
   heads: Readonly<Record<string, string>>
 }) {
   const t = useTranslations('forms.employee')
+  const tp = useTranslations('forms.placeholders')
   const ts = useTranslations('status.employment')
   const [departmentId, setDepartmentId] = useState(defaults.departmentId ?? '')
   const [positionId, setPositionId] = useState(defaults.positionId ?? '')
@@ -203,7 +222,7 @@ export function EmployeeForm({
   const head = departmentId ? heads[departmentId] : undefined
   const otherHead = head && !(defaults.leadsDepartment && departmentId === defaults.departmentId)
   return (
-    <FormShell {...shell}>
+    <FormShell {...shell} spec={employeeSpec}>
       <FieldRow>
         <TextField
           name="firstName"
@@ -211,6 +230,7 @@ export function EmployeeForm({
           required
           defaultValue={defaults.firstName}
           autoComplete="off"
+          placeholder={tp('firstName')}
         />
         <TextField
           name="lastName"
@@ -218,6 +238,7 @@ export function EmployeeForm({
           required
           defaultValue={defaults.lastName}
           autoComplete="off"
+          placeholder={tp('lastName')}
         />
       </FieldRow>
       <FieldRow>
@@ -227,6 +248,7 @@ export function EmployeeForm({
           label={t('email')}
           defaultValue={defaults.email ?? ''}
           autoComplete="off"
+          placeholder={tp('email')}
         />
         <TextField
           name="nationalId"
@@ -234,6 +256,7 @@ export function EmployeeForm({
           help={t('nationalIdHelp')}
           defaultValue={defaults.nationalId ?? ''}
           autoComplete="off"
+          placeholder={tp('nationalId')}
         />
       </FieldRow>
       <FormSection title={t('place')}>
@@ -307,7 +330,12 @@ export function EmployeeForm({
             defaultValue={defaults.leftOn}
           />
         </FieldRow>
-        <TextAreaField name="note" label={t('note')} defaultValue={defaults.note ?? ''} />
+        <TextAreaField
+          name="note"
+          label={t('note')}
+          defaultValue={defaults.note ?? ''}
+          placeholder={tp('note')}
+        />
       </FormSection>
     </FormShell>
   )
@@ -343,12 +371,22 @@ export function CompletionForm({
   defaults: CompletionDefaults
 }) {
   const t = useTranslations('forms.completion')
+  const tp = useTranslations('forms.placeholders')
   const locale = useLocale()
   const [courseId, setCourseId] = useState(defaults.courseId)
   const [provider, setProvider] = useState(defaults.providerId ?? '')
   const months = courses.find(c => c.id === courseId)?.validityMonths ?? null
+  const price = (
+    <TextField
+      name="price"
+      inputMode="decimal"
+      label={t('price', { currency: currencySymbol(locale) })}
+      defaultValue={defaults.price ?? ''}
+      placeholder={tp('price')}
+    />
+  )
   return (
-    <FormShell {...shell}>
+    <FormShell {...shell} spec={completionSpec}>
       {defaults.imported && <Alert tone="info">{t('importedHint')}</Alert>}
       <FieldRow>
         <SelectField
@@ -406,27 +444,19 @@ export function CompletionForm({
             help={t('newProviderHelp')}
             required
             autoComplete="off"
+            placeholder={tp('providerName')}
           />
         ) : (
-          <TextField
-            name="price"
-            inputMode="decimal"
-            label={t('price', { currency: currencySymbol(locale) })}
-            defaultValue={defaults.price ?? ''}
-          />
+          price
         )}
       </FieldRow>
-      {provider === NEW_PROVIDER && (
-        <FieldRow>
-          <TextField
-            name="price"
-            inputMode="decimal"
-            label={t('price', { currency: currencySymbol(locale) })}
-            defaultValue={defaults.price ?? ''}
-          />
-        </FieldRow>
-      )}
-      <TextAreaField name="note" label={t('note')} defaultValue={defaults.note ?? ''} />
+      {provider === NEW_PROVIDER && <FieldRow>{price}</FieldRow>}
+      <TextAreaField
+        name="note"
+        label={t('note')}
+        defaultValue={defaults.note ?? ''}
+        placeholder={tp('note')}
+      />
     </FormShell>
   )
 }
@@ -442,10 +472,17 @@ export function DepartmentForm({
   members: readonly Option[]
 }) {
   const t = useTranslations('forms.group')
+  const tp = useTranslations('forms.placeholders')
   return (
-    <FormShell {...shell}>
+    <FormShell {...shell} spec={departmentSpec}>
       <FieldRow>
-        <TextField name="name" label={t('name')} required defaultValue={defaults.name} />
+        <TextField
+          name="name"
+          label={t('name')}
+          required
+          defaultValue={defaults.name}
+          placeholder={tp('departmentName')}
+        />
         <SelectField
           name="headId"
           label={t('head')}
@@ -469,9 +506,16 @@ export function PositionForm({
   departments: readonly Option[]
 }) {
   const t = useTranslations('forms.group')
+  const tp = useTranslations('forms.placeholders')
   return (
-    <FormShell {...shell}>
-      <TextField name="name" label={t('name')} required defaultValue={defaults.name} />
+    <FormShell {...shell} spec={positionSpec}>
+      <TextField
+        name="name"
+        label={t('name')}
+        required
+        defaultValue={defaults.name}
+        placeholder={tp('positionName')}
+      />
       <CheckboxGroupField
         name="departmentIds"
         label={t('departments')}

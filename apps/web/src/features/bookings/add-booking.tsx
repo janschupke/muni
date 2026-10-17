@@ -43,7 +43,16 @@ export function AddBookingForm({
   return (
     <form action={formAction} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-end gap-2">
-        <Field label={label} className="min-w-0 flex-1">
+        <Field
+          label={label}
+          required
+          error={
+            state.status === 'refused' && state.reason === 'invalid'
+              ? t('bookings.choose')
+              : undefined
+          }
+          className="min-w-0 flex-1"
+        >
           {control => (
             <Select
               key={round}
@@ -59,11 +68,9 @@ export function AddBookingForm({
           {t('bookings.add')}
         </Button>
       </div>
-      {state.status === 'refused' && (
+      {state.status === 'refused' && state.reason !== 'invalid' && (
         <Alert tone="danger">
-          {state.reason === 'invalid'
-            ? t('bookings.choose')
-            : t('bookings.refused', { reason: t(`advisor.outcome.reasons.${state.reason}`) })}
+          {t('bookings.refused', { reason: t(`advisor.outcome.reasons.${state.reason}`) })}
         </Alert>
       )}
     </form>

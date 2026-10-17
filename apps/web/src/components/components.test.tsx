@@ -94,6 +94,9 @@ describe('forms', () => {
       'true'
     )
     expect(screen.queryByRole('textbox', { name: /Code/ })).toBeNull()
+    // Nothing changed yet: nothing to save.
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', true)
+    await user.type(screen.getByRole('textbox', { name: 'Valid for (months)' }), '24')
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByRole('button', { name: 'Saving…' })).toHaveProperty('disabled', true)
     act(() => {
@@ -136,10 +139,18 @@ describe('forms', () => {
     expect(screen.getByRole('combobox', { name: 'Can be held online' }).textContent).toBe(
       'From sessions (no)'
     )
+    await user.type(screen.getByRole('textbox', { name: /Code/ }), 'bozp-n')
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'BOZP')
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Some fields need a change; each says what below.')).toBeTruthy()
     expect(screen.getByText('Another record already uses this.')).toBeTruthy()
-    expect(screen.getByRole('textbox', { name: /Code/ }).getAttribute('aria-invalid')).toBe('true')
+    const code = screen.getByRole('textbox', { name: /Code/ })
+    expect(code.getAttribute('aria-invalid')).toBe('true')
+    // The refused field has the focus; changing it clears the server's word on it.
+    expect(document.activeElement).toBe(code)
+    await user.type(code, '2')
+    expect(screen.queryByText('Another record already uses this.')).toBeNull()
+    expect(code).toHaveProperty('value', 'bozp-n2')
   })
 
   it('fill empty optional values as blanks, and dates and times through the pickers', () => {
@@ -240,6 +251,94 @@ describe('forms', () => {
     ).toBeTruthy()
   })
 
+  const person = {
+    firstName: 'Marie',
+    lastName: 'Černá',
+    email: null,
+    nationalId: null,
+    departmentId: 'dep_lab',
+    positionId: null,
+    managerId: null,
+    leadsDepartment: false,
+    hiredOn: '2020-01-01',
+    leftOn: null,
+    status: 'ACTIVE',
+    note: null,
+  }
+  const employeeForm = (action = vi.fn()) => (
+    <EmployeeForm
+      action={action}
+      cancelHref="/employees/E0153"
+      heading={{ title: 'Edit Marie Černá' }}
+      departments={[{ id: 'dep_lab', name: 'Laboratoře' }]}
+      positions={[{ id: 'pos_lab', name: 'Laborantka' }]}
+      positionsByDepartment={{ dep_lab: ['pos_lab'] }}
+      heads={{}}
+      managers={[]}
+      defaults={person}
+    />
+  )
+
+  it('check fields as the user types: a required field emptied goes red at once', async () => {
+    const user = userEvent.setup()
+    renderClient(employeeForm())
+    const first = screen.getByRole('textbox', { name: 'First name' })
+    // The first field has the focus when the form opens.
+    expect(document.activeElement).toBe(first)
+    await user.clear(first)
+    expect(first.getAttribute('aria-invalid')).toBe('true')
+    expect(first.closest('[data-field]')?.getAttribute('data-dirty')).toBe('true')
+    expect(screen.getByText('This field is required.')).toBeTruthy()
+    await user.type(first, 'Jana')
+    expect(first.getAttribute('aria-invalid')).toBeNull()
+    expect(screen.queryByText('This field is required.')).toBeNull()
+  })
+
+  it('say a format is wrong once the field is left, then follow each keystroke', async () => {
+    const user = userEvent.setup()
+    renderClient(employeeForm())
+    const email = screen.getByRole('textbox', { name: 'Email' })
+    await user.type(email, 'jana')
+    // Still typing: no verdict yet.
+    expect(email.getAttribute('aria-invalid')).toBeNull()
+    await user.tab()
+    expect(email.closest('[data-field]')?.getAttribute('data-touched')).toBe('true')
+    expect(email.getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByText('Enter an email address, such as jana.novakova@firma.cz.')).toBeTruthy()
+    await user.type(email, '@firma.cz')
+    expect(email.getAttribute('aria-invalid')).toBeNull()
+  })
+
+  it('keep Save off until something changed, and again once it is changed back', async () => {
+    const user = userEvent.setup()
+    renderClient(employeeForm())
+    const save = screen.getByRole('button', { name: 'Save' })
+    expect(save).toHaveProperty('disabled', true)
+    const note = screen.getByRole('textbox', { name: 'Note' })
+    expect(note.getAttribute('placeholder')).toBe('Optional')
+    await user.type(note, 'x')
+    expect(save).toHaveProperty('disabled', false)
+    await user.clear(note)
+    expect(save).toHaveProperty('disabled', true)
+    // Ticking a box is a change too.
+    await user.click(screen.getByRole('checkbox', { name: 'Leads the department' }))
+    expect(save).toHaveProperty('disabled', false)
+  })
+
+  it('not send a form with errors: every error shows, the first wrong field gets the focus', async () => {
+    const user = userEvent.setup()
+    const action = vi.fn()
+    renderClient(employeeForm(action))
+    await user.type(screen.getByRole('textbox', { name: 'Birth number' }), '12')
+    await user.clear(screen.getByRole('textbox', { name: 'Last name' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(action).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Last name' }))
+    expect(
+      screen.getByText('Enter 6 digits, a slash if you like, then 3 or 4 digits.')
+    ).toBeTruthy()
+  })
+
   it('map every zod issue to one message per field', () => {
     const input = { a: 'x', b: 'y' }
     const result = z.object({ a: z.string().min(3), b: z.number() }).safeParse(input)
@@ -253,7 +352,7 @@ describe('forms', () => {
     expect(fieldErrors(withDuplicate, input)).toEqual({
       status: 'error',
       // A refinement without a path belongs to the form; an unknown code becomes generic.
-      fieldErrors: { a: 'too_small', b: 'invalid_type', form: 'invalid_format' },
+      fieldErrors: { a: 'too_small', b: 'not_a_number', form: 'invalid_format' },
     })
   })
 })

@@ -15,6 +15,7 @@ export default async function NewProviderPage() {
   const t = await getTranslations('providers')
   return (
     <ProviderForm
+      isNew
       action={saveProvider.bind(null, null)}
       cancelHref="/providers"
       heading={{

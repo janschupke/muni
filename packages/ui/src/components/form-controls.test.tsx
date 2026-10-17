@@ -24,6 +24,19 @@ describe('Field', () => {
     ])
   })
 
+  it('marks the field it belongs to, and whether it changed or was visited', () => {
+    const { container } = render(
+      <Field label="Jméno" name="firstName" dirty touched error="Povinné.">
+        {props => <Input {...props} />}
+      </Field>
+    )
+    const field = container.querySelector('[data-field="firstName"]')
+    expect(field?.getAttribute('data-dirty')).toBe('true')
+    expect(field?.getAttribute('data-touched')).toBe('true')
+    expect(field?.getAttribute('data-invalid')).toBe('true')
+    expect(screen.getByText('Povinné.').getAttribute('aria-live')).toBe('polite')
+  })
+
   it('describes nothing when there is nothing to say', () => {
     render(
       <FieldRow columns={3}>
@@ -52,6 +65,18 @@ describe('Field', () => {
 })
 
 describe('Checkbox', () => {
+  it('can be marked wrong and described', () => {
+    render(
+      <>
+        <Checkbox label="Vede oddělení" aria-invalid aria-describedby="why" />
+        <p id="why">Nejdřív zvolte oddělení.</p>
+      </>
+    )
+    const box = screen.getByRole('checkbox', { name: 'Vede oddělení' })
+    expect(box.getAttribute('aria-invalid')).toBe('true')
+    expect(box.getAttribute('aria-describedby')).toBe('why')
+  })
+
   it('is labelled, toggles, and reports a boolean', async () => {
     const user = userEvent.setup()
     const onCheckedChange = vi.fn()

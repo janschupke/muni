@@ -15,6 +15,7 @@ export default async function NewDepartmentPage() {
   const t = await getTranslations('departments')
   return (
     <DepartmentForm
+      isNew
       action={saveDepartmentAction.bind(null, null)}
       cancelHref="/departments"
       heading={{

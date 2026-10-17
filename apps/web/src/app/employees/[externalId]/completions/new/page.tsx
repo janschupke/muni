@@ -31,6 +31,7 @@ export default async function NewCompletionPage({
   const name = `${employee.firstName} ${employee.lastName}`
   return (
     <CompletionForm
+      isNew
       action={saveCompletion.bind(null, null)}
       cancelHref={`/employees/${externalId}`}
       heading={{

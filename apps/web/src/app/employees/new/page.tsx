@@ -29,6 +29,7 @@ export default async function NewEmployeePage() {
   ])
   return (
     <EmployeeForm
+      isNew
       action={saveEmployee.bind(null, null)}
       cancelHref="/employees"
       heading={{

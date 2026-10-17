@@ -58,6 +58,7 @@ export function DatePicker({
   today = isoOf(new Date()),
   locale,
   labels,
+  placeholder = formatTyped(`${today.slice(0, 4)}-03-31`, locale),
   disabled,
   required,
   id,
@@ -77,6 +78,8 @@ export function DatePicker({
   today?: string | undefined
   locale: string
   labels: DatePickerLabels
+  /** Shown while empty; by default an example date in the locale's order (`31. 3. 2026`). */
+  placeholder?: string | undefined
   disabled?: boolean | undefined
   required?: boolean | undefined
   id?: string | undefined
@@ -106,6 +109,7 @@ export function DatePicker({
         type="text"
         inputMode="numeric"
         autoComplete="off"
+        placeholder={placeholder}
         value={editing ?? (current ? formatTyped(current, locale) : '')}
         onChange={event => {
           setEditing(event.target.value)

@@ -1,11 +1,11 @@
 'use server'
 
 import { createProvider, updateProvider } from '@muni/db/repositories'
-import { providerSchema } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { fieldErrors, formError, type FormState, text } from '@/lib/form'
+import { formError, type FormState } from '@/lib/form'
+import { parseForm, providerSpec } from '@/lib/form-inputs'
 import { requireAdmin } from '@/server/auth'
 
 const codeOf = (error: unknown) => (error as { code?: unknown } | null)?.code
@@ -17,16 +17,8 @@ export async function saveProvider(
   form: FormData
 ): Promise<FormState> {
   await requireAdmin()
-  const input = {
-    name: text(form, 'name'),
-    companyId: text(form, 'companyId'),
-    email: text(form, 'email'),
-    phone: text(form, 'phone'),
-    website: text(form, 'website'),
-    note: text(form, 'note'),
-  }
-  const parsed = providerSchema.safeParse(input)
-  if (!parsed.success) return fieldErrors(parsed.error, input)
+  const parsed = parseForm(providerSpec, form)
+  if (!parsed.ok) return parsed.state
   let saved: Awaited<ReturnType<typeof createProvider>>
   try {
     saved = id ? await updateProvider(id, parsed.data) : await createProvider(parsed.data)

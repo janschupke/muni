@@ -7,8 +7,19 @@ export type FieldErrorKey =
   | 'required'
   | 'invalid_type'
   | 'invalid_format'
+  | 'invalid_email'
+  | 'invalid_url'
+  | 'invalid_date'
+  | 'invalid_time'
+  | 'invalid_phone'
+  | 'invalid_national_id'
+  | 'invalid_code'
+  | 'not_a_number'
   | 'too_small'
   | 'too_big'
+  | 'too_small_number'
+  | 'too_big_number'
+  | 'too_long'
   | 'before_start'
   | 'before_hired'
   | 'before_completed'
@@ -32,6 +43,9 @@ export type FieldErrorKey =
   | 'provider_both'
   | 'no_department'
   | 'in_use'
+  | 'below_booked'
+  | 'room_too_small_live'
+  | 'room_missing_live'
 
 /** What can go wrong with the whole form: i18n keys under forms.errors. */
 export type FormErrorKey = 'not_found' | 'generic'
@@ -138,22 +152,77 @@ const KNOWN = new Set<string>([
   'no_department',
 ] satisfies FieldErrorKey[])
 
+/** What a format check was for, by the check (`z.email()`, …). */
+const FORMATS: Partial<Record<string, FieldErrorKey>> = {
+  email: 'invalid_email',
+  url: 'invalid_url',
+  date: 'invalid_date',
+}
+
+/** What a pattern (regex) check was for, by the field it ran on. */
+const PATTERNS: Partial<Record<string, FieldErrorKey>> = {
+  phone: 'invalid_phone',
+  nationalId: 'invalid_national_id',
+  code: 'invalid_code',
+  startTime: 'invalid_time',
+  endTime: 'invalid_time',
+}
+
+/** One zod issue as a message key, with what the message counts (a minimum, a length). */
+function keyOf(
+  issue: z.core.$ZodIssue,
+  field: string,
+  input: Record<string, unknown>
+): { key: FieldErrorKey; values?: Record<string, number> } {
+  switch (issue.code) {
+    case 'invalid_type':
+      if (input[field] == null) return { key: 'required' }
+      // A number field posts what was typed when it is not a number (`number()`).
+      return { key: issue.expected === 'number' ? 'not_a_number' : 'invalid_type' }
+    case 'invalid_format':
+      return {
+        key:
+          (issue.format === 'regex' ? PATTERNS[field] : FORMATS[issue.format]) ?? 'invalid_format',
+      }
+    case 'too_small':
+      return issue.origin === 'number'
+        ? { key: 'too_small_number', values: { min: Number(issue.minimum) } }
+        : { key: 'too_small' }
+    case 'too_big':
+      if (issue.origin === 'number')
+        return { key: 'too_big_number', values: { max: Number(issue.maximum) } }
+      if (issue.origin === 'string')
+        return { key: 'too_long', values: { max: Number(issue.maximum) } }
+      return { key: 'too_big' }
+    case 'custom':
+      return {
+        key:
+          KNOWN.has(issue.message) || issue.message === 'required'
+            ? (issue.message as FieldErrorKey)
+            : 'invalid_format',
+      }
+    default:
+      return { key: KNOWN.has(issue.code) ? (issue.code as FieldErrorKey) : 'invalid_format' }
+  }
+}
+
 /**
- * zod issues → { field: i18n key }. Custom refinements carry their key as the message.
- * `input` is the object that was parsed: zod 4 does not echo input values in issues, so an
- * empty (null) field is recognised from it and reported as "required".
+ * zod issues → { field: i18n key }, the first issue of each field. Custom refinements carry
+ * their key as the message. `input` is the object that was parsed: zod 4 does not echo input
+ * values in issues, so an empty (null) field is recognised from it and reported as
+ * "required". The browser runs this on every change, the server on every save.
  */
 export function fieldErrors(error: z.ZodError, input: Record<string, unknown>): FormState {
   const fieldErrors: Record<string, FieldErrorKey> = {}
+  const values: Record<string, Record<string, number>> = {}
   for (const issue of error.issues) {
     const field = String(issue.path[0] ?? 'form')
     if (field in fieldErrors) continue
-    const isMissing = issue.code === 'invalid_type' && input[field] == null
-    const key = isMissing ? 'required' : issue.code === 'custom' ? issue.message : issue.code
-    fieldErrors[field] =
-      key === 'required' || KNOWN.has(key) ? (key as FieldErrorKey) : 'invalid_format'
+    const found = keyOf(issue, field, input)
+    fieldErrors[field] = found.key
+    if (found.values) values[field] = found.values
   }
-  return { status: 'error', fieldErrors }
+  return { status: 'error', fieldErrors, ...(Object.keys(values).length > 0 && { values }) }
 }
 
 export function formError(key: FormErrorKey): FormState {

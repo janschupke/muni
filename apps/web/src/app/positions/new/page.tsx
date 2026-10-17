@@ -19,6 +19,7 @@ export default async function NewPositionPage() {
   ])
   return (
     <PositionForm
+      isNew
       action={savePositionAction.bind(null, null)}
       cancelHref="/positions"
       heading={{

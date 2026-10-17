@@ -406,7 +406,7 @@ describe('edit actions', () => {
       fieldErrors: { code: 'taken' },
     })
     expect(await saveCourse(null, idle, form({ code: 'špatný kód', name: 'Nový' }))).toMatchObject({
-      fieldErrors: { code: 'invalid_format' },
+      fieldErrors: { code: 'invalid_code' },
     })
     vi.mocked(createCourse).mockRejectedValueOnce(new Error('down'))
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -430,7 +430,7 @@ describe('edit actions', () => {
   it('return field errors instead of saving invalid input', async () => {
     expect(await saveCourse('BOZP-Z', idle, form({ name: '', validityMonths: 'dva' }))).toEqual({
       status: 'error',
-      fieldErrors: { name: 'required', validityMonths: 'invalid_type' },
+      fieldErrors: { name: 'required', validityMonths: 'not_a_number' },
     })
     expect(updateCourse).not.toHaveBeenCalled()
   })
@@ -559,7 +559,7 @@ describe('edit actions', () => {
     ).toMatchObject({ fieldErrors: { leftOn: 'before_hired' } })
     expect(
       await saveEmployee('E0153', idle, form({ ...employeeForm, nationalId: '123' }))
-    ).toMatchObject({ fieldErrors: { nationalId: 'invalid_format' } })
+    ).toMatchObject({ fieldErrors: { nationalId: 'invalid_national_id' } })
     vi.mocked(updateEmployee).mockRejectedValueOnce({ code: 'P2025' })
     expect(await saveEmployee('E9999', idle, form(employeeForm))).toMatchObject({
       formError: 'not_found',
@@ -1091,7 +1091,7 @@ describe('provider actions', () => {
       await saveProvider(null, idle, form({ ...providerForm, companyId: '00216225', email: 'x' }))
     ).toEqual({
       status: 'error',
-      fieldErrors: { companyId: 'company_id', email: 'invalid_format' },
+      fieldErrors: { companyId: 'company_id', email: 'invalid_email' },
     })
     expect(createProvider).not.toHaveBeenCalled()
     vi.mocked(createProvider).mockResolvedValueOnce({ ok: false, taken: 'companyId' })
