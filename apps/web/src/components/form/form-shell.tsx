@@ -24,7 +24,19 @@ import {
 
 import { type FieldErrorKey, type FormState, IDLE } from '@/lib/form'
 
-const ErrorsContext = createContext<Partial<Record<string, FieldErrorKey>>>({})
+/** An error the form knows before it is sent (a key under forms.errors, and its values). */
+export interface ClientError {
+  key: string
+  values?: Record<string, string | number> | undefined
+}
+
+interface Errors {
+  server: Partial<Record<string, FieldErrorKey>>
+  values: Partial<Record<string, Record<string, number>>>
+  client: Partial<Record<string, ClientError>>
+}
+
+const ErrorsContext = createContext<Errors>({ server: {}, values: {}, client: {} })
 
 /** What every form page's heading row says: the title, and where the back link goes. */
 export interface FormHeading {
@@ -36,22 +48,29 @@ export interface FormHeading {
 /**
  * A form page bound to a server action. The page's heading row is part of the form: Cancel
  * and Save sit on its right, the fields below in one full-width card. Field components read
- * their error from context.
+ * their error from context: one the form found as the user typed (`clientErrors`) wins over
+ * the one the server answered the last save with.
  */
 export function FormShell({
   action,
   cancelHref,
   heading,
+  clientErrors,
   children,
 }: {
   action: (state: FormState, form: FormData) => Promise<FormState>
   cancelHref: string
   heading: FormHeading
+  clientErrors?: Partial<Record<string, ClientError>> | undefined
   children: ReactNode
 }) {
   const t = useTranslations()
   const [state, formAction, pending] = useActionState(action, IDLE)
-  const errors = state.status === 'error' ? state.fieldErrors : {}
+  const errors: Errors = {
+    server: state.status === 'error' ? state.fieldErrors : {},
+    values: (state.status === 'error' ? state.values : undefined) ?? {},
+    client: clientErrors ?? {},
+  }
   return (
     <form action={formAction} className="flex flex-col gap-4" noValidate>
       <PageHeader
@@ -112,8 +131,13 @@ export function FormSection({
 
 function useFieldError(name: string): string | undefined {
   const t = useTranslations('forms.errors')
-  const key = useContext(ErrorsContext)[name]
-  return key ? t(key) : undefined
+  const errors = useContext(ErrorsContext)
+  const client = errors.client[name]
+  // Keys are spelled out by the forms that raise them (forms.errors.*); next-intl checks the
+  // family, not each key.
+  if (client) return t(client.key as FieldErrorKey, client.values)
+  const key = errors.server[name]
+  return key ? t(key, errors.values[name]) : undefined
 }
 
 interface BaseProps {
@@ -147,10 +171,14 @@ export function DateField({
   help,
   required,
   defaultValue,
+  value,
+  onValueChange,
   min,
   max,
 }: BaseProps & {
   defaultValue?: string | null | undefined
+  value?: string | undefined
+  onValueChange?: ((value: string) => void) | undefined
   min?: string | undefined
   max?: string | undefined
 }) {
@@ -163,6 +191,8 @@ export function DateField({
         <DatePicker
           name={name}
           defaultValue={defaultValue ?? ''}
+          value={value}
+          onValueChange={onValueChange}
           min={min}
           max={max}
           today={todayIn()}
@@ -190,7 +220,13 @@ export function TimeField({
   help,
   required,
   defaultValue,
-}: BaseProps & { defaultValue?: string | null | undefined }) {
+  value,
+  onValueChange,
+}: BaseProps & {
+  defaultValue?: string | null | undefined
+  value?: string | undefined
+  onValueChange?: ((value: string) => void) | undefined
+}) {
   const error = useFieldError(name)
   const t = useTranslations('forms.picker')
   return (
@@ -199,6 +235,8 @@ export function TimeField({
         <TimePicker
           name={name}
           defaultValue={defaultValue ?? ''}
+          value={value}
+          onValueChange={onValueChange}
           labels={{
             open: t('chooseTime', { field: label }),
             hours: t('hours'),
@@ -231,11 +269,15 @@ export function SelectField({
   help,
   required,
   defaultValue,
+  value,
+  onValueChange,
   options,
   allowEmpty,
 }: BaseProps & {
   defaultValue?: string | undefined
-  options: { value: string; label: string }[]
+  value?: string | undefined
+  onValueChange?: ((value: string) => void) | undefined
+  options: { value: string; label: string; disabled?: boolean | undefined }[]
   allowEmpty?: boolean | undefined
 }) {
   const error = useFieldError(name)
@@ -246,6 +288,8 @@ export function SelectField({
         <Select
           name={name}
           defaultValue={defaultValue ?? ''}
+          value={value}
+          onValueChange={onValueChange}
           options={options}
           emptyLabel={allowEmpty ? PLACEHOLDER : undefined}
           placeholder={t('choose')}
@@ -298,11 +342,37 @@ export function CheckboxGroupField({
 export function CheckboxField({
   name,
   label,
+  help,
   defaultChecked,
+  checked,
+  onCheckedChange,
+  disabled,
 }: {
   name: string
   label: string
+  help?: string | undefined
   defaultChecked?: boolean | undefined
+  checked?: boolean | undefined
+  onCheckedChange?: ((checked: boolean) => void) | undefined
+  disabled?: boolean | undefined
 }) {
-  return <Checkbox name={name} label={label} defaultChecked={defaultChecked} />
+  const error = useFieldError(name)
+  return (
+    <div className="flex flex-col gap-1">
+      <Checkbox
+        name={name}
+        label={label}
+        defaultChecked={defaultChecked}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        disabled={disabled}
+      />
+      {help && <p className="text-xs text-fg-muted">{help}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-danger-fg">
+          {error}
+        </p>
+      )}
+    </div>
+  )
 }

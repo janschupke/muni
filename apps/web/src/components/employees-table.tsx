@@ -108,7 +108,7 @@ export function EmployeesTable({
           header: t('columns.compliance'),
           cell: ({ row }) => (
             <ComplianceBadge
-              status={row.original.status === 'TERMINATED' ? null : row.original.compliance}
+              status={row.original.status === 'LEFT' ? null : row.original.compliance}
             />
           ),
         }),

@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { BackLink } from '@/components/back-link'
-import { SessionForm } from '@/components/form/entity-forms'
+import { SessionForm } from '@/components/form/session-form'
 import { newSessionDefaults } from '@/features/sessions/new-session'
 import { saveNewSession } from '@/server/actions/sessions'
 import { requireAdminPage } from '@/server/auth'
@@ -23,7 +23,7 @@ export default async function NewSessionPage() {
   return (
     <SessionForm
       mode="create"
-      action={saveNewSession.bind(null, null)}
+      action={saveNewSession}
       cancelHref="/sessions"
       heading={{
         title: t('newTitle'),

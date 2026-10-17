@@ -1,10 +1,10 @@
-import { getSession, listRoomOptions } from '@muni/db/repositories'
+import { getSession, listCourseOptions, listRoomOptions } from '@muni/db/repositories'
 import { toZonedParts } from '@muni/utils/dates'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
 import { BackLink } from '@/components/back-link'
-import { SessionForm } from '@/components/form/entity-forms'
+import { SessionForm } from '@/components/form/session-form'
 import { saveSession } from '@/server/actions/edit'
 import { requireAdminPage } from '@/server/auth'
 
@@ -16,8 +16,9 @@ export default async function EditSessionPage({
 }) {
   await requireAdminPage()
   const { externalId } = await params
-  const [session, rooms, t] = await Promise.all([
+  const [session, courses, rooms, t] = await Promise.all([
     getSession(externalId),
+    listCourseOptions(),
     listRoomOptions(),
     getTranslations('sessions'),
   ])
@@ -35,15 +36,37 @@ export default async function EditSessionPage({
         ),
         description: `${session.courseCode} · ${session.courseName}`,
       }}
+      // A past session of an archived course keeps it (it is not offered to others).
+      courses={
+        courses.some(c => c.id === session.courseId)
+          ? courses
+          : [
+              ...courses,
+              {
+                id: session.courseId,
+                code: session.courseCode,
+                name: session.courseName,
+                validityMonths: null,
+                needs: {
+                  sessionMinutes: null,
+                  groupSize: null,
+                  onlineAllowed: true,
+                  capabilities: [],
+                },
+              },
+            ]
+      }
       rooms={rooms}
+      self={externalId}
+      named={session.assigned.length}
       defaults={{
+        courseId: session.courseId,
         date: start.date,
         startTime: start.time,
         endTime: end.time,
         roomId: session.room.id,
         capacity: session.capacity,
         unnamedBookings: session.unnamedBookings,
-        assignedCount: session.assigned.length,
         pricePerPerson: session.pricePerPerson,
         status: session.status,
       }}

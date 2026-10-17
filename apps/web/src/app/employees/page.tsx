@@ -6,7 +6,7 @@ import {
   listPositions,
 } from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
-import { COMPLIANCE_STATUSES, EMPLOYMENT_STATUSES } from '@muni/domain/enums'
+import { COMPLIANCE_STATUSES, EMPLOYMENT_STATES } from '@muni/domain/enums'
 import { Alert } from '@muni/ui/alert'
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
@@ -33,7 +33,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Se
     q: param(params, 'q'),
     department: param(params, 'department'),
     position: param(params, 'position'),
-    status: oneOf(param(params, 'status'), EMPLOYMENT_STATUSES),
+    status: oneOf(param(params, 'status'), EMPLOYMENT_STATES),
     compliance: oneOf(param(params, 'compliance'), COMPLIANCE_STATUSES),
     manager: param(params, 'manager'),
   }

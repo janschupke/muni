@@ -1,4 +1,9 @@
-import { getEmployeeForEdit, listCourseOptions, listProviderNames } from '@muni/db/repositories'
+import {
+  getEmployeeForEdit,
+  listCourseOptions,
+  listEmployeeOptions,
+  listProviderOptions,
+} from '@muni/db/repositories'
 import { todayIn } from '@muni/utils/dates'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
@@ -15,29 +20,36 @@ export default async function NewCompletionPage({
 }) {
   await requireAdminPage()
   const { externalId } = await params
-  const [employee, courses, providers, t] = await Promise.all([
+  const [employee, courses, providers, employees, t] = await Promise.all([
     getEmployeeForEdit(externalId),
     listCourseOptions(),
-    listProviderNames(),
+    listProviderOptions(),
+    listEmployeeOptions(),
     getTranslations('forms.completion'),
   ])
   if (!employee) notFound()
   const name = `${employee.firstName} ${employee.lastName}`
   return (
     <CompletionForm
-      action={saveCompletion.bind(null, externalId, null)}
+      action={saveCompletion.bind(null, null)}
       cancelHref={`/employees/${externalId}`}
       heading={{
         title: t('title', { name }),
         eyebrow: <BackLink fallback={{ href: `/employees/${externalId}`, label: name }} />,
       }}
+      employees={
+        employees.some(e => e.id === employee.id)
+          ? employees
+          : [...employees, { id: employee.id, name: `${employee.lastName} ${employee.firstName}` }]
+      }
       courses={courses}
       providers={providers}
       defaults={{
-        courseCode: '',
+        employeeId: employee.id,
+        courseId: '',
         completedOn: todayIn(),
         validUntil: null,
-        provider: null,
+        providerId: null,
         price: null,
         note: null,
         imported: false,

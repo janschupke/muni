@@ -6,7 +6,7 @@ import { REMEDIATIONS } from '@muni/domain/advisor'
 import {
   CAPABILITIES,
   COMPLIANCE_STATUSES,
-  EMPLOYMENT_STATUSES,
+  EMPLOYMENT_STATES,
   REQUIREMENT_SCOPES,
   ROLES,
   ROOM_KINDS,
@@ -61,7 +61,7 @@ const FAMILIES: Record<string, readonly string[]> = {
   'status.capability': CAPABILITIES,
   'status.roomKind': ROOM_KINDS,
   'status.session': SESSION_STATUSES,
-  'status.employment': EMPLOYMENT_STATUSES,
+  'status.employment': EMPLOYMENT_STATES,
   'status.compliance': COMPLIANCE_STATUSES,
   'status.scope': REQUIREMENT_SCOPES,
   'status.role': ROLES,

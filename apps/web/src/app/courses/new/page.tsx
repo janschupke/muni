@@ -35,7 +35,8 @@ export default async function NewCoursePage() {
         positionIds: [],
         sessionMinutes: null,
         groupSize: null,
-        onlineAllowed: false,
+        onlineAllowed: null,
+        derived: { sessionMinutes: null, groupSize: null, onlineAllowed: false },
         capabilities: [],
       }}
       departments={departments}

@@ -1,4 +1,10 @@
-import { getEmployeeForEdit, listEmployeeOptions, listGroupOptions } from '@muni/db/repositories'
+import {
+  getEmployeeForEdit,
+  listDepartmentHeads,
+  listDepartmentPositions,
+  listEmployeeOptions,
+  listGroupOptions,
+} from '@muni/db/repositories'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
@@ -14,14 +20,20 @@ export default async function EditEmployeePage({
 }) {
   await requireAdminPage()
   const { externalId } = await params
-  const [employee, departments, positions, people, t] = await Promise.all([
+  const [employee, departments, positions, pairs, heads, people, t] = await Promise.all([
     getEmployeeForEdit(externalId),
     listGroupOptions('department'),
     listGroupOptions('position'),
+    listDepartmentPositions(),
+    listDepartmentHeads(),
     listEmployeeOptions(),
     getTranslations('forms.employee'),
   ])
   if (!employee) notFound()
+  // Anyone else may manage them; their current manager stays offered even after leaving.
+  const managers = people.filter(p => p.id !== employee.id)
+  if (employee.manager && !managers.some(m => m.id === employee.manager?.id))
+    managers.push({ ...employee.manager, externalId: '', departmentId: null })
   const name = `${employee.firstName} ${employee.lastName}`
   return (
     <EmployeeForm
@@ -34,7 +46,9 @@ export default async function EditEmployeePage({
       defaults={employee}
       departments={departments}
       positions={positions}
-      managers={people.filter(p => p.externalId !== externalId)}
+      positionsByDepartment={pairs}
+      heads={heads}
+      managers={managers}
     />
   )
 }

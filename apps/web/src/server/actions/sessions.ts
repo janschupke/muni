@@ -1,10 +1,16 @@
 'use server'
 
-import { createSession, type SessionProblem, type SessionWrite } from '@muni/db/repositories'
+import {
+  checkSessionSlot,
+  createSession,
+  type SessionProblem,
+  type SessionWrite,
+} from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
 import { type SessionCreate, sessionCreateSchema } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import * as z from 'zod'
 
 import {
   fieldErrors,
@@ -44,17 +50,13 @@ export async function createOfferedSession(input: SessionCreate): Promise<Create
 }
 
 /**
- * The "new session" form, from a course's page (`courseCode` fixed) or the sessions list
- * (the course is chosen in the form); opens the new session.
+ * The "new session" form, from a course's page (that course chosen to start with) or the
+ * sessions list; opens the new session.
  */
-export async function saveNewSession(
-  courseCode: string | null,
-  _state: FormState,
-  form: FormData
-): Promise<FormState> {
+export async function saveNewSession(_state: FormState, form: FormData): Promise<FormState> {
   await requireAdmin()
   const input = {
-    courseCode: courseCode ?? text(form, 'courseCode'),
+    courseId: text(form, 'courseId'),
     date: text(form, 'date'),
     startTime: text(form, 'startTime'),
     endTime: text(form, 'endTime'),
@@ -75,4 +77,32 @@ export async function saveNewSession(
   if (!result.ok) return sessionProblem(result.problem)
   revalidatePath('/', 'layout')
   redirect(`/sessions/${result.externalId}`)
+}
+
+const slotSchema = z.object({
+  roomId: z.string().min(1).max(64),
+  date: z.iso.date(),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/),
+})
+
+/**
+ * Whether another planned session holds the room then, for the session form to say while
+ * the user picks. Admins only (only they see the form); anything else answers nothing.
+ * Saving checks again under the lock.
+ */
+export async function checkSessionSlotAction(
+  slot: z.infer<typeof slotSchema>,
+  self: string | null
+): Promise<'ROOM_BUSY' | null> {
+  const user = await getSessionUser()
+  if (!user || !canWrite(user.role)) return null
+  const parsed = slotSchema.safeParse(slot)
+  if (!parsed.success || (self !== null && typeof self !== 'string')) return null
+  try {
+    return await checkSessionSlot(parsed.data, self)
+  } catch (error) {
+    console.error(error)
+    return null
+  }
 }

@@ -91,6 +91,9 @@ export function ConfirmArchiveButton({
               {t('archive.removesBookings', { count: impact.removesBookings })}
             </Alert>
           )}
+          {impact !== 'loading' && impact?.ok && impact.leaves && (
+            <Alert tone="warning">{t('archive.leaves', { department: impact.leaves })}</Alert>
+          )}
           {refused?.status === 'refused' && <Alert tone="danger">{refusal(refused)}</Alert>}
           {state.status === 'refused' && <Alert tone="danger">{refusal(state)}</Alert>}
           <div className="flex justify-end gap-2">

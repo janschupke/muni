@@ -1,4 +1,9 @@
-import { listEmployeeOptions, listGroupOptions } from '@muni/db/repositories'
+import {
+  listDepartmentHeads,
+  listDepartmentPositions,
+  listEmployeeOptions,
+  listGroupOptions,
+} from '@muni/db/repositories'
 import { todayIn } from '@muni/utils/dates'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
@@ -14,9 +19,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function NewEmployeePage() {
   await requireAdminPage()
-  const [departments, positions, people, t] = await Promise.all([
+  const [departments, positions, pairs, heads, people, t] = await Promise.all([
     listGroupOptions('department'),
     listGroupOptions('position'),
+    listDepartmentPositions(),
+    listDepartmentHeads(),
     listEmployeeOptions(),
     getTranslations(),
   ])
@@ -36,7 +43,8 @@ export default async function NewEmployeePage() {
         nationalId: null,
         departmentId: null,
         positionId: null,
-        managerExternalId: null,
+        managerId: null,
+        leadsDepartment: false,
         hiredOn: todayIn(),
         leftOn: null,
         status: 'ACTIVE',
@@ -44,6 +52,8 @@ export default async function NewEmployeePage() {
       }}
       departments={departments}
       positions={positions}
+      positionsByDepartment={pairs}
+      heads={heads}
       managers={people}
     />
   )

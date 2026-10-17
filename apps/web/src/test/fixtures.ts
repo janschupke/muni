@@ -39,6 +39,7 @@ export const counts = (c: Partial<ComplianceCounts> = {}): ComplianceCounts => {
 export const session = (over: Partial<SessionListItem> = {}): SessionListItem => ({
   id: `ses_${over.externalId ?? 'T016'}`,
   externalId: 'T016',
+  courseId: 'course_bozp',
   courseCode: 'BOZP-Z',
   courseName: 'BOZP – základní školení',
   courseArchived: false,
@@ -126,6 +127,7 @@ export const employeeDetail = (over: Partial<EmployeeDetail> = {}): EmployeeDeta
   hiredOn: '2019-03-01',
   leftOn: null,
   status: 'ACTIVE',
+  leadsDepartment: false,
   requirements: [
     {
       courseCode: 'BOZP-Z',
@@ -402,9 +404,10 @@ export const courseForEdit = (over: Partial<CourseForEdit> = {}): CourseForEdit 
   requiredForAll: true,
   departmentIds: [],
   positionIds: [],
-  sessionMinutes: 180,
-  groupSize: 30,
-  onlineAllowed: false,
+  sessionMinutes: null,
+  groupSize: null,
+  onlineAllowed: null,
+  derived: { sessionMinutes: 180, groupSize: 30, onlineAllowed: false },
   capabilities: [],
   ...over,
 })
@@ -618,6 +621,7 @@ export const plannerInput = (
 ): Awaited<ReturnType<typeof getPlannerInput>> => ({
   courses: [
     {
+      id: 'course_poz',
       code: 'POZ-OCH',
       name: 'Požární ochrana',
       sessionMinutes: 120,
@@ -628,6 +632,7 @@ export const plannerInput = (
       heldIn: [AULA_A.id],
     },
     {
+      id: 'course_bozp',
       code: 'BOZP-Z',
       name: 'BOZP – základní školení',
       sessionMinutes: 180,

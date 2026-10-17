@@ -37,7 +37,10 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/edit', () => ({ saveSession: vi.fn() }))
 vi.mock('@/server/actions/archive', () => ({ archiveAction: vi.fn(), previewArchive: vi.fn() }))
-vi.mock('@/server/actions/sessions', () => ({ saveNewSession: vi.fn() }))
+vi.mock('@/server/actions/sessions', () => ({
+  saveNewSession: vi.fn(),
+  checkSessionSlotAction: vi.fn(() => Promise.resolve(null)),
+}))
 vi.mock('@/server/actions/assignments', () => ({
   addBookingAction: vi.fn(),
   applyAssignmentsAction: vi.fn(),
@@ -73,8 +76,17 @@ beforeEach(() => {
   vi.mocked(getSession).mockResolvedValue(session())
   vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
   vi.mocked(listRoomOptions).mockResolvedValue([
-    { ...AULA_A, capacity: 40 },
-    { ...ONLINE, capacity: null },
+    { ...AULA_A, capacity: 40, capabilities: [] },
+    { ...ONLINE, capacity: null, capabilities: [] },
+  ])
+  vi.mocked(listCourseOptions).mockResolvedValue([
+    {
+      id: 'course_bozp',
+      code: 'BOZP-Z',
+      name: 'BOZP – základní školení',
+      validityMonths: 24,
+      needs: { sessionMinutes: 180, groupSize: 30, onlineAllowed: true, capabilities: [] },
+    },
   ])
 })
 
@@ -183,8 +195,8 @@ describe('session detail', () => {
     const user = userEvent.setup()
     signInAs('ADMIN')
     vi.mocked(listEmployeeOptions).mockResolvedValue([
-      { externalId: 'E0001', name: 'Urbanová Tereza' },
-      { externalId: 'E0153', name: 'Černá Marie' },
+      { id: 'emp_E0001', externalId: 'E0001', name: 'Urbanová Tereza', departmentId: null },
+      { id: 'emp_E0153', externalId: 'E0153', name: 'Černá Marie', departmentId: 'dep_lab' },
     ])
     await renderServer(SessionPage(props))
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
@@ -225,6 +237,8 @@ describe('session edit', () => {
     expect(requireAdminPage).toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 1, name: 'Edit session T016' })).toBeTruthy()
     expect(screen.getByRole('combobox', { name: /Room/ }).textContent).toContain('Aula A')
+    // Its course can change too.
+    expect(screen.getByRole('combobox', { name: /Course/ }).textContent).toContain('BOZP-Z')
     expect(screen.getByRole('link', { name: 'Cancel' }).getAttribute('href')).toBe('/sessions/T016')
     await expectNoAxeViolations()
   })
@@ -234,11 +248,21 @@ describe('session edit', () => {
     await expect(EditSessionPage(props)).rejects.toThrow(NotFoundError)
   })
 
+  it('keeps an archived course on a past session as its own option', async () => {
+    vi.mocked(getSession).mockResolvedValue(
+      session({
+        courseId: 'course_old',
+        courseCode: 'OLD-1',
+        courseName: 'Starý',
+        courseArchived: true,
+      })
+    )
+    await renderServer(EditSessionPage(props))
+    expect(screen.getByRole('combobox', { name: /Course/ }).textContent).toContain('OLD-1')
+  })
+
   it('adds a session of a course chosen in the form, from the sessions list', async () => {
     signInAs('ADMIN')
-    vi.mocked(listCourseOptions).mockResolvedValue([
-      { code: 'BOZP-Z', name: 'BOZP – základní školení', validityMonths: 24 },
-    ])
     expect(await newSessionMetadata()).toEqual({ title: 'New session' })
     await renderServer(NewSessionsPage())
     expect(screen.getByRole('heading', { level: 1, name: 'New session' })).toBeTruthy()

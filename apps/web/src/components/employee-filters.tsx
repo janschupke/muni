@@ -1,6 +1,6 @@
 'use client'
 
-import { COMPLIANCE_STATUSES, EMPLOYMENT_STATUSES } from '@muni/domain/enums'
+import { COMPLIANCE_STATUSES, EMPLOYMENT_STATES } from '@muni/domain/enums'
 import { Button } from '@muni/ui/button'
 import { Field, Input } from '@muni/ui/field'
 import { Select } from '@muni/ui/select'
@@ -110,7 +110,7 @@ export function EmployeeFilters({
                 apply({ status })
               }}
               emptyLabel={t('filters.any')}
-              options={EMPLOYMENT_STATUSES.map(s => ({ value: s, label: ts(`employment.${s}`) }))}
+              options={EMPLOYMENT_STATES.map(s => ({ value: s, label: ts(`employment.${s}`) }))}
             />
           )}
         </Field>

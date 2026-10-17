@@ -25,6 +25,13 @@ export type FieldErrorKey =
   | 'manager_cycle'
   | 'own_role'
   | 'last_admin'
+  | 'over_capacity'
+  | 'sessions_unfit'
+  | 'not_a_member'
+  | 'pair_unknown'
+  | 'provider_both'
+  | 'no_department'
+  | 'in_use'
 
 /** What can go wrong with the whole form: i18n keys under forms.errors. */
 export type FormErrorKey = 'not_found' | 'generic'
@@ -35,10 +42,15 @@ export type FormState =
   | {
       status: 'error'
       fieldErrors: Partial<Record<string, FieldErrorKey>>
+      /** What a field's message says besides its key (how many sessions, …). */
+      values?: Partial<Record<string, Record<string, number>>> | undefined
       formError?: FormErrorKey
     }
 
 export const IDLE: FormState = { status: 'idle' }
+
+/** The completion form's provider picker posts this for "a new provider, named below". */
+export const NEW_PROVIDER = 'new'
 
 /** Why an archive or unarchive did not happen: i18n keys under archive.refused. */
 type ArchiveRefusalKey =
@@ -121,6 +133,9 @@ const KNOWN = new Set<string>([
   'before_completed',
   'duplicate',
   'company_id',
+  'over_capacity',
+  'provider_both',
+  'no_department',
 ] satisfies FieldErrorKey[])
 
 /**
@@ -145,11 +160,31 @@ export function formError(key: FormErrorKey): FormState {
   return { status: 'error', fieldErrors: {}, formError: key }
 }
 
+const PROBLEM_FIELD: Partial<Record<SessionProblem, string>> = {
+  ROOM_TOO_SMALL: 'capacity',
+  OVER_CAPACITY: 'capacity',
+  COURSE_ARCHIVED: 'courseId',
+}
+
 /** A session the room cannot take: the reason goes on the field to change. */
 export function sessionProblem(problem: SessionProblem): FormState {
-  const field = problem === 'ROOM_TOO_SMALL' ? 'capacity' : 'roomId'
   return {
     status: 'error',
-    fieldErrors: { [field]: problem.toLowerCase() as Lowercase<SessionProblem> },
+    fieldErrors: {
+      [PROBLEM_FIELD[problem] ?? 'roomId']: problem.toLowerCase() as Lowercase<SessionProblem>,
+    },
+  }
+}
+
+/** One field refused by the database, with what its message counts. */
+export function refusedField(
+  field: string,
+  key: FieldErrorKey,
+  values?: Record<string, number>
+): FormState {
+  return {
+    status: 'error',
+    fieldErrors: { [field]: key },
+    ...(values && { values: { [field]: values } }),
   }
 }

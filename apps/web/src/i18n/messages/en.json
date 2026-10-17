@@ -66,7 +66,7 @@
     "employment": {
       "ACTIVE": "Active",
       "PARENTAL_LEAVE": "Parental leave",
-      "TERMINATED": "Left"
+      "LEFT": "Left"
     },
     "compliance": {
       "VALID": "Valid",
@@ -343,7 +343,17 @@
       "unavailable": "This choice is no longer available; choose again.",
       "manager_cycle": "This person reports to them, directly or through others; choose someone else.",
       "own_role": "You cannot change your own role.",
-      "last_admin": "This is the last admin; make someone else an admin first."
+      "last_admin": "This is the last admin; make someone else an admin first.",
+      "over_capacity": "More seats are booked than that; remove bookings first.",
+      "below_booked": "{booked, plural, one {# seat is} other {# seats are}} booked; the session cannot open fewer.",
+      "room_too_small_live": "{room} holds {capacity}; this session opens {seats}.",
+      "room_missing_live": "{room} lacks: {missing}.",
+      "sessions_unfit": "{count, plural, one {# upcoming session} other {# upcoming sessions}} would no longer fit {count, plural, one {its room} other {their rooms}}; move or cancel them first.",
+      "not_a_member": "Only someone in this department who has not left can lead it.",
+      "pair_unknown": "The department does not have this position; add the department on the position's page.",
+      "provider_both": "Choose a provider or name a new one, not both.",
+      "no_department": "Choose the department they lead.",
+      "in_use": "{count, plural, one {# person holds} other {# people hold}} the position there; move them first."
     },
     "course": {
       "title": "Edit course {code}",
@@ -351,7 +361,7 @@
       "validityMonths": "Valid for (months)",
       "validityHelp": "Leave empty if the course never expires.",
       "sessionNeeds": "What a session needs",
-      "sessionNeedsHelp": "Used by the session planner to size sessions and pick rooms. Filled in from past sessions until set here.",
+      "sessionNeedsHelp": "Used by the session planner to size sessions and pick rooms. Each sessions import works them out from past sessions; a value set here wins.",
       "sessionMinutes": "Session length (minutes)",
       "groupSize": "Group size",
       "onlineAllowed": "Can be held online",
@@ -363,7 +373,12 @@
       "audienceHelp": "Nothing ticked makes the course optional. A courses import sets this again from the catalogue.",
       "requiredForAll": "Everyone",
       "departments": "Departments",
-      "positions": "Positions"
+      "positions": "Positions",
+      "derivedNone": "Empty: not known from sessions yet.",
+      "derivedValue": "Empty: {value}, from past sessions.",
+      "onlineDerived": "From sessions ({value, select, true {yes} other {no}})",
+      "onlineYes": "Yes",
+      "onlineNo": "No"
     },
     "session": {
       "date": "Date",
@@ -375,7 +390,17 @@
       "unnamedBookings": "Other bookings (not named)",
       "unnamedHelp": "{count, plural, =0 {Nobody is booked by name.} one {Plus # person booked by name.} other {Plus # people booked by name.}}",
       "room": "Room",
-      "course": "Course"
+      "course": "Course",
+      "roomOption": "{name} · {seats, plural, one {# seat} other {# seats}}",
+      "roomOnline": "{name} · online",
+      "unfit": {
+        "TOO_SMALL": "too small",
+        "ONLINE_NOT_ALLOWED": "course not online",
+        "MISSING_CAPABILITIES": "lacks equipment"
+      },
+      "roomHolds": "The room holds {seats, plural, one {# seat} other {# seats}}.",
+      "bookedSeats": "{count, plural, one {# seat is booked.} other {# seats are booked.}}",
+      "courseKeepsBookings": "{count, plural, one {# person booked by name stays booked} other {# people booked by name stay booked}} if the course changes."
     },
     "employee": {
       "title": "Edit {name}",
@@ -394,7 +419,15 @@
       "nationalIdHelp": "Optional; shown only to roles allowed to see it.",
       "place": "Where they work",
       "manager": "Manager",
-      "employment": "Employment"
+      "employment": "Employment",
+      "positionCleared": "The new department does not have the previous position; choose one of its own.",
+      "positionHelp": "The positions this department has.",
+      "leadsDepartment": "Leads the department",
+      "leadsNeedsDepartment": "Choose a department first.",
+      "leadsReplaces": "{name} leads it now; saving makes this person the head instead.",
+      "leadsNow": "Led by {name}.",
+      "statusHelp": "Whether someone has left follows from the leaving date.",
+      "leftOnHelp": "From this day on, they count as having left."
     },
     "completion": {
       "title": "Record completion for {name}",
@@ -406,7 +439,13 @@
       "price": "Price ({currency})",
       "note": "Note",
       "editTitle": "Edit completion {id} of {name}",
-      "importedHint": "This record came from an import, so the next import of the same file overwrites changes made here."
+      "importedHint": "This record came from an import, so the next import of the same file overwrites changes made here.",
+      "employee": "Employee",
+      "validUntilNever": "Leave empty: the course never expires.",
+      "validUntilFromCourse": "Leave empty for {months, plural, one {# month} other {# months}} from completion, as the course says.",
+      "newProvider": "New provider…",
+      "newProviderName": "New provider's name",
+      "newProviderHelp": "Creates the provider. If it already exists, pick it in the list instead."
     },
     "fixBelow": "Some fields need a change; each says what below.",
     "picker": {
@@ -422,7 +461,12 @@
       "minutes": "Minutes"
     },
     "group": {
-      "name": "Name"
+      "name": "Name",
+      "head": "Head",
+      "headHelp": "One of the department's people.",
+      "headNoMembers": "Nobody works here yet; set the head once someone does.",
+      "departments": "Departments",
+      "departmentsHelp": "Where the position exists: people hold it only in these departments."
     }
   },
   "import": {
@@ -572,7 +616,13 @@
       "ZERO_CAPACITY": "Capacity is 0.",
       "FUTURE_COMPLETION": "Completion date {value} is in the future.",
       "ROOM_DERIVED": "Room “{value}” is not listed; it is created from the sessions held there.",
-      "ARCHIVED": "“{value}” is archived, so this row is skipped. Bring it back to import the row."
+      "ARCHIVED": "“{value}” is archived, so this row is skipped. Bring it back to import the row.",
+      "LEFT_WITHOUT_DATE": "The status says they left, but there is no leaving date; add it.",
+      "MANAGER_CYCLE": "Manager {value} would make a loop (they report to this person); imported without a manager.",
+      "ROOM_TOO_SMALL": "The room holds {capacity}, fewer than the {value} seats this session opens.",
+      "ROOM_UNSUITABLE": "Room “{value}” lacks what this course needs (equipment, or it is online).",
+      "ROOM_BUSY": "Session {otherId} holds the room at that time.",
+      "WILL_CREATE": "“{value}” is new; the import creates it."
     }
   },
   "errors": {
@@ -939,7 +989,7 @@
       "inList": "Open in the employee list"
     },
     "newTitle": "New department",
-    "editTitle": "Rename {name}",
+    "editTitle": "Edit {name}",
     "new": "New department"
   },
   "positions": {
@@ -959,7 +1009,7 @@
       "inList": "Open in the employee list"
     },
     "newTitle": "New position",
-    "editTitle": "Rename {name}",
+    "editTitle": "Edit {name}",
     "new": "New position"
   },
   "planner": {
@@ -999,7 +1049,8 @@
       "ROOM_TOO_SMALL": "The room has fewer seats than the session opens. The refreshed plan offers another room.",
       "ROOM_MISSING_CAPABILITIES": "The room lacks equipment the course needs. The refreshed plan offers another room.",
       "ROOM_ARCHIVED": "The room has been archived meanwhile. The refreshed plan offers another room.",
-      "COURSE_ARCHIVED": "The course has been archived meanwhile. Reload the planner."
+      "COURSE_ARCHIVED": "The course has been archived meanwhile. Reload the planner.",
+      "OVER_CAPACITY": "More seats are booked than the session opens. Reload the planner."
     },
     "problems": {
       "NO_ROOM_WITH": "Even the best-equipped room lacks {missing}.",
@@ -1184,7 +1235,8 @@
       "adminOnly": "Only admins see this page. Elsewhere this record is left out, and a person appears only by tag.",
       "archivedAt": "Archived on",
       "archivedBy": "Archived by"
-    }
+    },
+    "leaves": "They lead {department}; it will have no head until one is set."
   },
   "bookings": {
     "add": "Book",

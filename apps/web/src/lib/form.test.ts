@@ -58,6 +58,7 @@ describe('form helpers', () => {
 
   it('surfaces refinement keys', () => {
     const input = {
+      courseId: 'course_kyber',
       date: '2026-10-28',
       startTime: '12:00',
       endTime: '09:00',

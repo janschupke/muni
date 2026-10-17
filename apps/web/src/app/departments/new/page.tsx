@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { BackLink } from '@/components/back-link'
-import { GroupForm } from '@/components/form/entity-forms'
-import { saveGroup } from '@/server/actions/groups'
+import { DepartmentForm } from '@/components/form/entity-forms'
+import { saveDepartmentAction } from '@/server/actions/groups'
 import { requireAdminPage } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,14 +14,15 @@ export default async function NewDepartmentPage() {
   await requireAdminPage()
   const t = await getTranslations('departments')
   return (
-    <GroupForm
-      action={saveGroup.bind(null, 'department', null)}
+    <DepartmentForm
+      action={saveDepartmentAction.bind(null, null)}
       cancelHref="/departments"
       heading={{
         title: t('newTitle'),
         eyebrow: <BackLink fallback={{ href: '/departments', label: t('title') }} />,
       }}
-      defaults={{ name: '' }}
+      defaults={{ name: '', headId: null }}
+      members={[]}
     />
   )
 }

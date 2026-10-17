@@ -5,18 +5,18 @@ import {
   archiveImpact,
   archiveRecord,
   canSetUserRole,
+  checkSessionSlot,
   createCompletion,
   createCourse,
   createEmployee,
-  createGroup,
   createProvider,
   createRoom,
   createSession,
   findUserByClerkId,
-  getCourseForEdit,
   moveSeats,
   removeAssignment,
-  renameGroup,
+  saveDepartment,
+  savePosition,
   setUserRole,
   unarchiveRecord,
   updateCompletion,
@@ -36,7 +36,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { commitImportChunk, findArchived } from '@/features/import/actions'
 import getRequestConfig from '@/i18n/request'
-import { courseForEdit } from '@/test/fixtures'
 import {
   NotFoundError,
   RedirectError,
@@ -53,11 +52,11 @@ import {
   removeAssignmentAction,
 } from './actions/assignments'
 import { saveCompletion, saveCourse, saveEmployee, saveSession } from './actions/edit'
-import { saveGroup } from './actions/groups'
+import { saveDepartmentAction, savePositionAction } from './actions/groups'
 import { setLocale } from './actions/locale'
 import { saveProvider } from './actions/providers'
 import { saveRoom } from './actions/rooms'
-import { createOfferedSession, saveNewSession } from './actions/sessions'
+import { checkSessionSlotAction, createOfferedSession, saveNewSession } from './actions/sessions'
 import { saveUserRole } from './actions/users'
 import {
   getSessionUser,
@@ -82,8 +81,9 @@ vi.mock('@muni/db/repositories', () => ({
   setUserRole: vi.fn(),
   createCourse: vi.fn(),
   createEmployee: vi.fn(),
-  createGroup: vi.fn(),
-  renameGroup: vi.fn(),
+  saveDepartment: vi.fn(),
+  savePosition: vi.fn(),
+  checkSessionSlot: vi.fn(),
   updateCompletion: vi.fn(),
   createCompletion: vi.fn(),
   createProvider: vi.fn(),
@@ -92,7 +92,6 @@ vi.mock('@muni/db/repositories', () => ({
   findUserByClerkId: vi.fn(),
   updateProvider: vi.fn(),
   updateRoom: vi.fn(),
-  getCourseForEdit: vi.fn(),
   moveSeats: vi.fn(),
   removeAssignment: vi.fn(),
   updateCourse: vi.fn(),
@@ -360,10 +359,37 @@ describe('edit actions', () => {
       positionIds: ['pos_head'],
       sessionMinutes: null,
       groupSize: null,
-      onlineAllowed: false,
+      // Not chosen: the needs follow what the sessions import derives.
+      onlineAllowed: null,
       capabilities: [],
     })
     expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
+    // "Yes" and "No" override it; anything else leaves it to the sessions.
+    for (const [posted, value] of [
+      ['yes', true],
+      ['no', false],
+      ['derived', null],
+    ] as const) {
+      await redirectOf(saveCourse('BOZP-Z', idle, form({ name: 'BOZP', onlineAllowed: posted })))
+      expect(updateCourse).toHaveBeenLastCalledWith(
+        'BOZP-Z',
+        expect.objectContaining({ onlineAllowed: value })
+      )
+    }
+  })
+
+  it('say how many planned sessions a course change would strand', async () => {
+    vi.mocked(updateCourse).mockResolvedValueOnce({
+      ok: false,
+      field: 'onlineAllowed',
+      reason: 'sessions_unfit',
+      count: 2,
+    })
+    expect(await saveCourse('BOZP-Z', idle, form({ name: 'BOZP', onlineAllowed: 'no' }))).toEqual({
+      status: 'error',
+      fieldErrors: { onlineAllowed: 'sessions_unfit' },
+      values: { onlineAllowed: { count: 2 } },
+    })
   })
 
   it('create a course with its code upper-cased, and say when the code is taken', async () => {
@@ -432,6 +458,7 @@ describe('edit actions', () => {
   })
 
   const sessionForm = {
+    courseId: 'course_bozp',
     date: '2026-11-04',
     startTime: '08:00',
     endTime: '11:00',
@@ -450,7 +477,12 @@ describe('edit actions', () => {
     expect(await redirectOf(saveSession('T016', idle, form(sessionForm)))).toBe('/sessions/T016')
     expect(updateSession).toHaveBeenCalledWith(
       'T016',
-      expect.objectContaining({ roomId: 'room_aula_a', unnamedBookings: 0, pricePerPerson: 450.5 })
+      expect.objectContaining({
+        courseId: 'course_bozp',
+        roomId: 'room_aula_a',
+        unnamedBookings: 0,
+        pricePerPerson: 450.5,
+      })
     )
     expect(
       await saveSession('T016', idle, form({ ...sessionForm, endTime: '07:00' }))
@@ -469,6 +501,18 @@ describe('edit actions', () => {
     expect(await saveSession('T016', idle, form(sessionForm))).toMatchObject({
       fieldErrors: { capacity: 'room_too_small' },
     })
+    vi.mocked(updateSession).mockResolvedValueOnce({ ok: false, problem: 'OVER_CAPACITY' })
+    expect(await saveSession('T016', idle, form(sessionForm))).toMatchObject({
+      fieldErrors: { capacity: 'over_capacity' },
+    })
+    vi.mocked(updateSession).mockResolvedValueOnce({ ok: false, problem: 'COURSE_ARCHIVED' })
+    expect(await saveSession('T016', idle, form(sessionForm))).toMatchObject({
+      fieldErrors: { courseId: 'course_archived' },
+    })
+    // More unnamed seats than seats: said before asking the database.
+    expect(
+      await saveSession('T016', idle, form({ ...sessionForm, unnamedBookings: '31' }))
+    ).toMatchObject({ fieldErrors: { capacity: 'over_capacity' } })
   })
 
   const employeeForm = {
@@ -476,7 +520,7 @@ describe('edit actions', () => {
     lastName: 'Černá',
     email: 'Marie.Cerna@Vzorova.example',
     departmentId: 'dep_lab',
-    managerExternalId: 'E0001',
+    managerId: 'emp_E0001',
     hiredOn: '2019-03-01',
     status: 'ACTIVE',
   }
@@ -492,10 +536,24 @@ describe('edit actions', () => {
         email: 'marie.cerna@vzorova.example',
         departmentId: 'dep_lab',
         positionId: null,
-        managerExternalId: 'E0001',
+        managerId: 'emp_E0001',
+        leadsDepartment: false,
         nationalId: null,
       })
     )
+    await redirectOf(saveEmployee('E0153', idle, form({ ...employeeForm, leadsDepartment: 'on' })))
+    expect(updateEmployee).toHaveBeenLastCalledWith(
+      'E0153',
+      expect.objectContaining({ leadsDepartment: true })
+    )
+    // Leading a department means being in one.
+    expect(
+      await saveEmployee(
+        'E0153',
+        idle,
+        form({ ...employeeForm, departmentId: '', leadsDepartment: 'on' })
+      )
+    ).toMatchObject({ fieldErrors: { leadsDepartment: 'no_department' } })
     expect(
       await saveEmployee('E0153', idle, form({ ...employeeForm, email: '', leftOn: '2010-01-01' }))
     ).toMatchObject({ fieldErrors: { leftOn: 'before_hired' } })
@@ -513,8 +571,9 @@ describe('edit actions', () => {
     expect(await redirectOf(saveEmployee(null, idle, form(employeeForm)))).toBe('/employees/N0001')
     for (const [problem, key] of [
       [{ field: 'email', reason: 'taken' }, 'taken'],
-      [{ field: 'managerExternalId', reason: 'manager_cycle' }, 'manager_cycle'],
+      [{ field: 'managerId', reason: 'manager_cycle' }, 'manager_cycle'],
       [{ field: 'positionId', reason: 'not_found' }, 'unavailable'],
+      [{ field: 'positionId', reason: 'pair_unknown' }, 'pair_unknown'],
     ] as const) {
       vi.mocked(createEmployee).mockResolvedValueOnce({ ok: false, ...problem })
       expect(await saveEmployee(null, idle, form(employeeForm))).toEqual({
@@ -524,106 +583,176 @@ describe('edit actions', () => {
     }
   })
 
-  const completionForm = { courseCode: 'BOZP-Z', completedOn: '2026-10-01' }
+  const completionForm = {
+    employeeId: 'emp_E0153',
+    courseId: 'course_bozp',
+    completedOn: '2026-10-01',
+    providerId: 'prov_vzor',
+  }
 
-  it('derive the validity from the course, on the server', async () => {
-    vi.mocked(getCourseForEdit).mockResolvedValue(courseForEdit())
-    expect(await redirectOf(saveCompletion('E0153', null, idle, form(completionForm)))).toBe(
+  it('record a completion and show its person; the server works out an empty validity', async () => {
+    vi.mocked(createCompletion).mockResolvedValue({ ok: true, employeeExternalId: 'E0153' })
+    expect(await redirectOf(saveCompletion(null, idle, form(completionForm)))).toBe(
       '/employees/E0153'
     )
-    expect(createCompletion).toHaveBeenLastCalledWith(
-      'E0153',
-      expect.objectContaining({ validUntil: '2028-10-01' })
-    )
-    // A date the user entered wins; a course that never expires gives none.
+    expect(createCompletion).toHaveBeenLastCalledWith({
+      employeeId: 'emp_E0153',
+      courseId: 'course_bozp',
+      completedOn: '2026-10-01',
+      validUntil: null,
+      providerId: 'prov_vzor',
+      newProviderName: null,
+      price: null,
+      note: null,
+    })
     await redirectOf(
       saveCompletion(
-        'E0153',
         null,
         idle,
         form({ ...completionForm, validUntil: '2027-01-01', price: '1 200 Kč' })
       )
     )
     expect(createCompletion).toHaveBeenLastCalledWith(
-      'E0153',
       expect.objectContaining({ validUntil: '2027-01-01', price: 1200 })
-    )
-    vi.mocked(getCourseForEdit).mockResolvedValue(
-      courseForEdit({ code: 'LEAD', name: 'LEAD', validityMonths: null })
-    )
-    await redirectOf(
-      saveCompletion('E0153', null, idle, form({ ...completionForm, courseCode: 'LEAD' }))
-    )
-    expect(createCompletion).toHaveBeenLastCalledWith(
-      'E0153',
-      expect.objectContaining({ validUntil: null })
     )
   })
 
-  it('correct a completion in place', async () => {
-    vi.mocked(getCourseForEdit).mockResolvedValue(courseForEdit())
-    expect(await redirectOf(saveCompletion('E0153', 'cmp_1', idle, form(completionForm)))).toBe(
-      '/employees/E0153'
+  it('name a new provider only on purpose', async () => {
+    vi.mocked(createCompletion).mockResolvedValue({ ok: true, employeeExternalId: 'E0153' })
+    await redirectOf(
+      saveCompletion(
+        null,
+        idle,
+        form({ ...completionForm, providerId: 'new', newProviderName: 'Nová firma' })
+      )
+    )
+    expect(createCompletion).toHaveBeenLastCalledWith(
+      expect.objectContaining({ providerId: null, newProviderName: 'Nová firma' })
+    )
+    // A name typed while a provider is picked is not sent.
+    await redirectOf(
+      saveCompletion(null, idle, form({ ...completionForm, newProviderName: 'Ignorováno' }))
+    )
+    expect(createCompletion).toHaveBeenLastCalledWith(
+      expect.objectContaining({ providerId: 'prov_vzor', newProviderName: null })
+    )
+    expect(
+      await saveCompletion(null, idle, form({ ...completionForm, providerId: 'new' }))
+    ).toEqual({ status: 'error', fieldErrors: { newProviderName: 'required' } })
+    vi.mocked(createCompletion).mockResolvedValueOnce({
+      ok: false,
+      field: 'newProviderName',
+      reason: 'taken',
+    })
+    expect(
+      await saveCompletion(
+        null,
+        idle,
+        form({ ...completionForm, providerId: 'new', newProviderName: 'vzorový ústav' })
+      )
+    ).toEqual({ status: 'error', fieldErrors: { newProviderName: 'taken' } })
+  })
+
+  it('correct a completion in place, and show the person it now belongs to', async () => {
+    vi.mocked(updateCompletion).mockResolvedValue({ ok: true, employeeExternalId: 'E0001' })
+    expect(await redirectOf(saveCompletion('cmp_1', idle, form(completionForm)))).toBe(
+      '/employees/E0001'
     )
     expect(updateCompletion).toHaveBeenCalledWith(
       'cmp_1',
-      expect.objectContaining({ courseCode: 'BOZP-Z', validUntil: '2028-10-01' })
+      expect.objectContaining({ courseId: 'course_bozp' })
     )
     expect(createCompletion).not.toHaveBeenCalled()
   })
 
   it('refuse a completion of an unknown course or with bad dates', async () => {
-    vi.mocked(getCourseForEdit).mockResolvedValue(null)
-    expect(await saveCompletion('E0153', null, idle, form(completionForm))).toEqual({
+    vi.mocked(createCompletion).mockResolvedValueOnce({
+      ok: false,
+      field: 'courseId',
+      reason: 'not_found',
+    })
+    expect(await saveCompletion(null, idle, form(completionForm))).toEqual({
       status: 'error',
-      fieldErrors: { courseCode: 'unavailable' },
+      fieldErrors: { courseId: 'unavailable' },
     })
     expect(
-      await saveCompletion(
-        'E0153',
-        null,
-        idle,
-        form({ ...completionForm, validUntil: '2020-01-01' })
-      )
+      await saveCompletion(null, idle, form({ ...completionForm, validUntil: '2020-01-01' }))
     ).toMatchObject({ fieldErrors: { validUntil: 'before_completed' } })
-    vi.mocked(getCourseForEdit).mockResolvedValue(courseForEdit())
     vi.mocked(createCompletion).mockRejectedValueOnce({ code: 'P2025' })
-    expect(await saveCompletion('E9999', null, idle, form(completionForm))).toMatchObject({
+    expect(await saveCompletion(null, idle, form(completionForm))).toMatchObject({
       formError: 'not_found',
     })
   })
 })
 
 describe('department and position actions', () => {
-  it('create or rename one and show it, refusing a taken name', async () => {
-    vi.mocked(createGroup).mockResolvedValueOnce({ ok: true, id: 'dep_new' })
-    expect(await redirectOf(saveGroup('department', null, idle, form({ name: 'Nový' })))).toBe(
+  it('save a department with its head and show it, saying why not', async () => {
+    vi.mocked(saveDepartment).mockResolvedValueOnce({ ok: true, id: 'dep_new' })
+    expect(await redirectOf(saveDepartmentAction(null, idle, form({ name: 'Nový' })))).toBe(
       '/departments/dep_new'
     )
-    expect(createGroup).toHaveBeenCalledWith('department', { name: 'Nový' })
-    vi.mocked(renameGroup).mockResolvedValueOnce({ ok: true, id: 'pos_1' })
-    expect(await redirectOf(saveGroup('position', 'pos_1', idle, form({ name: 'Jiná' })))).toBe(
-      '/positions/pos_1'
+    expect(saveDepartment).toHaveBeenLastCalledWith(null, { name: 'Nový', headId: null })
+    vi.mocked(saveDepartment).mockResolvedValueOnce({ ok: true, id: 'dep_lab' })
+    await redirectOf(
+      saveDepartmentAction('dep_lab', idle, form({ name: 'Laboratoře', headId: 'emp_1' }))
     )
-    vi.mocked(renameGroup).mockResolvedValueOnce({ ok: false, taken: 'name' })
-    expect(await saveGroup('position', 'pos_1', idle, form({ name: 'Vedoucí' }))).toEqual({
-      status: 'error',
-      fieldErrors: { name: 'taken' },
+    expect(saveDepartment).toHaveBeenLastCalledWith('dep_lab', {
+      name: 'Laboratoře',
+      headId: 'emp_1',
     })
-    expect(await saveGroup('position', 'pos_1', idle, form({ name: '' }))).toMatchObject({
+    for (const [problem, key] of [
+      [{ field: 'name', reason: 'taken' }, 'taken'],
+      [{ field: 'headId', reason: 'not_a_member' }, 'not_a_member'],
+    ] as const) {
+      vi.mocked(saveDepartment).mockResolvedValueOnce({ ok: false, ...problem })
+      expect(await saveDepartmentAction('dep_lab', idle, form({ name: 'X' }))).toEqual({
+        status: 'error',
+        fieldErrors: { [problem.field]: key },
+      })
+    }
+    expect(await saveDepartmentAction('dep_lab', idle, form({ name: '' }))).toMatchObject({
       fieldErrors: { name: 'required' },
     })
-    expect(await saveGroup('pet' as never, null, idle, form({ name: 'X' }))).toMatchObject({
-      formError: 'generic',
-    })
-    vi.mocked(renameGroup).mockRejectedValueOnce({ code: 'P2025' })
-    expect(await saveGroup('position', 'gone', idle, form({ name: 'X' }))).toMatchObject({
+    vi.mocked(saveDepartment).mockRejectedValueOnce({ code: 'P2025' })
+    expect(await saveDepartmentAction('gone', idle, form({ name: 'X' }))).toMatchObject({
       formError: 'not_found',
     })
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    vi.mocked(createGroup).mockRejectedValueOnce(new Error('down'))
-    expect(await saveGroup('department', null, idle, form({ name: 'X' }))).toMatchObject({
+    vi.mocked(saveDepartment).mockRejectedValueOnce(new Error('down'))
+    expect(await saveDepartmentAction(null, idle, form({ name: 'X' }))).toMatchObject({
       formError: 'generic',
+    })
+  })
+
+  it('save a position with its departments, saying how many people hold it elsewhere', async () => {
+    vi.mocked(savePosition).mockResolvedValueOnce({ ok: true, id: 'pos_1' })
+    const data = form({ name: 'Referent' })
+    data.append('departmentIds', 'dep_lab')
+    data.append('departmentIds', 'dep_lib')
+    expect(await redirectOf(savePositionAction('pos_1', idle, data))).toBe('/positions/pos_1')
+    expect(savePosition).toHaveBeenLastCalledWith('pos_1', {
+      name: 'Referent',
+      departmentIds: ['dep_lab', 'dep_lib'],
+    })
+    vi.mocked(savePosition).mockResolvedValueOnce({
+      ok: false,
+      field: 'departmentIds',
+      reason: 'in_use',
+      count: 3,
+    })
+    expect(await savePositionAction('pos_1', idle, form({ name: 'Referent' }))).toEqual({
+      status: 'error',
+      fieldErrors: { departmentIds: 'in_use' },
+      values: { departmentIds: { count: 3 } },
+    })
+    vi.mocked(savePosition).mockResolvedValueOnce({
+      ok: false,
+      field: 'departmentIds',
+      reason: 'not_found',
+    })
+    expect(await savePositionAction('pos_1', idle, form({ name: 'Referent' }))).toEqual({
+      status: 'error',
+      fieldErrors: { departmentIds: 'unavailable' },
     })
   })
 })
@@ -880,7 +1009,7 @@ describe('room actions', () => {
   }
 
   it('create a room or save one, then show it', async () => {
-    vi.mocked(createRoom).mockResolvedValue({ id: 'room_new' })
+    vi.mocked(createRoom).mockResolvedValue({ ok: true, id: 'room_new' })
     expect(await redirectOf(saveRoom(null, idle, withEquipment()))).toBe('/rooms/room_new')
     expect(createRoom).toHaveBeenCalledWith({
       name: 'Laboratoř 4',
@@ -889,13 +1018,25 @@ describe('room actions', () => {
       capabilities: ['LAB_EQUIPMENT', 'PROJECTOR'],
       note: null,
     })
-    vi.mocked(updateRoom).mockResolvedValue({ id: 'room_lab' })
+    vi.mocked(updateRoom).mockResolvedValue({ ok: true, id: 'room_lab' })
     expect(await redirectOf(saveRoom('room_lab', idle, form(roomForm)))).toBe('/rooms/room_lab')
     expect(updateRoom).toHaveBeenCalledWith(
       'room_lab',
       expect.objectContaining({ capabilities: [] })
     )
     expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
+    // Smaller than sessions planned in it need: refused, with how many.
+    vi.mocked(updateRoom).mockResolvedValueOnce({
+      ok: false,
+      field: 'capacity',
+      reason: 'sessions_unfit',
+      count: 2,
+    })
+    expect(await saveRoom('room_lab', idle, form(roomForm))).toEqual({
+      status: 'error',
+      fieldErrors: { capacity: 'sessions_unfit' },
+      values: { capacity: { count: 2 } },
+    })
   })
 
   it('name what is wrong: a missing name, a name in use, a room that is gone', async () => {
@@ -979,7 +1120,7 @@ describe('provider actions', () => {
 
 describe('session creation', () => {
   const create = {
-    courseCode: 'POZ-OCH',
+    courseId: 'course_poz',
     date: '2026-10-19',
     startTime: '10:00',
     endTime: '12:00',
@@ -1011,13 +1152,14 @@ describe('session creation', () => {
     expect(await createOfferedSession(create)).toEqual({ ok: false, reason: 'unauthorized' })
   })
 
-  it('creates a session from the course page form and opens it', async () => {
+  it('creates a session from the form and opens it', async () => {
     vi.mocked(createSession).mockResolvedValue({
       ok: true,
       externalId: 'S002',
       courseCode: 'POZ-OCH',
     })
     const fields = {
+      courseId: 'course_poz',
       date: '2026-11-02',
       startTime: '10:00',
       endTime: '12:00',
@@ -1026,33 +1168,47 @@ describe('session creation', () => {
       pricePerPerson: '380,- Kč',
       status: 'PLANNED',
     }
-    expect(await redirectOf(saveNewSession('POZ-OCH', idle, form(fields)))).toBe('/sessions/S002')
+    expect(await redirectOf(saveNewSession(idle, form(fields)))).toBe('/sessions/S002')
     expect(createSession).toHaveBeenLastCalledWith(
-      expect.objectContaining({ courseCode: 'POZ-OCH', capacity: 40, pricePerPerson: 380 })
+      expect.objectContaining({ courseId: 'course_poz', capacity: 40, pricePerPerson: 380 })
     )
-    expect(await saveNewSession('POZ-OCH', idle, form({ ...fields, roomId: '' }))).toMatchObject({
+    expect(await saveNewSession(idle, form({ ...fields, roomId: '' }))).toMatchObject({
       fieldErrors: { roomId: 'required' },
+    })
+    expect(await saveNewSession(idle, form({ ...fields, courseId: '' }))).toMatchObject({
+      fieldErrors: { courseId: 'required' },
     })
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     vi.mocked(createSession).mockRejectedValueOnce(new Error('down'))
-    expect(await saveNewSession('POZ-OCH', idle, form(fields))).toMatchObject({
+    expect(await saveNewSession(idle, form(fields))).toMatchObject({
       formError: 'generic',
     })
     vi.mocked(createSession).mockResolvedValueOnce({
       ok: false,
       problem: 'ROOM_MISSING_CAPABILITIES',
     })
-    expect(await saveNewSession('POZ-OCH', idle, form(fields))).toMatchObject({
+    expect(await saveNewSession(idle, form(fields))).toMatchObject({
       fieldErrors: { roomId: 'room_missing_capabilities' },
     })
-    // From the sessions list, the course is chosen in the form.
-    await redirectOf(saveNewSession(null, idle, form({ ...fields, courseCode: 'BOZP-Z' })))
-    expect(createSession).toHaveBeenLastCalledWith(
-      expect.objectContaining({ courseCode: 'BOZP-Z' })
-    )
-    expect(await saveNewSession(null, idle, form(fields))).toMatchObject({
-      fieldErrors: { courseCode: 'required' },
-    })
+  })
+
+  it('tells the form whether the room is taken then, and only admins', async () => {
+    const slot = { roomId: 'room_aula_a', date: '2026-11-02', startTime: '10:00', endTime: '12:00' }
+    vi.mocked(checkSessionSlot).mockResolvedValue('ROOM_BUSY')
+    expect(await checkSessionSlotAction(slot, 'T016')).toBe('ROOM_BUSY')
+    expect(checkSessionSlot).toHaveBeenLastCalledWith(slot, 'T016')
+    // Nonsense in: no question asked.
+    expect(await checkSessionSlotAction({ ...slot, date: 'zítra' }, null)).toBeNull()
+    expect(await checkSessionSlotAction(slot, 5 as unknown as string)).toBeNull()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(checkSessionSlot).mockRejectedValueOnce(new Error('down'))
+    expect(await checkSessionSlotAction(slot, null)).toBeNull()
+    expect(checkSessionSlot).toHaveBeenCalledTimes(2)
+    for (const user of [null, 'user_2'] as const) {
+      signedIn(user, 'FULL')
+      expect(await checkSessionSlotAction(slot, null)).toBeNull()
+    }
+    expect(checkSessionSlot).toHaveBeenCalledTimes(2)
   })
 })
 

@@ -86,7 +86,7 @@ describe('session planner', () => {
     await renderServer(PlannerPage())
     await user.click(screen.getByRole('button', { name: 'Create session' }))
     expect(createOfferedSession).toHaveBeenCalledWith({
-      courseCode: 'POZ-OCH',
+      courseId: 'course_poz',
       date: '2026-10-19',
       startTime: '10:00',
       endTime: '12:00',
@@ -120,6 +120,7 @@ describe('planner offers', () => {
   const offer = (over: Partial<SessionOffer>): SessionOffer => ({
     id: 'GDPR|2026-12|1',
     course: {
+      id: 'course_gdpr',
       code: 'GDPR',
       name: 'Ochrana osobních údajů',
       sessionMinutes: null,
@@ -147,6 +148,7 @@ describe('planner offers', () => {
         groups={[
           {
             course: {
+              id: 'course_gdpr',
               code: 'GDPR',
               name: 'Ochrana osobních údajů',
               sessionMinutes: null,

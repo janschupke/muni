@@ -7,21 +7,21 @@ import { addDays, todayIn, toZonedParts, zonedTimeToUtc } from '@muni/utils/date
  * A course's length is at most 12 hours, so the session ends the same day.
  */
 export function newSessionDefaults(
-  course: { sessionMinutes: number | null; groupSize: number | null } | null
+  course: { id: string; needs: { sessionMinutes?: number | null; groupSize: number | null } } | null
 ) {
   const date = addDays(todayIn(), 1)
   const ends = new Date(
     zonedTimeToUtc(date, DEFAULT_START).getTime() +
-      (course?.sessionMinutes ?? DEFAULT_SESSION_MINUTES) * 60_000
+      (course?.needs.sessionMinutes ?? DEFAULT_SESSION_MINUTES) * 60_000
   )
   return {
+    courseId: course?.id ?? '',
     date,
     startTime: DEFAULT_START,
     endTime: toZonedParts(ends).time,
     roomId: '',
-    capacity: course?.groupSize ?? null,
+    capacity: course?.needs.groupSize ?? null,
     unnamedBookings: 0,
-    assignedCount: 0,
     pricePerPerson: null,
     status: 'PLANNED',
   }

@@ -18,7 +18,12 @@ export async function removeE2eRecords(): Promise<void> {
       where: { employee: { lastName: { startsWith: 'E2E' } } },
     })
     await db.employee.deleteMany({ where: { lastName: { startsWith: 'E2E' } } })
-    await db.department.deleteMany({ where: { name: { startsWith: 'E2E' } } })
+    const e2e = { name: { startsWith: 'E2E' } }
+    await db.departmentPosition.deleteMany({
+      where: { OR: [{ department: e2e }, { position: e2e }] },
+    })
+    await db.department.deleteMany({ where: e2e })
+    await db.position.deleteMany({ where: e2e })
   } finally {
     await db.$disconnect()
   }

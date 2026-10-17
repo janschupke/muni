@@ -66,7 +66,7 @@
     "employment": {
       "ACTIVE": "Aktivní",
       "PARENTAL_LEAVE": "Rodičovská",
-      "TERMINATED": "Ukončen"
+      "LEFT": "Ukončen"
     },
     "compliance": {
       "VALID": "Platné",
@@ -343,7 +343,17 @@
       "unavailable": "Tato volba už není k dispozici; vyberte znovu.",
       "manager_cycle": "Tento člověk je jim podřízený (přímo nebo přes další); vyberte někoho jiného.",
       "own_role": "Vlastní roli změnit nemůžete.",
-      "last_admin": "Je to poslední správce; nejdřív udělejte správcem někoho jiného."
+      "last_admin": "Je to poslední správce; nejdřív udělejte správcem někoho jiného.",
+      "over_capacity": "Obsazeno je víc míst; nejdřív zrušte rezervace.",
+      "below_booked": "{booked, plural, one {Obsazené je # místo} few {Obsazená jsou # místa} other {Obsazeno je # míst}}; termín jich nemůže otevřít méně.",
+      "room_too_small_live": "{room} má {capacity} míst; termín jich otevírá {seats}.",
+      "room_missing_live": "{room}: chybí {missing}.",
+      "sessions_unfit": "{count, plural, one {# budoucí termín by se už nevešel} few {# budoucí termíny by se už nevešly} other {# budoucích termínů by se už nevešlo}} do své místnosti; nejdřív je přesuňte nebo zrušte.",
+      "not_a_member": "Útvar může vést jen jeho člen, který neodešel.",
+      "pair_unknown": "Útvar tuto pozici nemá; přidejte útvar na stránce pozice.",
+      "provider_both": "Vyberte poskytovatele, nebo zadejte nového – ne obojí.",
+      "no_department": "Vyberte útvar, který vede.",
+      "in_use": "{count, plural, one {Tuto pozici tam má # člověk} few {Tuto pozici tam mají # lidé} other {Tuto pozici tam má # lidí}}; nejdřív je přesuňte."
     },
     "course": {
       "title": "Upravit kurz {code}",
@@ -351,7 +361,7 @@
       "validityMonths": "Platnost (měsíce)",
       "validityHelp": "Nechte prázdné, pokud kurz nevyprší.",
       "sessionNeeds": "Co potřebuje termín",
-      "sessionNeedsHelp": "Plánovač termínů podle toho určuje velikost termínů a vybírá místnosti. Dokud to zde nenastavíte, odvozuje se z dosavadních termínů.",
+      "sessionNeedsHelp": "Plánovač termínů podle toho určuje velikost termínů a vybírá místnosti. Každý import termínů to odvodí z dosavadních termínů; hodnota nastavená zde má přednost.",
       "sessionMinutes": "Délka termínu (minuty)",
       "groupSize": "Velikost skupiny",
       "onlineAllowed": "Lze konat online",
@@ -363,7 +373,12 @@
       "audienceHelp": "Když není nic zaškrtnuto, kurz je nepovinný. Import katalogu toto nastaví znovu podle katalogu.",
       "requiredForAll": "Všichni",
       "departments": "Útvary",
-      "positions": "Pozice"
+      "positions": "Pozice",
+      "derivedNone": "Prázdné: z termínů zatím neznámo.",
+      "derivedValue": "Prázdné: {value}, podle dosavadních termínů.",
+      "onlineDerived": "Podle termínů ({value, select, true {ano} other {ne}})",
+      "onlineYes": "Ano",
+      "onlineNo": "Ne"
     },
     "session": {
       "date": "Datum",
@@ -375,7 +390,17 @@
       "unnamedBookings": "Další obsazená místa (bez jména)",
       "unnamedHelp": "{count, plural, =0 {Nikdo není přihlášen jménem.} one {A # osoba přihlášená jménem.} few {A # osoby přihlášené jménem.} other {A # osob přihlášených jménem.}}",
       "room": "Místnost",
-      "course": "Kurz"
+      "course": "Kurz",
+      "roomOption": "{name} · {seats, plural, one {# místo} few {# místa} other {# míst}}",
+      "roomOnline": "{name} · online",
+      "unfit": {
+        "TOO_SMALL": "malá",
+        "ONLINE_NOT_ALLOWED": "kurz není online",
+        "MISSING_CAPABILITIES": "chybí vybavení"
+      },
+      "roomHolds": "Místnost má {seats, plural, one {# místo} few {# místa} other {# míst}}.",
+      "bookedSeats": "{count, plural, one {Obsazené je # místo.} few {Obsazená jsou # místa.} other {Obsazeno je # míst.}}",
+      "courseKeepsBookings": "{count, plural, one {# osoba přihlášená jménem zůstane přihlášená} few {# osoby přihlášené jménem zůstanou přihlášené} other {# osob přihlášených jménem zůstane přihlášeno}}, i když se kurz změní."
     },
     "employee": {
       "title": "Upravit: {name}",
@@ -394,7 +419,15 @@
       "nationalIdHelp": "Nepovinné; vidí je jen role, které k tomu mají oprávnění.",
       "place": "Kde pracuje",
       "manager": "Vedoucí",
-      "employment": "Pracovní poměr"
+      "employment": "Pracovní poměr",
+      "positionCleared": "Nový útvar předchozí pozici nemá; vyberte některou z jeho pozic.",
+      "positionHelp": "Pozice, které útvar má.",
+      "leadsDepartment": "Vede útvar",
+      "leadsNeedsDepartment": "Nejdřív vyberte útvar.",
+      "leadsReplaces": "Útvar teď vede {name}; uložením se vedoucím stane tento člověk.",
+      "leadsNow": "Útvar vede {name}.",
+      "statusHelp": "Zda už odešel, určuje datum ukončení.",
+      "leftOnHelp": "Od tohoto dne se počítá jako odešlý."
     },
     "completion": {
       "title": "Zapsat absolvování: {name}",
@@ -406,7 +439,13 @@
       "price": "Cena ({currency})",
       "note": "Poznámka",
       "editTitle": "Upravit absolvování {id} – {name}",
-      "importedHint": "Tento záznam pochází z importu, takže další import stejného souboru změny provedené zde přepíše."
+      "importedHint": "Tento záznam pochází z importu, takže další import stejného souboru změny provedené zde přepíše.",
+      "employee": "Zaměstnanec",
+      "validUntilNever": "Nechte prázdné: kurz nevyprší.",
+      "validUntilFromCourse": "Nechte prázdné a platí {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}} od absolvování, podle kurzu.",
+      "newProvider": "Nový poskytovatel…",
+      "newProviderName": "Název nového poskytovatele",
+      "newProviderHelp": "Vytvoří poskytovatele. Pokud už existuje, vyberte jej ze seznamu."
     },
     "fixBelow": "Některá pole je třeba upravit; u každého je níže uvedeno proč.",
     "picker": {
@@ -422,7 +461,12 @@
       "minutes": "Minuty"
     },
     "group": {
-      "name": "Název"
+      "name": "Název",
+      "head": "Vedoucí",
+      "headHelp": "Někdo z lidí útvaru.",
+      "headNoMembers": "Zatím tu nikdo nepracuje; vedoucího nastavíte, až tu někdo bude.",
+      "departments": "Útvary",
+      "departmentsHelp": "Kde pozice existuje: lidé ji mohou mít jen v těchto útvarech."
     }
   },
   "import": {
@@ -572,7 +616,13 @@
       "ZERO_CAPACITY": "Kapacita je 0.",
       "FUTURE_COMPLETION": "Datum absolvování {value} je v budoucnosti.",
       "ROOM_DERIVED": "Místnost „{value}“ není v seznamu; vytvoří se podle termínů, které se v ní konají.",
-      "ARCHIVED": "„{value}“ je archivováno, řádek se proto přeskočí. Pro import řádku záznam obnovte."
+      "ARCHIVED": "„{value}“ je archivováno, řádek se proto přeskočí. Pro import řádku záznam obnovte.",
+      "LEFT_WITHOUT_DATE": "Stav říká, že odešel, ale chybí datum ukončení; doplňte jej.",
+      "MANAGER_CYCLE": "Vedoucí {value} by vytvořil smyčku (je tomuto člověku podřízený); záznam se importuje bez vedoucího.",
+      "ROOM_TOO_SMALL": "Místnost má {capacity} míst, méně než {value}, která termín otevírá.",
+      "ROOM_UNSUITABLE": "Místnost „{value}“ nesplňuje, co kurz potřebuje (vybavení, nebo je online).",
+      "ROOM_BUSY": "Místnost je v tu dobu obsazená termínem {otherId}.",
+      "WILL_CREATE": "„{value}“ je nové; import jej vytvoří."
     }
   },
   "errors": {
@@ -939,7 +989,7 @@
       "inList": "Otevřít v seznamu zaměstnanců"
     },
     "newTitle": "Nový útvar",
-    "editTitle": "Přejmenovat {name}",
+    "editTitle": "Upravit {name}",
     "new": "Nový útvar"
   },
   "positions": {
@@ -959,7 +1009,7 @@
       "inList": "Otevřít v seznamu zaměstnanců"
     },
     "newTitle": "Nová pozice",
-    "editTitle": "Přejmenovat {name}",
+    "editTitle": "Upravit {name}",
     "new": "Nová pozice"
   },
   "planner": {
@@ -999,7 +1049,8 @@
       "ROOM_TOO_SMALL": "Místnost má méně míst, než termín otevírá. Obnovený plán nabízí jinou místnost.",
       "ROOM_MISSING_CAPABILITIES": "Místnosti chybí vybavení, které kurz potřebuje. Obnovený plán nabízí jinou místnost.",
       "ROOM_ARCHIVED": "Místnost byla mezitím archivována. Obnovený plán nabízí jinou místnost.",
-      "COURSE_ARCHIVED": "Kurz byl mezitím archivován. Načtěte plánovač znovu."
+      "COURSE_ARCHIVED": "Kurz byl mezitím archivován. Načtěte plánovač znovu.",
+      "OVER_CAPACITY": "Obsazeno je víc míst, než termín otevírá. Načtěte plánovač znovu."
     },
     "problems": {
       "NO_ROOM_WITH": "I nejlépe vybavené místnosti chybí {missing}.",
@@ -1184,7 +1235,8 @@
       "adminOnly": "Tuto stránku vidí jen správci. Jinde záznam chybí a člověk je uveden jen značkou.",
       "archivedAt": "Archivováno",
       "archivedBy": "Archivoval(a)"
-    }
+    },
+    "leaves": "Vede útvar {department}; ten zůstane bez vedoucího, dokud se nový nenastaví."
   },
   "bookings": {
     "add": "Rezervovat",

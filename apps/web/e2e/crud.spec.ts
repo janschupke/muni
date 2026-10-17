@@ -73,9 +73,11 @@ test('adds a person with typed and picked dates, then archives them', async ({ p
   await page.keyboard.press('Enter')
   await expect(grid).toHaveCount(0)
   await expect(page.getByRole('textbox', { name: 'Left' })).not.toHaveValue('')
-  // Saved with an N ID, which imports never overwrite.
+  // Leaving is a date, not a status: the employment choice has no "Left".
   await page.getByRole('combobox', { name: /Employment/ }).click()
-  await page.getByRole('option', { name: 'Left', exact: true }).click()
+  await expect(page.getByRole('option', { name: 'Left', exact: true })).toHaveCount(0)
+  await page.getByRole('option', { name: 'Active', exact: true }).click()
+  // Saved with an N ID, which imports never overwrite.
   await save(page).click()
   await expect(page).toHaveURL(/\/employees\/N\d{4}$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Eva E2E Testová' })).toBeVisible()
@@ -142,4 +144,87 @@ test('plans a session with the time picker, books a person by hand, and cancels 
     .getByRole('button', { name: 'Remove' })
     .click()
   await expect(booked).toHaveCount(0)
+})
+
+test('gives a position its departments and a department its head', async ({ page }) => {
+  await page.goto('/departments/new')
+  await page.getByRole('textbox', { name: /Name/ }).fill('E2E vedení')
+  await save(page).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'E2E vedení' })).toBeVisible()
+
+  await page.goto('/positions/new')
+  await page.getByRole('textbox', { name: /Name/ }).fill('E2E pozice')
+  await page.getByRole('checkbox', { name: 'E2E vedení' }).click()
+  await save(page).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'E2E pozice' })).toBeVisible()
+
+  // A person in the department: only its positions are offered, and they may lead it.
+  await page.goto('/employees/new')
+  await page.getByRole('textbox', { name: /First name/ }).fill('Jan')
+  await page.getByRole('textbox', { name: /Last name/ }).fill('E2E Vedoucí')
+  await page.getByRole('combobox', { name: 'Department' }).click()
+  await page.getByRole('option', { name: 'E2E vedení' }).click()
+  await page.getByRole('combobox', { name: 'Position' }).click()
+  await expect(page.getByRole('option')).toHaveText(['—', 'E2E pozice'])
+  await page.getByRole('option', { name: 'E2E pozice' }).click()
+  await page.getByRole('checkbox', { name: 'Leads the department' }).click()
+  await save(page).click()
+  await expect(page).toHaveURL(/\/employees\/N\d{4}$/)
+
+  await page.goto('/departments')
+  await page.getByRole('main').getByRole('link', { name: 'E2E vedení', exact: true }).click()
+  await expect(page.getByRole('main').getByText('E2E Vedoucí Jan').first()).toBeVisible()
+  await page.getByRole('main').getByRole('link', { name: 'Edit', exact: true }).click()
+  await expect(page.getByRole('combobox', { name: 'Head' })).toHaveText('E2E Vedoucí Jan')
+  // Nobody leads it, by choice.
+  await page.getByRole('combobox', { name: 'Head' }).click()
+  await page.getByRole('option', { name: '—' }).click()
+  await save(page).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'E2E vedení' })).toBeVisible()
+  await page.getByRole('main').getByRole('link', { name: 'Edit', exact: true }).click()
+  await expect(page.getByRole('combobox', { name: 'Head' })).toHaveText('—')
+})
+
+test('checks a session’s room and seats as they are typed, and changes its course', async ({
+  page,
+}) => {
+  await page.goto('/sessions/new')
+  await page.getByRole('combobox', { name: /Course/ }).click()
+  await page.getByRole('option', { name: /^BOZP-Z/ }).click()
+  const date = page.getByRole('textbox', { name: /Date/ })
+  await date.fill('4/12/2027')
+  await date.blur()
+  // The seats follow the room: the course's group of 30 fits Aula A, Učebna 2 holds 15.
+  await page.getByRole('combobox', { name: /Room/ }).click()
+  await page.getByRole('option', { name: /^Aula A · 40 seats/ }).click()
+  const seats = page.getByRole('textbox', { name: /Capacity/ })
+  await expect(seats).toHaveValue('30')
+  await page.getByRole('combobox', { name: /Room/ }).click()
+  await page.getByRole('option', { name: /^Učebna 2 · 15 seats/ }).click()
+  await expect(seats).toHaveValue('15')
+  // Typed seats stay, and the room that cannot hold them says so before anything is sent.
+  await seats.fill('35')
+  await expect(page.getByText('Učebna 2 holds 15; this session opens 35.')).toBeVisible()
+  await page.getByRole('combobox', { name: /Room/ }).click()
+  await expect(
+    page.getByRole('option', { name: /^Seminární místnost · 12 seats · too small/ })
+  ).toBeVisible()
+  await page.getByRole('option', { name: /^Učebna 1 · 40 seats/ }).click()
+  await expect(page.getByText(/this session opens/)).toHaveCount(0)
+  await expect(seats).toHaveValue('35')
+  await save(page).click()
+  await expect(page).toHaveURL(/\/sessions\/S\d{3}$/)
+
+  // Another course, on the edit form.
+  await page.getByRole('main').getByRole('link', { name: 'Edit' }).click()
+  await page.getByRole('combobox', { name: /Course/ }).click()
+  await page.getByRole('option', { name: /^GDPR/ }).click()
+  await save(page).click()
+  await expect(page).toHaveURL(/\/sessions\/S\d{3}$/)
+  await expect(
+    page
+      .getByRole('main')
+      .getByText(/Ochrana osobních údajů/)
+      .first()
+  ).toBeVisible()
 })

@@ -1,5 +1,5 @@
 import { type ComplianceBand, complianceBand } from '@muni/domain/compliance'
-import type { ComplianceStatus, EmploymentStatus, SessionStatus } from '@muni/domain/enums'
+import type { ComplianceStatus, EmploymentState, SessionStatus } from '@muni/domain/enums'
 import { type Occupancy, occupancy } from '@muni/domain/sessions'
 import { Badge, type BadgeTone } from '@muni/ui/badge'
 import type { MeterTone } from '@muni/ui/meter'
@@ -55,13 +55,13 @@ export function ComplianceBadge({ status }: { status: ComplianceStatus | null })
   )
 }
 
-const EMPLOYMENT: Record<EmploymentStatus, { tone: BadgeTone; Icon: LucideIcon }> = {
+const EMPLOYMENT: Record<EmploymentState, { tone: BadgeTone; Icon: LucideIcon }> = {
   ACTIVE: { tone: 'success', Icon: UserCheck },
   PARENTAL_LEAVE: { tone: 'accent', Icon: Baby },
-  TERMINATED: { tone: 'neutral', Icon: UserX },
+  LEFT: { tone: 'neutral', Icon: UserX },
 }
 
-export function EmploymentBadge({ status }: { status: EmploymentStatus }) {
+export function EmploymentBadge({ status }: { status: EmploymentState }) {
   const t = useTranslations('status.employment')
   const { tone, Icon } = EMPLOYMENT[status]
   return (

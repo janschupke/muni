@@ -156,7 +156,7 @@ export default async function EmployeePage({ params }: Props) {
             <Card>
               <CardHeader title={t('bookings')} />
               <CardBody className="flex flex-col gap-4">
-                {canEdit && employee.status !== 'TERMINATED' && (
+                {canEdit && employee.status !== 'LEFT' && (
                   <AddBookingForm
                     fixed={{ employeeExternalId: employee.externalId }}
                     field="sessionExternalId"

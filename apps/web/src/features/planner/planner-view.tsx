@@ -290,7 +290,7 @@ function CreateButton({
       onClick={() => {
         startTransition(async () => {
           const outcome = await createOfferedSession({
-            courseCode: offer.course.code,
+            courseId: offer.course.id,
             date: slot.date,
             startTime: slot.startTime,
             endTime: slot.endTime,

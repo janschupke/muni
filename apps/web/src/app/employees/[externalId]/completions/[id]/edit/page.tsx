@@ -1,4 +1,9 @@
-import { getCompletionForEdit, listCourseOptions, listProviderNames } from '@muni/db/repositories'
+import {
+  getCompletionForEdit,
+  listCourseOptions,
+  listEmployeeOptions,
+  listProviderOptions,
+} from '@muni/db/repositories'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
@@ -14,17 +19,18 @@ export default async function EditCompletionPage({
 }) {
   await requireAdminPage()
   const { externalId, id } = await params
-  const [completion, courses, providers, t] = await Promise.all([
+  const [completion, courses, providers, employees, t] = await Promise.all([
     getCompletionForEdit(id),
     listCourseOptions(),
-    listProviderNames(),
+    listProviderOptions(),
+    listEmployeeOptions(),
     getTranslations('forms.completion'),
   ])
   // The address names the person too: a completion of someone else is not found here.
   if (completion?.employee.externalId !== externalId) notFound()
   return (
     <CompletionForm
-      action={saveCompletion.bind(null, externalId, id)}
+      action={saveCompletion.bind(null, id)}
       cancelHref={`/employees/${externalId}`}
       heading={{
         title: t('editTitle', { id: completion.externalId, name: completion.employee.name }),
@@ -34,8 +40,21 @@ export default async function EditCompletionPage({
           />
         ),
       }}
-      courses={courses}
-      providers={providers}
+      // Someone who has left is not offered for new records, but keeps their own.
+      employees={
+        employees.some(e => e.id === completion.employee.id)
+          ? employees
+          : [...employees, completion.employee]
+      }
+      // An archived course or provider stays as the record's, shown but not offered to others.
+      courses={
+        courses.some(c => c.id === completion.course.id) ? courses : [...courses, completion.course]
+      }
+      providers={
+        !completion.provider || providers.some(p => p.id === completion.provider?.id)
+          ? providers
+          : [...providers, completion.provider]
+      }
       defaults={completion}
     />
   )

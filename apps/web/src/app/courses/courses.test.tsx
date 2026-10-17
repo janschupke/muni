@@ -5,6 +5,7 @@ import {
   getComplianceMatrix,
   getCourse,
   getCourseForEdit,
+  listCourseOptions,
   listCourses,
 } from '@muni/db/repositories'
 import { EMPTY_REFERENCE } from '@muni/importer'
@@ -40,15 +41,21 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
     )
   ),
   listRoomOptions: vi.fn(() =>
-    Promise.resolve([{ id: 'room_aula_a', name: 'Aula A', kind: 'CLASSROOM', capacity: 40 }])
+    Promise.resolve([
+      { id: 'room_aula_a', name: 'Aula A', kind: 'CLASSROOM', capacity: 40, capabilities: [] },
+    ])
   ),
+  listCourseOptions: vi.fn(),
   listCourses: vi.fn(),
 }))
 vi.mock('@muni/db/client', () => ({ getDb: vi.fn(() => 'db') }))
 vi.mock('@muni/db/reference', () => ({ loadReferenceSnapshot: vi.fn() }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/edit', () => ({ saveCourse: vi.fn(), saveSession: vi.fn() }))
-vi.mock('@/server/actions/sessions', () => ({ saveNewSession: vi.fn() }))
+vi.mock('@/server/actions/sessions', () => ({
+  saveNewSession: vi.fn(),
+  checkSessionSlotAction: vi.fn(() => Promise.resolve(null)),
+}))
 vi.mock('@/server/actions/archive', () => ({ archiveAction: vi.fn(), previewArchive: vi.fn() }))
 vi.mock('@/features/import/actions', () => ({ commitImportChunk: vi.fn() }))
 
@@ -244,6 +251,17 @@ describe('course detail', () => {
 describe('new session', () => {
   const props = { params: params({ code: 'BOZP-Z' }) }
 
+  const bozp = {
+    id: 'course_bozp',
+    code: 'BOZP-Z',
+    name: 'BOZP – základní školení',
+    validityMonths: 24,
+    needs: { sessionMinutes: 180, groupSize: 30, onlineAllowed: false, capabilities: [] },
+  }
+  beforeEach(() => {
+    vi.mocked(listCourseOptions).mockResolvedValue([bozp])
+  })
+
   it('opens from the course for admins, set to the course’s length and group', async () => {
     signInAs('ADMIN')
     await renderServer(CoursePage(props))
@@ -259,17 +277,21 @@ describe('new session', () => {
     expect(screen.getByRole('textbox', { name: /^End/ })).toHaveProperty('value', '12:00')
     expect(screen.getByRole('textbox', { name: /Capacity/ })).toHaveProperty('value', '30')
     expect(screen.queryByRole('textbox', { name: /Other bookings/ })).toBeNull()
+    // The course is chosen already, and can be changed.
+    expect(screen.getByRole('combobox', { name: /Course/ }).textContent).toContain('BOZP-Z')
     await expectNoAxeViolations()
   })
 
   it('falls back to three hours and an empty group, and 404s for an unknown course', async () => {
-    vi.mocked(getCourseForEdit).mockResolvedValue(
-      courseForEdit({ sessionMinutes: null, groupSize: null })
-    )
+    vi.mocked(listCourseOptions).mockResolvedValue([
+      { ...bozp, needs: { ...bozp.needs, sessionMinutes: null, groupSize: null } },
+    ])
     await renderServer(NewSessionPage(props))
     expect(screen.getByRole('textbox', { name: /^End/ })).toHaveProperty('value', '12:00')
-    vi.mocked(getCourseForEdit).mockResolvedValue(null)
-    await expect(NewSessionPage(props)).rejects.toThrow(NotFoundError)
+    expect(screen.getByRole('textbox', { name: /Capacity/ })).toHaveProperty('value', '')
+    await expect(NewSessionPage({ params: params({ code: 'NOPE' }) })).rejects.toThrow(
+      NotFoundError
+    )
   })
 })
 

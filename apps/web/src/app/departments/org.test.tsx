@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import {
   getDepartment,
-  getGroupForEdit,
+  getDepartmentForEdit,
   getPosition,
+  getPositionForEdit,
   listDepartmentSummaries,
+  listGroupOptions,
   listPositionSummaries,
 } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
@@ -60,14 +62,19 @@ function peopleTable(): HTMLElement {
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
   getDepartment: vi.fn(),
-  getGroupForEdit: vi.fn(),
+  getDepartmentForEdit: vi.fn(),
+  getPositionForEdit: vi.fn(),
+  listGroupOptions: vi.fn(),
   getPosition: vi.fn(),
   listDepartmentSummaries: vi.fn(),
   listPositionSummaries: vi.fn(),
 }))
 
 vi.mock('@/server/auth')
-vi.mock('@/server/actions/groups', () => ({ saveGroup: vi.fn() }))
+vi.mock('@/server/actions/groups', () => ({
+  saveDepartmentAction: vi.fn(),
+  savePositionAction: vi.fn(),
+}))
 vi.mock('@/server/actions/archive', () => ({ archiveAction: vi.fn(), previewArchive: vi.fn() }))
 
 beforeEach(() => {
@@ -296,23 +303,50 @@ describe('managing departments and positions', () => {
     expect(screen.queryByRole('button', { name: /^Archive/ })).toBeNull()
   })
 
-  it('create and rename them in a one-field form', async () => {
+  it('create and edit them: a department with its head, a position with its departments', async () => {
+    vi.mocked(listGroupOptions).mockResolvedValue([
+      { id: 'dep_lab', name: 'Laboratoře' },
+      { id: 'dep_lib', name: 'Knihovna' },
+    ])
     expect(await newDepartmentMetadata()).toEqual({ title: 'New department' })
     expect(await newPositionMetadata()).toEqual({ title: 'New position' })
     await renderServer(NewDepartmentPage())
     expect(screen.getByRole('heading', { level: 1, name: 'New department' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /Name/ })).toHaveProperty('value', '')
     await expectNoAxeViolations()
+    vi.mocked(getDepartmentForEdit).mockResolvedValue({
+      id: 'dep_lab',
+      name: 'Laboratoře',
+      headId: 'emp_1',
+      members: [{ id: 'emp_1', name: 'Novák Jan' }],
+    })
+    await renderServer(EditDepartmentPage({ params: params({ id: 'dep_lab' }) }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Edit Laboratoře' })).toBeTruthy()
+    expect(screen.getAllByRole('combobox', { name: 'Head' }).at(-1)?.textContent).toBe('Novák Jan')
     await renderServer(NewPositionPage())
-    vi.mocked(getGroupForEdit).mockResolvedValue({ id: 'pos_lab', name: 'Laborant' })
+    vi.mocked(getPositionForEdit).mockResolvedValue({
+      id: 'pos_lab',
+      name: 'Laborant',
+      departmentIds: ['dep_lab'],
+    })
     await renderServer(EditPositionPage({ params: params({ id: 'pos_lab' }) }))
-    expect(screen.getByRole('heading', { level: 1, name: 'Rename Laborant' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Edit Laborant' })).toBeTruthy()
     expect(screen.getAllByRole('textbox', { name: /Name/ }).at(-1)).toHaveProperty(
       'value',
       'Laborant'
     )
-    vi.mocked(getGroupForEdit).mockResolvedValue(null)
+    const departments = screen.getAllByRole('group', { name: 'Departments' }).at(-1)
+    expect(
+      within(departments ?? document.body)
+        .getByRole('checkbox', { name: 'Laboratoře' })
+        .getAttribute('aria-checked')
+    ).toBe('true')
+    vi.mocked(getDepartmentForEdit).mockResolvedValue(null)
     await expect(EditDepartmentPage({ params: params({ id: 'gone' }) })).rejects.toThrow(
+      NotFoundError
+    )
+    vi.mocked(getPositionForEdit).mockResolvedValue(null)
+    await expect(EditPositionPage({ params: params({ id: 'gone' }) })).rejects.toThrow(
       NotFoundError
     )
   })

@@ -12,7 +12,7 @@ import {
   listEmployees,
   listGroupOptions,
   listPositions,
-  listProviderNames,
+  listProviderOptions,
 } from '@muni/db/repositories'
 import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -46,7 +46,9 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   listEmployeeBookings: vi.fn(),
   listEmployees: vi.fn(),
   listPositions: vi.fn(),
-  listProviderNames: vi.fn(),
+  listProviderOptions: vi.fn(),
+  listDepartmentPositions: vi.fn(() => Promise.resolve({ dep_lab: ['pos_lab'] })),
+  listDepartmentHeads: vi.fn(() => Promise.resolve({})),
 }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/edit', () => ({
@@ -64,10 +66,19 @@ beforeEach(() => {
   vi.mocked(listEmployees).mockResolvedValue(employeePage())
   vi.mocked(listDepartments).mockResolvedValue(['Knihovna', 'Laboratoře'])
   vi.mocked(listPositions).mockResolvedValue(['Laborantka', 'Referent'])
-  vi.mocked(listProviderNames).mockResolvedValue(['Bezpečná firma s.r.o.'])
+  vi.mocked(listProviderOptions).mockResolvedValue([
+    { id: 'prov_1', name: 'Bezpečná firma s.r.o.' },
+  ])
+  const needs = { sessionMinutes: null, groupSize: null, onlineAllowed: false, capabilities: [] }
   vi.mocked(listCourseOptions).mockResolvedValue([
-    { code: 'BOZP-Z', name: 'BOZP – základní školení', validityMonths: 24 },
-    { code: 'LEAD', name: 'Základy vedení lidí', validityMonths: null },
+    {
+      id: 'course_bozp',
+      code: 'BOZP-Z',
+      name: 'BOZP – základní školení',
+      validityMonths: 24,
+      needs,
+    },
+    { id: 'course_lead', code: 'LEAD', name: 'Základy vedení lidí', validityMonths: null, needs },
   ])
   vi.mocked(getEmployee).mockResolvedValue(employeeDetail())
   vi.mocked(listGroupOptions).mockImplementation(kind =>
@@ -78,8 +89,8 @@ beforeEach(() => {
     )
   )
   vi.mocked(listEmployeeOptions).mockResolvedValue([
-    { externalId: 'E0001', name: 'Urbanová Tereza' },
-    { externalId: 'E0153', name: 'Černá Marie' },
+    { id: 'emp_E0001', externalId: 'E0001', name: 'Urbanová Tereza', departmentId: null },
+    { id: 'emp_E0153', externalId: 'E0153', name: 'Černá Marie', departmentId: 'dep_lab' },
   ])
   vi.mocked(listBookableSessions).mockResolvedValue([
     {
@@ -92,6 +103,7 @@ beforeEach(() => {
     },
   ])
   vi.mocked(getEmployeeForEdit).mockResolvedValue({
+    id: 'emp_E0153',
     externalId: 'E0153',
     firstName: 'Marie',
     lastName: 'Černá',
@@ -99,7 +111,9 @@ beforeEach(() => {
     nationalId: null,
     departmentId: 'dep_lab',
     positionId: 'pos_lab',
-    managerExternalId: 'E0001',
+    managerId: 'emp_E0001',
+    manager: { id: 'emp_E0001', name: 'Urbanová Tereza' },
+    leadsDepartment: false,
     hiredOn: '2019-03-01',
     leftOn: null,
     status: 'ACTIVE',
@@ -205,7 +219,7 @@ describe('employee list', () => {
           lastName: 'Blažek',
           department: null,
           position: null,
-          status: 'TERMINATED',
+          status: 'LEFT',
           counts: { VALID: 0, EXPIRING: 0, EXPIRED: 0, MISSING: 0, total: 0 },
           requirements: [],
         }),
@@ -427,6 +441,13 @@ describe('employee forms', () => {
     expect(requireAdminPage).toHaveBeenCalledTimes(3)
   })
 
+  it('keep offering a manager who has left to the people they managed', async () => {
+    vi.mocked(listEmployeeOptions).mockResolvedValue([])
+    await renderServer(EditEmployeePage(props))
+    await userEvent.setup().click(screen.getByRole('combobox', { name: 'Manager' }))
+    expect(screen.getByRole('option', { name: 'Urbanová Tereza' })).toBeTruthy()
+  })
+
   it('edit the person with their current values; they cannot manage themselves', async () => {
     await renderServer(EditEmployeePage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'Edit Marie Černá' })).toBeTruthy()
@@ -455,13 +476,24 @@ describe('employee forms', () => {
       id: 'cmp_1',
       externalId: 'Z000101',
       imported: true,
-      courseCode: 'BOZP-Z',
+      employeeId: 'emp_E0153',
+      courseId: 'course_old',
+      // An archived course and provider stay the record's own, offered to it alone.
+      course: {
+        id: 'course_old',
+        code: 'OLD-1',
+        name: 'Starý kurz',
+        validityMonths: 12,
+        archived: true,
+      },
       completedOn: '2025-11-05',
-      validUntil: '2027-11-05',
-      provider: 'Bezpečná firma s.r.o.',
+      validUntil: null,
+      providerId: 'prov_old',
+      provider: { id: 'prov_old', name: 'Zaniklá firma', archived: true },
       price: 450,
       note: null,
-      employee: { externalId: 'E0153', name: 'Černá Marie' },
+      // Someone who has left is not among the pickers' people, but keeps their records.
+      employee: { id: 'emp_left', externalId: 'E0153', name: 'Černá Marie' },
     }
     vi.mocked(getCompletionForEdit).mockResolvedValue(completion)
     await renderServer(EditCompletionPage({ params: params({ externalId: 'E0153', id: 'cmp_1' }) }))
@@ -470,6 +502,10 @@ describe('employee forms', () => {
     ).toBeTruthy()
     expect(screen.getByText(/came from an import/)).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'Price (CZK)' })).toHaveProperty('value', '450')
+    expect(screen.getByRole('combobox', { name: /Course/ }).textContent).toContain('Starý kurz')
+    expect(screen.getByRole('combobox', { name: /Provider/ }).textContent).toBe('Zaniklá firma')
+    expect(screen.getByRole('combobox', { name: /Employee/ }).textContent).toBe('Černá Marie')
+    expect(screen.getByText(/12 months from completion/)).toBeTruthy()
     await expect(
       EditCompletionPage({ params: params({ externalId: 'E0001', id: 'cmp_1' }) })
     ).rejects.toThrow(NotFoundError)

@@ -131,7 +131,7 @@ describe('archived record pages', () => {
       fields: [
         { key: 'externalId', value: 'E0044', type: 'text' },
         { key: 'email', value: null, type: 'text' },
-        { key: 'status', value: 'TERMINATED', type: 'text' },
+        { key: 'status', value: 'LEFT', type: 'text' },
         { key: 'hiredOn', value: '2019-03-01', type: 'date' },
       ],
     })

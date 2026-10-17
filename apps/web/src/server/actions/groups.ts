@@ -1,37 +1,66 @@
 'use server'
 
-import { createGroup, type GroupKind, renameGroup } from '@muni/db/repositories'
-import { groupSchema } from '@muni/domain/schemas'
+import {
+  type GroupProblem,
+  type GroupWrite,
+  saveDepartment,
+  savePosition,
+} from '@muni/db/repositories'
+import { departmentSchema, positionSchema } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { fieldErrors, formError, type FormState, text } from '@/lib/form'
+import { fieldErrors, formError, type FormState, list, refusedField, text } from '@/lib/form'
 import { requireAdmin } from '@/server/auth'
 
-const PATH: Record<GroupKind, string> = { department: '/departments', position: '/positions' }
+/** A refused group write, on the field to change. */
+function refused(problem: GroupProblem): FormState {
+  switch (problem.reason) {
+    case 'in_use':
+      return refusedField(problem.field, 'in_use', { count: problem.count })
+    case 'not_found':
+      return refusedField(problem.field, 'unavailable')
+    default:
+      return refusedField(problem.field, problem.reason)
+  }
+}
 
-/** Creates a department or position (`id` null) or renames one, then shows it. */
-export async function saveGroup(
-  kind: GroupKind,
-  id: string | null,
-  _state: FormState,
-  form: FormData
-): Promise<FormState> {
-  await requireAdmin()
-  if (!(kind in PATH)) return formError('generic')
-  const input = { name: text(form, 'name') }
-  const parsed = groupSchema.safeParse(input)
-  if (!parsed.success) return fieldErrors(parsed.error, input)
-  let saved: Awaited<ReturnType<typeof createGroup>>
+async function finish(save: () => Promise<GroupWrite>, path: string): Promise<FormState> {
+  let saved: GroupWrite
   try {
-    saved =
-      id === null ? await createGroup(kind, parsed.data) : await renameGroup(kind, id, parsed.data)
+    saved = await save()
   } catch (error) {
     if ((error as { code?: unknown } | null)?.code === 'P2025') return formError('not_found')
     console.error(error)
     return formError('generic')
   }
-  if (!saved.ok) return { status: 'error', fieldErrors: { name: 'taken' } }
+  if (!saved.ok) return refused(saved)
   revalidatePath('/', 'layout')
-  redirect(`${PATH[kind]}/${saved.id}`)
+  redirect(`${path}/${saved.id}`)
+}
+
+/** Creates a department (`id` null) or saves one (its name and head), then shows it. */
+export async function saveDepartmentAction(
+  id: string | null,
+  _state: FormState,
+  form: FormData
+): Promise<FormState> {
+  await requireAdmin()
+  const input = { name: text(form, 'name'), headId: text(form, 'headId') }
+  const parsed = departmentSchema.safeParse(input)
+  if (!parsed.success) return fieldErrors(parsed.error, input)
+  return finish(() => saveDepartment(id, parsed.data), '/departments')
+}
+
+/** Creates a position (`id` null) or saves one (its name and departments), then shows it. */
+export async function savePositionAction(
+  id: string | null,
+  _state: FormState,
+  form: FormData
+): Promise<FormState> {
+  await requireAdmin()
+  const input = { name: text(form, 'name'), departmentIds: list(form, 'departmentIds') }
+  const parsed = positionSchema.safeParse(input)
+  if (!parsed.success) return fieldErrors(parsed.error, input)
+  return finish(() => savePosition(id, parsed.data), '/positions')
 }

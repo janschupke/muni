@@ -1,11 +1,19 @@
 'use server'
 
-import { createRoom, updateRoom } from '@muni/db/repositories'
+import { createRoom, type RoomWrite, updateRoom } from '@muni/db/repositories'
 import { roomSchema } from '@muni/domain/schemas'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-import { fieldErrors, formError, type FormState, list, number, text } from '@/lib/form'
+import {
+  fieldErrors,
+  formError,
+  type FormState,
+  list,
+  number,
+  refusedField,
+  text,
+} from '@/lib/form'
 import { requireAdmin } from '@/server/auth'
 
 const codeOf = (error: unknown) => (error as { code?: unknown } | null)?.code
@@ -26,7 +34,7 @@ export async function saveRoom(
   }
   const parsed = roomSchema.safeParse(input)
   if (!parsed.success) return fieldErrors(parsed.error, input)
-  let saved: { id: string }
+  let saved: RoomWrite
   try {
     saved = id ? await updateRoom(id, parsed.data) : await createRoom(parsed.data)
   } catch (error) {
@@ -36,6 +44,7 @@ export async function saveRoom(
     console.error(error)
     return formError('generic')
   }
+  if (!saved.ok) return refusedField(saved.field, 'sessions_unfit', { count: saved.count })
   revalidatePath('/', 'layout')
   redirect(`/rooms/${saved.id}`)
 }
