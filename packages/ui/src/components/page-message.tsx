@@ -21,7 +21,7 @@ export function PageMessage({
 }) {
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center py-16 text-center">
-      {icon && (
+      {Boolean(icon) && (
         <div
           className={cn(
             'mb-5 flex size-14 items-center justify-center rounded-full [&_svg]:size-7',
@@ -32,9 +32,11 @@ export function PageMessage({
         </div>
       )}
       <h1 className="text-2xl font-semibold text-fg">{title}</h1>
-      {description && <p className="mt-2 text-fg-muted">{description}</p>}
-      {actions && <div className="mt-6 flex flex-wrap justify-center gap-2">{actions}</div>}
-      {children && <div className="mt-6 text-sm text-fg-muted">{children}</div>}
+      {Boolean(description) && <p className="mt-2 text-fg-muted">{description}</p>}
+      {Boolean(actions) && (
+        <div className="mt-6 flex flex-wrap justify-center gap-2">{actions}</div>
+      )}
+      {Boolean(children) && <div className="mt-6 text-sm text-fg-muted">{children}</div>}
     </div>
   )
 }

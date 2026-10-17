@@ -32,9 +32,9 @@ export function CardHeader({
     <header className={cn('flex flex-wrap items-start justify-between gap-3 px-5 pt-4', className)}>
       <div className="min-w-0">
         <h2 className="text-base font-semibold text-fg">{title}</h2>
-        {description && <p className="mt-0.5 text-sm text-fg-muted">{description}</p>}
+        {Boolean(description) && <p className="mt-0.5 text-sm text-fg-muted">{description}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {Boolean(actions) && <div className="flex items-center gap-2">{actions}</div>}
     </header>
   )
 }

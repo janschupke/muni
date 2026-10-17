@@ -58,8 +58,8 @@ function Nav({
 }) {
   return (
     <nav aria-label={label} className="flex flex-col gap-4 px-3 py-4">
-      {groups.map((group, index) => (
-        <div key={group.label ?? index} className="flex flex-col gap-1">
+      {groups.map(group => (
+        <div key={group.label ?? group.items[0]?.href} className="flex flex-col gap-1">
           {group.label &&
             (collapsed ? (
               <hr className="mx-2 mb-1 border-border-muted" />

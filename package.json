@@ -36,11 +36,14 @@
     "db:studio": "pnpm --filter @muni/db studio"
   },
   "devDependencies": {
+    "@eslint-react/eslint-plugin": "catalog:",
     "@eslint/js": "catalog:",
     "@next/eslint-plugin-next": "catalog:",
     "@types/node": "catalog:",
     "@vitest/eslint-plugin": "catalog:",
     "eslint": "catalog:",
+    "eslint-import-resolver-typescript": "catalog:",
+    "eslint-plugin-import-x": "catalog:",
     "eslint-plugin-jsx-a11y-x": "catalog:",
     "eslint-plugin-playwright": "catalog:",
     "eslint-plugin-react-hooks": "catalog:",

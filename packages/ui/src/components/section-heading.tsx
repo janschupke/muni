@@ -19,9 +19,9 @@ export function SectionHeading({
     <div className={cn('mt-8 mb-3 flex flex-wrap items-end justify-between gap-2', className)}>
       <div className="flex min-w-0 flex-col gap-1">
         <h2 className="text-base font-semibold text-fg">{children}</h2>
-        {description && <p className="text-sm text-fg-muted">{description}</p>}
+        {Boolean(description) && <p className="text-sm text-fg-muted">{description}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {Boolean(actions) && <div className="flex items-center gap-2">{actions}</div>}
     </div>
   )
 }

@@ -75,12 +75,12 @@ export function Field({
         'aria-invalid': error ? true : undefined,
         required,
       })}
-      {help && (
+      {Boolean(help) && (
         <p id={helpId} className="text-xs text-fg-muted">
           {help}
         </p>
       )}
-      {error && (
+      {Boolean(error) && (
         <p id={errorId} aria-live="polite" className="text-xs text-danger-fg">
           {error}
         </p>

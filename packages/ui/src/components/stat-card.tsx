@@ -46,7 +46,7 @@ export function StatCard({
     <>
       <span className="block text-sm text-fg-muted">{label}</span>
       <span className="mt-1 block text-2xl font-semibold text-fg tabular-nums">{value}</span>
-      {hint && <span className="mt-0.5 block text-xs text-fg-subtle">{hint}</span>}
+      {Boolean(hint) && <span className="mt-0.5 block text-xs text-fg-subtle">{hint}</span>}
     </>
   )
   const base = cn(

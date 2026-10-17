@@ -64,7 +64,7 @@ export function Alert({
     >
       <Icon aria-hidden />
       <div className="min-w-0">
-        {title && <p className="font-medium">{title}</p>}
+        {Boolean(title) && <p className="font-medium">{title}</p>}
         {children}
       </div>
     </div>

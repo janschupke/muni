@@ -46,7 +46,7 @@ export function Dropzone({
     >
       <Upload aria-hidden className="size-6 text-fg-muted" />
       <span className="font-medium text-fg">{title}</span>
-      {hint && <span className="text-sm text-fg-muted">{hint}</span>}
+      {Boolean(hint) && <span className="text-sm text-fg-muted">{hint}</span>}
       <input
         ref={inputRef}
         id={inputId}

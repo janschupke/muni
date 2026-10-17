@@ -31,6 +31,8 @@ export async function resolveServer(node: ReactNode): Promise<ReactNode> {
       changed = true
     }
   }
+  // The element as given, with its props resolved: what cloneElement is for.
+  // eslint-disable-next-line @eslint-react/no-clone-element
   return changed ? cloneElement(element, props) : element
 }
 

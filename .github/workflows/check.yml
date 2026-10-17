@@ -1,6 +1,7 @@
 # The full gate, as `pnpm check` runs it locally, against a throwaway Postgres 17 on the
-# test database's port and credentials (packages/db/.env.test). Playwright e2e and
-# Lighthouse need browsers and the built app; they stay local for now (see README, Checks).
+# test database's port and credentials (packages/db/.env.test); then the browser suites
+# (a11y, access, crud, register) and Lighthouse on the production build, signed in as the
+# Clerk e2e users. Clerk's development keys come from repository secrets.
 name: check
 
 on:
@@ -13,6 +14,13 @@ permissions:
 concurrency:
   group: check-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  # Git hooks are for local commits.
+  LEFTHOOK: '0'
+  # The build inlines the publishable key; the e2e setup creates its users with the secret.
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+  CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
 
 jobs:
   check:
@@ -32,9 +40,6 @@ jobs:
           --health-interval 2s
           --health-timeout 3s
           --health-retries 30
-    env:
-      # Git hooks are for local commits.
-      LEFTHOOK: '0'
     steps:
       - uses: actions/checkout@v4
       # pnpm's version comes from package.json's packageManager field.
@@ -45,15 +50,51 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
-      - run: pnpm format:check
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm knip
-      - run: pnpm check:schema
-      - run: pnpm check:drift
-      - run: pnpm coverage
-      # Clerk development keys, as repository secrets: the build inlines the publishable key.
-      - run: pnpm build
+      # Known vulnerabilities in what ships (not the dev tools).
+      - run: pnpm audit --prod --audit-level high
+      # Exactly what `pnpm check` runs locally.
+      - run: pnpm check
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      db-test:
+        image: postgres:17-alpine
         env:
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          POSTGRES_USER: muni
+          POSTGRES_PASSWORD: muni
+          POSTGRES_DB: muni_test
+        ports:
+          - 5439:5432
+        options: >-
+          --health-cmd "pg_isready -U muni -d muni_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgresql://muni:muni@localhost:5439/muni_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      # The test database with the seeded register the suites read.
+      - run: pnpm --filter @muni/db exec prisma migrate deploy
+      - run: pnpm --filter @muni/db exec tsx --conditions=react-server scripts/seed.ts
+      - run: pnpm --filter @muni/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @muni/web build
+      - run: pnpm --filter @muni/web exec playwright test --project=chromium --workers=1
+      - run: pnpm test:lighthouse
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          retention-days: 7

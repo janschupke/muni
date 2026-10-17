@@ -57,7 +57,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     >
       <html lang={locale} suppressHydrationWarning>
         <head>
-          {/* Applies the stored theme before first paint. */}
+          {/* Applies the stored theme before first paint: a constant, never data. */}
+          {/* eslint-disable-next-line @eslint-react/dom-no-dangerously-set-innerhtml */}
           <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         </head>
         <body className="min-h-dvh">

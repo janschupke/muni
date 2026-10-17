@@ -1,8 +1,11 @@
 // Shared flat-config factories. Each package's eslint.config.js calls one of them; the repo
 // root's eslint.config.js lints the root config files with `node`.
 import js from '@eslint/js'
+import eslintReact from '@eslint-react/eslint-plugin'
 import nextPlugin from '@next/eslint-plugin-next'
 import vitest from '@vitest/eslint-plugin'
+import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript'
+import importX from 'eslint-plugin-import-x'
 import jsxA11y from 'eslint-plugin-jsx-a11y-x'
 import playwright from 'eslint-plugin-playwright'
 import reactHooks from 'eslint-plugin-react-hooks'
@@ -64,6 +67,19 @@ const base = tsconfigRootDir => [
     },
   },
   {
+    // No import cycles: a module that needs another's value through a loop reads it before
+    // that module has run (the repositories once worked around one by hand).
+    plugins: { 'import-x': importX },
+    settings: {
+      // Without the TypeScript extensions and parser it follows only .js files, and finds
+      // nothing.
+      'import-x/extensions': importX.flatConfigs.typescript.settings['import-x/extensions'],
+      'import-x/parsers': importX.flatConfigs.typescript.settings['import-x/parsers'],
+      'import-x/resolver-next': [createTypeScriptImportResolver({ project: tsconfigRootDir })],
+    },
+    rules: { 'import-x/no-cycle': ['error', { ignoreExternal: true }] },
+  },
+  {
     files: TESTS,
     ...vitest.configs.recommended,
     rules: {
@@ -106,7 +122,7 @@ const e2e = {
     ...playwright.configs['flat/recommended'].rules,
     // Helpers that assert on their own count as assertions.
     'playwright/expect-expect': [
-      'warn',
+      'error',
       { assertFunctionNames: ['expectNoViolations', 'expectScores'] },
     ],
   },
@@ -121,6 +137,28 @@ export function react(tsconfigRootDir, { next = false } = {}) {
   return tseslint.config(
     ...base(tsconfigRootDir),
     reactHooks.configs.flat.recommended,
+    // Keys, array-index keys, values leaked into the page (`{count && …}` renders 0), leaked
+    // listeners and timers, unsafe DOM. Hooks and purity stay with eslint-plugin-react-hooks
+    // (the official rules); naming preferences are off.
+    eslintReact.configs['recommended-type-checked'],
+    {
+      rules: {
+        '@eslint-react/rules-of-hooks': 'off',
+        '@eslint-react/exhaustive-deps': 'off',
+        '@eslint-react/purity': 'off',
+        '@eslint-react/set-state-in-effect': 'off',
+        '@eslint-react/set-state-in-render': 'off',
+        '@eslint-react/static-components': 'off',
+        '@eslint-react/use-memo': 'off',
+        '@eslint-react/unsupported-syntax': 'off',
+        '@eslint-react/error-boundaries': 'off',
+        '@eslint-react/naming-convention-ref-name': 'off',
+        '@eslint-react/naming-convention-id-name': 'off',
+        '@eslint-react/naming-convention-context-name': 'off',
+        '@eslint-react/use-state': 'off',
+        '@eslint-react/no-use-context': 'off',
+      },
+    },
     jsxA11y.configs.recommended,
     ...(next
       ? [

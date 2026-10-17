@@ -593,7 +593,7 @@ What the gates enforce:
   - a key no source names fails.
 - **Git hooks**: `pnpm install` installs lefthook (`lefthook.yml`). A commit runs Prettier and each package's ESLint on the staged files only; everything else stays in `pnpm check` and CI.
 
-Playwright e2e and Lighthouse are not in `pnpm check` or CI: they need browsers, a production build, the seeded test database and Clerk. Run them locally before a release (see Commands). CI's build needs the Clerk development keys as repository secrets, `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`.
+Playwright e2e and Lighthouse are not in `pnpm check` (they need browsers, a production build, the seeded test database and Clerk) but CI runs them in a second job, `e2e`: it migrates and seeds the test database, builds, installs Chromium and runs the a11y, access, crud and register suites and Lighthouse; on a failure it keeps the Playwright report and traces. Both jobs need the Clerk development keys as repository secrets, `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. The `check` job also runs `pnpm audit --prod --audit-level high`. Renovate (`renovate.json`) opens one pull request a week for minor and patch updates, and holds TypeScript below 7 and the prisma packages together.
 
 ## Deployment (Vercel + Supabase)
 

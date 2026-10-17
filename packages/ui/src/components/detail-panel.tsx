@@ -54,7 +54,7 @@ export function DetailPanel({
             </>
           )}
         </Heading>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {Boolean(actions) && <div className="flex items-center gap-2">{actions}</div>}
       </header>
       <div className={cn('min-w-0', flush ? 'overflow-x-auto' : 'px-4 py-3')}>{children}</div>
     </section>
