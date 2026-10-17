@@ -59,13 +59,75 @@ describe('compliance matrix', () => {
       'Bezpečná práce v laboratoři: Missing',
     ])
     const tomas = screen.getByRole('row', { name: /Dvořák Tomáš/ })
-    expect(within(tomas).getByText('Not required')).toBeTruthy()
+    expect(within(tomas).getByText(/Not required/)).toBeTruthy()
     expect(screen.getByRole('list', { name: 'In the people rows:' }).textContent).toContain(
       'Booked on a session'
     )
 
     await user.click(toggle)
     expect(screen.queryByRole('link', { name: 'Černá Marie' })).toBeNull()
+  })
+
+  it('makes an opened department one stop for Tab, moved through with the arrows', async () => {
+    const user = userEvent.setup()
+    renderClient(<ComplianceMatrixTable matrix={matrix()} />)
+    const toggle = screen.getByRole('button', { name: 'People in Laboratoře' })
+    await user.click(toggle)
+    // The people rows, in order, each with one button per course.
+    const grid = (toggle.getAttribute('aria-controls')?.split(' ') ?? []).map(id =>
+      within(document.getElementById(id) as HTMLElement).getAllByRole('button')
+    )
+    const cells = grid.flat()
+    expect(cells.filter(c => c.tabIndex === 0)).toEqual([grid[0]?.[0]])
+
+    // Tab from the person's name reaches the block's one stop.
+    within(
+      document.getElementById(
+        toggle.getAttribute('aria-controls')?.split(' ')[0] ?? ''
+      ) as HTMLElement
+    )
+      .getByRole('link')
+      .focus()
+    await user.tab()
+    expect(document.activeElement).toBe(grid[0]?.[0])
+    // Its words show as it takes the focus.
+    expect((await screen.findByRole('tooltip', { hidden: true })).textContent).toMatch(
+      /^BOZP – základní školení: /
+    )
+
+    await user.keyboard('{ArrowRight}')
+    expect(document.activeElement).toBe(grid[0]?.[1])
+    await user.keyboard('{ArrowDown}')
+    expect(document.activeElement).toBe(grid[1]?.[1])
+    await user.keyboard('{Home}')
+    expect(document.activeElement).toBe(grid[1]?.[0])
+    await user.keyboard('{Control>}{End}{/Control}')
+    expect(document.activeElement).toBe(grid.at(-1)?.at(-1))
+    // Past the edge it stays put; the stop moves with the focus.
+    await user.keyboard('{ArrowRight}{ArrowDown}')
+    expect(document.activeElement).toBe(grid.at(-1)?.at(-1))
+    expect(cells.filter(c => c.tabIndex === 0)).toEqual([grid.at(-1)?.at(-1)])
+
+    // Enter opens the department × course dialog, and closing it comes back to the cell.
+    await user.keyboard('{Control>}{Home}{/Control}{Enter}')
+    expect(
+      await screen.findByRole('dialog', { name: 'Laboratoře · BOZP – základní školení' })
+    ).toBeTruthy()
+    await user.keyboard('{Escape}')
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+    expect(document.activeElement).toBe(grid[0]?.[0])
+  })
+
+  it('lets a person cell under a course nobody there must hold open nothing', async () => {
+    const user = userEvent.setup()
+    renderClient(<ComplianceMatrixTable matrix={matrix()} />)
+    await user.click(screen.getByRole('button', { name: 'People in Knihovna' }))
+    const lab = screen.getByRole('button', { name: /^Bezpečná práce v laboratoři: Not required/ })
+    expect(lab.getAttribute('aria-disabled')).toBe('true')
+    await user.click(lab)
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('opens a cell into its people, most urgent first, and returns focus on close', async () => {

@@ -97,6 +97,12 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.getByRole('list', { name: 'In the people rows:' })).toBeVisible()
       await page.locator('tbody tr').nth(1).hover()
       await shot(page, 'compliance-open-hover')
+      // A person's cell reached by keyboard: the focus ring and its words.
+      await page.locator('tbody tr').nth(1).getByRole('link').focus()
+      await page.keyboard.press('Tab')
+      await page.keyboard.press('ArrowRight')
+      await expect(page.locator('[data-radix-popper-content-wrapper]')).toBeVisible()
+      await shot(page, 'compliance-person-cell-focus', false)
       await page.getByRole('button', { name: /^Laboratoře, BOZP – základní školení: / }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
       await shot(page, 'compliance-cell-dialog', false)

@@ -114,6 +114,19 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.getByRole('list', { name: 'In the people rows:' })).toBeVisible()
       await expectNoViolations(page, 'expanded row')
       await expectRowHover(page, 'expanded row')
+      // The people's cells are one stop for Tab: the arrows move between them, and each
+      // shows its words as it takes the focus.
+      const toggle = page.getByRole('button', { name: 'People in Laboratoře' })
+      const firstRow = page.locator(
+        `[id="${(await toggle.getAttribute('aria-controls'))?.split(' ')[0] ?? ''}"]`
+      )
+      await firstRow.getByRole('link').focus()
+      await page.keyboard.press('Tab')
+      await expect(firstRow.getByRole('button').first()).toBeFocused()
+      await expect(page.locator('[data-radix-popper-content-wrapper]')).toBeVisible()
+      await expectNoViolations(page, 'focused person cell')
+      await page.keyboard.press('ArrowRight')
+      await expect(firstRow.getByRole('button').nth(1)).toBeFocused()
       await page.getByRole('button', { name: /^Laboratoře, BOZP – základní školení: / }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
       await expectNoViolations(page, 'cell dialog')

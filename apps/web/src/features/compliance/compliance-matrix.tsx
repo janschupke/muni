@@ -25,10 +25,11 @@ import {
 import { BookOpen, CalendarCheck, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { Fragment, useId, useRef, useState } from 'react'
+import { type ComponentProps, Fragment, useId, useRef, useState } from 'react'
 
 import { ComplianceBar, ComplianceLegend } from '@/components/compliance-breakdown'
 import { COMPLIANCE, ComplianceBadge } from '@/components/status-badges'
+import { useRovingGrid } from '@/components/use-roving-grid'
 
 const HEAD = 'border-b-0 px-2 py-1'
 // The department column stays put while the courses scroll sideways on narrow screens.
@@ -189,38 +190,17 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
                       )
                     })}
                   </Tr>
-                  {isOpen &&
-                    row.people.map(person => (
-                      <Tr
-                        key={person.externalId}
-                        id={personRowId(rowIndex, person.externalId)}
-                        className="motion-safe:animate-fade-in"
-                      >
-                        <Th
-                          scope="row"
-                          nowrap
-                          className={cn('border-b-0 py-0.5 pr-2 pl-9 font-normal', STICKY)}
-                        >
-                          <span className="flex flex-col leading-tight">
-                            <TextLink asChild>
-                              <Link href={`/employees/${person.externalId}`}>{person.name}</Link>
-                            </TextLink>
-                            {person.position && (
-                              <span className="text-xs text-fg-subtle">{person.position}</span>
-                            )}
-                          </span>
-                        </Th>
-                        <Td className="p-0" />
-                        {matrix.courses.map(course => (
-                          <Td key={course.code} className="p-0">
-                            <PersonCell
-                              requirement={person.cells[course.code] ?? null}
-                              courseName={course.name}
-                            />
-                          </Td>
-                        ))}
-                      </Tr>
-                    ))}
+                  {isOpen && (
+                    <DepartmentPeople
+                      row={row}
+                      courses={matrix.courses}
+                      rowId={externalId => personRowId(rowIndex, externalId)}
+                      onOpen={(code, cell) => {
+                        opener.current = cell
+                        setSelected({ department: row.department, code })
+                      }}
+                    />
+                  )}
                 </Fragment>
               )
             })}
@@ -267,38 +247,104 @@ function useRequirementText() {
       .join(' · ')
 }
 
+/**
+ * An opened department's people, one row each, aligned under the course columns. Their cells
+ * are one stop for Tab: the arrow keys move between them, each shows its words as it gets
+ * the focus, and Enter (or a click) opens the department × course dialog.
+ */
+function DepartmentPeople({
+  row,
+  courses,
+  rowId,
+  onOpen,
+}: {
+  row: ComplianceMatrixRow
+  courses: ComplianceMatrix['courses']
+  rowId: (externalId: string) => string
+  onOpen: (code: string, cell: HTMLElement) => void
+}) {
+  const cell = useRovingGrid(row.people.length, courses.length)
+  return row.people.map((person, personIndex) => (
+    <Tr
+      key={person.externalId}
+      id={rowId(person.externalId)}
+      className="motion-safe:animate-fade-in"
+    >
+      <Th scope="row" nowrap className={cn('border-b-0 py-0.5 pr-2 pl-9 font-normal', STICKY)}>
+        <span className="flex flex-col leading-tight">
+          <TextLink asChild>
+            <Link href={`/employees/${person.externalId}`}>{person.name}</Link>
+          </TextLink>
+          {person.position && <span className="text-xs text-fg-subtle">{person.position}</span>}
+        </span>
+      </Th>
+      <Td className="p-0" />
+      {courses.map((course, courseIndex) => {
+        // A course nobody here must hold has no dialog: the cell is still a stop for the
+        // arrows, saying so, but opens nothing.
+        const opens = row.cells[course.code] != null
+        return (
+          <Td key={course.code} className="p-0">
+            <PersonCell
+              {...cell(personIndex, courseIndex)}
+              requirement={person.cells[course.code] ?? null}
+              courseName={course.name}
+              aria-haspopup={opens ? 'dialog' : undefined}
+              aria-disabled={opens ? undefined : true}
+              onClick={
+                opens
+                  ? event => {
+                      onOpen(course.code, event.currentTarget)
+                    }
+                  : undefined
+              }
+            />
+          </Td>
+        )
+      })}
+    </Tr>
+  ))
+}
+
 /** One person × course: the status as tint and icon, with the words for screen readers. */
 function PersonCell({
   requirement,
   courseName,
+  ...props
 }: {
   requirement: EmployeeListRequirement | null
   courseName: string
-}) {
+} & Omit<ComponentProps<'button'>, 'children' | 'className' | 'type'>) {
   const t = useTranslations('compliance')
   const describe = useRequirementText()
   if (requirement === null) {
     return (
-      <div className="flex h-8 items-center justify-center text-fg-subtle">
+      <button
+        type="button"
+        className="flex h-8 w-full cursor-pointer items-center justify-center rounded-sm text-fg-subtle"
+        {...props}
+      >
         <span aria-hidden>·</span>
-        <span className="sr-only">{t('notApplicable')}</span>
-      </div>
+        <span className="sr-only">{`${courseName}: ${t('notApplicable')}`}</span>
+      </button>
     )
   }
   const { Icon } = COMPLIANCE[requirement.status]
   const text = describe(requirement, courseName)
   return (
-    <Tooltip content={text}>
-      <div
+    <Tooltip content={text} repeatsName>
+      <button
+        type="button"
         className={cn(
-          'flex h-8 items-center justify-center gap-1 rounded-sm',
+          'flex h-8 w-full cursor-pointer items-center justify-center gap-1 rounded-sm',
           STATUS_CELL[requirement.status]
         )}
+        {...props}
       >
         <Icon aria-hidden className="size-4" />
         {requirement.booked && <CalendarCheck aria-hidden className="size-3.5" />}
         <span className="sr-only">{text}</span>
-      </div>
+      </button>
     </Tooltip>
   )
 }

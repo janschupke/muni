@@ -146,6 +146,20 @@ describe('Tooltip', () => {
     await user.tab()
     expect((await screen.findByRole('tooltip')).textContent).toBe('Prošlé: 3')
   })
+
+  it('keeps a copy of the trigger’s name to sighted users', async () => {
+    const user = userEvent.setup()
+    render(
+      <Tooltip content="BOZP: prošlé" repeatsName>
+        <button type="button">BOZP: prošlé</button>
+      </Tooltip>
+    )
+    await user.tab()
+    // Shown, but not read out a second time.
+    const copy = await screen.findByRole('tooltip', { hidden: true })
+    expect(copy.closest('[aria-hidden="true"]')).not.toBeNull()
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
 })
 
 describe('theme', () => {
