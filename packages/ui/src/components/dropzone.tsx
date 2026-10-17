@@ -39,7 +39,7 @@ export function Dropzone({
         onFiles(Array.from(event.dataTransfer.files))
       }}
       className={cn(
-        'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border-emphasis bg-surface-elevated px-6 py-10 text-center transition-colors hover:bg-state-hover',
+        'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border-emphasis bg-control px-6 py-10 text-center transition-colors hover:bg-state-hover',
         'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus-ring',
         dragging && 'border-accent bg-state-selected'
       )}

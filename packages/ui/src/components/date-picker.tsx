@@ -32,7 +32,7 @@ export interface DatePickerLabels {
 }
 
 export const popoverClass =
-  'z-50 origin-(--radix-popover-content-transform-origin) rounded-md border border-border-default bg-surface-overlay text-sm text-fg shadow-overlay outline-none data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in'
+  'raised z-50 origin-(--radix-popover-content-transform-origin) rounded-md border border-border-default bg-surface-overlay text-sm text-fg shadow-overlay outline-none data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in'
 
 /** An icon button inside the field, on its right. */
 export const fieldButtonClass =

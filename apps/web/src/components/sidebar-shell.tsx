@@ -124,7 +124,7 @@ function MobileNav({ groups, labels }: { groups: NavGroup[]; labels: ShellLabels
 }
 
 const TOP_BAR =
-  'sticky top-0 z-30 flex h-header shrink-0 items-center gap-2 border-b border-border-default bg-surface-elevated/95 px-4 backdrop-blur sm:px-6 lg:px-5'
+  'raised sticky top-0 z-30 flex h-header shrink-0 items-center gap-2 border-b border-border-default bg-surface-elevated/95 px-4 backdrop-blur sm:px-6 lg:px-5'
 
 /** The frame for visitors (the landing page, sign-in): the top bar without navigation. */
 export function PublicShell({
@@ -188,7 +188,7 @@ export function SidebarShell({
           id="sidebar"
           data-collapsed={collapsed}
           className={cn(
-            'sticky top-header hidden h-[calc(100dvh-var(--spacing-header))] shrink-0 flex-col border-r border-border-default bg-surface-elevated transition-[width] duration-(--motion-normal) lg:flex',
+            'sticky top-header hidden h-[calc(100dvh-var(--spacing-header))] shrink-0 flex-col border-r border-border-default bg-surface-elevated transition-[width] duration-(--motion-normal) raised lg:flex',
             collapsed ? 'w-16' : 'w-64'
           )}
         >

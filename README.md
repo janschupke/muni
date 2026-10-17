@@ -212,6 +212,11 @@ One palette, defined once in `packages/ui/src/styles/tokens.css`:
 - **Roles** (`--p-*`, used as Tailwind classes such as `bg-surface-elevated`,
   `text-success-fg`, `bg-status-expired`) pick a light and a dark step with `light-dark()`.
   The OS preference chooses the side unless the theme switch pins it (`data-theme`).
+- **Form controls take their fill from where they sit** (`bg-control`). On the page they are
+  white, like a card. Inside anything raised (cards, dialogs, menus, the sidebar and top bar,
+  marked with the `raised` utility) they sink one step, so a field never shares its
+  container's background. `tokens.test.ts` checks every pairing in both themes: at least
+  ΔE 0.02 (OKLab) between a control and its container, and 4.5:1 for placeholder text.
 - **Signals mean one thing each:** green = held, yellow = attention soon (expiring, a session
   80 % booked or full), orange = lapsed, red = action needed (missing, overbooked). Blue is
   the brand and never a state. A signal colour always comes with an icon and a label.

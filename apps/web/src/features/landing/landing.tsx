@@ -68,7 +68,7 @@ export async function Landing() {
           {ROLES.map(role => (
             <div
               key={role}
-              className="rounded-lg border border-border-default bg-surface-elevated p-4"
+              className="rounded-lg border border-border-default bg-surface-elevated p-4 raised"
             >
               <dt className="font-medium text-fg">{t(`access.${role}.title`)}</dt>
               <dd className="mt-1 text-sm text-fg-muted">{t(`access.${role}.body`)}</dd>

@@ -133,6 +133,12 @@
   --p-surface-elevated: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-850));
   --p-surface-sunken: light-dark(var(--ramp-neutral-100), var(--ramp-neutral-900));
   --p-surface-overlay: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-800));
+  /* Form controls take their fill from the surface they sit on (--control-surface): on the
+     page they are raised like a card; on a raised surface (cards, dialogs, menus, the
+     sidebar) they sink a step, so a field never shares its container's background. */
+  --p-control-on-base: var(--p-surface-elevated);
+  --p-control-on-raised: light-dark(var(--ramp-neutral-50), var(--ramp-neutral-900));
+  --control-surface: var(--p-control-on-base);
 
   --p-fg: light-dark(var(--ramp-neutral-1000), var(--ramp-neutral-75));
   --p-fg-muted: light-dark(var(--ramp-neutral-600), var(--ramp-neutral-300));
@@ -206,6 +212,7 @@
   --color-surface-elevated: var(--p-surface-elevated);
   --color-surface-sunken: var(--p-surface-sunken);
   --color-surface-overlay: var(--p-surface-overlay);
+  --color-control: var(--control-surface);
 
   --color-fg: var(--p-fg);
   --color-fg-muted: var(--p-fg-muted);
@@ -278,6 +285,11 @@
 
   --shadow-card: 0 1px 2px var(--p-shadow-color), 0 1px 1px var(--p-shadow-color);
   --shadow-overlay: 0 8px 24px var(--p-shadow-color), 0 2px 6px var(--p-shadow-color);
+}
+
+/* A raised surface: form controls inside it use the sunken control fill. */
+@utility raised {
+  --control-surface: var(--p-control-on-raised);
 }
 
 /*
