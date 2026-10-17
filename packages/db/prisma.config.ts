@@ -18,7 +18,7 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
-    seed: 'tsx scripts/seed.ts',
+    seed: 'tsx --conditions=react-server scripts/seed.ts',
   },
   datasource: {
     get url() {

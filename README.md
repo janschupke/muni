@@ -73,6 +73,11 @@ Internal packages ship TypeScript source (`exports` point at `src/`); Next compi
 `transpilePackages`, and tsx/vitest run them directly. There is no package build step, so
 `typecheck` runs in every package.
 
+`@muni/db`'s `client`, `repositories`, `writer` and `reference` entries import `server-only`:
+anything that reaches the browser bundle fails the build. Scripts and test tooling that run
+outside the app open their own client from `@muni/db/connect`; the seed runs under tsx with
+`--conditions=react-server`, where the marker is a no-op.
+
 ## Data model
 
 `Department`, `Position`, `Employee` (with a manager self-relation), `Course`,

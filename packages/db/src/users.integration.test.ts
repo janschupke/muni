@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createDb } from './client'
+import { createDb } from './connect'
 import { findUserByClerkId, hitRateLimit, listUsers, upsertUserFromClerk } from './repositories'
 
 const db = createDb()

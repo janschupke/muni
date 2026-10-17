@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { deleteCourses, deleteRooms, unarchiveAll } from '../test/archive'
 import { completionOf, courseIdOf } from '../test/records'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
-import { createDb } from './client'
+import { createDb } from './connect'
 import {
   applyAssignments,
   archiveImpact,

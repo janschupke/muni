@@ -6,6 +6,7 @@
   "sideEffects": false,
   "exports": {
     "./client": "./src/client.ts",
+    "./connect": "./src/connect.ts",
     "./repositories": "./src/repositories/index.ts",
     "./writer": "./src/writer.ts",
     "./reference": "./src/reference.ts"
@@ -17,7 +18,7 @@
     "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
     "migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
     "migrate:reset": "dotenv -e ../../.env -- prisma migrate reset",
-    "seed": "dotenv -e ../../.env -- tsx scripts/seed.ts",
+    "seed": "dotenv -e ../../.env -- tsx --conditions=react-server scripts/seed.ts",
     "studio": "dotenv -e ../../.env -- prisma studio",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",

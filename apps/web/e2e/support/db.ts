@@ -1,4 +1,4 @@
-import { createDb } from '@muni/db/client'
+import { createDb } from '@muni/db/connect'
 
 import { TEST_DB } from './server'
 

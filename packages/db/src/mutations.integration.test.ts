@@ -7,7 +7,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { deleteCourses, deleteRooms, unarchiveAll } from '../test/archive'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
-import { createDb, getDb } from './client'
+import { getDb } from './client'
+import { createDb } from './connect'
 import {
   applyAssignments,
   createCompletion,

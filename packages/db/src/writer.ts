@@ -1,3 +1,5 @@
+import 'server-only'
+
 import {
   APP_ID_PREFIX,
   type CompletionInput,

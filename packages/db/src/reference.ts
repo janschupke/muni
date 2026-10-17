@@ -1,3 +1,5 @@
+import 'server-only'
+
 import { sortName } from '@muni/domain/names'
 import { type ArchivedKeys, NO_ARCHIVED, type ReferenceSnapshot } from '@muni/importer'
 import { toZonedParts } from '@muni/utils/dates'

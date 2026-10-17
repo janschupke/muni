@@ -6,7 +6,7 @@
  */
 import path from 'node:path'
 
-import { createDb } from '../src/client'
+import { createDb } from '../src/connect'
 import { seedFromDirectory } from '../src/seed'
 
 const dir = path.resolve(process.argv[2] ?? path.join(import.meta.dirname, '../../../data'))

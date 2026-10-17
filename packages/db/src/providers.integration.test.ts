@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { unarchiveAll } from '../test/archive'
 import { completionOf } from '../test/records'
-import { createDb } from './client'
+import { createDb } from './connect'
 import {
   createCompletion,
   createProvider,
