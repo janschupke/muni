@@ -45,14 +45,13 @@ export function formatMonth(month: string, locale: string): string {
     .toLocaleString({ month: 'long', year: 'numeric' })
 }
 
-/** Two days as one range, the shared month and year said once: "October 18 – 31, 2026". */
+/**
+ * Two days as one range, each written in full: "Oct 18, 2026 – Oct 31, 2026". Not
+ * `Intl.formatRange`, whose spacing differs between Node's ICU and the browser's: a page
+ * rendered on the server must read the same in the browser.
+ */
 export function formatDateRange(from: IsoDate, to: IsoDate, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).formatRange(isoDateToUtc(from), isoDateToUtc(to))
+  return `${formatDate(from, locale)} – ${formatDate(to, locale)}`
 }
 
 export function formatDateTime(

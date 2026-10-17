@@ -37,8 +37,12 @@ describe('dates and times', () => {
   it('names a month', () => {
     expect(formatMonth('2026-11', 'en')).toBe('November 2026')
     expect(formatMonth('2027-01', 'cs')).toBe('leden 2027')
-    expect(plain(formatDateRange('2026-10-18', '2026-10-31', 'en'))).toBe('October 18 – 31, 2026')
-    expect(plain(formatDateRange('2026-10-18', '2026-10-31', 'cs'))).toBe('18.–31. 10. 2026')
+    expect(plain(formatDateRange('2026-10-18', '2026-10-31', 'en'))).toBe(
+      'Oct 18, 2026 – Oct 31, 2026'
+    )
+    expect(plain(formatDateRange('2026-10-18', '2026-10-31', 'cs'))).toBe(
+      '18. 10. 2026 – 31. 10. 2026'
+    )
   })
 
   it('collapses a same-day range to one date', () => {

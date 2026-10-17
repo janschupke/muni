@@ -6,13 +6,18 @@ export { expect }
 /**
  * Playwright's `test`, with Clerk's testing token on every page (Clerk's bot protection
  * would otherwise refuse the browser's requests to its Frontend API), every visit waiting
- * until the app runs in the browser, and no Content-Security-Policy violation allowed.
+ * until the app runs in the browser, and no Content-Security-Policy violation and no error
+ * thrown in the page allowed (a hydration mismatch, React #418, re-renders the whole page).
  */
 export const test = base.extend({
   page: async ({ page }, provide) => {
     await setupClerkTestingToken({ page })
     // Anything the Content-Security-Policy blocked fails the test that loaded it.
     const blocked: string[] = []
+    const thrown: string[] = []
+    page.on('pageerror', error => {
+      thrown.push(error.message)
+    })
     page.on('console', message => {
       if (message.type() === 'error' && /Content Security Policy/i.test(message.text()))
         blocked.push(message.text())
@@ -27,5 +32,6 @@ export const test = base.extend({
     }
     await provide(page)
     expect(blocked, 'Content-Security-Policy violations').toEqual([])
+    expect(thrown, 'errors thrown in the page').toEqual([])
   },
 })

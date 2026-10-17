@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 
+import { expectNoViolations } from './support/a11y'
 import { removeE2eRecords } from './support/db'
 import { baseUrlOf } from './support/server'
 import { expect, test } from './support/test'
@@ -55,6 +56,8 @@ test('creates, renames, archives and brings back a department', async ({ page })
   await page.getByRole('main').getByRole('link', { name: 'E2E útvar 2', exact: true }).click()
   // On the record's own page: the list's row has a "Bring back E2E útvar 2" button too.
   await expect(page).toHaveURL(/\/departments\/archived\/[^/]+$/)
+  // The seed archives nothing: this is where an archived record's page is checked.
+  await expectNoViolations(page, 'archived department')
   await page.getByRole('button', { name: 'Bring back', exact: true }).click()
   // It asks first, then says why it cannot.
   await page

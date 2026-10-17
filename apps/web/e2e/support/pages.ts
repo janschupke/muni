@@ -2,8 +2,11 @@ import { expect, type Page } from '@playwright/test'
 
 type AppPage =
   | { name: string; path: string; status?: number }
-  /** A page whose id the database picks: the first link under `prefix` on the `via` page. */
-  | { name: string; via: string; prefix: string; status?: number }
+  /**
+   * A page whose id the database picks: the first link under `prefix` on the `via` page,
+   * then `suffix` (`/edit`).
+   */
+  | { name: string; via: string; prefix: string; suffix?: string; status?: number }
 
 /**
  * Every page of the register, with seeded examples for the dynamic ones (an admin reaches all
@@ -32,6 +35,8 @@ export const APP_PAGES: readonly AppPage[] = [
   { name: 'advisor-action', path: '/advisor?view=action' },
   { name: 'advisor-planned', path: '/advisor?view=planned' },
   { name: 'advisor-overbooked', path: '/advisor?view=overbooked' },
+  { name: 'advisor-upcoming', path: '/advisor?bucket=upcoming' },
+  { name: 'advisor-page-2', path: '/advisor?page=2' },
   { name: 'users', path: '/users' },
   { name: 'user', via: '/users', prefix: '/users/' },
   // Forms (admins): the heading row's actions, the date and time fields.
@@ -42,10 +47,35 @@ export const APP_PAGES: readonly AppPage[] = [
   { name: 'employee-new', path: '/employees/new' },
   { name: 'employee-edit', path: '/employees/E0153/edit' },
   { name: 'completion-new', path: '/employees/E0153/completions/new' },
+  {
+    name: 'completion-edit',
+    via: '/employees/E0153',
+    prefix: '/employees/E0153/completions/',
+    suffix: '/edit',
+  },
+  { name: 'course-session-new', path: '/courses/BOZP-Z/sessions/new' },
   { name: 'department-new', path: '/departments/new' },
+  { name: 'department-edit', via: '/departments', prefix: '/departments/', suffix: '/edit' },
+  { name: 'position-new', path: '/positions/new' },
+  { name: 'position-edit', via: '/positions', prefix: '/positions/', suffix: '/edit' },
+  { name: 'room-new', path: '/rooms/new' },
+  { name: 'room-edit', via: '/rooms', prefix: '/rooms/', suffix: '/edit' },
+  { name: 'provider-new', path: '/providers/new' },
+  { name: 'provider-edit', via: '/providers', prefix: '/providers/', suffix: '/edit' },
+  // Administration (admins).
+  { name: 'import', path: '/import' },
   // Archived records (admins).
   { name: 'employees-archived', path: '/employees/archived' },
   { name: 'rooms-archived', path: '/rooms/archived' },
+  { name: 'courses-archived', path: '/courses/archived' },
+  { name: 'sessions-archived', path: '/sessions/archived' },
+  { name: 'completions-archived', path: '/completions/archived' },
+  { name: 'departments-archived', path: '/departments/archived' },
+  { name: 'positions-archived', path: '/positions/archived' },
+  { name: 'providers-archived', path: '/providers/archived' },
+  { name: 'users-archived', path: '/users/archived' },
+  // An archived record's own page: the seed archives nothing, so crud.spec.ts checks one
+  // it archived itself.
   { name: 'not-found', path: '/no-such-page', status: 404 },
 ]
 
@@ -58,9 +88,9 @@ export async function pathOf(
   const html = await fetchHtml(page.via)
   const escaped = page.prefix.replace(/[/.]/g, '\\$&')
   // A record, not the list's own "new" and "archived" pages an admin sees first.
-  const match = new RegExp(`href="(${escaped}(?!new"|archived")[^"/?]+)"`).exec(html)
+  const match = new RegExp(`href="(${escaped}(?!new[/"]|archived")[^"/?]+)[/"]`).exec(html)
   if (!match?.[1]) throw new Error(`No ${page.prefix} link on ${page.via}`)
-  return match[1]
+  return match[1] + (page.suffix ?? '')
 }
 
 /**

@@ -117,7 +117,8 @@ describe('IconButton', () => {
     const button = screen.getByRole('button', { name: 'Odebrat' })
     expect(button.hasAttribute('title')).toBe(false)
     await user.hover(button)
-    expect((await screen.findByRole('tooltip')).textContent).toBe('Odebrat')
+    // The tooltip repeats the button's name: shown, but hidden from assistive tech.
+    expect((await screen.findByRole('tooltip', { hidden: true })).textContent).toBe('Odebrat')
     await user.click(button)
     expect(onClick).toHaveBeenCalled()
   })

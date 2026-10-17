@@ -35,6 +35,33 @@ const SIGNED_OUT = ['common', 'errors', 'back', 'nav'] as const
 const signedOut = (messages: Messages) =>
   Object.fromEntries(SIGNED_OUT.map(namespace => [namespace, messages[namespace]]))
 
+/**
+ * Clerk's sign-in and sign-up forms in the app's colours, read from its tokens, so they
+ * follow the theme and keep its contrast.
+ */
+const CLERK_APPEARANCE = {
+  variables: {
+    colorPrimary: 'var(--color-accent)',
+    colorPrimaryForeground: 'var(--color-accent-fg)',
+    colorBackground: 'var(--color-surface-elevated)',
+    colorForeground: 'var(--color-fg)',
+    colorMutedForeground: 'var(--color-fg-muted)',
+    colorMuted: 'var(--color-surface-sunken)',
+    colorInput: 'var(--color-control)',
+    colorInputForeground: 'var(--color-fg)',
+    colorBorder: 'var(--color-border-control)',
+    colorNeutral: 'var(--color-fg)',
+    colorDanger: 'var(--color-danger-fg)',
+    colorSuccess: 'var(--color-success-fg)',
+    colorRing: 'var(--color-focus-ring)',
+    colorShadow: 'var(--p-shadow-color)',
+  },
+  // "Secured by Clerk" keeps a fixed 65% grey whatever the variables say: dark on dark in the
+  // dark theme, under 4.5:1 in the light one. Important, to beat Clerk's unlayered styles.
+  // No colorWarning: a development instance fills its footer stripes with it.
+  elements: { footerItem: '[&_p]:!text-fg-muted [&_svg]:!text-fg-muted' },
+}
+
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const [locale, user, t, requestHeaders, messages] = await Promise.all([
     getLocale(),
@@ -50,6 +77,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <ClerkProvider
       dynamic
+      appearance={CLERK_APPEARANCE}
       localization={locale === 'cs' ? csCZ : enUS}
       signInUrl="/sign-in"
       signUpUrl="/sign-up"

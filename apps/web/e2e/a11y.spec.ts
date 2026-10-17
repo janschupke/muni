@@ -1,68 +1,13 @@
-import AxeBuilder from '@axe-core/playwright'
-import { setupClerkTestingToken } from '@clerk/testing/playwright'
-import type { Page } from '@playwright/test'
+import path from 'node:path'
 
-import { expectLinksDistinct, expectRenderedContrast, expectRowHover } from './support/contrast'
+import { setupClerkTestingToken } from '@clerk/testing/playwright'
+
+import { expectNoViolations } from './support/a11y'
+import { expectRowHover } from './support/contrast'
 import { APP_PAGES, loaded, pathOf } from './support/pages'
 import { baseUrlOf } from './support/server'
 import { expect, test } from './support/test'
 import { storageState } from './support/users'
-
-// WCAG 2.2 A/AA plus axe's best practices; any violation fails. Each state is also checked
-// for what axe does not judge: fills that blend into what they sit on, control outlines and
-// meter fills under 3:1 (support/contrast.ts).
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']
-
-async function expectNoViolations(page: Page, label: string, within?: string) {
-  const builder = new AxeBuilder({ page }).withTags(TAGS)
-  if (within) builder.include(within)
-  const { violations } = await builder.analyze()
-  const summary = violations.map(v => ({
-    rule: v.id,
-    impact: v.impact,
-    targets: v.nodes.map(n => n.target.join(' ')).slice(0, 5),
-  }))
-  expect(summary, label).toEqual([])
-  await expectRenderedContrast(page, label, within)
-  await expectLinksDistinct(page, label, within)
-  if (!within) await expectStructure(page, label)
-}
-
-/**
- * What axe does not check: one h1 per page, headings that never skip a level going down
- * (an h2 then an h4 hides a level from heading navigation), and every table named.
- */
-async function expectStructure(page: Page, label: string) {
-  // With a dialog open the page behind it is hidden: the dialog is checked by axe alone.
-  if ((await page.getByRole('dialog').count()) > 0) return
-  const { levels, unnamed } = await page.evaluate(() => {
-    const visible = (el: Element) => !el.closest('[aria-hidden="true"], [hidden]')
-    const levels = [
-      ...document.querySelectorAll('main h1, main h2, main h3, main h4, main h5, main h6'),
-    ]
-      .filter(visible)
-      .map(h => Number(h.tagName.slice(1)))
-    const unnamed = [...document.querySelectorAll('table')]
-      .filter(visible)
-      .filter(
-        t =>
-          !t.getAttribute('aria-label') &&
-          !t.getAttribute('aria-labelledby') &&
-          !t.querySelector('caption')?.textContent.trim()
-      ).length
-    return { levels, unnamed }
-  })
-  expect(
-    levels.filter(l => l === 1),
-    `${label}: one h1`
-  ).toHaveLength(1)
-  const skips = levels.flatMap((level, i) => {
-    const before = levels[i - 1]
-    return before !== undefined && level > before + 1 ? [`h${before} → h${level}`] : []
-  })
-  expect(skips, `${label}: heading levels`).toEqual([])
-  expect(unnamed, `${label}: tables without a name`).toBe(0)
-}
 
 // Contrast is judged on the settled page: with motion reduced, the page fade-in is instant.
 // An admin sees every page and every control.
@@ -91,6 +36,20 @@ for (const theme of ['light', 'dark'] as const) {
       await page.goto('/')
       await expect(page.getByRole('link', { name: 'Create account' })).toBeVisible()
       await expectNoViolations(page, 'introduction')
+      // The app's own sign-in and sign-up pages, around Clerk's form.
+      for (const path of ['/sign-in', '/sign-up']) {
+        await page.goto(path)
+        await expect(page.locator('.cl-rootBox').first()).toBeVisible()
+        // Clerk fades its form in whatever the motion setting: judge it once it has settled.
+        await page.waitForFunction(() =>
+          document.getAnimations().every(animation => animation.playState !== 'running')
+        )
+        // A development instance stripes Clerk's footer in orange under its words ("Secured
+        // by", "Development mode"); a production instance has neither the stripes nor the
+        // notice, and the app's appearance sets that text's colour. The dev footer is Clerk's.
+        const devInstance = (await page.locator('[data-clerk-dev-mode-notice]').count()) > 0
+        await expectNoViolations(page, path, undefined, devInstance ? ['.cl-footer'] : [])
+      }
       await context.close()
     })
 
@@ -216,6 +175,70 @@ for (const theme of ['light', 'dark'] as const) {
       await page.getByRole('button', { name: 'Menu', exact: true }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
       await expectNoViolations(page, 'navigation drawer')
+    })
+
+    test('the import, step by step, nothing imported', async ({ page }) => {
+      await page.goto('/import')
+      await loaded(page)
+      const data = path.join(import.meta.dirname, '../../../data')
+      await page
+        .locator('input[type=file]')
+        .setInputFiles(
+          ['katalog_skoleni.csv', 'zamestnanci.csv', 'terminy_skoleni.csv'].map(f =>
+            path.join(data, f)
+          )
+        )
+      await expect(page.getByRole('button', { name: /^Remove / })).toHaveCount(3)
+      await expectNoViolations(page, 'import, files chosen')
+      await page.getByRole('button', { name: 'Review rows' }).click()
+      await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible()
+      await expectNoViolations(page, 'import, review')
+      await page.getByRole('button', { name: 'Continue' }).click()
+      await expect(page.getByRole('heading', { name: 'Ready to import' })).toBeVisible()
+      await expectNoViolations(page, 'import, confirm')
+    })
+
+    test('links and icon buttons hovered and focused', async ({ page }) => {
+      await page.goto('/employees')
+      await loaded(page)
+      // A hovered link, a focused one: still links, still legible.
+      const name = page.locator('tbody a[href^="/employees/E"]').first()
+      await name.hover()
+      await expectNoViolations(page, 'link hovered')
+      await name.focus()
+      await expectNoViolations(page, 'link focused')
+      // Each tone of icon button, hovered and focused: its soft fill under its ink.
+      const main = page.getByRole('main')
+      for (const [what, button] of [
+        ['edit', main.getByRole('link', { name: /^Edit / }).first()],
+        ['archive', main.getByRole('button', { name: /^Archive / }).first()],
+      ] as const) {
+        await button.hover()
+        await expectNoViolations(page, `${what} hovered`)
+        await button.focus()
+        await expectNoViolations(page, `${what} focused`)
+      }
+    })
+
+    test('forms with fields at odds, every one marked', async ({ page }) => {
+      await page.goto('/sessions/T016/edit')
+      await loaded(page)
+      await page.getByRole('combobox', { name: /Room/ }).click()
+      await page.getByRole('option', { name: /^Seminární místnost/ }).click()
+      await expect(page.getByRole('combobox', { name: /Room/ })).toHaveAttribute(
+        'aria-invalid',
+        'true'
+      )
+      await expectNoViolations(page, 'session, room too small')
+      await page.goto('/employees/E0153/edit')
+      await loaded(page)
+      await page.getByRole('combobox', { name: 'Department' }).click()
+      await page.getByRole('option', { name: 'Laboratoře' }).click()
+      await expect(page.getByRole('combobox', { name: 'Position' })).toHaveAttribute(
+        'aria-invalid',
+        'true'
+      )
+      await expectNoViolations(page, 'employee, position outside the department')
     })
 
     test('employee list with a row open and a filter open', async ({ page }) => {

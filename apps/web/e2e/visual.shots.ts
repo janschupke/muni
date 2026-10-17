@@ -46,6 +46,10 @@ for (const theme of ['light', 'dark'] as const) {
       await page.goto('/')
       await expect(page.getByRole('link', { name: 'Create account' })).toBeVisible()
       await shot(page, 'introduction')
+      // Clerk's form in the app's colours, in each theme.
+      await page.goto('/sign-in')
+      await expect(page.locator('.cl-rootBox').first()).toBeVisible()
+      await shot(page, 'sign-in')
       await context.close()
     })
 
@@ -252,6 +256,56 @@ for (const theme of ['light', 'dark'] as const) {
       await loaded(page)
       await expect(page.getByText('Course: BOZP – základní školení')).toBeVisible()
       await shot(page, 'sessions-past-course')
+    })
+
+    test('the import, step by step, nothing imported', async ({ page }) => {
+      await page.goto('/import')
+      await loaded(page)
+      const data = path.join(import.meta.dirname, '../../../data')
+      await page
+        .locator('input[type=file]')
+        .setInputFiles(
+          ['katalog_skoleni.csv', 'zamestnanci.csv', 'terminy_skoleni.csv'].map(f =>
+            path.join(data, f)
+          )
+        )
+      await expect(page.getByRole('button', { name: /^Remove / })).toHaveCount(3)
+      await shot(page, 'import-files')
+      await page.getByRole('button', { name: 'Review rows' }).click()
+      await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible()
+      await shot(page, 'import-review', false)
+      await page.getByRole('button', { name: 'Continue' }).click()
+      await expect(page.getByRole('heading', { name: 'Ready to import' })).toBeVisible()
+      await shot(page, 'import-confirm')
+    })
+
+    test('forms with fields at odds, and nothing changed by itself', async ({ page }) => {
+      await page.goto('/sessions/T016/edit')
+      await loaded(page)
+      await page.getByRole('combobox', { name: /Room/ }).click()
+      await page.getByRole('option', { name: /^Seminární místnost/ }).click()
+      await expect(page.getByRole('textbox', { name: /Capacity/ })).toHaveValue('30')
+      await shot(page, 'form-session-room-too-small')
+      await page.goto('/employees/E0153/edit')
+      await loaded(page)
+      await page.getByRole('combobox', { name: 'Department' }).click()
+      await page.getByRole('option', { name: 'Laboratoře' }).click()
+      await expect(page.getByRole('combobox', { name: 'Position' })).toHaveText(/Specialista/)
+      await shot(page, 'form-employee-position-elsewhere')
+    })
+
+    test('a link and the row actions, hovered', async ({ page }) => {
+      await page.goto('/employees')
+      await loaded(page)
+      await page.locator('tbody a[href^="/employees/E"]').first().hover()
+      await shot(page, 'link-hover', false)
+      await page
+        .getByRole('main')
+        .getByRole('button', { name: /^Archive / })
+        .first()
+        .hover()
+      await expect(page.locator('[data-radix-popper-content-wrapper]')).toBeVisible()
+      await shot(page, 'row-action-hover', false)
     })
 
     test('a session opened, and a failure toast', async ({ page }) => {

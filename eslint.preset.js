@@ -160,6 +160,16 @@ export function react(tsconfigRootDir, { next = false } = {}) {
       },
     },
     jsxA11y.configs.recommended,
+    {
+      // Components that render these elements with the props given to them: the rules check
+      // them as such (Next's Link with no href, a field with no label). TextLink, Button and
+      // the tabs style a child (`asChild`) that carries its own href, so they are not mapped.
+      settings: {
+        'jsx-a11y-x': {
+          components: { Link: 'a', Input: 'input', Textarea: 'textarea', Select: 'select' },
+        },
+      },
+    },
     ...(next
       ? [
           {

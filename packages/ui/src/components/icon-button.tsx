@@ -38,7 +38,8 @@ export function IconButton({
   tone?: keyof typeof TONE | undefined
 }) {
   return (
-    <Tooltip content={label} side={side}>
+    // The tooltip shows the button's own name: hidden from assistive tech, which reads it once.
+    <Tooltip content={label} side={side} repeatsName>
       <Button
         variant={variant}
         size={size}

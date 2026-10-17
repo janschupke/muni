@@ -10,7 +10,7 @@ import { usePaginationLabels } from '@/components/pagination-labels'
 import { advisorHref, type AdvisorView } from './labels'
 
 /** Rows per page in each of the advisor's tables. */
-export const ADVISOR_PAGE_SIZE = 25
+const ADVISOR_PAGE_SIZE = 25
 
 /**
  * A table's pages in the address (`?page=`), kept with its view and bucket: what DataTable

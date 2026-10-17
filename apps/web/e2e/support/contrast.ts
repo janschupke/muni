@@ -249,3 +249,60 @@ export async function expectLinksDistinct(page: Page, label: string, root?: stri
   })
   expect(problems, `${label}: links that look like text`).toEqual([])
 }
+
+/** Text whose contrast axe could not settle, measured here: its painted layers composited. */
+const COLLECT_TEXT = `(({ selectors }) => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 1
+  canvas.height = 1
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  function rgba(css) {
+    ctx.clearRect(0, 0, 1, 1)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0)'
+    ctx.fillStyle = css
+    ctx.fillRect(0, 0, 1, 1)
+    const d = ctx.getImageData(0, 0, 1, 1).data
+    return [d[0], d[1], d[2], d[3] / 255]
+  }
+  function layers(el) {
+    const style = getComputedStyle(el)
+    const gradient = /^linear-gradient\\((.+?(?:\\)|[a-z]))\\s*,/.exec(style.backgroundImage)
+    return [rgba(style.backgroundColor), gradient ? rgba(gradient[1]) : null]
+  }
+  return selectors.flatMap(selector => {
+    const el = document.querySelector(selector)
+    if (!el) return []
+    const chain = []
+    for (let node = el; node; node = node.parentElement) chain.unshift(layers(node))
+    const style = getComputedStyle(el)
+    return [{
+      selector,
+      chain,
+      color: rgba(style.color),
+      size: parseFloat(style.fontSize),
+      weight: Number(style.fontWeight),
+    }]
+  })
+})`
+
+/**
+ * The contrast of each text the selectors name, against everything painted under it (pinned
+ * cells over their row's fill, a hovered row's tint): what fails 4.5:1, or 3:1 for large text.
+ */
+export async function textContrastFailures(page: Page, selectors: string[]): Promise<string[]> {
+  if (selectors.length === 0) return []
+  const texts: {
+    selector: string
+    chain: Painted['chain']
+    color: Rgba
+    size: number
+    weight: number
+  }[] = await page.evaluate(`${COLLECT_TEXT}(${JSON.stringify({ selectors })})`)
+  return texts.flatMap(({ selector, chain, color, size, weight }) => {
+    const under = paint(chain, chain.length)
+    const ratio = contrast(composite(color, under), under)
+    const large = size >= 24 || (size >= 18.66 && weight >= 700)
+    const min = large ? MIN.nonText : MIN.text
+    return ratio < min ? [`${selector}: text ${ratio.toFixed(2)}:1 (needs ${String(min)})`] : []
+  })
+}

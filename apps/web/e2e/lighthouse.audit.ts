@@ -134,15 +134,27 @@ test('introduction page, signed out', async ({ baseURL }) => {
   }
 })
 
-for (const entry of APP_PAGES.filter(p => p.status === undefined)) {
-  const { name } = entry
+// Every page in both themes: the theme is the browser's stored choice, which the persistent
+// profile keeps for Lighthouse's own tabs (storage is never reset).
+for (const theme of ['light', 'dark'] as const) {
+  for (const entry of APP_PAGES.filter(p => p.status === undefined)) {
+    const { name } = entry
 
-  test(`${name} page`, async ({ baseURL }) => {
-    const route = await pathOf(entry, async url => {
-      await keepAlive.goto(`${baseUrlOf(baseURL)}${url}`)
-      await loaded(keepAlive)
-      return keepAlive.content()
+    test(`${name} page, ${theme}`, async ({ baseURL }) => {
+      const route = await pathOf(entry, async url => {
+        await keepAlive.goto(`${baseUrlOf(baseURL)}${url}`)
+        await loaded(keepAlive)
+        return keepAlive.content()
+      })
+      await keepAlive.evaluate(value => {
+        localStorage.setItem('muni.theme', value)
+      }, theme)
+      await expectScores(
+        `${name}-${theme}`,
+        `${route} (${theme})`,
+        `${baseUrlOf(baseURL)}${route}`,
+        SIGNED_IN_PORT
+      )
     })
-    await expectScores(name, route, `${baseUrlOf(baseURL)}${route}`, SIGNED_IN_PORT)
-  })
+  }
 }

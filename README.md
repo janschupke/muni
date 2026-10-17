@@ -226,7 +226,18 @@ disagree about what is valid:
   locale's order).
 - **Checks the form makes on its own** (`clientErrors` on `FormShell`): the session form
   checks the room, seats, course and times as they change, and asks the server whether the
-  room is free then.
+  room is free then; the employee form checks the position against the department and the
+  lead against having one.
+- **A field never changes another.** A choice at odds with another field marks every field
+  that can settle it, with the same words on each, and the form is not sent until one does:
+  a room too small marks the room and the seats, a room lacking what the course needs the
+  room and the course, seats below the bookings the seats and the unnamed bookings, a
+  department without the chosen position the department and the position (which stays
+  listed, marked "not in this department").
+- **Save and Cancel go back where the form was opened from,** filters included, from the
+  per-tab history the back links use (`useOrigin`). A form opened directly (typed,
+  bookmarked, reloaded, a new tab) has no origin: a save goes to the record, Cancel to its
+  parent. Archiving from a record's page does the same, falling back to its list.
 
 ### Data and state
 
@@ -250,9 +261,9 @@ Pages read their data in the browser through TanStack Query; the server only gua
   `loading.tsx`: it would flash on every navigation, cached or not.
 - **Forms read fresh:** a form's read is never cached or refetched while it is open, so an
   edit starts from what is saved and typing is never overwritten.
-- **After a write,** the action returns where to go (`{ status: 'saved', href }`). The
-  browser drops the cache of every page not on screen, marks the rest stale, and then
-  navigates (`useWhenWritten`). Actions do not refresh server routes; only the language
+- **After a write,** the action returns the record's address (`{ status: 'saved', href }`),
+  used when the form has no origin. The browser drops the cache of every page not on screen,
+  marks the rest stale, and then navigates (`useWhenWritten`). Actions do not refresh server routes; only the language
   switch does, because it re-renders the layout.
 
 Pages are built from `@muni/ui` primitives, one subpath export each (`@muni/ui/select`,
@@ -346,7 +357,9 @@ One palette, defined once in `packages/ui/src/styles/tokens.css`:
   and checks every pairing the UI renders, in both themes, translucent roles composited first:
   a fill against what it sits on ΔE ≥ 0.02 (OKLab); a control's outline, a bar fill on its
   track and on every surface 3:1 (WCAG 1.4.11); text 4.5:1; any two signal fills ΔE ≥ 0.09,
-  since they meet in stacked bars. It also scans the app for colour classes: a role used
+  since they meet in stacked bars. Coloured text reads as a colour: the link, accent,
+  success, warning, serious and danger inks each stand ΔE ≥ 0.10 from every text grey and
+  0.09 from each other (warning would otherwise read as one more brown-grey). It also scans the app for colour classes: a role used
   anywhere but in no pairing fails, so a new use cannot skip the contract. The rendered pages
   are checked too (next section).
 - **Compliance rates** are coloured by band (`complianceBand` in `@muni/domain`): 100 %,
@@ -356,6 +369,13 @@ One palette, defined once in `packages/ui/src/styles/tokens.css`:
   scale, is ΔE 7.0, which the printed rate makes safe: every cell prints it, on an ink with at least
   4.8:1 contrast. Rate meters and the overview card use the same bands in the four signal
   colours (100 % and 90–99 % are both green).
+
+- **Links** are in the link colour (`text-link`, blue-500 / blue-250) before they are hovered,
+  and underline on hover; a link inside a sentence (`TextLink inText`: a course's
+  "Department: Laboratoře", a proposal's "session · room") is always underlined. Icon buttons
+  take the colour of what they do (`IconButton tone`): edit and undo accent, archive serious,
+  bring back success, remove danger, with a soft fill of it on hover; close, clear-a-filter
+  and the sidebar toggle stay grey.
 
 ### Layout
 
@@ -399,17 +419,20 @@ Providers (`/providers`) list who delivered the completions on record:
 
 Back links ("← Employees") name the page the visitor actually came from, filters included,
 from a per-tab history in `sessionStorage`; forms are skipped, and a page opened directly
-links to its parent list.
+links to its parent list. Forms go back the same way after saving (see Forms).
 
 ## Advisor
 
 `/advisor` shows every required training that is **non-compliant now** (expired or never
-completed) or **lapses within the next 6 months**, what is being done about each, and which
+completed) or **lapses by the end of the sixth month**, counting the current one (the page
+names that day: "Lapsing by Mar 31, 2027"), what is being done about each, and which
 session would cover the rest. Every role can read it; admins book people from it and resolve
 overbooked sessions, always through a dialog that shows what will happen first.
 
-- **Breakdown** (the default view): one bar per bucket, "non-compliant now" and then each month
-  in which trainings lapse, split into **planned in time** (a named booking that ends before the
+- **Breakdown** (the default view): one bar per bucket, "non-compliant now", then everything
+  lapsing in the forecast together (`?bucket=upcoming`, the row the "Lapsing by …" card
+  opens), then each of its months set in under it (the current one named by the days left in
+  it, "Oct 18, 2026 – Oct 31, 2026"); each card's count is its row's. Each is split into **planned in time** (a named booking that ends before the
   training lapses), **planned with a gap** (the booking ends after it lapses, or it has already
   lapsed) and **action required** (nothing booked). Selecting a bucket lists its trainings with
   the **non-compliance window**: from the day the training lapses (`validUntil + 1`) until the
@@ -565,16 +588,28 @@ the session in `e2e/.auth/`. `e2e/access.spec.ts` checks what each role and a vi
 `NODE_OPTIONS=--no-network-family-autoselection` to reach Clerk.
 
 Accessibility is checked twice. `e2e/a11y.spec.ts` runs axe (WCAG 2.2 A/AA and best
-practices) on every page as an admin (who sees every control) and on the introduction signed
-out, in the light and dark theme, and on the open states (matrix row and dialog, employee
-row, an open select, your own role); any violation fails. The same states go through
-`e2e/support/contrast.ts`, which measures what axe does not, on the rendered page: a filled
-element either matches what it sits on or stands ΔE 0.02 apart from it; each enabled
-control's outline and each meter's fill have 3:1; and hovering a table's first row changes
-every cell, pinned ones included. Unit tests also run axe on what they render
+practices, `e2e/support/a11y.ts`) on every page in `e2e/support/pages.ts` as an admin (who
+sees every control: lists, records, every form, the import, the archived lists), on the
+introduction, sign-in and sign-up signed out, in the light and dark theme, and on the open
+and passing states: matrix row and dialog, employee row, an open select, your own role, the
+import's three steps, a link and each icon button hovered and focused, the session and
+employee forms with fields at odds. Any violation fails, and so does text whose contrast
+axe could not settle (under a pinned cell, over an overlap): it is measured from the painted
+layers instead. The same states go through `e2e/support/contrast.ts`, which measures what
+axe does not, on the rendered page: a filled element either matches what it sits on or
+stands ΔE 0.02 apart from it; each enabled control's outline and each meter's fill have
+3:1; every link is underlined or its colour stands ΔE 0.09 from the page's text and its
+block's, and in running text is underlined or 3:1 against it (axe's own rule passes a link
+the colour of its text and skips links alone in a cell); and hovering a table's first row
+changes every cell, pinned ones included. Clerk's footer is left out only on a development
+instance, which stripes it in orange; the app's appearance sets its text colour.
+`e2e/layout.spec.ts` checks geometry at 1920px: an opened row's panel spans its table, a
+toolbar's controls share a line, the import's steps span the page. Every e2e test fails on an
+error thrown in the page (a hydration mismatch included) and on a Content-Security-Policy
+violation. Unit tests also run axe on what they render
 (`apps/web/src/test/axe.ts`, without contrast and target size, which jsdom cannot measure).
 `pnpm test:lighthouse` requires accessibility 100, best practices 95, SEO 90 and performance
-90 (desktop) on every page as an admin and on the introduction. One exception: findings
+90 (desktop) on every page as an admin, in both themes, and on the introduction. One exception: findings
 that name only Clerk's development domain (`*.clerk.accounts.dev`, whose Cloudflare cookies
 are third-party) do not fail it, and `summary.json` lists them under `clerkDevOnly`. A
 production Clerk instance on the app's own domain has none; with a development instance,

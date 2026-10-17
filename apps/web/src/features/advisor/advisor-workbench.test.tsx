@@ -121,7 +121,7 @@ describe('AdvisorWorkbench', () => {
     expect(nowLinks.map(a => a.getAttribute('href'))).toEqual(['/advisor', '/advisor'])
     expect(hrefOf(/^December 2026/)).toBe('/advisor?bucket=2026-12')
     // The current month holds only what lapses after today, and says so.
-    expect(hrefOf(/^October 17\s–\s31, 2026/)).toBe('/advisor?bucket=2026-10')
+    expect(hrefOf(/^Oct 17, 2026 – Oct 31, 2026/)).toBe('/advisor?bucket=2026-10')
     expect(
       screen.getByRole('img', {
         name: /^Non-compliant now: Planned in time 0, Planned, with a gap 0, Action required 2/,
