@@ -46,6 +46,12 @@ vi.mock('next/headers', async () => {
 })
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
+// Every request is within the rate limit unless a test says otherwise (rate-limit.test.ts
+// tests the limit itself).
+vi.mock('@/server/rate-limit', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  spendRequest: vi.fn(() => Promise.resolve()),
+}))
 
 // Outside a request `connection()` throws; in tests every render is a request.
 vi.mock('next/server', async importOriginal => ({

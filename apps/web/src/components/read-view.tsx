@@ -38,7 +38,11 @@ export function ReadView<T>({
       <PageMessage
         icon={<CloudOff aria-hidden />}
         title={t('loadFailedTitle')}
-        description={t('loadFailedBody')}
+        description={
+          query.error instanceof ReadError && query.error.status === 429
+            ? t('rateLimitedBody')
+            : t('loadFailedBody')
+        }
         actions={
           <Button
             variant="primary"

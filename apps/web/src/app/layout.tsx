@@ -6,6 +6,7 @@ import { Container } from '@muni/ui/layout'
 import { THEME_BOOT_SCRIPT } from '@muni/ui/theme/boot'
 import { TooltipProvider } from '@muni/ui/tooltip'
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getTranslations } from 'next-intl/server'
 import type { ReactNode } from 'react'
@@ -26,14 +27,19 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [locale, user, t] = await Promise.all([
+  const [locale, user, t, requestHeaders] = await Promise.all([
     getLocale(),
     getSessionUser(),
     getTranslations('common'),
+    headers(),
   ])
+  // The Content-Security-Policy's nonce (set per request by the proxy): the one inline script
+  // here carries it, as Next's and Clerk's do.
+  const nonce = requestHeaders.get('x-nonce') ?? undefined
 
   return (
     <ClerkProvider
+      dynamic
       localization={locale === 'cs' ? csCZ : enUS}
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
@@ -42,7 +48,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <html lang={locale} suppressHydrationWarning>
         <head>
           {/* Applies the stored theme before first paint. */}
-          <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+          <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         </head>
         <body className="min-h-dvh">
           <NextIntlClientProvider>

@@ -505,7 +505,8 @@ MUNI_SANITIZE_POLICY='{"employee.email":{"VIEWER":{"mode":"omit"}}}'
 ```
 
 An invalid override (unknown field or mode, masking a number) throws on first use instead
-of falling back. Repositories in `@muni/db/repositories` apply the policy; pages never read
+of falling back. So does a rule for `ADMIN` other than `show`: admins edit these fields, and
+their forms read them whole, so the policy cannot hide anything from them. Repositories in `@muni/db/repositories` apply the policy; pages never read
 Prisma models directly.
 
 ## Commands

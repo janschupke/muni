@@ -9,6 +9,7 @@ import {
 import { ARCHIVABLE, type Archivable } from '@muni/domain/archive'
 
 import { archiveRefused, type ArchiveState } from '@/lib/form'
+import { isLocalHref } from '@/lib/local-href'
 import { requireAdmin } from '@/server/auth'
 
 // Archiving and bringing back, for every kind of record. Bound arguments reach the browser and
@@ -17,7 +18,7 @@ import { requireAdmin } from '@/server/auth'
 function checked(kind: Archivable, id: string, then: string | null) {
   if (!ARCHIVABLE.includes(kind) || typeof id !== 'string' || id === '') return false
   // Only a path in this app: never another origin.
-  return then === null || (then.startsWith('/') && !then.startsWith('//'))
+  return then === null || (typeof then === 'string' && isLocalHref(then))
 }
 
 /** What archiving would do now, for the confirm dialog. Null for anyone but an admin. */

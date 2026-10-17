@@ -56,7 +56,9 @@ const overrideSchema = z
       .object({
         VIEWER: ruleSchema.optional(),
         FULL: ruleSchema.optional(),
-        ADMIN: ruleSchema.optional(),
+        // Admins edit these fields, so their forms read them whole: anything but `show`
+        // could not hold, and an override that pretends otherwise is refused.
+        ADMIN: z.object({ mode: z.literal('show') }).optional(),
       })
       .strict()
   )
@@ -74,8 +76,9 @@ export class SanitizePolicyError extends Error {
 
 /**
  * Builds the effective policy: the default config with an optional JSON override merged
- * per field and per role. Throws on unknown fields, unknown modes or masking a number,
- * so a bad override fails at boot rather than leaking data.
+ * per field and per role. Throws on unknown fields, unknown modes, masking a number or
+ * restricting admins (who edit these fields), so a bad override fails on first use rather
+ * than leaking data or promising what it cannot hold.
  */
 export function loadPolicy(overrideJson?: string | null): SanitizePolicy {
   const merged: SanitizePolicy = structuredClone(defaultPolicy)

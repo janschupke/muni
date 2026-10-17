@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { GET } from '@/app/api/read/[name]/route'
 import { getSessionUser, isAccountArchived } from '@/server/auth'
+import { RateLimitedError, spendRequest } from '@/server/rate-limit'
 import { signInAs, signOut } from '@/test/auth'
 
 import { handleRead } from './handle'
@@ -47,6 +48,14 @@ describe('reads', () => {
     signInAs('FULL')
     const forbidden = await handleRead('users-list', search())
     expect([forbidden.status, await body(forbidden)]).toEqual([403, { error: 'forbidden' }])
+    expect(listRooms).not.toHaveBeenCalled()
+  })
+
+  it('refuse a user past the minute’s limit, saying when to come back', async () => {
+    vi.mocked(spendRequest).mockRejectedValueOnce(new RateLimitedError(20))
+    const refused = await handleRead('rooms-list', search())
+    expect([refused.status, await body(refused)]).toEqual([429, { error: 'rate_limited' }])
+    expect(refused.headers.get('retry-after')).toBe('20')
     expect(listRooms).not.toHaveBeenCalled()
   })
 

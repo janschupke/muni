@@ -64,6 +64,8 @@ describe('loadPolicy overrides', () => {
     ['masking a number', JSON.stringify({ 'completion.price': { FULL: { mode: 'mask' } } })],
     // The audiences before roles existed: an old override must fail, not silently not apply.
     ['an old audience key', JSON.stringify({ 'employee.email': { anonymous: { mode: 'omit' } } })],
+    // Admins edit these fields: hiding them from admins cannot hold, so it is refused.
+    ['restricting admins', JSON.stringify({ 'employee.nationalId': { ADMIN: { mode: 'omit' } } })],
   ])('rejects %s', (_, json) => {
     expect(() => loadPolicy(json)).toThrow(SanitizePolicyError)
   })

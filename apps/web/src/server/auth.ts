@@ -6,6 +6,8 @@ import { canWrite, parseRole, type Role, roleMetadata } from '@muni/domain/enums
 import { notFound, redirect } from 'next/navigation'
 import { cache } from 'react'
 
+import { spendRequest } from './rate-limit'
+
 // Clerk signs people in and owns their role (`publicMetadata.role`: viewer, full or admin).
 // The users table mirrors it; this module keeps the mirror fresh and guards pages and actions.
 
@@ -125,5 +127,6 @@ class UnauthorizedError extends Error {
 export async function requireAdmin(): Promise<SessionUser> {
   const user = await getSessionUser()
   if (!user || !canWrite(user.role)) throw new UnauthorizedError()
+  await spendRequest('write', user.id)
   return user
 }

@@ -386,3 +386,14 @@ model User {
   @@unique([clerkId], map: "users_clerk_id_key", where: { archivedAt: null })
   @@map("users")
 }
+
+/// Requests per key (a user and what they do) in fixed one-minute windows: what the rate
+/// limit counts. A key's older windows go when it opens a new one.
+model RateLimit {
+  key         String
+  windowStart DateTime @map("window_start")
+  count       Int
+
+  @@id([key, windowStart])
+  @@map("rate_limits")
+}

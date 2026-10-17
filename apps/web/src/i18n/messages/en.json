@@ -754,6 +754,7 @@
     "errorBody": "The page could not be loaded. Trying again often helps; if it keeps failing, report the reference below.",
     "loadFailedTitle": "Could not load the data",
     "loadFailedBody": "The server did not answer. Check the connection and try again.",
+    "rateLimitedBody": "Too many requests in a short time. Wait a moment, then try again.",
     "reference": "Reference: {digest}",
     "retry": "Try again",
     "home": "Go to overview",

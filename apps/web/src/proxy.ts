@@ -1,14 +1,16 @@
 import { clerkMiddleware } from '@clerk/nextjs/server'
 
+/** Static files the app serves (icons, robots.txt, the manifest), public like the landing. */
+const STATIC_FILE = /\/[^/]+\.(?:ico|png|svg|txt|xml|webmanifest)$/i
+
 /**
- * The landing page, Clerk's pages and files (icons, robots.txt): everything else is a page
- * of the register and needs a signed-in user. No register page has an extension in its path.
+ * The landing page, Clerk's pages and static files: everything else is a page of the
+ * register, or a read under /api, and needs a signed-in user.
  */
 export function isPublicPath(pathname: string): boolean {
+  if (pathname.startsWith('/api/')) return false
   return (
-    pathname === '/' ||
-    /^\/(sign-in|sign-up)(\/|$)/.test(pathname) ||
-    /\/[^/]+\.[a-z0-9]+$/i.test(pathname)
+    pathname === '/' || /^\/(sign-in|sign-up)(\/|$)/.test(pathname) || STATIC_FILE.test(pathname)
   )
 }
 
@@ -19,8 +21,22 @@ export default clerkMiddleware(
   async (auth, request) => {
     if (!isPublicPath(request.nextUrl.pathname)) await auth.protect()
   },
-  // Without these, protect() sends visitors to Clerk's hosted pages instead of the app's.
-  { signInUrl: '/sign-in', signUpUrl: '/sign-up' }
+  {
+    // Without these, protect() sends visitors to Clerk's hosted pages instead of the app's.
+    signInUrl: '/sign-in',
+    signUpUrl: '/sign-up',
+    // A Content-Security-Policy per request: scripts run only with its nonce (and what they
+    // load: strict-dynamic), plus Clerk's own hosts. The page may not be framed.
+    contentSecurityPolicy: {
+      strict: true,
+      directives: {
+        'base-uri': ['self'],
+        'object-src': ['none'],
+        'frame-ancestors': ['none'],
+        'img-src': ['data:'],
+      },
+    },
+  }
 )
 
 export const config = {

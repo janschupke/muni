@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { createDb } from './client'
-import { findUserByClerkId, listUsers, upsertUserFromClerk } from './repositories'
+import { findUserByClerkId, hitRateLimit, listUsers, upsertUserFromClerk } from './repositories'
 
 const db = createDb()
 const options = { db }
@@ -14,6 +14,7 @@ const cleanUp = async () => {
     data: { archivedAt: null, archivedById: null },
   })
   await db.user.deleteMany({ where: { clerkId: { startsWith: PREFIX } } })
+  await db.rateLimit.deleteMany({ where: { key: { startsWith: PREFIX } } })
 }
 beforeAll(cleanUp)
 afterAll(async () => {
@@ -110,5 +111,23 @@ describe('users', () => {
       ['Cyril', 'VIEWER'],
       ['Rita', 'VIEWER'],
     ])
+  })
+})
+
+describe('rate limits', () => {
+  it('counts each key per minute, refuses past the limit, and keeps one window a key', async () => {
+    const key = `${PREFIX}reads`
+    const at = (time: string) => ({ ...options, now: new Date(`2026-10-17T10:${time}Z`) })
+    const hits = await Promise.all(
+      Array.from({ length: 4 }, () => hitRateLimit(key, 3, at('00:10')))
+    )
+    // Concurrent requests each get their own count: exactly one is over.
+    expect(hits.filter(h => h.ok)).toHaveLength(3)
+    expect(hits.filter(h => !h.ok)).toEqual([{ ok: false, retryAfterSeconds: 50 }])
+    // Another key is counted apart.
+    expect(await hitRateLimit(`${PREFIX}other`, 3, at('00:10'))).toEqual({ ok: true })
+    // The next minute starts again, and the old window goes.
+    expect(await hitRateLimit(key, 3, at('01:00'))).toEqual({ ok: true })
+    expect(await db.rateLimit.count({ where: { key } })).toBe(1)
   })
 })

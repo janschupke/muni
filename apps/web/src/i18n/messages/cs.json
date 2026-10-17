@@ -754,6 +754,7 @@
     "errorBody": "Stránku se nepodařilo načíst. Často pomůže zkusit to znovu; pokud chyba trvá, nahlaste níže uvedený kód.",
     "loadFailedTitle": "Data se nepodařilo načíst",
     "loadFailedBody": "Server neodpověděl. Zkontrolujte připojení a zkuste to znovu.",
+    "rateLimitedBody": "Příliš mnoho požadavků v krátké době. Chvíli počkejte a zkuste to znovu.",
     "reference": "Kód chyby: {digest}",
     "retry": "Zkusit znovu",
     "home": "Přejít na přehled",

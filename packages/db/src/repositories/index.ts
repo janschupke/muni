@@ -130,6 +130,7 @@ export {
   type ProviderWrite,
   updateProvider,
 } from './providers'
+export { hitRateLimit } from './rate-limits'
 export {
   createCompletion,
   createCourse,

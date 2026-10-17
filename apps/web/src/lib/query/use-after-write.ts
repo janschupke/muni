@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useEffectEvent } from 'react'
 
 import { type ToastMessage, useToast } from '@/components/toasts'
+import { isLocalHref } from '@/lib/local-href'
 
 /**
  * What every successful write does next. Pages not on screen drop their cached data, so the
@@ -20,7 +21,8 @@ export function useAfterWrite(): (href?: string) => void {
     (href?: string) => {
       client.removeQueries({ type: 'inactive' })
       void client.invalidateQueries({ refetchType: href ? 'none' : 'active' })
-      if (href) router.push(href)
+      // Only ever within the app, whatever a server answered.
+      if (href && isLocalHref(href)) router.push(href)
     },
     [client, router]
   )

@@ -43,6 +43,30 @@ test.describe('visitors', () => {
     }
   })
 
+  test('get pages that run only the app’s own scripts and cannot be framed', async ({
+    request,
+  }) => {
+    for (const path of ['/', '/sign-in']) {
+      const headers = (await request.get(path)).headers()
+      const csp = headers['content-security-policy'] ?? ''
+      expect(csp, path).toMatch(/script-src [^;]*'nonce-[A-Za-z0-9+/=]+'/)
+      expect(csp, path).toContain("'strict-dynamic'")
+      expect(csp, path).toContain("frame-ancestors 'none'")
+      expect(csp, path).toContain("object-src 'none'")
+      expect(headers['x-content-type-options'], path).toBe('nosniff')
+      expect(headers['x-frame-options'], path).toBe('DENY')
+      expect(headers['referrer-policy'], path).toBe('strict-origin-when-cross-origin')
+      expect(headers['strict-transport-security'], path).toContain('max-age=')
+      expect(headers['x-powered-by'], path).toBeUndefined()
+    }
+    // A new nonce on every response.
+    const nonceOf = async () =>
+      /'nonce-([^']+)'/.exec(
+        (await request.get('/')).headers()['content-security-policy'] ?? ''
+      )?.[1]
+    expect(await nonceOf()).not.toBe(await nonceOf())
+  })
+
   test('get a 404 for a missing file, not an error', async ({ request }) => {
     for (const path of ['/robots.txt', '/missing.png'])
       expect((await request.get(path)).status(), path).toBe(404)

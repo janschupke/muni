@@ -14,7 +14,7 @@ declare namespace NodeJS {
     MUNI_SANITIZE_POLICY?: string
     /** Days before expiry that count as "expiring". */
     MUNI_EXPIRING_DAYS?: string
-    /** Clerk; without it the site is the public read-only register. */
+    /** Clerk (required): every page but the landing needs a signed-in user. */
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?: string
   }
 }
