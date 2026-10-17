@@ -20,6 +20,7 @@ export function Dialog({
   closeLabel,
   returnFocusTo,
   className,
+  footer,
   children,
 }: {
   open: boolean
@@ -29,6 +30,8 @@ export function Dialog({
   closeLabel: string
   returnFocusTo?: (() => HTMLElement | null | undefined) | undefined
   className?: string | undefined
+  /** The dialog's buttons, pinned under the scrolling body (the decision stays in view). */
+  footer?: ReactNode | undefined
   children: ReactNode
 }) {
   return (
@@ -73,6 +76,11 @@ export function Dialog({
             </DialogPrimitive.Close>
           </div>
           <div className="overflow-y-auto px-5 py-4">{children}</div>
+          {footer !== undefined && (
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border-muted px-5 py-3">
+              {footer}
+            </div>
+          )}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

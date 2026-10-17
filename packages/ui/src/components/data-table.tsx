@@ -17,10 +17,12 @@ import {
   tableFeatures,
   useTable,
 } from '@tanstack/react-table'
-import { ArrowDown, ArrowUp, ChevronRight, ChevronsUpDown } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
 import { Fragment, type ReactNode, useId, useState } from 'react'
 
 import { cn } from '../cn'
+import { SelectBox } from './checkbox'
+import { ExpandButton } from './expand-button'
 import { Pagination } from './pagination'
 import { type CellLayout, Table, TableContainer, TBody, Td, Th, THead, Tr } from './table'
 
@@ -74,6 +76,18 @@ export type { PaginationState, SortingState }
 
 const ARIA_SORT = { asc: 'ascending', desc: 'descending' } as const
 
+/** Rows the reader picks for an action (a checkbox column before the data). */
+export interface RowSelection<TData> {
+  selected: ReadonlySet<string>
+  onSelectedChange: (next: Set<string>) => void
+  /** Rows that can be picked; the others show no checkbox. Default: every row. */
+  isRowSelectable?: ((row: TData) => boolean) | undefined
+  /** Accessible name of a row's checkbox ("Select Novák Jan"). */
+  rowLabel: (row: TData) => string
+  /** Accessible name of the header checkbox ("Select every row on this page"). */
+  pageLabel: string
+}
+
 export function DataTable<TData extends RowData>({
   columns,
   data,
@@ -97,6 +111,7 @@ export function DataTable<TData extends RowData>({
   getRowCanExpand,
   expandLabel,
   expandHeader,
+  selection,
 }: {
   columns: Columns<TData>
   data: TData[]
@@ -131,6 +146,7 @@ export function DataTable<TData extends RowData>({
   expandLabel?: ((row: TData) => string) | undefined
   /** Visually hidden header of the disclosure column ("Details"). */
   expandHeader?: string | undefined
+  selection?: RowSelection<TData> | undefined
 }) {
   const [innerSorting, setInnerSorting] = useState<SortingState>(initialSorting)
   const [innerPagination, setInnerPagination] = useState<PaginationState>({
@@ -179,6 +195,30 @@ export function DataTable<TData extends RowData>({
 
   const rows = paginated ? table.getRowModel().rows : table.getPrePaginatedRowModel().rows
   const pageCount = paginated ? table.getPageCount() : 1
+  const leading = (expandable ? 1 : 0) + (selection ? 1 : 0)
+
+  const selectableIds = selection
+    ? rows.filter(row => selection.isRowSelectable?.(row.original) ?? true).map(row => row.id)
+    : []
+  const pickedOnPage = selectableIds.filter(id => selection?.selected.has(id)).length
+  const pageState =
+    pickedOnPage === 0 ? false : pickedOnPage === selectableIds.length ? true : 'indeterminate'
+  const togglePage = () => {
+    if (!selection) return
+    const next = new Set(selection.selected)
+    for (const id of selectableIds) {
+      if (pageState === true) next.delete(id)
+      else next.add(id)
+    }
+    selection.onSelectedChange(next)
+  }
+  const toggleRow = (id: string, on: boolean) => {
+    if (!selection) return
+    const next = new Set(selection.selected)
+    if (on) next.add(id)
+    else next.delete(id)
+    selection.onSelectedChange(next)
+  }
 
   return (
     <>
@@ -191,6 +231,17 @@ export function DataTable<TData extends RowData>({
                 {expandable && (
                   <Th className="w-0 px-1">
                     <span className="sr-only">{expandHeader}</span>
+                  </Th>
+                )}
+                {selection && (
+                  <Th className="w-0 px-2">
+                    {selectableIds.length > 0 && (
+                      <SelectBox
+                        checked={pageState}
+                        onCheckedChange={togglePage}
+                        aria-label={selection.pageLabel}
+                      />
+                    )}
                   </Th>
                 )}
                 {group.headers.map(header => {
@@ -236,25 +287,32 @@ export function DataTable<TData extends RowData>({
                   <Tr
                     className={cn(
                       rowClassName?.(row.original),
-                      open && '[--row-state:var(--color-state-hover)]'
+                      open && '[--row-state:var(--color-state-hover)]',
+                      selection?.selected.has(row.id) && '[--row-state:var(--color-state-selected)]'
                     )}
                   >
                     {expandable && (
                       <Td className="w-0 px-1">
                         {row.getCanExpand() && (
-                          <button
-                            type="button"
-                            aria-expanded={open}
+                          <ExpandButton
+                            open={open}
                             aria-controls={open ? detailId : undefined}
                             aria-label={expandLabel?.(row.original)}
                             onClick={row.getToggleExpandedHandler()}
-                            className="inline-flex size-7 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-state-active hover:text-fg"
-                          >
-                            <ChevronRight
-                              aria-hidden
-                              className={cn('size-4 transition-transform', open && 'rotate-90')}
-                            />
-                          </button>
+                          />
+                        )}
+                      </Td>
+                    )}
+                    {selection && (
+                      <Td className="w-0 px-2">
+                        {(selection.isRowSelectable?.(row.original) ?? true) && (
+                          <SelectBox
+                            checked={selection.selected.has(row.id)}
+                            onCheckedChange={on => {
+                              toggleRow(row.id, on)
+                            }}
+                            aria-label={selection.rowLabel(row.original)}
+                          />
                         )}
                       </Td>
                     )}
@@ -278,11 +336,11 @@ export function DataTable<TData extends RowData>({
                   </Tr>
                   {open && renderExpanded && (
                     <tr id={detailId} className="bg-surface-sunken">
-                      <td colSpan={cells.length + 1} className="p-0">
+                      <td colSpan={cells.length + leading} className="p-0">
                         {/* Opens from zero height: the grid row animates from its starting style. */}
                         <div className="grid grid-rows-[1fr] transition-[grid-template-rows] duration-(--motion-normal) starting:grid-rows-[0fr]">
                           <div className="overflow-hidden">
-                            <div className="px-4 py-3">{renderExpanded(row.original)}</div>
+                            <div className="p-4">{renderExpanded(row.original)}</div>
                           </div>
                         </div>
                       </td>

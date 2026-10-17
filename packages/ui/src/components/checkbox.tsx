@@ -1,8 +1,48 @@
 'use client'
 
-import { Check } from 'lucide-react'
+import { Check, Minus } from 'lucide-react'
 import { Checkbox as CheckboxPrimitive } from 'radix-ui'
 import { type ReactNode, useId } from 'react'
+
+const boxClass =
+  'flex size-4 shrink-0 items-center justify-center rounded-sm border border-border-control bg-control text-accent-fg disabled:cursor-not-allowed disabled:border-border-default disabled:bg-transparent aria-invalid:border-danger-fill data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=indeterminate]:border-accent data-[state=indeterminate]:bg-accent disabled:data-[state=checked]:border-border-default disabled:data-[state=checked]:bg-tint disabled:data-[state=checked]:text-fg-muted'
+
+/**
+ * A checkbox without a visible label, named by `aria-label`: selecting a table's rows, where
+ * the row itself says what is selected. `indeterminate` marks a header box over a partial
+ * selection.
+ */
+export function SelectBox({
+  checked,
+  onCheckedChange,
+  disabled,
+  'aria-label': label,
+}: {
+  checked: boolean | 'indeterminate'
+  onCheckedChange: (checked: boolean) => void
+  disabled?: boolean | undefined
+  'aria-label': string
+}) {
+  return (
+    <CheckboxPrimitive.Root
+      checked={checked}
+      onCheckedChange={state => {
+        onCheckedChange(state === true)
+      }}
+      disabled={disabled}
+      aria-label={label}
+      className={boxClass}
+    >
+      <CheckboxPrimitive.Indicator>
+        {checked === 'indeterminate' ? (
+          <Minus aria-hidden className="size-3" strokeWidth={3} />
+        ) : (
+          <Check aria-hidden className="size-3" strokeWidth={3} />
+        )}
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Root>
+  )
+}
 
 /**
  * A labelled checkbox (Radix). Inside a form it posts `name=value` (`on` by default) when
@@ -43,7 +83,7 @@ export function Checkbox({
         disabled={disabled}
         aria-invalid={invalid}
         aria-describedby={describedBy}
-        className="flex size-4 shrink-0 items-center justify-center rounded-sm border border-border-control bg-control text-accent-fg disabled:cursor-not-allowed disabled:border-border-default disabled:bg-transparent aria-invalid:border-danger-fill data-[state=checked]:border-accent data-[state=checked]:bg-accent disabled:data-[state=checked]:border-border-default disabled:data-[state=checked]:bg-tint disabled:data-[state=checked]:text-fg-muted"
+        className={boxClass}
       >
         <CheckboxPrimitive.Indicator>
           <Check aria-hidden className="size-3" strokeWidth={3} />
