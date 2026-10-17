@@ -62,17 +62,17 @@ export function SessionsView({ query, canEdit }: { query: SessionListQuery; canE
         description={t('description')}
         actions={create && <ListActions kind="session" create={create} />}
       />
+      <LinkTabs aria-label={t('title')} className="mb-4">
+        {WINDOWS.map(w => (
+          <LinkTab key={w} asChild active={query.when === w}>
+            <Link href={href({ when: w === 'past' ? 'past' : undefined })}>
+              {w === 'past' ? <History aria-hidden /> : <CalendarClock aria-hidden />}
+              {t(w)}
+            </Link>
+          </LinkTab>
+        ))}
+      </LinkTabs>
       <Toolbar>
-        <LinkTabs aria-label={t('title')}>
-          {WINDOWS.map(w => (
-            <LinkTab key={w} asChild active={query.when === w}>
-              <Link href={href({ when: w === 'past' ? 'past' : undefined })}>
-                {w === 'past' ? <History aria-hidden /> : <CalendarClock aria-hidden />}
-                {t(w)}
-              </Link>
-            </LinkTab>
-          ))}
-        </LinkTabs>
         <Select
           aria-label={t('roomFilter')}
           className="w-full sm:w-56"

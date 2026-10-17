@@ -13,7 +13,13 @@ export function Toolbar({
   ...props
 }: HTMLAttributes<HTMLElement> & { asChild?: boolean | undefined }) {
   const Comp = asChild ? Slot.Root : 'div'
-  return <Comp className={cn('mb-4 flex flex-wrap items-end gap-3', className)} {...props} />
+  return (
+    <Comp
+      data-slot="toolbar"
+      className={cn('mb-4 flex flex-wrap items-end gap-3', className)}
+      {...props}
+    />
+  )
 }
 
 /**

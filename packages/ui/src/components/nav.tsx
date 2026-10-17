@@ -26,9 +26,12 @@ type LinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   active?: boolean | undefined
 }
 
-/** Tabs that are routes: each tab is a link, the current one marked `aria-current="page"`. */
+/**
+ * Tabs that are routes: each tab is a link, the current one marked `aria-current="page"`.
+ * The strip is a row of its own; the page spaces it from what follows.
+ */
 export function LinkTabs({ className, ...props }: HTMLAttributes<HTMLElement>) {
-  return <nav className={cn(tabListClass, 'mb-4', className)} {...props} />
+  return <nav className={cn(tabListClass, className)} {...props} />
 }
 
 export function LinkTab({ asChild = false, active = false, className, ...props }: LinkProps) {

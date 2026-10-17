@@ -100,7 +100,7 @@ export function AdvisorWorkbench({
       </div>
 
       <div>
-        <LinkTabs aria-label={t('views.label')}>
+        <LinkTabs aria-label={t('views.label')} className="mb-4">
           {tabs.map(tab => {
             const Icon = VIEW_ICON[tab.view]
             return (

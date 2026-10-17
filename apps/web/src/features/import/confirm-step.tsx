@@ -26,7 +26,7 @@ export function ConfirmStep({
   }, 0)
 
   return (
-    <Card className="max-w-2xl">
+    <Card>
       <CardHeader title={t('confirm.title')} />
       <CardBody className="flex flex-col gap-3 text-sm">
         <ul className="flex flex-col gap-1">

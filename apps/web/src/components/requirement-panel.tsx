@@ -25,7 +25,6 @@ export function RequirementPanel({
       level={level}
       count={requirements.length}
       flush={requirements.length > 0}
-      className="max-w-5xl"
     >
       {requirements.length === 0 ? (
         <EmptyState variant="inline" title={t('none')} />

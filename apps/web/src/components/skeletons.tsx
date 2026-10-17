@@ -168,9 +168,12 @@ export function PlannerSkeleton() {
 export function ImportSkeleton() {
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex gap-6">
+      <div className="flex items-center gap-2">
         {Array.from({ length: 3 }, (_, i) => (
-          <Skeleton key={i} className="h-5 w-24" />
+          <div key={i} className={i < 2 ? 'flex flex-1 items-center gap-2' : 'flex items-center'}>
+            <Skeleton className="h-5 w-24" />
+            {i < 2 && <Skeleton className="h-px flex-1" />}
+          </div>
         ))}
       </div>
       <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border-emphasis">

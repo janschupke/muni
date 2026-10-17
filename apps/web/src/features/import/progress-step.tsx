@@ -29,7 +29,7 @@ export function ProgressStep({ job, onReset }: { job: ImportJob; onReset: () => 
         ? t('progress.failed', { message: job.message })
         : t('progress.doneTitle')
   return (
-    <Card className="max-w-2xl">
+    <Card>
       <CardBody className="flex flex-col gap-3 text-sm">
         <p role="status" className="sr-only">
           {status}
