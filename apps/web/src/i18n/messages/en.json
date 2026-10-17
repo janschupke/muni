@@ -950,7 +950,7 @@
     },
     "rules": {
       "title": "How the advisor decides",
-      "scope": "In scope: every required training that is expired or never completed (non-compliant now), or that lapses within {months} months. People on parental leave are left out.",
+      "scope": "In scope: every required training that is expired or never completed (non-compliant now), or that lapses by the end of the forecast: {months} months, the current one counted. People on parental leave are left out.",
       "remedied": "A named booking on an upcoming session of the course is a planned remediation. If the session ends after the training lapses, the days in between are a gap.",
       "overbooking": "Overbooked sessions come first: their unnamed seats move to other sessions of the same course that have room, and those seats are not offered again.",
       "order": "Everything else needs action, served in this order: expired (longest expired first), never completed, then by the day it lapses; ties go by name.",

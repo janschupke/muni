@@ -950,7 +950,7 @@
     },
     "rules": {
       "title": "Jak poradce rozhoduje",
-      "scope": "Zahrnuje každé povinné školení, které propadlo nebo nebylo nikdy absolvováno (teď v nesouladu), nebo propadne do {months, plural, one {# měsíce} other {# měsíců}}. Lidé na rodičovské dovolené nejsou zahrnuti.",
+      "scope": "Zahrnuje každé povinné školení, které propadlo nebo nebylo nikdy absolvováno (teď v nesouladu), nebo propadne do konce výhledu: {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}} včetně toho současného. Lidé na rodičovské dovolené nejsou zahrnuti.",
       "remedied": "Rezervace jménem na nadcházející termín kurzu je naplánovaná náprava. Pokud termín skončí až po propadnutí, dny mezi tím jsou mezera.",
       "overbooking": "Nejdřív přeplněné termíny: jejich místa bez jména se přesunou na jiné termíny stejného kurzu, kde je volno, a tato místa se už nenabízejí.",
       "order": "Vše ostatní vyžaduje akci, v tomto pořadí: propadlá (nejdéle propadlá první), nikdy neabsolvovaná, pak podle dne propadnutí; při shodě podle jména.",
