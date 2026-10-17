@@ -1,11 +1,10 @@
 import type { CourseListItem } from '@muni/db/repositories'
-import { complianceBand } from '@muni/domain/compliance'
+import { complianceBand, complianceOf } from '@muni/domain/compliance'
 import { HeatCell } from '@muni/ui/charts/heat-cell'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { DetailGrid, DetailPanel } from '@muni/ui/detail-panel'
 import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
-import { Meter } from '@muni/ui/meter'
 import { TextLink } from '@muni/ui/text-link'
 import { formatPercent } from '@muni/utils/format'
 import Link from 'next/link'
@@ -14,14 +13,13 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useOfTotal } from '@/lib/use-of-total'
 
 import { CapabilityList } from './room-badges'
+import { SeatMeter } from './seat-meter'
 import { RoomLink, SessionDateLink } from './session-links'
-import { OccupancyBadge, seatTone } from './status-badges'
 
 /** A course row opened: its planned sessions, what a session needs, and who holds it where. */
 export function CoursePanel({ course }: { course: CourseListItem }) {
   const t = useTranslations('courses.panel')
   const ts = useTranslations('sessions')
-  const ofTotal = useOfTotal()
   return (
     <DetailGrid layout="thirds">
       <DetailPanel title={t('sessions')} count={course.upcoming.length}>
@@ -36,19 +34,11 @@ export function CoursePanel({ course }: { course: CourseListItem }) {
                   <span className="text-fg-subtle">·</span>
                   <RoomLink room={s.room} />
                 </span>
-                <span className="flex items-center gap-2">
-                  <Meter
-                    value={s.bookedCount}
-                    max={s.capacity}
-                    label={ts('columns.capacity')}
-                    tone={seatTone(s.bookedCount, s.capacity)}
-                    className="w-24"
-                  />
-                  <span className="text-xs text-fg-muted tabular-nums">
-                    {ofTotal(s.bookedCount, s.capacity)}
-                  </span>
-                  <OccupancyBadge booked={s.bookedCount} capacity={s.capacity} />
-                </span>
+                <SeatMeter
+                  booked={s.bookedCount}
+                  capacity={s.capacity}
+                  label={ts('columns.capacity')}
+                />
               </ItemListRow>
             ))}
           </ItemList>
@@ -98,7 +88,7 @@ export function CourseByDepartment({
   return (
     <ItemList>
       {byDepartment.map(d => {
-        const held = d.counts.VALID + d.counts.EXPIRING
+        const { held } = complianceOf(d.counts)
         return (
           <ItemListRow key={d.id} className="gap-2">
             <HeatCell

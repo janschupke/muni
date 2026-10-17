@@ -1,5 +1,11 @@
 import { getAdvisorInput, getRoom, listRooms } from '@muni/db/repositories'
-import { planAssignments, unpackPlan } from '@muni/domain/advisor'
+import {
+  type AdvisorPlan,
+  type Packed,
+  planAssignments,
+  type PlanItem,
+  unpack,
+} from '@muni/domain/advisor'
 import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -75,7 +81,7 @@ describe('reads', () => {
     vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
     const plan = planAssignments(advisorInput())
     interface Advisor {
-      plan: Parameters<typeof unpackPlan>[0]
+      plan: Packed<AdvisorPlan>
       page: { total: number }
       counts: { action: number; planned: number }
     }
@@ -85,13 +91,37 @@ describe('reads', () => {
     const needed = plan.items.filter(i => i.remediation === 'ACTION_REQUIRED')
     expect(action.counts.action).toBe(needed.length)
     expect(action.page.total).toBe(needed.length)
-    const names = unpackPlan(action.plan).items.map(i => i.need.employee.name)
+    const names = unpack(action.plan).items.map(i => i.need.employee.name)
     expect(names).toEqual(
       needed
         .map(i => i.need.employee.name)
         .toSorted((a, b) => b.localeCompare(a, 'cs'))
         .slice(0, 25)
     )
+  })
+
+  it('send admins, as a Book dialog opens, the trainings a query names with their sessions', async () => {
+    vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
+    interface Choices {
+      asOf: string
+      items: Packed<PlanItem[]>
+    }
+    const choices = async (query: Record<string, string>) =>
+      unpack(((await body(await handleRead('booking-choices', search(query)))) as Choices).items)
+    // Readers do not book.
+    expect((await handleRead('booking-choices', search())).status).toBe(403)
+    signInAs('ADMIN')
+    const all = await choices({})
+    expect(all.map(i => [i.need.employee.externalId, i.need.course.code])).toEqual([
+      ['E0153', 'BOZP-Z'],
+      ['E0002', 'POZ-OCH'],
+    ])
+    expect((await choices({ employee: 'E0153' }))[0]?.proposal).toMatchObject({
+      kind: 'SESSION',
+      session: { externalId: 'T018' },
+    })
+    expect(await choices({ department: 'dep_lib', course: 'BOZP-Z' })).toEqual([])
+    expect(await choices({ position: 'pos_lib' })).toHaveLength(1)
   })
 
   it('tell the browser why not: unknown, signed out, archived, not an admin', async () => {

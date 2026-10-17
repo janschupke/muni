@@ -8,8 +8,10 @@ import { useMemo } from 'react'
 
 import { usePaginationLabels } from '@/components/pagination-labels'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
+import { itemId } from '@/features/bookings/book-dialog'
+import { SessionCell } from '@/features/bookings/choice-cells'
 
-import { col, itemId, SessionCell, usePlanColumns } from './columns'
+import { col, usePlanColumns } from './columns'
 import { RemediationBadge } from './labels'
 
 /** Trainings that already have a named booking, and the gap each booking still leaves. */

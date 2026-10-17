@@ -24,13 +24,15 @@ export {
   type AssignmentFailure,
   type AssignmentOutcome,
   type AssignmentRequest,
+  type BookingsOf,
   type EmployeeBooking,
-  listEmployeeBookings,
+  listUpcomingBookings,
   type MoveFailure,
   type MoveOutcome,
   moveSeatsMany,
   removeAssignment,
   type SeatMoveRequest,
+  type UpcomingBooking,
 } from './assignments'
 export { getPolicy, type RepoOptions } from './context'
 export { type ComplianceSnapshot, loadCompliance } from './context'
@@ -81,7 +83,6 @@ export {
 } from './groups'
 export {
   getPersonName,
-  listBookableSessions,
   listDepartments,
   listEmployeeOptions,
   listPositions,
@@ -89,7 +90,6 @@ export {
   listRoomOptions,
   type PersonOption,
   type RoomOption,
-  type SessionOption,
 } from './lookups'
 export {
   checkSessionSlot,
@@ -110,6 +110,7 @@ export {
   type DepartmentDetail,
   type DepartmentSummary,
   getDepartment,
+  getGroupName,
   getPosition,
   listDepartmentSummaries,
   listGroupMembers,

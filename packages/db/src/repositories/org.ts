@@ -342,6 +342,21 @@ export async function getPosition(
   }
 }
 
+/** A department's or position's name; null when there is none (or it is archived). */
+export async function getGroupName(
+  kind: 'department' | 'position',
+  id: string,
+  options?: RepoOptions
+): Promise<string | null> {
+  const where = { id, ...ACTIVE }
+  const select = { name: true }
+  const found =
+    kind === 'department'
+      ? await dbOf(options).department.findFirst({ where, select })
+      : await dbOf(options).position.findFirst({ where, select })
+  return found?.name ?? null
+}
+
 /** A department's or position's people with their records, for its row in the list. */
 export async function listGroupMembers(
   kind: 'department' | 'position',

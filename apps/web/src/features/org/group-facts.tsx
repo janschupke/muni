@@ -1,31 +1,32 @@
-import { BarRow } from '@muni/ui/bar-row'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
-import { Meter } from '@muni/ui/meter'
-import { formatInteger, formatPercent } from '@muni/utils/format'
+import { TextLink } from '@muni/ui/text-link'
+import { formatInteger } from '@muni/utils/format'
+import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 
-import { ComplianceBar } from '@/components/compliance-breakdown'
-import { rateTone } from '@/components/status-badges'
+import { ComplianceSummary } from '@/components/compliance-breakdown'
 
 /** The numbers every department and position page opens with. */
 export function GroupFacts({
   group,
+  bookingsHref,
   children,
 }: {
   group: {
     name: string
     active: number
     parentalLeave: number
+    upcomingBookings: number
     counts: { VALID: number; EXPIRING: number; EXPIRED: number; MISSING: number; total: number }
-    rate: number
   }
+  /** Where its upcoming bookings are listed. */
+  bookingsHref: string
   children?: ReactNode | undefined
 }) {
   const t = useTranslations('org.columns')
   const td = useTranslations('org.detail')
   const locale = useLocale()
-  const held = group.counts.VALID + group.counts.EXPIRING
   return (
     <div className="flex flex-col gap-4">
       <DescriptionList>
@@ -36,24 +37,18 @@ export function GroupFacts({
         <DescriptionItem label={td('onLeave')}>
           {formatInteger(group.parentalLeave, locale)}
         </DescriptionItem>
+        <DescriptionItem label={td('bookings')}>
+          {group.upcomingBookings === 0 ? (
+            formatInteger(0, locale)
+          ) : (
+            <TextLink asChild arrow>
+              <Link href={bookingsHref}>{formatInteger(group.upcomingBookings, locale)}</Link>
+            </TextLink>
+          )}
+        </DescriptionItem>
       </DescriptionList>
       {group.counts.total > 0 && (
-        <>
-          <BarRow
-            label={t('compliance')}
-            value={`${formatPercent(group.rate, locale)} · ${formatInteger(held, locale)} / ${formatInteger(group.counts.total, locale)}`}
-            bar={
-              <Meter
-                value={held}
-                max={group.counts.total}
-                label={t('compliance')}
-                tone={rateTone(group.rate)}
-                size="md"
-              />
-            }
-          />
-          <ComplianceBar counts={group.counts} label={group.name} />
-        </>
+        <ComplianceSummary counts={group.counts} label={t('compliance')} name={group.name} />
       )}
     </div>
   )

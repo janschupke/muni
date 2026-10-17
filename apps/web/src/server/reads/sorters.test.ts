@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   advisorInput,
+  booking,
   counts,
   courseRow,
   departmentSummary,
@@ -20,6 +21,7 @@ import {
 import {
   advisorKeys,
   archivedKeys,
+  bookingKeys,
   completionKeys,
   courseKeys,
   departmentKeys,
@@ -160,6 +162,18 @@ describe('every list sorts on the server by the value its column shows', () => {
     expectEveryColumnSorts(detail.completionList, completionKeys)
     expectEveryColumnSorts(detail.byCourse, providerCourseKeys)
     expectEveryColumnSorts(employeeDetail().completions, historyKeys)
+    expectEveryColumnSorts(
+      [
+        booking({ person: { externalId: 'E2', name: 'Žák Jan' } }),
+        booking({
+          sessionExternalId: 'T1',
+          courseName: 'Angličtina',
+          startsAt: '2026-11-01T08:00:00.000Z',
+          room: { id: 'r', name: 'Online', kind: 'ONLINE' },
+        }),
+      ],
+      bookingKeys
+    )
   })
 
   it('the advisor’s tables and the planner’s offers', () => {

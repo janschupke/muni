@@ -1,7 +1,6 @@
 'use client'
 
 import type { PlanItem } from '@muni/domain/advisor'
-import type { RoomRef } from '@muni/domain/rooms'
 import { createDataColumns } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
@@ -10,14 +9,11 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
-import { RoomLink, SessionDateLink } from '@/components/session-links'
 import { ComplianceBadge } from '@/components/status-badges'
 
 import { LapsesText, WindowText } from './labels'
 
 export const col = createDataColumns<PlanItem>()
-
-export const itemId = (i: PlanItem) => `${i.need.employee.externalId}|${i.need.course.code}`
 
 /** The columns every advisor table shares: who, which training, when it lapses, the gap. */
 export function usePlanColumns(asOf: string) {
@@ -71,22 +67,5 @@ export function usePlanColumns(asOf: string) {
       }),
     }),
     [asOf, t]
-  )
-}
-
-/** A session as "date (link) / room (link)". */
-export function SessionCell({
-  session,
-  employee,
-}: {
-  session: { externalId: string; startsAt: string; endsAt: string; room: RoomRef }
-  /** The person the session is proposed for: its page offers them for booking. */
-  employee?: string | undefined
-}) {
-  return (
-    <CellStack
-      title={<SessionDateLink session={session} employee={employee} emphasis />}
-      meta={<RoomLink room={session.room} />}
-    />
   )
 }

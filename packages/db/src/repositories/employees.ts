@@ -214,6 +214,8 @@ export interface EmployeeDetail {
   /** Leads their department. */
   leadsDepartment: boolean
   requirements: EmployeeListRequirement[]
+  /** The requirements by state. */
+  counts: ComplianceCounts
   completionRate: number
   completions: EmployeeCompletionRow[]
 }
@@ -317,6 +319,7 @@ export async function getEmployee(
     requirements: cells
       .map(c => requirementOf(c, context))
       .sort((a, b) => a.courseCode.localeCompare(b.courseCode)),
+    counts: countStatuses(cells),
     completionRate: complianceRate(countStatuses(cells)),
     completions: employee.completions.map(c =>
       sanitizeRecord(

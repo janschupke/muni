@@ -920,11 +920,7 @@ describe('booking actions', () => {
       { request: { ...pair, source: 'MANUAL' }, ok: true },
     ])
     expect(
-      await addBookingAction(
-        { sessionExternalId: 'T018' },
-        { status: 'idle' },
-        form({ employeeExternalId: 'E0153' })
-      )
+      await addBookingAction('T018', { status: 'idle' }, form({ employeeExternalId: 'E0153' }))
     ).toEqual({ status: 'done' })
     expect(applyAssignments).toHaveBeenLastCalledWith(
       [{ sessionExternalId: 'T018', employeeExternalId: 'E0153', source: 'MANUAL' }],
@@ -934,21 +930,19 @@ describe('booking actions', () => {
       { request: { ...pair, source: 'MANUAL' }, ok: false, reason: 'CONFLICT' },
     ])
     expect(
-      await addBookingAction(
-        { employeeExternalId: 'E0153' },
-        { status: 'idle' },
-        form({ sessionExternalId: 'T018' })
-      )
+      await addBookingAction('T018', { status: 'idle' }, form({ employeeExternalId: 'E0153' }))
     ).toEqual({ status: 'refused', reason: 'CONFLICT' })
     // Nothing chosen: nothing is sent.
-    expect(
-      await addBookingAction({ sessionExternalId: 'T018' }, { status: 'idle' }, form({}))
-    ).toEqual({ status: 'refused', reason: 'invalid' })
+    expect(await addBookingAction('T018', { status: 'idle' }, form({}))).toEqual({
+      status: 'refused',
+      reason: 'invalid',
+    })
     expect(applyAssignments).toHaveBeenCalledTimes(2)
     signedIn('user_1', 'VIEWER')
-    expect(
-      await addBookingAction({ sessionExternalId: 'T018' }, { status: 'idle' }, form({}))
-    ).toEqual({ status: 'refused', reason: 'unauthorized' })
+    expect(await addBookingAction('T018', { status: 'idle' }, form({}))).toEqual({
+      status: 'refused',
+      reason: 'unauthorized',
+    })
   })
 })
 
@@ -1472,11 +1466,7 @@ describe('the write guard', () => {
     ).toEqual({ ok: false, reason: 'failed' })
     vi.mocked(applyAssignments).mockResolvedValueOnce([])
     expect(
-      await addBookingAction(
-        { sessionExternalId: 'T018' },
-        { status: 'idle' },
-        form({ employeeExternalId: 'E0153' })
-      )
+      await addBookingAction('T018', { status: 'idle' }, form({ employeeExternalId: 'E0153' }))
     ).toEqual({ status: 'refused', reason: 'failed' })
     expect(log).toHaveBeenCalled()
   })

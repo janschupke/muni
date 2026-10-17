@@ -9,6 +9,7 @@ import {
   department,
   departmentForm,
   departmentsList,
+  groupBookings,
   groupMembers,
   position,
   positionForm,
@@ -24,7 +25,14 @@ import {
   user,
   usersList,
 } from './places'
-import { advisor, compliance, dashboard, importReference, planner } from './planning'
+import {
+  advisor,
+  bookingChoices,
+  compliance,
+  dashboard,
+  importReference,
+  planner,
+} from './planning'
 import { session, sessionForm, sessionsList } from './sessions'
 
 /** Every read a page can make, by the name in its address (`/api/read/<name>`). */
@@ -42,6 +50,7 @@ export const reads = {
   'departments-list': departmentsList,
   'positions-list': positionsList,
   'group-members': groupMembers,
+  'group-bookings': groupBookings,
   department,
   position,
   'department-form': departmentForm,
@@ -56,6 +65,7 @@ export const reads = {
   user,
   dashboard,
   advisor,
+  'booking-choices': bookingChoices,
   planner,
   compliance,
   'import-reference': importReference,

@@ -36,11 +36,11 @@ import {
   listCourseOptions,
   listCourses,
   listDepartmentSummaries,
-  listEmployeeBookings,
   listEmployees,
   listProviders,
   listRoomOptions,
   listSessions,
+  listUpcomingBookings,
   recordExists,
   unarchiveRecord,
 } from './repositories'
@@ -612,7 +612,7 @@ describe('archived people are anonymised everywhere but on their own admin page'
         planner: () => getPlannerInput(options),
         personName: () => getPersonName(ID, options),
         reference: () => loadReferenceSnapshot(db),
-        bookings: () => listEmployeeBookings(ID, options),
+        bookings: () => listUpcomingBookings({ employee: ID }, options),
         archived: () => listArchived('employee', 'ADMIN', options),
       }
       for (const [name, read] of Object.entries(reads)) {

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { deleteCourses, deleteRooms, unarchiveAll } from '../test/archive'
+import { needing } from '../test/needs'
 import { completionOf, courseIdOf } from '../test/records'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { createDb } from './connect'
@@ -26,11 +27,14 @@ import {
   getPosition,
   getPositionForEdit,
   getUser,
-  listBookableSessions,
   listDepartmentHeads,
   listDepartmentPositions,
+  listDepartmentSummaries,
   listEmployeeOptions,
   listGroupOptions,
+  listPositionSummaries,
+  listUpcomingBookings,
+  removeAssignment,
   revertUserRole,
   saveDepartment,
   savePosition,
@@ -602,7 +606,11 @@ describe('sessions keep fitting their rooms', () => {
   it('re-checks a session whose course or seats change, and the room or course under it', async () => {
     const withProjector = await room('A', { capabilities: ['PROJECTOR'] })
     const bare = await room('B', { capacity: 30 })
-    await createCourse({ ...course, code: 'TEST-REC-S', groupSize: null }, options)
+    // Required of everyone: the people booked on it below must need it.
+    await createCourse(
+      { ...course, code: 'TEST-REC-S', groupSize: null, requiredForAll: true },
+      options
+    )
     await createCourse({ ...course, code: 'TEST-REC-P', capabilities: ['PROJECTOR'] }, options)
     const plain = await courseIdOf(db, 'TEST-REC-S')
     const projected = await courseIdOf(db, 'TEST-REC-P')
@@ -618,8 +626,8 @@ describe('sessions keep fitting their rooms', () => {
       options
     )
     if (!created.ok) throw new Error(created.problem)
-    await applyAssignments(
-      ['E0153', 'E0131'].map(employeeExternalId => ({
+    const booked = await applyAssignments(
+      (await needing(db, created.externalId, options, 2)).map(employeeExternalId => ({
         sessionExternalId: created.externalId,
         employeeExternalId,
         source: 'MANUAL' as const,
@@ -627,6 +635,7 @@ describe('sessions keep fitting their rooms', () => {
       TEST_USER,
       options
     )
+    expect(booked.map(b => b.ok)).toEqual([true, true])
     const edit = {
       ...at,
       courseId: plain,
@@ -783,22 +792,29 @@ describe('sessions keep fitting their rooms', () => {
   })
 })
 
-describe('booking by hand', () => {
-  it('offers sessions ahead with a free seat that the person is not on yet', async () => {
-    const before = await listBookableSessions('N0003', options)
-    expect(before.length).toBeGreaterThan(0)
-    expect(before.every(s => s.free > 0 && s.startsAt > now.toISOString())).toBe(true)
-    // T030 and T016 are overbooked in the export: no seat to offer.
-    expect(before.map(s => s.externalId)).not.toContain('T030')
-    const target = before[0]
-    if (!target) throw new Error('no session')
-    await applyAssignments(
-      [{ sessionExternalId: target.externalId, employeeExternalId: 'N0003', source: 'MANUAL' }],
+describe('upcoming bookings of a department or a position', () => {
+  it('lists the bookings its "upcoming bookings" counts, soonest first, each its own person', async () => {
+    const [person] = await needing(db, 'T018', options, 1)
+    if (!person) throw new Error('fixture')
+    const [made] = await applyAssignments(
+      [{ sessionExternalId: 'T018', employeeExternalId: person, source: 'MANUAL' }],
       TEST_USER,
       options
     )
-    const after = await listBookableSessions('N0003', options)
-    expect(after.map(s => s.externalId)).not.toContain(target.externalId)
+    expect(made?.ok).toBe(true)
+    const groups = [
+      ...(await listDepartmentSummaries(options)).map(g => ({ of: { department: g.id }, g })),
+      ...(await listPositionSummaries(options)).map(g => ({ of: { position: g.id }, g })),
+    ]
+    expect(groups.some(({ g }) => g.upcomingBookings > 0)).toBe(true)
+    for (const { of, g } of groups) {
+      const bookings = await listUpcomingBookings(of, options)
+      expect(bookings, g.name).toHaveLength(g.upcomingBookings)
+      const starts = bookings.map(b => b.startsAt)
+      expect(starts).toEqual(starts.toSorted())
+      expect(bookings.every(b => b.endsAt >= now.toISOString())).toBe(true)
+    }
+    await removeAssignment('T018', person, options)
   })
 })
 

@@ -11,6 +11,7 @@ import type {
   RoomListItem,
   SessionListItem,
   SortValue,
+  UpcomingBooking,
   UserListItem,
 } from '@muni/db/repositories'
 import type { PlanItem } from '@muni/domain/advisor'
@@ -21,6 +22,7 @@ import type { SessionOffer } from '@muni/domain/planner'
 import type {
   ADVISOR_SORT,
   ARCHIVED_SORT,
+  BOOKING_SORT,
   COMPLETION_SORT,
   COURSE_SORT,
   GROUP_SORT,
@@ -175,4 +177,12 @@ export const providerCourseKeys: Keys<
   people: c => c.people,
   spend: c => c.spend,
   last: c => c.lastCompletedOn,
+}
+
+/** Upcoming bookings of a department's or a position's people. */
+export const bookingKeys: Keys<typeof BOOKING_SORT, UpcomingBooking> = {
+  person: b => b.person.name,
+  course: b => b.courseName,
+  date: b => b.startsAt,
+  room: b => b.room.name,
 }

@@ -97,7 +97,7 @@ export function ReviewTable({
             <Tooltip content={describe(row)} side="right">
               <button
                 type="button"
-                className="inline-flex items-center gap-1 rounded-sm hover:underline"
+                className="-mx-1 inline-flex items-center gap-1 rounded-sm px-1 transition-colors hover:bg-state-hover"
                 aria-label={`${t('review.problems', { row: row.rowNumber })}\n${describe(row)}`}
               >
                 {row.rowNumber}

@@ -40,10 +40,13 @@ export function GroupPeople({
   kind,
   group,
   paging,
+  canBook,
 }: {
   kind: Kind
   group: Group
   paging: (page: PageInfo) => TablePaging
+  /** Admins book each person's trainings from here. */
+  canBook: boolean
 }) {
   const t = useTranslations('org.detail')
   const tk = useTranslations(`${kind}.detail`)
@@ -65,6 +68,7 @@ export function GroupPeople({
             items={group.members.items}
             paging={paging(group.members)}
             omit={filter}
+            canBook={canBook}
             caption={t('people')}
             panelLevel={3}
           />

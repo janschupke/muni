@@ -52,6 +52,8 @@ function unplaced(
         externalId: `E${String(serial).padStart(4, '0')}`,
         name,
         department: 'Laboratoře',
+        departmentId: 'd-lab',
+        positionId: 'p-lab',
         status: 'ACTIVE',
       },
       course: { code, name: code },

@@ -10,15 +10,17 @@ import { useId, useMemo } from 'react'
 
 import { usePaginationLabels } from '@/components/pagination-labels'
 import { RoomLink, SessionDateLink } from '@/components/session-links'
+import { itemId } from '@/features/bookings/book-dialog'
 
-import { RowRemedy, useBookDialog } from './booking'
-import { col, itemId, usePlanColumns } from './columns'
+import { useBookSelection } from './book-selection'
+import { col, usePlanColumns } from './columns'
 import { RemediationBadge, UPCOMING, useBucketName } from './labels'
 
 /**
  * One bucket's trainings (or the whole forecast's): who, which, when it lapses, what is being
- * done, and the gap; for admins, a row with nothing booked books the proposed session or
- * schedules a new one. A page at a time, the page in the address.
+ * done, and the gap; for admins, booking works as in the action tab (a row, or the rows
+ * picked; the session chosen in the dialog), or a row with no session schedules a new one.
+ * A page at a time, the page in the address.
  */
 export function BreakdownTable({
   items,
@@ -43,7 +45,7 @@ export function BreakdownTable({
   const bucketName = useBucketName(asOf)
   const paginationLabels = usePaginationLabels()
   const shared = usePlanColumns(asOf)
-  const { ask, dialog } = useBookDialog()
+  const booking = useBookSelection({ items, asOf, canBook })
 
   const columns = useMemo(
     () =>
@@ -57,26 +59,9 @@ export function BreakdownTable({
           cell: ({ row }) => <RemediationCell item={row.original} />,
         }),
         shared.window,
-        ...(canBook
-          ? [
-              col.display({
-                id: 'remedy',
-                header: () => <span className="sr-only">{t('columns.remedy')}</span>,
-                meta: { nowrap: true, sticky: 'right', headerClassName: 'w-0' },
-                cell: ({ row }) =>
-                  row.original.remediation === 'ACTION_REQUIRED' && (
-                    <RowRemedy
-                      item={row.original}
-                      onBook={(item, from) => {
-                        ask([{ item, session: item.proposal.session }], from)
-                      }}
-                    />
-                  ),
-              }),
-            ]
-          : []),
+        ...booking.columns,
       ]),
-    [shared, t, canBook, ask]
+    [shared, t, booking.columns]
   )
 
   const title = `${bucketName(bucket)}: ${t('breakdown.trainings', { count: total })}`
@@ -98,16 +83,20 @@ export function BreakdownTable({
       {total === 0 ? (
         <EmptyState title={t('breakdown.empty')} />
       ) : (
-        <DataTable
-          caption={title}
-          columns={columns}
-          data={items}
-          getRowId={itemId}
-          paging={paging}
-          paginationLabels={paginationLabels}
-        />
+        <>
+          {booking.bar}
+          <DataTable
+            caption={title}
+            columns={columns}
+            data={items}
+            getRowId={itemId}
+            paging={paging}
+            paginationLabels={paginationLabels}
+            selection={booking.selection}
+          />
+        </>
       )}
-      {dialog}
+      {booking.dialog}
     </section>
   )
 }
@@ -115,6 +104,7 @@ export function BreakdownTable({
 /** The remediation, and under it the booked session, the proposal, or why there is none. */
 function RemediationCell({ item }: { item: PlanItem }) {
   const t = useTranslations('advisor')
+  const tb = useTranslations('bookings')
   const session = item.booked ?? (item.proposal?.kind === 'SESSION' ? item.proposal.session : null)
   return (
     <div className="flex flex-col items-start gap-1">
@@ -133,9 +123,7 @@ function RemediationCell({ item }: { item: PlanItem }) {
         </div>
       ) : (
         item.proposal?.kind === 'NONE' && (
-          <span className="text-xs text-fg-muted">
-            {t(`action.reasons.${item.proposal.reason}`)}
-          </span>
+          <span className="text-xs text-fg-muted">{tb(`reasons.${item.proposal.reason}`)}</span>
         )
       )}
     </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { unpackPlan } from '@muni/domain/advisor'
+import { unpack } from '@muni/domain/advisor'
 import { PageHeader } from '@muni/ui/page-header'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
@@ -17,7 +17,7 @@ import { AdvisorWorkbench } from './advisor-workbench'
 import type { AdvisorView as View } from './labels'
 
 /** The plan arrives packed (each session once). */
-const unpacked = ({ plan, ...rest }: ReadOutput<'advisor'>) => ({ ...rest, plan: unpackPlan(plan) })
+const unpacked = ({ plan, ...rest }: ReadOutput<'advisor'>) => ({ ...rest, plan: unpack(plan) })
 
 /**
  * The advisor: its plan, in the view and row the address asks for (`?view=`, `?bucket=`),

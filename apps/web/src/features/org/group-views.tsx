@@ -18,35 +18,50 @@ import { DetailSkeleton } from '@/components/skeletons'
 import { readQuery } from '@/lib/query/queries'
 import { useDocumentTitle } from '@/lib/query/use-document-title'
 import { useListUrl } from '@/lib/use-list-url'
+import type { ReadOutput } from '@/server/reads/registry'
 
 import { GroupBreakdown } from './group-breakdown'
 import { GroupFacts } from './group-facts'
 import { GroupCourses, GroupPeople } from './group-sections'
 
-/** A department's page: who leads it, its positions, the courses it must hold, its people. */
-export function DepartmentView({ id, canEdit }: { id: string; canEdit: boolean }) {
-  const t = useTranslations('departments')
+const PLURAL = { department: 'departments', position: 'positions' } as const
+
+/**
+ * A department's or a position's page: its facts (a department's head and positions, a
+ * position's departments), the courses it must hold, its people, and its upcoming bookings.
+ */
+export function GroupView({
+  kind,
+  id,
+  canEdit,
+}: {
+  kind: 'department' | 'position'
+  id: string
+  canEdit: boolean
+}) {
+  const plural = PLURAL[kind]
+  const t = useTranslations(plural)
   const people = useListUrl(EMPLOYEE_SORT_KEYS, undefined, 'people')
   const read = useQuery({
-    ...readQuery('department', { id, ...people.input }),
+    ...readQuery(kind, { id, ...people.input }),
     placeholderData: keepPreviousData,
   })
   useDocumentTitle(read.data?.name)
   return (
-    <ReadView query={read} skeleton={<DetailSkeleton />} entity="departments">
-      {department => (
+    <ReadView query={read} skeleton={<DetailSkeleton />} entity={plural}>
+      {group => (
         <>
           <PageHeader
-            eyebrow={<BackLink fallback={{ href: '/departments', label: t('title') }} />}
-            title={department.name}
+            eyebrow={<BackLink fallback={{ href: `/${plural}`, label: t('title') }} />}
+            title={group.name}
             actions={
               canEdit && (
                 <RecordActions
-                  kind="department"
-                  id={department.id}
-                  name={department.name}
-                  editHref={`/departments/${department.id}/edit`}
-                  then="/departments"
+                  kind={kind}
+                  id={group.id}
+                  name={group.name}
+                  editHref={`/${plural}/${group.id}/edit`}
+                  then={`/${plural}`}
                 />
               )
             }
@@ -56,80 +71,47 @@ export function DepartmentView({ id, canEdit }: { id: string; canEdit: boolean }
               <Card>
                 <CardHeader title={t('detail.facts')} />
                 <CardBody className="flex flex-col gap-5">
-                  <GroupFacts group={department}>
-                    <DescriptionItem label={t('detail.head')}>
-                      {department.head ? <PersonLink person={department.head} /> : PLACEHOLDER}
-                    </DescriptionItem>
-                    <DescriptionItem label={t('detail.positions')}>
-                      {department.positions.length === 0 ? (
-                        <EmptyState variant="inline" title={t('detail.noPositions')} />
-                      ) : (
-                        <GroupBreakdown kind="positions" groups={department.positions} />
-                      )}
-                    </DescriptionItem>
+                  <GroupFacts group={group} bookingsHref={`/${plural}/${group.id}/bookings`}>
+                    <OwnFacts group={group} />
                   </GroupFacts>
                 </CardBody>
               </Card>
             }
-            main={<GroupCourses kind="departments" group={department} />}
+            main={<GroupCourses kind={plural} group={group} />}
           />
-          <GroupPeople kind="departments" group={department} paging={people.paging} />
+          <GroupPeople kind={plural} group={group} paging={people.paging} canBook={canEdit} />
         </>
       )}
     </ReadView>
   )
 }
 
-/** A position's page: the departments it is in, the courses it must hold, its people. */
-export function PositionView({ id, canEdit }: { id: string; canEdit: boolean }) {
-  const t = useTranslations('positions')
-  const people = useListUrl(EMPLOYEE_SORT_KEYS, undefined, 'people')
-  const read = useQuery({
-    ...readQuery('position', { id, ...people.input }),
-    placeholderData: keepPreviousData,
-  })
-  useDocumentTitle(read.data?.name)
+/** What only one kind has: a department's head and positions, a position's departments. */
+function OwnFacts({ group }: { group: ReadOutput<'department'> | ReadOutput<'position'> }) {
+  const td = useTranslations('departments.detail')
+  const tp = useTranslations('positions.detail')
+  if ('departments' in group)
+    return (
+      <DescriptionItem label={tp('departments')}>
+        {group.departments.length === 0 ? (
+          <EmptyState variant="inline" title={tp('noDepartments')} />
+        ) : (
+          <GroupBreakdown kind="departments" groups={group.departments} />
+        )}
+      </DescriptionItem>
+    )
   return (
-    <ReadView query={read} skeleton={<DetailSkeleton />} entity="positions">
-      {position => (
-        <>
-          <PageHeader
-            eyebrow={<BackLink fallback={{ href: '/positions', label: t('title') }} />}
-            title={position.name}
-            actions={
-              canEdit && (
-                <RecordActions
-                  kind="position"
-                  id={position.id}
-                  name={position.name}
-                  editHref={`/positions/${position.id}/edit`}
-                  then="/positions"
-                />
-              )
-            }
-          />
-          <SplitLayout
-            side={
-              <Card>
-                <CardHeader title={t('detail.facts')} />
-                <CardBody className="flex flex-col gap-5">
-                  <GroupFacts group={position}>
-                    <DescriptionItem label={t('detail.departments')}>
-                      {position.departments.length === 0 ? (
-                        <EmptyState variant="inline" title={t('detail.noDepartments')} />
-                      ) : (
-                        <GroupBreakdown kind="departments" groups={position.departments} />
-                      )}
-                    </DescriptionItem>
-                  </GroupFacts>
-                </CardBody>
-              </Card>
-            }
-            main={<GroupCourses kind="positions" group={position} />}
-          />
-          <GroupPeople kind="positions" group={position} paging={people.paging} />
-        </>
-      )}
-    </ReadView>
+    <>
+      <DescriptionItem label={td('head')}>
+        {group.head ? <PersonLink person={group.head} /> : PLACEHOLDER}
+      </DescriptionItem>
+      <DescriptionItem label={td('positions')}>
+        {group.positions.length === 0 ? (
+          <EmptyState variant="inline" title={td('noPositions')} />
+        ) : (
+          <GroupBreakdown kind="positions" groups={group.positions} />
+        )}
+      </DescriptionItem>
+    </>
   )
 }

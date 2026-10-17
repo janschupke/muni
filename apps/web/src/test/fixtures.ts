@@ -5,7 +5,6 @@ import type {
   DashboardData,
   DepartmentDetail,
   DepartmentSummary,
-  EmployeeBooking,
   EmployeeDetail,
   EmployeeListItem,
   EmployeeListRequirement,
@@ -17,6 +16,7 @@ import type {
   RoomDetail,
   RoomListItem,
   SessionListItem,
+  UpcomingBooking,
 } from '@muni/db/repositories'
 import type { getCourseForEdit, getPlannerInput } from '@muni/db/repositories'
 import type { AdvisorInput } from '@muni/domain/advisor'
@@ -161,6 +161,7 @@ export const employeeDetail = (over: Partial<EmployeeDetail> = {}): EmployeeDeta
       booked: null,
     },
   ],
+  counts: counts({ VALID: 1, EXPIRING: 0, EXPIRED: 1, MISSING: 0 }),
   completionRate: 0.5,
   completions: [
     {
@@ -177,7 +178,7 @@ export const employeeDetail = (over: Partial<EmployeeDetail> = {}): EmployeeDeta
   ...over,
 })
 
-export const booking = (over: Partial<EmployeeBooking> = {}): EmployeeBooking => ({
+export const booking = (over: Partial<UpcomingBooking> = {}): UpcomingBooking => ({
   sessionExternalId: 'T018',
   courseCode: 'BOZP-Z',
   courseName: 'BOZP – základní školení',
@@ -185,6 +186,7 @@ export const booking = (over: Partial<EmployeeBooking> = {}): EmployeeBooking =>
   endsAt: '2027-02-03T10:00:00.000Z',
   room: AULA_A,
   source: 'ADVISOR',
+  person: { externalId: 'E0153', name: 'Černá Marie' },
   ...over,
 })
 
@@ -373,6 +375,8 @@ export const advisorInput = (over: Partial<AdvisorInput> = {}): AdvisorInput => 
         externalId: 'E0153',
         name: 'Černá Marie',
         department: 'Laboratoře',
+        departmentId: 'dep_lab',
+        positionId: 'pos_lab',
         status: 'ACTIVE',
       },
       course: { code: 'BOZP-Z', name: 'BOZP – základní školení' },
@@ -384,6 +388,8 @@ export const advisorInput = (over: Partial<AdvisorInput> = {}): AdvisorInput => 
         externalId: 'E0002',
         name: 'Adámek Petr',
         department: 'Knihovna',
+        departmentId: 'dep_lib',
+        positionId: 'pos_lib',
         status: 'ACTIVE',
       },
       course: { code: 'POZ-OCH', name: 'Požární ochrana' },

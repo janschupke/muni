@@ -1,24 +1,21 @@
 'use client'
 
 import type { SessionListItem } from '@muni/db/repositories'
-import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { DetailGrid, DetailPanel } from '@muni/ui/detail-panel'
 import { EmptyState } from '@muni/ui/empty-state'
-import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { formatCurrency } from '@muni/utils/format'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
-import { useOfTotal } from '@/lib/use-of-total'
-
 import { RecordLink } from './archived'
 import { usePaginationLabels } from './pagination-labels'
 import { RowActions } from './record-actions'
+import { SeatMeter } from './seat-meter'
 import { SessionAttendees, SessionFacts } from './session-details'
 import { RoomLink, SessionDateLink } from './session-links'
-import { OccupancyBadge, seatTone, SessionStatusBadge } from './status-badges'
+import { SessionStatusBadge } from './status-badges'
 
 const col = createDataColumns<SessionListItem>()
 
@@ -45,7 +42,6 @@ export function SessionTable({
 }) {
   const t = useTranslations('sessions')
   const tc = useTranslations('common')
-  const ofTotal = useOfTotal()
   const paginationLabels = usePaginationLabels()
 
   const columns = useMemo(
@@ -110,24 +106,10 @@ export function SessionTable({
           sortFn: 'basic',
           meta: { headerClassName: 'w-48' },
           cell: ({ row }) => (
-            <BarRow
-              layout="inline"
-              barClassName="w-20 flex-none"
-              bar={
-                <Meter
-                  value={row.original.bookedCount}
-                  max={row.original.capacity}
-                  label={t('columns.capacity')}
-                  tone={seatTone(row.original.bookedCount, row.original.capacity)}
-                />
-              }
-              value={ofTotal(row.original.bookedCount, row.original.capacity)}
-              after={
-                <OccupancyBadge
-                  booked={row.original.bookedCount}
-                  capacity={row.original.capacity}
-                />
-              }
+            <SeatMeter
+              booked={row.original.bookedCount}
+              capacity={row.original.capacity}
+              label={t('columns.capacity')}
             />
           ),
         }),
@@ -165,7 +147,7 @@ export function SessionTable({
             ]
           : []),
       ]),
-    [canEdit, compact, ofTotal, showCourse, t, tc]
+    [canEdit, compact, showCourse, t, tc]
   )
 
   return (

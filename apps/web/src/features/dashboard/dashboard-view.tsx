@@ -1,5 +1,6 @@
 'use client'
 
+import { complianceOf } from '@muni/domain/compliance'
 import { Alert } from '@muni/ui/alert'
 import { BarRow } from '@muni/ui/bar-row'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
@@ -34,7 +35,7 @@ export function DashboardView({ canEdit }: { canEdit: boolean }) {
 function Dashboard({ data, advisor, canEdit }: ReadOutput<'dashboard'> & { canEdit: boolean }) {
   const t = useTranslations('dashboard')
   const locale = useLocale()
-  const held = data.counts.VALID + data.counts.EXPIRING
+  const { held } = complianceOf(data.counts)
   const { now, action, overbooked } = advisor
   const count = (n: number) => formatInteger(n, locale)
   const employees = (compliance?: string) =>

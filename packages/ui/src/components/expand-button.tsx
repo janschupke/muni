@@ -19,7 +19,7 @@ export function ExpandButton({
       type="button"
       aria-expanded={open}
       className={cn(
-        'inline-flex size-7 shrink-0 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-state-active hover:text-fg',
+        'inline-flex size-7 shrink-0 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-state-hover hover:text-fg active:bg-state-active',
         className
       )}
       {...props}

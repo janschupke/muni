@@ -2,12 +2,14 @@
 import {
   getDepartment,
   getDepartmentForEdit,
+  getGroupName,
   getPosition,
   getPositionForEdit,
   listDepartmentSummaries,
   listGroupMembers,
   listGroupOptions,
   listPositionSummaries,
+  listUpcomingBookings,
 } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -17,9 +19,11 @@ import { requireReader } from '@/server/auth'
 import { signInAs, signOut } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import {
+  booking,
   counts,
   departmentDetail,
   departmentSummary,
+  employeeRow,
   members,
   positionDetail,
   positionSummary,
@@ -27,12 +31,16 @@ import {
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
+import PositionBookingsPage from '../positions/[id]/bookings/page'
 import EditPositionPage, {
   generateMetadata as editPositionMetadata,
 } from '../positions/[id]/edit/page'
 import PositionPage, { generateMetadata as positionMetadata } from '../positions/[id]/page'
 import NewPositionPage, { generateMetadata as newPositionMetadata } from '../positions/new/page'
 import PositionsPage, { generateMetadata as positionsMetadata } from '../positions/page'
+import DepartmentBookingsPage, {
+  generateMetadata as departmentBookingsMetadata,
+} from './[id]/bookings/page'
 import EditDepartmentPage, { generateMetadata as editDepartmentMetadata } from './[id]/edit/page'
 import DepartmentPage, { generateMetadata as departmentMetadata } from './[id]/page'
 import NewDepartmentPage, { generateMetadata as newDepartmentMetadata } from './new/page'
@@ -73,6 +81,8 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   listDepartmentSummaries: vi.fn(),
   listGroupMembers: vi.fn(() => Promise.resolve(members())),
   listPositionSummaries: vi.fn(),
+  getGroupName: vi.fn(),
+  listUpcomingBookings: vi.fn(),
 }))
 
 vi.mock('@/server/auth')
@@ -105,6 +115,20 @@ beforeEach(() => {
     positionSummary({ id: 'pos_none', name: 'Stážista', departments: [] }),
   ])
   vi.mocked(getPosition).mockResolvedValue(positionDetail())
+  vi.mocked(getGroupName).mockImplementation(kind =>
+    Promise.resolve(kind === 'department' ? 'Laboratoře' : 'Laborant')
+  )
+  vi.mocked(listUpcomingBookings).mockResolvedValue([
+    booking(),
+    booking({
+      sessionExternalId: 'T020',
+      courseCode: 'GDPR',
+      courseName: 'Ochrana osobních údajů',
+      startsAt: '2026-11-05T13:00:00.000Z',
+      endsAt: '2026-11-05T16:00:00.000Z',
+      person: { externalId: 'E0154', name: 'Adámek Petr' },
+    }),
+  ])
 })
 
 describe('departments', () => {
@@ -173,13 +197,14 @@ describe('departments', () => {
     expect(screen.getAllByRole('link', { name: 'Urbanová Tereza' })[0]?.getAttribute('href')).toBe(
       '/employees/E0001'
     )
-    expect(screen.getByText('89% · 128 / 144')).toBeTruthy()
+    // One bar for its compliance, the breakdown, with the share and the count over it.
+    expect(screen.getByText('89% · 128 of 144')).toBeTruthy()
     const lab = screen.getByRole('row', { name: /Bezpečná práce/ })
     expect(within(lab).getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
       '/departments/dep_lab'
     )
-    expect(within(lab).getByText('43%').className).toContain('bg-heat-poor')
-    expect(within(lab).getByText('12 / 28')).toBeTruthy()
+    expect(within(lab).getByText('43% · 12 of 28')).toBeTruthy()
+    expect(within(lab).getAllByRole('img')).toHaveLength(1)
     // Its people: every member, not a first page of them.
     expect(screen.getByRole('link', { name: 'Adámek Petr' }).getAttribute('href')).toBe(
       '/employees/E0154'
@@ -278,6 +303,95 @@ describe('positions', () => {
     ).rejects.toThrow(NotFoundError)
   })
 })
+
+describe('upcoming bookings', () => {
+  it('link from the list’s count and the facts card to the bookings they count', async () => {
+    await renderServer(DepartmentsPage({ searchParams: params({}) }))
+    const lab = screen.getByRole('row', { name: /^Laboratoře/ })
+    expect(
+      within(lab)
+        .getByRole('link', { name: '3 upcoming bookings of Laboratoře' })
+        .getAttribute('href')
+    ).toBe('/departments/dep_lab/bookings')
+    await renderServer(
+      DepartmentPage({ params: params({ id: 'dep_lab' }), searchParams: params({}) })
+    )
+    expect(screen.getByRole('link', { name: '3' }).getAttribute('href')).toBe(
+      '/departments/dep_lab/bookings'
+    )
+  })
+
+  it('list them a page at a time, soonest first, each linked; admins can remove one', async () => {
+    const props = { params: params({ id: 'dep_lab' }), searchParams: params({}) }
+    expect(await departmentBookingsMetadata(props)).toEqual({
+      title: 'Upcoming bookings: Laboratoře',
+    })
+    signInAs('ADMIN')
+    await renderServer(DepartmentBookingsPage(props))
+    expect(screen.getByRole('heading', { level: 1, name: 'Upcoming bookings' })).toBeTruthy()
+    const table = screen.getByRole('table', { name: 'Upcoming bookings of Laboratoře' })
+    expect(table.closest('[data-paging]')?.getAttribute('data-paging')).toBe('server')
+    const rows = within(table).getAllByRole('row').slice(1)
+    expect(rows.map(r => within(r).getAllByRole('link')[0]?.textContent)).toEqual([
+      'Černá Marie',
+      'Adámek Petr',
+    ])
+    const first = rows[0] as HTMLElement
+    expect(hrefIn(first, 'BOZP – základní školení')).toBe('/courses/BOZP-Z')
+    expect(hrefIn(first, /03.02.2027/)).toBe('/sessions/T018')
+    expect(hrefIn(first, 'Aula A')).toBe('/rooms/room_aula_a')
+    expect(
+      within(first).getByRole('button', {
+        name: 'Remove Černá Marie from BOZP – základní školení',
+      })
+    ).toBeTruthy()
+    expect(listUpcomingBookings).toHaveBeenCalledWith({ department: 'dep_lab' })
+    await expectNoAxeViolations()
+  })
+
+  it('say when there are none, and that a position that is not there is not found', async () => {
+    vi.mocked(listUpcomingBookings).mockResolvedValue([])
+    await renderServer(
+      PositionBookingsPage({ params: params({ id: 'pos_lab' }), searchParams: params({}) })
+    )
+    expect(screen.getByText('Nobody here is booked on a session ahead.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^Remove/ })).toBeNull()
+    expect(listUpcomingBookings).toHaveBeenCalledWith({ position: 'pos_lab' })
+    vi.mocked(getGroupName).mockResolvedValueOnce(null)
+    await expect(
+      renderServer(
+        PositionBookingsPage({ params: params({ id: 'gone' }), searchParams: params({}) })
+      )
+    ).rejects.toThrow(NotFoundError)
+  })
+
+  it('offer admins, on a department’s people, the way to book what each needs', async () => {
+    signInAs('ADMIN')
+    const [marie, ...others] = members()
+    if (!marie) throw new Error('fixture')
+    vi.mocked(getDepartment).mockResolvedValue(
+      departmentDetail({
+        members: [
+          employeeRow({
+            requirements: marie.requirements.map(r => ({ ...r, booked: null })),
+          }),
+          ...others,
+        ],
+      })
+    )
+    await renderServer(
+      DepartmentPage({ params: params({ id: 'dep_lab' }), searchParams: params({}) })
+    )
+    expect(
+      within(peopleTable())
+        .getAllByRole('button', { name: /^Book every training/ })
+        .map(b => b.getAttribute('aria-label'))
+    ).toEqual(['Book every training Černá Marie needs…'])
+  })
+})
+
+const hrefIn = (scope: HTMLElement, name: string | RegExp) =>
+  within(scope).getByRole('link', { name }).getAttribute('href')
 
 describe('access', () => {
   it('keeps visitors out before any data is read', async () => {

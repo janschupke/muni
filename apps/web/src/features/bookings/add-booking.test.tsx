@@ -16,12 +16,7 @@ afterEach(() => {
 
 const renderForm = () =>
   renderClient(
-    <AddBookingForm
-      fixed={{ sessionExternalId: 'T016' }}
-      field="employeeExternalId"
-      label="Person to book"
-      options={[{ value: 'E0153', label: 'Černá Marie' }]}
-    />
+    <AddBookingForm sessionExternalId="T016" options={[{ value: 'E0153', label: 'Černá Marie' }]} />
   )
 
 const book = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -45,15 +40,12 @@ describe('AddBookingForm', () => {
     ).toBeTruthy()
   })
 
-  it('says when there is nothing left to book', () => {
-    renderClient(
-      <AddBookingForm
-        fixed={{ sessionExternalId: 'T016' }}
-        field="employeeExternalId"
-        label="Person to book"
-        options={[]}
-      />
-    )
-    expect(screen.getByText('Nothing left to book here.')).toBeTruthy()
+  it('says when nobody needs the training', () => {
+    renderClient(<AddBookingForm sessionExternalId="T016" options={[]} />)
+    expect(
+      screen.getByText(
+        'Nobody needs this training now: everyone it is required of holds it or is booked.'
+      )
+    ).toBeTruthy()
   })
 })

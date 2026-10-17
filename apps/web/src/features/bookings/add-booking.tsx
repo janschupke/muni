@@ -16,20 +16,16 @@ import { addBookingAction, type BookingState } from '@/server/actions/assignment
 const IDLE: BookingState = { status: 'idle' }
 
 /**
- * Books by hand: on a session's page, a person; on a person's page, a session. The server
- * checks every rule (seats, status, clashes) and says why when it refuses.
+ * Books a person on a session, from the session's page: the people offered are those who need
+ * its course. The server checks every rule (seats, status, clashes, whether the training is
+ * still due) and says why when it refuses.
  */
 export function AddBookingForm({
-  fixed,
-  field,
-  label,
+  sessionExternalId,
   options,
   initial,
 }: {
-  fixed: { sessionExternalId: string } | { employeeExternalId: string }
-  /** What the form chooses. */
-  field: 'employeeExternalId' | 'sessionExternalId'
-  label: string
+  sessionExternalId: string
   options: { value: string; label: string }[]
   /**
    * The choice to start with, when a link named one; ignored when it is not on offer (already
@@ -44,9 +40,9 @@ export function AddBookingForm({
   const toast = useToast()
   const [state, formAction, pending] = useActionState(
     async (previous: BookingState, form: FormData): Promise<BookingState> => {
-      const chosen = options.find(o => o.value === form.get(field))?.label ?? ''
+      const chosen = options.find(o => o.value === form.get('employeeExternalId'))?.label ?? ''
       try {
-        const next = await addBookingAction(fixed, previous, form)
+        const next = await addBookingAction(sessionExternalId, previous, form)
         if (next.status === 'done') {
           setRound(r => r + 1)
           afterWrite()
@@ -60,12 +56,12 @@ export function AddBookingForm({
     },
     IDLE
   )
-  if (options.length === 0) return <EmptyState variant="inline" title={t('bookings.noneLeft')} />
+  if (options.length === 0) return <EmptyState variant="inline" title={t('bookings.noneNeed')} />
   return (
     <form action={formAction} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-end gap-2">
         <Field
-          label={label}
+          label={t('bookings.person')}
           required
           error={
             state.status === 'refused' && state.reason === 'invalid'
@@ -78,7 +74,7 @@ export function AddBookingForm({
             <Select
               key={round}
               {...control}
-              name={field}
+              name="employeeExternalId"
               options={options}
               defaultValue={
                 round === 0 && options.some(o => o.value === initial) ? initial : undefined

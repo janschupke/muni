@@ -5,6 +5,7 @@ import { addDays } from '@muni/utils/dates'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { unarchiveAll } from '../test/archive'
+import { needing } from '../test/needs'
 import { completionOf, courseIdOf } from '../test/records'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { createDb } from './connect'
@@ -776,16 +777,12 @@ describe('assignments', () => {
       where: { id: session.id },
       data: { unnamedBookings: session.capacity - 1 },
     })
-    const [a, b] = await db.employee.findMany({
-      where: { status: 'ACTIVE' },
-      orderBy: { externalId: 'asc' },
-      take: 2,
-    })
-    if (!a || !b) throw new Error('fixture: two active employees')
+    const [a, b] = await needing(db, 'T013', opts, 2)
+    if (!a || !b) throw new Error('fixture: two who need it')
     const results = (
       await Promise.all([
-        applyAssignments([manual('T013', a.externalId)], TEST_USER, opts),
-        applyAssignments([manual('T013', b.externalId)], TEST_USER, opts),
+        applyAssignments([manual('T013', a)], TEST_USER, opts),
+        applyAssignments([manual('T013', b)], TEST_USER, opts),
       ])
     ).flat()
     expect(results.filter(r => r.ok)).toHaveLength(1)
@@ -796,20 +793,18 @@ describe('assignments', () => {
   })
 
   it('refuses overlapping sessions for one person, past and cancelled sessions', async () => {
-    const person = await db.employee.findFirstOrThrow({
-      where: { status: 'ACTIVE' },
-      orderBy: { externalId: 'desc' },
-    })
+    const [person] = await needing(db, 'T003', opts, 1)
+    if (!person) throw new Error('fixture: someone who needs KYBER')
     // T003 and T009 are the same KYBER slot (a known duplicate in the export).
     const [first, clash] = await applyAssignments(
-      [manual('T003', person.externalId), manual('T009', person.externalId)],
+      [manual('T003', person), manual('T009', person)],
       TEST_USER,
       opts
     )
     expect(first?.ok).toBe(true)
     expect(clash).toMatchObject({ ok: false, reason: 'CONFLICT' })
     const [past, cancelled] = await applyAssignments(
-      [manual('T001', person.externalId), manual('T017', person.externalId)],
+      [manual('T001', person), manual('T017', person)],
       TEST_USER,
       opts
     )

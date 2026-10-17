@@ -3,7 +3,7 @@ import { EMPLOYEE_SORT_KEYS } from '@muni/domain/enums'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { DepartmentView } from '@/features/org/group-views'
+import { GroupView } from '@/features/org/group-views'
 import { parseList, type SearchParams } from '@/lib/search-params'
 import { requireReader } from '@/server/auth'
 import { prefetched, titleOf } from '@/server/prefetch'
@@ -37,6 +37,6 @@ export default async function DepartmentPage(props: Props) {
   return prefetched(
     user,
     [{ name: 'department', input }],
-    <DepartmentView id={input.id} canEdit={canWrite(user.role)} />
+    <GroupView kind="department" id={input.id} canEdit={canWrite(user.role)} />
   )
 }

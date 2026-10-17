@@ -185,14 +185,14 @@
       "noHistory": "No completed trainings on record.",
       "recordCompletion": "Record completion",
       "rate": "{rate} of required trainings held",
-      "bookings": "Booked sessions",
+      "bookings": "Upcoming sessions",
       "noBookings": "No upcoming bookings.",
       "cancelBooking": "Cancel booking for {course}",
       "team": {
         "title": "Team",
         "description": "{count, plural, one {# direct report who has not left} other {# direct reports who have not left}}",
         "inList": "All direct reports in the list",
-        "heldOf": "{held} of {total} held"
+        "held": "Held"
       },
       "cancelBookingConfirm": "Cancel the booking for {course}?",
       "leftNothing": "Left on {date}; nothing is required any more."
@@ -206,7 +206,8 @@
       "validUntil": "Valid until",
       "completedOn": "Last completed",
       "booked": "Booked session",
-      "title": "Required trainings"
+      "title": "Required trainings",
+      "book": "Booking"
     },
     "new": "New employee"
   },
@@ -356,9 +357,6 @@
       "title": "{department} · {course}",
       "open": "{department}, {course}: {rate}, show people",
       "name": "Name",
-      "status": "Status",
-      "validUntil": "Valid until",
-      "booked": "Booked",
       "course": "Course detail",
       "employees": "Everyone in {department}",
       "summary": "{held} of {total} people hold it ({rate})",
@@ -898,48 +896,14 @@
     },
     "action": {
       "rows": "Each row is one training a person needs that nobody has booked yet, most overdue first, with the session the advisor proposes for it.",
-      "fill": "{booked} of {capacity} seats booked",
-      "inTime": "Ends before the training lapses",
-      "gap": "{days, plural, =0 {Ends the day it lapses} one {Starts after it lapses: # day without it} other {Starts after it lapses: # days without it}}",
-      "coveredOn": "Without it until {until}",
-      "reasons": {
-        "NO_SESSION": "No session scheduled",
-        "NO_SEATS": "Every session is full",
-        "CONFLICT": "Clashes with their other bookings"
-      },
-      "todo": {
-        "schedule": "Schedule a session",
-        "bookings": "See their bookings"
-      },
       "shortfallTitle": "Schedule more sessions",
       "shortfall": "{course}: {people, plural, one {# person} other {# people}} with no session to join.",
       "empty": "Every training in scope has a booking.",
       "readOnly": "Only admins can book people.",
-      "book": "Book…",
-      "bookOne": "Book {name}…",
-      "scheduleFor": "Schedule a session of {course} for {name}",
-      "bookSelected": "Book {count, plural, one {# selected} other {# selected}} · {cost}",
+      "bookSelected": "Book {count, plural, one {# selected} other {# selected}}…",
       "clearSelection": "Clear selection",
       "selectRow": "Select {name}, {course}",
-      "selectPage": "Select every proposed row on this page",
-      "sessionFor": "Session for {name}",
-      "choice": "{date} · {room} · {free, plural, =0 {full} other {# free}}",
-      "choiceLate": "{choice} · late",
-      "dialog": {
-        "title": "Book {count, plural, one {# person} other {# people}}?",
-        "body": "Each person is booked on the session shown. Every booking is checked again as it is saved: free seats, clashes, and whether the training is still due.",
-        "person": "Person",
-        "training": "Course",
-        "session": "Session",
-        "price": "Price",
-        "total": "Total: {cost}",
-        "over": "{session}: {count} chosen, {free, plural, =0 {no seat free} one {# seat free} other {# seats free}}. Choose another session for some of them, or leave them out.",
-        "confirm": "Book {count, plural, one {# person} other {# people}}",
-        "done": "Booked {count, plural, one {# person} other {# people}}",
-        "partial": "Booked {applied}; {failed, plural, one {# was} other {# were}} refused:",
-        "refused": "Nobody was booked:",
-        "table": "Who is booked on which session"
-      }
+      "selectPage": "Select every proposed row on this page"
     },
     "planned": {
       "rows": "Each row is one training that is non-compliant or lapsing and already has a named booking. A booking that ends after the lapse leaves a gap.",
@@ -1169,7 +1133,8 @@
       "coursesDescription": "Share held per course, active people only.",
       "people": "People",
       "peopleDescription": "{count, plural, one {# person who has not left.} other {# people who have not left.}}",
-      "noPeople": "Nobody works here yet."
+      "noPeople": "Nobody works here yet.",
+      "bookings": "Upcoming bookings"
     },
     "courseColumns": {
       "course": "Course",
@@ -1190,6 +1155,21 @@
       "booked": "booked for {date}",
       "none": "Nobody works here.",
       "title": "People"
+    },
+    "bookings": {
+      "title": "Upcoming bookings",
+      "description": "Every named booking of the people of {name} on a session still ahead, soonest first.",
+      "empty": "Nobody here is booked on a session ahead.",
+      "caption": "Upcoming bookings of {name}",
+      "columns": {
+        "person": "Person",
+        "course": "Course",
+        "date": "Session",
+        "room": "Room"
+      },
+      "remove": "Remove {name} from {course}",
+      "removeConfirm": "Remove {name} from {course}?",
+      "link": "{count, plural, one {# upcoming booking} other {# upcoming bookings}} of {name}"
     }
   },
   "departments": {
@@ -1522,17 +1502,57 @@
     "add": "Book",
     "booking": "Booking…",
     "choose": "Choose whom or what to book first.",
-    "noneLeft": "Nothing left to book here.",
     "refused": "Not booked: {reason}.",
     "person": "Person to book",
-    "session": "Session to book on",
-    "sessionOption": "{when} · {course} ({free, plural, one {# seat free} other {# seats free}})",
     "removeConfirm": "Remove {name} from this session?",
     "booked": "Booked: {what}",
     "removeBody": "The seat goes back to the session. If they still need the training, the advisor proposes a session for them again.",
     "keep": "Keep booking",
     "cancel": "Cancel booking",
     "cancelled": "Booking cancelled",
-    "alreadyGone": "This booking was already cancelled."
+    "alreadyGone": "This booking was already cancelled.",
+    "book": "Book…",
+    "bookFor": "Book {course} for {name}…",
+    "bookAll": "Book all needed ({count})",
+    "bookAllFor": "Book every training {name} needs…",
+    "bookAllIn": "Book everyone in {department} who needs {course}…",
+    "scheduleFor": "Schedule a session of {course} for {name}",
+    "needOption": "{name} · {status, select, EXPIRED {expired {date}} EXPIRING {expires {date}} other {never held}}",
+    "noneNeed": "Nobody needs this training now: everyone it is required of holds it or is booked.",
+    "fill": "{booked} of {capacity} seats booked",
+    "inTime": "Ends before the training lapses",
+    "gap": "{days, plural, =0 {Ends the day it lapses} one {Starts after it lapses: # day without it} other {Starts after it lapses: # days without it}}",
+    "coveredOn": "Without it until {until}",
+    "reasons": {
+      "NO_SESSION": "No session scheduled",
+      "NO_SEATS": "Every session is full",
+      "CONFLICT": "Clashes with their other bookings"
+    },
+    "todo": {
+      "schedule": "Schedule a session",
+      "bookings": "See their bookings"
+    },
+    "sessionFor": "Session for {name}",
+    "choice": "{date} · {room} · {free, plural, =0 {full} other {# free}}",
+    "choiceLate": "{choice} · late",
+    "dialog": {
+      "title": "Book trainings",
+      "body": "Each training is booked on the session chosen for it: the advisor’s proposal, unless you pick another. Every booking is checked again as it is saved: free seats, clashes, and whether the training is still due.",
+      "loading": "Finding sessions…",
+      "nothing": "Nothing to book: every training here is held or already booked.",
+      "table": "Who is booked on which session",
+      "includeColumn": "Book it",
+      "include": "Book {name}, {course}",
+      "person": "Person",
+      "training": "Course",
+      "session": "Session",
+      "price": "Price",
+      "total": "Total: {cost}",
+      "over": "{session}: {count} chosen, {free, plural, =0 {no seat free} one {# seat free} other {# seats free}}. Choose another session for some of them, or leave them out.",
+      "confirm": "Book {count, plural, one {# training} other {# trainings}} · {cost}",
+      "done": "Booked {count, plural, one {# training} other {# trainings}}",
+      "partial": "Booked {applied}; {failed, plural, one {# was} other {# were}} refused:",
+      "refused": "Nobody was booked:"
+    }
   }
 }

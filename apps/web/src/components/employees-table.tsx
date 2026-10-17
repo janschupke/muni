@@ -1,10 +1,9 @@
 'use client'
 
 import type { EmployeeListItem } from '@muni/db/repositories'
+import { needsBooking } from '@muni/domain/advisor'
 import { sortName } from '@muni/domain/names'
-import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
-import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { PLACEHOLDER } from '@muni/utils/format'
@@ -12,13 +11,14 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
-import { useOfTotal } from '@/lib/use-of-total'
+import { BookNeedButton } from '@/features/bookings/book-button'
 
+import { HeldMeter } from './compliance-breakdown'
 import { OrgLink } from './org-links'
 import { usePaginationLabels } from './pagination-labels'
 import { RowActions } from './record-actions'
 import { RequirementPanel } from './requirement-panel'
-import { ComplianceBadge, EmploymentBadge, rateTone } from './status-badges'
+import { ComplianceBadge, EmploymentBadge } from './status-badges'
 
 const col = createDataColumns<EmployeeListItem>()
 
@@ -31,6 +31,7 @@ export function EmployeesTable({
   paging,
   omit,
   canEdit = false,
+  canBook = false,
   caption,
   panelLevel = 2,
 }: {
@@ -42,12 +43,14 @@ export function EmployeesTable({
   panelLevel?: 2 | 3 | undefined
   /** Admins get a pencil and archive on each row. */
   canEdit?: boolean | undefined
+  /** Admins get "Book…" on each person with trainings to book, and on each such training. */
+  canBook?: boolean | undefined
   /** A column every row shares, left out: the department on a department's page. */
   omit?: 'department' | 'position' | undefined
 }) {
   const t = useTranslations('employees')
   const tcommon = useTranslations('common')
-  const ofTotal = useOfTotal()
+  const tb = useTranslations('bookings')
   const paginationLabels = usePaginationLabels()
 
   const columns = useMemo(
@@ -118,26 +121,29 @@ export function EmployeesTable({
           id: 'required',
           header: t('columns.valid'),
           meta: { headerClassName: 'w-44' },
-          cell: ({ row }) => {
-            const { counts } = row.original
-            if (counts.total === 0) return PLACEHOLDER
-            const held = counts.VALID + counts.EXPIRING
-            return (
-              <BarRow
-                layout="inline"
-                bar={
-                  <Meter
-                    value={held}
-                    max={counts.total}
-                    label={t('columns.valid')}
-                    tone={rateTone(held / counts.total)}
-                  />
-                }
-                value={ofTotal(held, counts.total)}
-              />
-            )
-          },
+          cell: ({ row }) =>
+            row.original.counts.total === 0 ? (
+              PLACEHOLDER
+            ) : (
+              <HeldMeter counts={row.original.counts} label={t('columns.valid')} />
+            ),
         }),
+        ...(canBook
+          ? [
+              col.display({
+                id: 'book',
+                header: () => <span className="sr-only">{t('panel.book')}</span>,
+                meta: { headerClassName: 'w-0', nowrap: true },
+                cell: ({ row }) =>
+                  row.original.requirements.some(r => needsBooking(r, row.original.status)) && (
+                    <BookNeedButton
+                      query={{ employee: row.original.externalId }}
+                      label={tb('bookAllFor', { name: sortName(row.original) })}
+                    />
+                  ),
+              }),
+            ]
+          : []),
         ...(canEdit
           ? [
               col.display({
@@ -156,7 +162,7 @@ export function EmployeesTable({
             ]
           : []),
       ]),
-    [canEdit, ofTotal, omit, t, tcommon]
+    [canEdit, canBook, omit, t, tb, tcommon]
   )
 
   return (
@@ -167,7 +173,14 @@ export function EmployeesTable({
       getRowId={e => e.externalId}
       paging={paging}
       paginationLabels={paginationLabels}
-      renderExpanded={e => <RequirementPanel requirements={e.requirements} level={panelLevel} />}
+      renderExpanded={e => (
+        <RequirementPanel
+          person={{ externalId: e.externalId, name: sortName(e), status: e.status }}
+          requirements={e.requirements}
+          canBook={canBook}
+          level={panelLevel}
+        />
+      )}
       getRowCanExpand={e => e.requirements.length > 0}
       expandLabel={e => t('panel.toggle', { name: sortName(e) })}
       expandHeader={t('panel.header')}

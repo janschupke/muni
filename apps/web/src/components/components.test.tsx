@@ -874,7 +874,7 @@ describe('badges and small panels', () => {
         <EmploymentBadge status="PARENTAL_LEAVE" />
         <SessionStatusBadge status="CANCELLED" />
         <OccupancyBadge booked={3} capacity={10} />
-        <RequirementPanel requirements={[]} />
+        <RequirementPanel person={PERSON} requirements={[]} canBook />
       </>
     )
     expect(screen.getByText('Nothing required')).toBeTruthy()
@@ -906,9 +906,11 @@ describe('badges and small panels', () => {
       expect(badge.className, badge.textContent).not.toContain('accent')
   })
 
-  it('show a requirement never completed, and one without a booking', () => {
+  it('show a requirement never completed, and one without a booking, each to book', () => {
     renderClient(
       <RequirementPanel
+        person={PERSON}
+        canBook
         requirements={[
           {
             courseCode: 'GDPR',
@@ -934,8 +936,49 @@ describe('badges and small panels', () => {
     const missing = screen.getByRole('row', { name: /Ochrana/ })
     expect(within(missing).getAllByText('—')).toHaveLength(3)
     expect(screen.getByText('01.11.2026')).toBeTruthy()
+    // Missing and expiring, nothing booked: both can be booked from here.
+    expect(
+      screen.getAllByRole('button', { name: /^Book .* for Černá Marie…$/ }).map(b => b.textContent)
+    ).toEqual(['Book…', 'Book…'])
+  })
+
+  it('offer no booking to someone on leave, for a booked or valid training, or to a reader', () => {
+    const requirement = {
+      courseCode: 'GDPR',
+      courseName: 'Ochrana osobních údajů',
+      status: 'EXPIRED' as const,
+      completedOn: '2023-01-01',
+      validUntil: '2025-01-01',
+      daysLeft: -300,
+      booked: null,
+    }
+    const { unmount } = renderClient(
+      <RequirementPanel
+        person={{ ...PERSON, status: 'PARENTAL_LEAVE' }}
+        canBook
+        requirements={[requirement]}
+      />
+    )
+    expect(screen.queryByRole('button', { name: /^Book / })).toBeNull()
+    unmount()
+    renderClient(
+      <RequirementPanel
+        person={PERSON}
+        canBook
+        requirements={[
+          {
+            ...requirement,
+            booked: { sessionExternalId: 'T016', startsAt: '2026-11-04T08:00:00Z' },
+          },
+          { ...requirement, courseCode: 'X', status: 'VALID' },
+        ]}
+      />
+    )
+    expect(screen.queryByRole('button', { name: /^Book / })).toBeNull()
   })
 })
+
+const PERSON = { externalId: 'E0153', name: 'Černá Marie', status: 'ACTIVE' as const }
 
 describe('seat occupancy', () => {
   it.each([

@@ -1,7 +1,7 @@
 'use client'
 
+import { needsBooking } from '@muni/domain/advisor'
 import { displayName } from '@muni/domain/names'
-import { BarRow } from '@muni/ui/bar-row'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import type { TablePaging } from '@muni/ui/data-table'
@@ -9,18 +9,11 @@ import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { SplitLayout } from '@muni/ui/layout'
-import { Meter } from '@muni/ui/meter'
 import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
-import {
-  formatDate,
-  formatOptional,
-  formatPercent,
-  formatTimeRange,
-  PLACEHOLDER,
-} from '@muni/utils/format'
+import { formatDate, formatOptional, formatPercent, PLACEHOLDER } from '@muni/utils/format'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
@@ -29,6 +22,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { PersonLink } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
 import { CompletionHistoryTable } from '@/components/completion-tables'
+import { HeldMeter } from '@/components/compliance-breakdown'
 import { EmailLink } from '@/components/email-link'
 import { OrgLink } from '@/components/org-links'
 import { ReadView } from '@/components/read-view'
@@ -37,14 +31,13 @@ import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RequirementTable } from '@/components/requirement-panel'
 import { RoomLink, SessionDateLink } from '@/components/session-links'
 import { DetailSkeleton } from '@/components/skeletons'
-import { EmploymentBadge, rateTone } from '@/components/status-badges'
+import { EmploymentBadge } from '@/components/status-badges'
 import { TeamCard } from '@/components/team-card'
-import { AddBookingForm } from '@/features/bookings/add-booking'
+import { BookNeedButton } from '@/features/bookings/book-button'
 import { HISTORY_SORT } from '@/lib/list-keys'
 import { readQuery } from '@/lib/query/queries'
 import { useDocumentTitle } from '@/lib/query/use-document-title'
 import { type PageInfo, useListUrl } from '@/lib/use-list-url'
-import { useOfTotal } from '@/lib/use-of-total'
 import type { ReadOutput } from '@/server/reads/registry'
 
 /** A person's page: profile, bookings, requirements and history, read for the signed-in role. */
@@ -66,7 +59,6 @@ export function EmployeeView({ externalId, canEdit }: { externalId: string; canE
 function EmployeeDetail({
   employee,
   bookings,
-  bookable,
   showNotes,
   canEdit,
   paging,
@@ -75,19 +67,17 @@ function EmployeeDetail({
   const te = useTranslations('employees')
   const tb = useTranslations('bookings')
   const locale = useLocale()
-  const ofTotal = useOfTotal()
   const name = displayName(employee)
   const date = (value: string | null) => formatOptional(value, v => formatDate(v))
-  const held = employee.requirements.filter(
-    r => r.status === 'VALID' || r.status === 'EXPIRING'
-  ).length
+  const toBook = employee.requirements.filter(r => needsBooking(r, employee.status)).length
+  const person = { externalId: employee.externalId, name, status: employee.status }
 
   return (
     <>
       <PageHeader
         eyebrow={<BackLink fallback={{ href: '/employees', label: te('title') }} />}
         title={name}
-        description={[employee.position, employee.department].filter(Boolean).join(' · ')}
+        description={<PlaceLinks employee={employee} />}
         actions={
           canEdit && (
             <RecordActions
@@ -157,22 +147,7 @@ function EmployeeDetail({
             {employee.reports.length > 0 && <TeamCard employee={employee} />}
             <Card>
               <CardHeader title={t('bookings')} />
-              <CardBody className="flex flex-col gap-4">
-                {canEdit && employee.status !== 'LEFT' && (
-                  <AddBookingForm
-                    fixed={{ employeeExternalId: employee.externalId }}
-                    field="sessionExternalId"
-                    label={tb('session')}
-                    options={bookable.map(s => ({
-                      value: s.externalId,
-                      label: tb('sessionOption', {
-                        when: formatTimeRange(s.startsAt, s.endsAt),
-                        course: s.courseName,
-                        free: s.free,
-                      }),
-                    }))}
-                  />
-                )}
+              <CardBody>
                 {bookings.length === 0 ? (
                   <EmptyState variant="inline" title={t('noBookings')} />
                 ) : (
@@ -224,6 +199,17 @@ function EmployeeDetail({
                   ? t('rate', { rate: formatPercent(employee.completionRate, locale) })
                   : t('requirementsDescription')
               }
+              actions={
+                canEdit &&
+                toBook > 1 && (
+                  <BookNeedButton
+                    query={{ employee: employee.externalId }}
+                    label={tb('bookAllFor', { name })}
+                  >
+                    {tb('bookAll', { count: toBook })}
+                  </BookNeedButton>
+                )
+              }
             />
             <CardBody>
               {employee.requirements.length === 0 ? (
@@ -237,22 +223,15 @@ function EmployeeDetail({
                 />
               ) : (
                 <>
-                  <BarRow
-                    layout="inline"
-                    className="mb-3"
-                    bar={
-                      <Meter
-                        value={held}
-                        max={employee.requirements.length}
-                        label={te('columns.valid')}
-                        size="md"
-                        tone={rateTone(employee.completionRate)}
-                      />
-                    }
-                    value={ofTotal(held, employee.requirements.length)}
-                  />
+                  <div className="mb-3">
+                    <HeldMeter counts={employee.counts} label={te('columns.valid')} size="md" />
+                  </div>
                   <div className="-mx-5 overflow-x-auto">
-                    <RequirementTable requirements={employee.requirements} />
+                    <RequirementTable
+                      person={person}
+                      requirements={employee.requirements}
+                      canBook={canEdit}
+                    />
                   </div>
                 </>
               )}
@@ -273,5 +252,31 @@ function EmployeeDetail({
         />
       )}
     </>
+  )
+}
+
+/** Where the person works, under their name: the position and the department, each linked. */
+function PlaceLinks({
+  employee,
+}: {
+  employee: Pick<
+    ReadOutput<'employee'>['employee'],
+    'position' | 'positionId' | 'department' | 'departmentId'
+  >
+}) {
+  const places = [
+    { kind: 'positions' as const, id: employee.positionId, name: employee.position },
+    { kind: 'departments' as const, id: employee.departmentId, name: employee.department },
+  ].filter(p => p.id !== null && p.name !== null)
+  if (places.length === 0) return null
+  return (
+    <span className="inline-flex flex-wrap items-baseline gap-x-2">
+      {places.map((p, i) => (
+        <span key={p.kind} className="inline-flex items-baseline gap-x-2">
+          {i > 0 && <span aria-hidden>·</span>}
+          <OrgLink kind={p.kind} id={p.id} name={p.name} />
+        </span>
+      ))}
+    </span>
   )
 }

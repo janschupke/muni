@@ -124,8 +124,48 @@ for (const theme of ['light', 'dark'] as const) {
         .getByRole('button', { name: /^Book .+…$/ })
         .first()
         .click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      await expect(page.getByRole('dialog').getByRole('combobox').first()).toBeVisible()
       await expectNoViolations(page, 'advisor book dialog', '[role="dialog"]')
+      await page.keyboard.press('Escape')
+
+      // The same dialog opened from a person's list, reading what it books.
+      await page.goto('/employees')
+      await loaded(page)
+      await page
+        .getByRole('button', { name: /^Book every training .+ needs…$/ })
+        .first()
+        .click()
+      await expect(page.getByRole('dialog').getByRole('combobox').first()).toBeVisible()
+      await expectNoViolations(page, 'person book dialog', '[role="dialog"]')
+      await page.keyboard.press('Escape')
+
+      // A compliance cell's people, with the way to book them.
+      await page.goto('/compliance')
+      await loaded(page)
+      await page
+        .getByRole('button', { name: /: (?!100%)\d+%, show people$/ })
+        .first()
+        .click()
+      await expect(
+        page
+          .getByRole('dialog')
+          .getByRole('button', { name: /^Book / })
+          .first()
+      ).toBeVisible()
+      await expectNoViolations(page, 'compliance cell with booking', '[role="dialog"]')
+      await page.keyboard.press('Escape')
+
+      // Archiving asks first, saying what it does, and is left unconfirmed here.
+      await page.goto('/rooms')
+      await loaded(page)
+      await page
+        .getByRole('button', { name: /^Archive / })
+        .first()
+        .click()
+      const archive = page.getByRole('dialog')
+      await expect(archive.getByRole('button', { name: 'Archive', exact: true })).toBeEnabled()
+      await expect(archive.getByText(/^It leaves every list and count/)).toBeVisible()
+      await expectNoViolations(page, 'archive dialog', '[role="dialog"]')
       await page.keyboard.press('Escape')
 
       await page.goto('/advisor?view=overbooked')

@@ -66,7 +66,12 @@ export function EmployeesView({
             {result.total === 0 ? (
               <EmptyState title={t('empty')} />
             ) : (
-              <EmployeesTable items={result.items} paging={list.paging(result)} canEdit={canEdit} />
+              <EmployeesTable
+                items={result.items}
+                paging={list.paging(result)}
+                canEdit={canEdit}
+                canBook={canEdit}
+              />
             )}
           </div>
         )}

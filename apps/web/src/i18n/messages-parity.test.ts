@@ -91,7 +91,7 @@ const FAMILIES: Record<string, readonly string[]> = {
 
 /** Families keyed by a type-only union, with no runtime list to compare against. */
 const OPEN_FAMILIES = [
-  'advisor.action.reasons',
+  'bookings.reasons',
   'advisor.views',
   'advisor.overbooked.refused',
   'planner.refused',

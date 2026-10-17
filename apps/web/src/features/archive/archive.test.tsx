@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { type ArchivedItem, getArchivedRecord, listArchived } from '@muni/db/repositories'
+import { ARCHIVABLE } from '@muni/domain/archive'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -173,6 +174,39 @@ describe('archived record pages', () => {
 })
 
 describe('archive and bring-back buttons', () => {
+  it.each(ARCHIVABLE)(
+    'say, archiving a %s, what archiving does, in the body, checking first',
+    async kind => {
+      const user = userEvent.setup()
+      let answer: (value: { ok: true; removesBookings: number }) => void = () => undefined
+      vi.mocked(previewArchive).mockReturnValue(
+        new Promise(resolve => {
+          answer = resolve
+        })
+      )
+      renderClient(<ConfirmArchiveButton kind={kind} id="x1" name="Vzor" compact />)
+      await user.click(screen.getByRole('button', { name: 'Archive Vzor' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Archive Vzor?' })
+      const body =
+        'It leaves every list and count, and its history stays. An admin can bring it back.'
+      // Until the server says what goes with it, the confirm waits and says so.
+      expect(
+        within(dialog).getByRole('button', { name: 'Checking what goes with it…' })
+      ).toHaveProperty('disabled', true)
+      expect(within(dialog).getByText(body)).toBeTruthy()
+      answer({ ok: true, removesBookings: 0 })
+      expect(await within(dialog).findByRole('button', { name: 'Archive' })).toHaveProperty(
+        'disabled',
+        false
+      )
+      // Nothing more goes with it: the body still says what archiving does (in the body, not
+      // under the title, where it left the body empty).
+      expect(within(dialog).getByText(body)).toBeTruthy()
+      expect(dialog.hasAttribute('aria-describedby')).toBe(false)
+      expect(within(dialog).queryByRole('alert')).toBeNull()
+    }
+  )
+
   it('warn that a person’s future bookings go with them, and close once archived', async () => {
     const user = userEvent.setup()
     vi.mocked(previewArchive).mockResolvedValue({ ok: true, removesBookings: 2 })

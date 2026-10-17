@@ -27,6 +27,8 @@ export interface AdvisorNeed {
     externalId: string
     name: string
     department: string | null
+    departmentId: string | null
+    positionId: string | null
     status: 'ACTIVE' | 'PARENTAL_LEAVE'
   }
   course: { code: string; name: string }
@@ -125,6 +127,56 @@ export interface PlanItem {
   window: NonComplianceWindow | null
   /** For ACTION_REQUIRED only: the session the advisor proposes, or why there is none. */
   proposal: Proposal | null
+}
+
+type SessionProposal = Extract<Proposal, { kind: 'SESSION' }>
+/** A training the advisor has a session for. */
+export type ProposedItem = PlanItem & { proposal: SessionProposal }
+
+export const isProposed = (item: PlanItem): item is ProposedItem =>
+  item.proposal?.kind === 'SESSION'
+
+/** The sessions a proposed training can take: the advisor's pick, then the alternatives. */
+export const choicesOf = (item: ProposedItem): SessionChoice[] => [
+  { session: item.proposal.session, window: item.proposal.window },
+  ...item.proposal.alternatives,
+]
+
+/**
+ * Whether a requirement a screen shows is one to book now: not held (missing, expired) or
+ * expiring soon, with nothing booked, for someone at work (not on leave, not gone). Each of
+ * these is a training the advisor's plan needs action on (`itemsToBook` finds it).
+ */
+export function needsBooking(
+  requirement: { status: NeedStatus; booked: unknown },
+  employment: 'ACTIVE' | 'PARENTAL_LEAVE' | 'LEFT'
+): boolean {
+  return employment === 'ACTIVE' && requirement.status !== 'VALID' && requirement.booked === null
+}
+
+/** Whose trainings to book: a person, a course, a department, a position, or a mix. */
+export interface BookingQuery {
+  employee?: string | undefined
+  course?: string | undefined
+  department?: string | undefined
+  position?: string | undefined
+}
+
+/**
+ * The trainings `needsBooking` stands for, as the plan has them (with the proposed session and
+ * the alternatives, or why there is none), matching the query: the ones a "Book…" opens.
+ */
+export function itemsToBook(plan: AdvisorPlan, query: BookingQuery): PlanItem[] {
+  const { employee, course, department, position } = query
+  return plan.items.filter(
+    ({ need, remediation }) =>
+      remediation === 'ACTION_REQUIRED' &&
+      need.status !== 'VALID' &&
+      (employee === undefined || need.employee.externalId === employee) &&
+      (course === undefined || need.course.code === course) &&
+      (department === undefined || need.employee.departmentId === department) &&
+      (position === undefined || need.employee.positionId === position)
+  )
 }
 
 export interface SeatMove {
@@ -398,47 +450,52 @@ function shortfallOf(queued: PlanItem[]): AdvisorPlan['shortfall'] {
   )
 }
 
-/** A plan as it travels to the browser: each session once, named by its ID elsewhere. */
-export interface PackedPlan {
+/**
+ * A plan (or some of its items) as it travels to the browser: each session once, named by its
+ * ID elsewhere. `T` is only what `unpack` gives back.
+ */
+export interface Packed<T> {
   sessions: Record<string, AdvisorSession>
-  /** The plan, with `{ $session: externalId }` wherever it held a session. */
-  plan: unknown
+  /** The value, with `{ $session: externalId }` wherever it held a session. */
+  value: unknown
+  /** Never set: carries `T` to `unpack`. */
+  of?: T
 }
 
 const isSession = (value: object): value is AdvisorSession =>
   'externalId' in value && 'unnamedBookings' in value && 'courseCode' in value
 
 /**
- * Packs a plan for sending. A plan names the same few sessions on hundreds of items (the
- * proposal and its alternatives, overbooked targets): sent once each, the plan is a fraction
- * of the size. `unpackPlan` gives back the same plan.
+ * Packs a plan, or items of one, for sending. A plan names the same few sessions on hundreds
+ * of items (the proposal and its alternatives, overbooked targets): sent once each, it is a
+ * fraction of the size. `unpack` gives back the same value.
  */
-export function packPlan(plan: AdvisorPlan): PackedPlan {
+export function pack<T>(value: T): Packed<T> {
   const sessions: Record<string, AdvisorSession> = {}
-  const walk = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(walk)
-    if (value === null || typeof value !== 'object') return value
-    if (isSession(value)) {
-      sessions[value.externalId] = value
-      return { $session: value.externalId }
+  const walk = (inner: unknown): unknown => {
+    if (Array.isArray(inner)) return inner.map(walk)
+    if (inner === null || typeof inner !== 'object') return inner
+    if (isSession(inner)) {
+      sessions[inner.externalId] = inner
+      return { $session: inner.externalId }
     }
-    return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, walk(inner)]))
+    return Object.fromEntries(Object.entries(inner).map(([key, v]) => [key, walk(v)]))
   }
-  return { sessions, plan: walk(plan) }
+  return { sessions, value: walk(value) }
 }
 
-export function unpackPlan(packed: PackedPlan): AdvisorPlan {
-  const walk = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(walk)
-    if (value === null || typeof value !== 'object') return value
-    if ('$session' in value && typeof value.$session === 'string') {
-      const session = packed.sessions[value.$session]
-      if (!session) throw new Error(`The plan names an unknown session ${value.$session}`)
+export function unpack<T>(packed: Packed<T>): T {
+  const walk = (inner: unknown): unknown => {
+    if (Array.isArray(inner)) return inner.map(walk)
+    if (inner === null || typeof inner !== 'object') return inner
+    if ('$session' in inner && typeof inner.$session === 'string') {
+      const session = packed.sessions[inner.$session]
+      if (!session) throw new Error(`The plan names an unknown session ${inner.$session}`)
       return session
     }
-    return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, walk(inner)]))
+    return Object.fromEntries(Object.entries(inner).map(([key, v]) => [key, walk(v)]))
   }
-  return walk(packed.plan) as AdvisorPlan
+  return walk(packed.value) as T
 }
 
 /** The advisor's views: the breakdown by month, what needs action, what is booked, overbooked. */

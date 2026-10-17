@@ -3,9 +3,7 @@
 import type { SessionListItem } from '@muni/db/repositories'
 import { roomMismatch } from '@muni/domain/rooms'
 import { Badge } from '@muni/ui/badge'
-import { BarRow } from '@muni/ui/bar-row'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
-import { Meter } from '@muni/ui/meter'
 import { Table, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { toZonedParts } from '@muni/utils/dates'
@@ -14,12 +12,11 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 
-import { useOfTotal } from '@/lib/use-of-total'
-
 import { PersonLink } from './archived'
 import { OrgLink } from './org-links'
+import { SeatMeter } from './seat-meter'
 import { RoomLink } from './session-links'
-import { seatTone, SessionStatusBadge } from './status-badges'
+import { SessionStatusBadge } from './status-badges'
 
 type Booking = SessionListItem['bookings'][number]
 
@@ -38,7 +35,6 @@ export function SessionFacts({
   const t = useTranslations('sessions.expanded')
   const tu = useTranslations('forms.session.unfit')
   const tcap = useTranslations('status.capability')
-  const ofTotal = useOfTotal()
   const free = Math.max(0, s.capacity - s.bookedCount)
   const over = Math.max(0, s.bookedCount - s.capacity)
   const room = { ...s.room, capacity: s.roomSeats, capabilities: s.roomCapabilities }
@@ -78,19 +74,16 @@ export function SessionFacts({
         <DescriptionItem label={t('needs')}>{needs.join(' · ')}</DescriptionItem>
       )}
       <DescriptionItem label={t('seats')}>
-        <BarRow
-          layout="inline"
-          bar={
-            <Meter
-              value={s.bookedCount}
-              max={s.capacity}
-              label={t('seats')}
-              tone={seatTone(s.bookedCount, s.capacity)}
-            />
-          }
-          value={ofTotal(s.bookedCount, s.capacity)}
-        />
-        <span className="mt-1 block text-xs text-fg-muted">
+        {/* An opened row shows the seats' bar in its own column already. */}
+        {full && (
+          <SeatMeter
+            booked={s.bookedCount}
+            capacity={s.capacity}
+            label={t('seats')}
+            badge={false}
+          />
+        )}
+        <span className={full ? 'mt-1 block text-xs text-fg-muted' : 'block text-sm'}>
           {t('seatsText', { named: s.bookings.length, unnamed: s.unnamedBookings, free })}
           {over > 0 && <span className="text-danger-fg"> · {t('over', { count: over })}</span>}
         </span>

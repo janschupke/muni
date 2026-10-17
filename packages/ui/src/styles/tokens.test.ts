@@ -196,7 +196,7 @@ const EXEMPT = new Set([
   'p-border-default',
   'p-border-muted',
   'p-border-emphasis',
-  // The danger button's hover is a darker red with the same white text.
+  // The primary button's hover is a darker blue with the same white text.
   'p-accent-hover',
   // Status borders frame badges and alerts whose fill and text are checked.
   'p-success-border',

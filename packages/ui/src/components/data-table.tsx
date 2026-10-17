@@ -302,7 +302,7 @@ export function DataTable<TData extends RowData>({
                           type="button"
                           onClick={header.column.getToggleSortingHandler()}
                           className={cn(
-                            '-mx-1 inline-flex min-h-6 items-center gap-1 rounded-sm px-1 hover:text-fg',
+                            '-mx-1 inline-flex min-h-6 items-center gap-1 rounded-sm px-1 transition-colors hover:bg-state-hover hover:text-fg',
                             sorted && 'text-fg'
                           )}
                         >

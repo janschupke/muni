@@ -1,13 +1,14 @@
 import 'server-only'
 
 import {
+  getAdvisorInput,
   getSession,
   listCourseOptions,
-  listEmployeeOptions,
   listRoomOptions,
   listSessions,
   pageOf,
 } from '@muni/db/repositories'
+import { itemsToBook, planAssignments } from '@muni/domain/advisor'
 import { canWrite } from '@muni/domain/enums'
 import * as z from 'zod'
 
@@ -51,16 +52,28 @@ export const sessionsList = read({
   },
 })
 
-/** A session's page, and for admins the people who can be booked on it. */
+/**
+ * A session's page, and for admins the people to book on it: those who need its course (not
+ * held, lapsed or lapsing soon, nothing booked), most overdue first, as the advisor queues them.
+ */
 export const session = read({
   guard: 'reader',
   input: byExternalId,
   load: async ({ externalId }, user) => {
-    const [found, people] = await Promise.all([
+    const [found, input] = await Promise.all([
       getSession(externalId),
-      canWrite(user.role) ? listEmployeeOptions() : [],
+      canWrite(user.role) ? getAdvisorInput() : null,
     ])
-    return found && { session: found, people }
+    if (!found) return null
+    const needing = input
+      ? itemsToBook(planAssignments(input), { course: found.courseCode }).map(({ need }) => ({
+          externalId: need.employee.externalId,
+          name: need.employee.name,
+          status: need.status,
+          validUntil: need.validUntil,
+        }))
+      : []
+    return { session: found, needing }
   },
 })
 

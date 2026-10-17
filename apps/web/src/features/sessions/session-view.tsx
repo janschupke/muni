@@ -4,7 +4,7 @@ import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
 import { PageHeader } from '@muni/ui/page-header'
-import { formatTimeRange } from '@muni/utils/format'
+import { formatDate, formatTimeRange } from '@muni/utils/format'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
@@ -46,14 +46,13 @@ export function SessionView({
 
 function SessionDetail({
   session,
-  people,
+  needing,
   canEdit,
   employee,
 }: ReadOutput<'session'> & { canEdit: boolean; employee?: string | undefined }) {
   const t = useTranslations('sessions')
   const tb = useTranslations('bookings')
   const attendees = session.bookings.map(b => b.person)
-  const booked = new Set(attendees.flatMap(a => (a.archived ? [] : [a.externalId])))
   // Booking by hand is for planned sessions that have not started.
   const bookable =
     canEdit && session.status === 'PLANNED' && new Date(session.startsAt) > new Date()
@@ -97,13 +96,16 @@ function SessionDetail({
             <CardBody className="flex flex-col gap-4">
               {bookable && (
                 <AddBookingForm
-                  fixed={{ sessionExternalId: session.externalId }}
-                  field="employeeExternalId"
-                  label={tb('person')}
+                  sessionExternalId={session.externalId}
                   initial={employee}
-                  options={people
-                    .filter(p => !booked.has(p.externalId))
-                    .map(p => ({ value: p.externalId, label: p.name }))}
+                  options={needing.map(p => ({
+                    value: p.externalId,
+                    label: tb('needOption', {
+                      name: p.name,
+                      status: p.status,
+                      date: p.validUntil === null ? '' : formatDate(p.validUntil),
+                    }),
+                  }))}
                 />
               )}
               {attendees.length === 0 ? (

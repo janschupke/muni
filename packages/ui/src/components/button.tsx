@@ -15,7 +15,7 @@ export const buttonClass = cva(
         /** Only for backing out (CancelButton) and for icon buttons. */
         ghost: 'text-fg-muted hover:bg-state-hover hover:text-fg active:bg-state-active',
         /** Confirms a destructive act: the group's one filled button, in place of primary. */
-        danger: 'bg-danger-fill text-danger-ink hover:opacity-90',
+        danger: 'bg-danger-fill text-danger-ink hover:layer-hover active:layer-active',
         /** Starts a destructive act (archive): a secondary button in the danger ink. */
         destructive:
           'border border-border-default bg-control text-danger-fg hover:layer-hover active:layer-active',

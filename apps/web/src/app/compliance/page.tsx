@@ -1,3 +1,4 @@
+import { canWrite } from '@muni/domain/enums'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
@@ -11,5 +12,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function CompliancePage() {
   const user = await requireReader()
-  return prefetched(user, [{ name: 'compliance', input: {} }], <ComplianceView />)
+  return prefetched(
+    user,
+    [{ name: 'compliance', input: {} }],
+    <ComplianceView canBook={canWrite(user.role)} />
+  )
 }

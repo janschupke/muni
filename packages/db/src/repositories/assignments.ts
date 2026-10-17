@@ -1,5 +1,6 @@
 import { forecastEnd } from '@muni/domain/advisor'
 import { appliesTo, bestCompletion } from '@muni/domain/compliance'
+import { sortName } from '@muni/domain/names'
 import type { RoomRef } from '@muni/domain/rooms'
 import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 
@@ -7,7 +8,8 @@ import type { Prisma } from '../generated/prisma/client'
 import { ACTIVE } from './archive'
 import { audienceSelect, rulesOf } from './audience'
 import { complianceOptions, dbOf, type RepoOptions } from './context'
-import { roomRefSelect, toRoomRef } from './sessions'
+import { stillEmployed } from './employment'
+import { roomRefSelect, toRoomRef, upcomingSessionWhere } from './sessions'
 
 type Tx = Prisma.TransactionClient
 
@@ -28,7 +30,7 @@ export type AssignmentFailure = (typeof ASSIGNMENT_FAILURES)[number]
 export interface AssignmentRequest {
   sessionExternalId: string
   employeeExternalId: string
-  /** ADVISOR requests are re-checked: required, and lapsed or lapsing within the forecast. */
+  /** Where it was asked from: the advisor, or by hand on a record. Every one is checked alike. */
   source: 'ADVISOR' | 'MANUAL'
 }
 
@@ -163,29 +165,28 @@ export async function applyOne(
   })
   if (clash) return 'CONFLICT'
 
-  if (request.source === 'ADVISOR') {
-    const course = await tx.course.findUniqueOrThrow({
-      where: { id: session.course_id },
-      select: { id: true, ...audienceSelect },
-    })
-    if (!rulesOf(course).some(r => appliesTo(r, employee))) return 'NOT_REQUIRED'
-    const completions = await tx.courseCompletion.findMany({
-      where: { ...ACTIVE, employeeId: employee.id, courseId: session.course_id },
-      select: { employeeId: true, courseId: true, completedOn: true, validUntil: true },
-    })
-    const opts = complianceOptions(asOf)
-    const best = bestCompletion(
-      completions.map(c => ({
-        ...c,
-        completedOn: isoDateFromUtc(c.completedOn),
-        validUntil: c.validUntil ? isoDateFromUtc(c.validUntil) : null,
-      })),
-      opts.asOf
-    )
-    // Valid beyond the advisor's forecast (or for good): nothing to remedy yet.
-    if (best !== null && (best.validUntil === null || best.validUntil >= forecastEnd(opts.asOf)))
-      return 'NOT_NEEDED'
-  }
+  // Only what is required and due: a training held beyond the advisor's forecast waits.
+  const course = await tx.course.findUniqueOrThrow({
+    where: { id: session.course_id },
+    select: { id: true, ...audienceSelect },
+  })
+  if (!rulesOf(course).some(r => appliesTo(r, employee))) return 'NOT_REQUIRED'
+  const completions = await tx.courseCompletion.findMany({
+    where: { ...ACTIVE, employeeId: employee.id, courseId: session.course_id },
+    select: { employeeId: true, courseId: true, completedOn: true, validUntil: true },
+  })
+  const opts = complianceOptions(asOf)
+  const best = bestCompletion(
+    completions.map(c => ({
+      ...c,
+      completedOn: isoDateFromUtc(c.completedOn),
+      validUntil: c.validUntil ? isoDateFromUtc(c.validUntil) : null,
+    })),
+    opts.asOf
+  )
+  // Valid beyond the advisor's forecast (or for good): nothing to remedy yet.
+  if (best !== null && (best.validUntil === null || best.validUntil >= forecastEnd(opts.asOf)))
+    return 'NOT_NEEDED'
 
   await tx.sessionAssignment.create({
     data: {
@@ -297,18 +298,36 @@ export interface EmployeeBooking {
   source: 'ADVISOR' | 'MANUAL'
 }
 
-/** A person's named bookings on sessions that have not started yet, soonest first. */
-export async function listEmployeeBookings(
-  employeeExternalId: string,
-  options?: RepoOptions & { now?: Date }
-): Promise<EmployeeBooking[]> {
+/** Whose upcoming bookings: one person's, or a department's or a position's people. */
+export type BookingsOf = { employee: string } | { department: string } | { position: string }
+
+/** A booking on a session still ahead, with whom it is for. */
+export interface UpcomingBooking extends EmployeeBooking {
+  person: { externalId: string; name: string }
+}
+
+/**
+ * Named bookings on sessions still ahead (planned, not yet ended: `upcomingSessionWhere`, as
+ * every count of them), soonest first: one person's, or those of the people a department or a
+ * position has now (not left), as its "upcoming bookings" counts them.
+ */
+export async function listUpcomingBookings(
+  of: BookingsOf,
+  options?: RepoOptions & { now?: Date; asOf?: IsoDate }
+): Promise<UpcomingBooking[]> {
+  const employee =
+    'employee' in of
+      ? { ...ACTIVE, externalId: of.employee }
+      : {
+          ...ACTIVE,
+          ...stillEmployed(options?.asOf),
+          ...('department' in of ? { departmentId: of.department } : { positionId: of.position }),
+        }
   const rows = await dbOf(options).sessionAssignment.findMany({
-    where: {
-      employee: { externalId: employeeExternalId, ...ACTIVE },
-      session: { ...ACTIVE, startsAt: { gt: options?.now ?? new Date() } },
-    },
+    where: { employee, session: upcomingSessionWhere(options?.now ?? new Date()) },
     select: {
       source: true,
+      employee: { select: { externalId: true, firstName: true, lastName: true } },
       session: {
         select: {
           externalId: true,
@@ -319,7 +338,7 @@ export async function listEmployeeBookings(
         },
       },
     },
-    orderBy: { session: { startsAt: 'asc' } },
+    orderBy: [{ session: { startsAt: 'asc' } }, { session: { externalId: 'asc' } }],
   })
   return rows.map(r => ({
     sessionExternalId: r.session.externalId,
@@ -329,5 +348,6 @@ export async function listEmployeeBookings(
     endsAt: r.session.endsAt.toISOString(),
     room: toRoomRef(r.session.room),
     source: r.source,
+    person: { externalId: r.employee.externalId, name: sortName(r.employee) },
   }))
 }

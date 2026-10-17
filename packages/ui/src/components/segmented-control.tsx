@@ -51,7 +51,7 @@ export function SegmentedControl<T extends string>({
           <RadioGroup.Item
             value={item.value}
             aria-label={item.content === undefined ? undefined : item.label}
-            className="flex h-7 min-w-7 items-center justify-center rounded-sm px-1.5 text-xs font-semibold text-fg-muted transition-colors hover:text-fg disabled:opacity-60 aria-checked:bg-state-selected aria-checked:text-fg [&_svg]:size-4"
+            className="flex h-7 min-w-7 items-center justify-center rounded-sm px-1.5 text-xs font-semibold text-fg-muted transition-colors hover:bg-state-hover hover:text-fg disabled:opacity-60 aria-checked:bg-state-selected aria-checked:text-fg aria-checked:hover:bg-state-active [&_svg]:size-4"
           >
             {item.content ?? item.label}
           </RadioGroup.Item>

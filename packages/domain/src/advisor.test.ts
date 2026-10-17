@@ -5,13 +5,17 @@ import {
   type AdvisorNeed,
   type AdvisorPlan,
   type AdvisorSession,
+  choicesOf,
   forecastEnd,
   forecastMonths,
+  isProposed,
+  itemsToBook,
   MAX_ALTERNATIVES,
-  packPlan,
+  needsBooking,
+  pack,
   planAssignments,
   seatsFree,
-  unpackPlan,
+  unpack,
 } from './advisor'
 
 const AS_OF = '2026-10-16'
@@ -48,6 +52,8 @@ function need(
       externalId: employee,
       name: extra.name ?? `Person ${employee}`,
       department: 'Laboratoře',
+      departmentId: 'd-lab',
+      positionId: 'p-lab',
       status: extra.leave ? 'PARENTAL_LEAVE' : 'ACTIVE',
     },
     course: { code: courseCode, name: `Course ${courseCode}` },
@@ -236,13 +242,13 @@ describe('the plan on the wire', () => {
       ['E1', 'E2', 'E3', 'E4'].map(id => need(id, 'BOZP', 'EXPIRED')),
       sessions
     )
-    const packed = packPlan(p)
+    const packed = pack(p)
     expect(Object.keys(packed.sessions).toSorted()).toEqual(
       sessions.map(s => s.externalId).toSorted()
     )
     expect(JSON.stringify(packed).length).toBeLessThan(JSON.stringify(p).length)
-    expect(unpackPlan(JSON.parse(JSON.stringify(packed)) as typeof packed)).toEqual(p)
-    expect(() => unpackPlan({ sessions: {}, plan: { session: { $session: 'T1' } } })).toThrow(
+    expect(unpack(JSON.parse(JSON.stringify(packed)) as typeof packed)).toEqual(p)
+    expect(() => unpack({ sessions: {}, value: { session: { $session: 'T1' } } })).toThrow(
       'unknown session T1'
     )
   })
@@ -427,5 +433,62 @@ describe('overbooking', () => {
     expect(p.overbooked[0]?.moves[0]?.count).toBe(2)
     expect(proposed(p)).toEqual([`E1→${room.externalId}`])
     expect(itemOf(p, 'E2').proposal).toMatchObject({ reason: 'NO_SEATS' })
+  })
+})
+
+describe('booking what is needed, anywhere', () => {
+  it('needs a booking for a training not held or expiring, nothing booked, someone at work', () => {
+    const at = (status: AdvisorNeed['status'], booked: unknown = null) => ({ status, booked })
+    expect(needsBooking(at('MISSING'), 'ACTIVE')).toBe(true)
+    expect(needsBooking(at('EXPIRED'), 'ACTIVE')).toBe(true)
+    expect(needsBooking(at('EXPIRING'), 'ACTIVE')).toBe(true)
+    expect(needsBooking(at('VALID'), 'ACTIVE')).toBe(false)
+    expect(needsBooking(at('EXPIRED', { sessionExternalId: 'T1' }), 'ACTIVE')).toBe(false)
+    expect(needsBooking(at('EXPIRED'), 'PARENTAL_LEAVE')).toBe(false)
+    expect(needsBooking(at('EXPIRED'), 'LEFT')).toBe(false)
+  })
+
+  it('finds, for every training that needs booking, the plan’s item, with its sessions', () => {
+    const near = session('BOZP', '2026-11-02', { capacity: 5 })
+    const later = session('BOZP', '2026-12-07', { capacity: 5 })
+    const needs = [
+      need('E1', 'BOZP', 'EXPIRED'),
+      need('E2', 'BOZP', 'MISSING'),
+      need('E3', 'BOZP', 'EXPIRING', { validUntil: '2026-11-10' }),
+      // Valid beyond the warning, though the advisor plans for it: not one to book now.
+      need('E4', 'BOZP', 'VALID', { validUntil: '2027-01-15' }),
+      need('E5', 'BOZP', 'EXPIRED', { leave: true }),
+      need('E6', 'GDPR', 'MISSING'),
+    ]
+    const p = plan(needs, [near, later])
+    // Each need a screen would offer to book (not valid, at work, nothing booked) is there.
+    for (const n of needs.filter(n => needsBooking({ ...n, booked: null }, n.employee.status)))
+      expect(
+        itemsToBook(p, { employee: n.employee.externalId, course: n.course.code }),
+        n.employee.externalId
+      ).toHaveLength(1)
+    expect(itemsToBook(p, {}).map(i => i.need.employee.externalId)).toEqual([
+      'E1',
+      'E2',
+      'E6',
+      'E3',
+    ])
+    expect(itemsToBook(p, { course: 'BOZP' }).map(i => i.need.employee.externalId)).toEqual([
+      'E1',
+      'E2',
+      'E3',
+    ])
+    expect(itemsToBook(p, { department: 'd-lab', course: 'GDPR' })).toHaveLength(1)
+    expect(itemsToBook(p, { position: 'p-other' })).toEqual([])
+    // A proposed one carries its session first, then the others it could take.
+    const [first] = itemsToBook(p, { employee: 'E1' })
+    if (!first || !isProposed(first)) throw new Error('E1 has a proposal')
+    expect(choicesOf(first).map(c => c.session.externalId)).toEqual([
+      near.externalId,
+      later.externalId,
+    ])
+    // Once booked, it leaves.
+    const booked = plan(needs, [{ ...near, assigned: ['E1'] }, later])
+    expect(itemsToBook(booked, { employee: 'E1' })).toEqual([])
   })
 })

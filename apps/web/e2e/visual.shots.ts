@@ -211,8 +211,24 @@ for (const theme of ['light', 'dark'] as const) {
         .click()
       await shot(page, 'advisor-selected', false)
       await page.getByRole('button', { name: /^Book 1 selected/ }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      const book = page.getByRole('dialog')
+      await expect(book.getByRole('combobox').first()).toBeVisible()
       await shot(page, 'advisor-book-dialog', false)
+      // The session it books: the proposal, or another it could take.
+      await book.getByRole('combobox').first().click()
+      await shot(page, 'advisor-book-dialog-sessions', false)
+      await page.keyboard.press('Escape')
+      await page.keyboard.press('Escape')
+
+      // The same dialog from a person's list: every training they need, each to leave out.
+      await page.goto('/employees')
+      await loaded(page)
+      await page
+        .getByRole('button', { name: /^Book every training .+ needs…$/ })
+        .first()
+        .click()
+      await expect(page.getByRole('dialog').getByRole('combobox').first()).toBeVisible()
+      await shot(page, 'person-book-dialog', false)
       await page.keyboard.press('Escape')
 
       await page.goto('/advisor?view=overbooked')
@@ -309,6 +325,19 @@ for (const theme of ['light', 'dark'] as const) {
       await shot(page, 'form-employee-position-elsewhere')
     })
 
+    test('the theme and language switches, hovered', async ({ page }) => {
+      await page.goto('/')
+      await loaded(page)
+      // The one not chosen in this theme: its hover fill against the bar.
+      const other = page
+        .getByRole('radiogroup', { name: 'Colour theme' })
+        .locator('[role="radio"][aria-checked="false"]')
+        .first()
+      await expect(other).toBeVisible()
+      await other.hover()
+      await shot(page, 'switch-hover', false)
+    })
+
     test('a link and the row actions, hovered', async ({ page }) => {
       await page.goto('/employees')
       await loaded(page)
@@ -332,13 +361,14 @@ for (const theme of ['light', 'dark'] as const) {
         .click()
       await shot(page, 'sessions-row-open', false)
       // A booking that cannot reach the server: nothing is written, a toast says so.
-      await page.goto('/employees/E0153')
+      await page.goto('/advisor?view=action')
       await loaded(page)
-      await page.route('**/employees/E0153', route =>
+      await page.locator('tbody a[href*="?employee="]').first().click()
+      await expect(page).toHaveURL(/\?employee=/)
+      await loaded(page)
+      await page.route('**/sessions/**', route =>
         route.request().method() === 'POST' ? route.abort() : route.continue()
       )
-      await page.getByRole('combobox', { name: 'Session to book on' }).click()
-      await page.getByRole('option').first().click()
       await page.getByRole('button', { name: 'Book', exact: true }).click()
       await expect(
         page.getByText('That did not go through. Check the page and try again.', {

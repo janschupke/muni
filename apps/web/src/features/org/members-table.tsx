@@ -1,8 +1,8 @@
 import type { EmployeeListItem, Page } from '@muni/db/repositories'
-import { BarRow } from '@muni/ui/bar-row'
+import { needsBooking } from '@muni/domain/advisor'
+import { sortName } from '@muni/domain/names'
 import { DetailPanel } from '@muni/ui/detail-panel'
 import { EmptyState } from '@muni/ui/empty-state'
-import { Meter } from '@muni/ui/meter'
 import { Pagination } from '@muni/ui/pagination'
 import { CellStack, Table, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
@@ -10,22 +10,24 @@ import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
+import { HeldMeter } from '@/components/compliance-breakdown'
 import { OrgLink } from '@/components/org-links'
 import { usePaginationLabels } from '@/components/pagination-labels'
-import { ComplianceBadge, EmploymentBadge, rateTone } from '@/components/status-badges'
-import { useOfTotal } from '@/lib/use-of-total'
+import { ComplianceBadge, EmploymentBadge } from '@/components/status-badges'
+import { BookNeedButton } from '@/features/bookings/book-button'
 
 /**
  * A department's or position's people, one record each: where else they sit, their
  * employment, how much of what they must hold they hold, and every training that needs
- * attention (expired, missing or expiring) with its booking, if any. A page at a time, cut on
- * the server, the most urgent first.
+ * attention (expired, missing or expiring) with its booking, if any, or for admins the way to
+ * book it. A page at a time, cut on the server, the most urgent first.
  */
 export function MembersTable({
   name,
   members: page,
   onPageChange,
   other,
+  canBook,
 }: {
   /** The group's name, for the table's accessible name. */
   name: string
@@ -33,9 +35,11 @@ export function MembersTable({
   onPageChange: (page: number) => void
   /** The other side of each person's place: positions in a department, and the reverse. */
   other: 'department' | 'position'
+  /** Admins book each training that needs it. */
+  canBook: boolean
 }) {
   const t = useTranslations('org.members')
-  const ofTotal = useOfTotal()
+  const tb = useTranslations('bookings')
   const labels = usePaginationLabels()
   const members = page.items
   if (page.total === 0) return <EmptyState variant="inline" title={t('none')} />
@@ -53,7 +57,6 @@ export function MembersTable({
         </THead>
         <TBody>
           {members.map(m => {
-            const held = m.counts.VALID + m.counts.EXPIRING
             const attention = m.requirements.filter(r => r.status !== 'VALID')
             return (
               <Tr key={m.externalId}>
@@ -83,18 +86,7 @@ export function MembersTable({
                   {m.counts.total === 0 ? (
                     PLACEHOLDER
                   ) : (
-                    <BarRow
-                      layout="inline"
-                      bar={
-                        <Meter
-                          value={held}
-                          max={m.counts.total}
-                          label={t('held')}
-                          tone={rateTone(held / m.counts.total)}
-                        />
-                      }
-                      value={ofTotal(held, m.counts.total)}
-                    />
+                    <HeldMeter counts={m.counts} label={t('held')} />
                   )}
                 </Td>
                 <Td>
@@ -119,6 +111,12 @@ export function MembersTable({
                                 {t('booked', { date: formatDateTime(r.booked.startsAt) })}
                               </Link>
                             </TextLink>
+                          )}
+                          {canBook && needsBooking(r, m.status) && (
+                            <BookNeedButton
+                              query={{ employee: m.externalId, course: r.courseCode }}
+                              label={tb('bookFor', { course: r.courseName, name: sortName(m) })}
+                            />
                           )}
                         </li>
                       ))}

@@ -10,7 +10,7 @@ import { ComplianceMatrixTable } from './compliance-matrix'
 
 describe('compliance matrix', () => {
   it('colours each cell by its band and explains the bands', () => {
-    renderClient(<ComplianceMatrixTable matrix={matrix()} />)
+    renderClient(<ComplianceMatrixTable matrix={matrix()} canBook={false} />)
     expect(
       [...screen.getByRole('list', { name: 'Colour bands' }).querySelectorAll('li')].map(
         li => li.textContent
@@ -34,7 +34,7 @@ describe('compliance matrix', () => {
 
   it('opens a department into one row per person, aligned under the courses', async () => {
     const user = userEvent.setup()
-    renderClient(<ComplianceMatrixTable matrix={matrix()} />)
+    renderClient(<ComplianceMatrixTable matrix={matrix()} canBook={false} />)
     const toggle = screen.getByRole('button', { name: 'People in Laboratoře' })
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     expect(toggle.hasAttribute('aria-controls')).toBe(false)
@@ -70,7 +70,7 @@ describe('compliance matrix', () => {
 
   it('makes an opened department one stop for Tab, moved through with the arrows', async () => {
     const user = userEvent.setup()
-    renderClient(<ComplianceMatrixTable matrix={matrix()} />)
+    renderClient(<ComplianceMatrixTable matrix={matrix()} canBook={false} />)
     const toggle = screen.getByRole('button', { name: 'People in Laboratoře' })
     await user.click(toggle)
     // The people rows, in order, each with one button per course.
@@ -122,7 +122,7 @@ describe('compliance matrix', () => {
 
   it('lets a person cell under a course nobody there must hold open nothing', async () => {
     const user = userEvent.setup()
-    renderClient(<ComplianceMatrixTable matrix={matrix()} />)
+    renderClient(<ComplianceMatrixTable matrix={matrix()} canBook={false} />)
     await user.click(screen.getByRole('button', { name: 'People in Knihovna' }))
     const lab = screen.getByRole('button', { name: /^Bezpečná práce v laboratoři: Not required/ })
     expect(lab.getAttribute('aria-disabled')).toBe('true')
@@ -132,7 +132,7 @@ describe('compliance matrix', () => {
 
   it('opens a cell into its people, most urgent first, and returns focus on close', async () => {
     const user = userEvent.setup()
-    renderClient(<ComplianceMatrixTable matrix={matrix()} />)
+    renderClient(<ComplianceMatrixTable matrix={matrix()} canBook={false} />)
     const cell = screen.getByRole('button', {
       name: 'Laboratoře, BOZP – základní školení: 67%, show people',
     })
@@ -171,10 +171,11 @@ describe('compliance matrix', () => {
 
   it('shows never-completed and never-expiring trainings in the detail', async () => {
     const user = userEvent.setup()
-    renderClient(<ComplianceMatrixTable matrix={matrix()} />)
+    renderClient(<ComplianceMatrixTable matrix={matrix()} canBook={false} />)
     await user.click(screen.getByRole('button', { name: /^Laboratoře, Bezpečná/ }))
     const missing = await screen.findByRole('dialog')
-    expect(within(missing).getAllByText('—')).toHaveLength(4)
+    // Never held: no expiry, no completion, no booking, for each of the two.
+    expect(within(missing).getAllByText('—')).toHaveLength(6)
     await user.click(within(missing).getByRole('button', { name: 'Close' }))
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull()
@@ -184,8 +185,34 @@ describe('compliance matrix', () => {
     expect(within(await screen.findByRole('dialog')).getByText('No expiry')).toBeTruthy()
   })
 
+  it('lets an admin book, from a cell, each person who needs the training, or all of them', async () => {
+    const user = userEvent.setup()
+    renderClient(<ComplianceMatrixTable matrix={matrix()} canBook />)
+    await user.click(screen.getByRole('button', { name: /^Laboratoře, Bezpečná/ }))
+    const dialog = await screen.findByRole('dialog')
+    const books = within(dialog).getAllByRole('button', { name: /^Book Bezpečná .* for / })
+    expect(books.map(b => b.getAttribute('aria-label'))).toEqual([
+      'Book Bezpečná práce v laboratoři for Adámek Petr…',
+      'Book Bezpečná práce v laboratoři for Černá Marie…',
+    ])
+    expect(
+      within(dialog).getByRole('button', {
+        name: 'Book everyone in Laboratoře who needs Bezpečná práce v laboratoři…',
+      }).textContent
+    ).toBe(`Book all needed (${String(books.length)})`)
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+    // A training already booked offers nothing more to book.
+    await user.click(
+      screen.getByRole('button', { name: 'Laboratoře, BOZP – základní školení: 67%, show people' })
+    )
+    const bozp = await screen.findByRole('dialog')
+    expect(
+      within(within(bozp).getByRole('row', { name: /Černá Marie/ })).queryByRole('button')
+    ).toBeNull()
+  })
+
   it('does not open a cell that is not required', () => {
-    renderClient(<ComplianceMatrixTable matrix={matrix()} />)
+    renderClient(<ComplianceMatrixTable matrix={matrix()} canBook={false} />)
     const library = screen.getByRole('row', { name: /^Knihovna/ })
     expect(within(library).getAllByRole('button')).toHaveLength(2)
   })

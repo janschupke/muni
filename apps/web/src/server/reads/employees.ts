@@ -6,25 +6,19 @@ import {
   getEmployeeForEdit,
   getPersonName,
   getPolicy,
-  listBookableSessions,
   listCourseOptions,
   listDepartmentHeads,
   listDepartmentPositions,
   listDepartments,
-  listEmployeeBookings,
   listEmployeeOptions,
   listEmployees,
   listGroupOptions,
   listPositions,
   listProviderOptions,
+  listUpcomingBookings,
   pageOf,
 } from '@muni/db/repositories'
-import {
-  canWrite,
-  COMPLIANCE_STATUSES,
-  EMPLOYEE_SORT_KEYS,
-  EMPLOYMENT_STATES,
-} from '@muni/domain/enums'
+import { COMPLIANCE_STATUSES, EMPLOYEE_SORT_KEYS, EMPLOYMENT_STATES } from '@muni/domain/enums'
 import { displayName, sortName } from '@muni/domain/names'
 import { isVisible } from '@muni/domain/sanitize'
 import * as z from 'zod'
@@ -68,17 +62,15 @@ export const employeesList = read({
 
 /**
  * A person's page: the record (as the role may see it) with a page of their completions
- * (`completionsSort`…, sorted on the server), their bookings, what can be booked.
+ * (`completionsSort`…, sorted on the server) and their upcoming bookings.
  */
 export const employee = read({
   guard: 'reader',
   input: byExternalId.extend(listInput(HISTORY_SORT, 'completions')),
   load: async ({ externalId, ...list }, user) => {
-    const canEdit = canWrite(user.role)
-    const [person, bookings, bookable] = await Promise.all([
+    const [person, bookings] = await Promise.all([
       getEmployee(externalId, user.role),
-      listEmployeeBookings(externalId),
-      canEdit ? listBookableSessions(externalId) : [],
+      listUpcomingBookings({ employee: externalId }),
     ])
     if (!person) return null
     return {
@@ -91,7 +83,6 @@ export const employee = read({
         ),
       },
       bookings,
-      bookable,
       showNotes: isVisible(getPolicy(), 'completion.note', user.role),
     }
   },

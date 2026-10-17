@@ -6,7 +6,7 @@ import { type ReactNode, useId } from 'react'
 
 // The box is 16px; its hit area reaches 24px (WCAG 2.2 target size) through a pseudo-element.
 const boxClass =
-  "relative flex size-4 shrink-0 before:absolute before:-inset-1 before:content-[''] items-center justify-center rounded-sm border border-border-control bg-control text-accent-fg disabled:cursor-not-allowed disabled:border-border-default disabled:bg-transparent aria-invalid:border-danger-fill data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=indeterminate]:border-accent data-[state=indeterminate]:bg-accent disabled:data-[state=checked]:border-border-default disabled:data-[state=checked]:bg-tint disabled:data-[state=checked]:text-fg-muted"
+  "relative flex size-4 shrink-0 before:absolute before:-inset-1 before:content-[''] items-center justify-center rounded-sm border border-border-control bg-control text-accent-fg transition-colors enabled:data-[state=unchecked]:hover:border-fg-muted disabled:cursor-not-allowed disabled:border-border-default disabled:bg-transparent aria-invalid:border-danger-fill data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=indeterminate]:border-accent data-[state=indeterminate]:bg-accent disabled:data-[state=checked]:border-border-default disabled:data-[state=checked]:bg-tint disabled:data-[state=checked]:text-fg-muted"
 
 /**
  * A checkbox without a visible label, named by `aria-label`: selecting a table's rows, where

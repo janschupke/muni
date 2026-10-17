@@ -185,14 +185,14 @@
       "noHistory": "Žádné absolvované školení.",
       "recordCompletion": "Zapsat absolvování",
       "rate": "Splněno {rate} povinných školení",
-      "bookings": "Přihlášené termíny",
+      "bookings": "Nadcházející termíny",
       "noBookings": "Žádné nadcházející rezervace.",
       "cancelBooking": "Zrušit rezervaci na {course}",
       "team": {
         "title": "Tým",
         "description": "{count, plural, one {# přímý podřízený, který neodešel} few {# přímí podřízení, kteří neodešli} other {# přímých podřízených, kteří neodešli}}",
         "inList": "Všichni přímí podřízení v seznamu",
-        "heldOf": "Splněno {held} z {total}"
+        "held": "Splněno"
       },
       "cancelBookingConfirm": "Zrušit rezervaci na {course}?",
       "leftNothing": "Pracovní poměr skončil {date}; nic už není povinné."
@@ -206,7 +206,8 @@
       "validUntil": "Platí do",
       "completedOn": "Naposledy absolvováno",
       "booked": "Přihlášený termín",
-      "title": "Povinná školení"
+      "title": "Povinná školení",
+      "book": "Rezervace"
     },
     "new": "Nový zaměstnanec"
   },
@@ -356,9 +357,6 @@
       "title": "{department} · {course}",
       "open": "{department}, {course}: {rate}, zobrazit lidi",
       "name": "Jméno",
-      "status": "Stav",
-      "validUntil": "Platí do",
-      "booked": "Přihlášený termín",
       "course": "Detail kurzu",
       "employees": "Všichni z oddělení {department}",
       "summary": "Splňuje {held} z {total} osob ({rate})",
@@ -898,48 +896,14 @@
     },
     "action": {
       "rows": "Každý řádek je jedno školení, které osoba potřebuje a nikdo ho zatím nezarezervoval, od nejvíc propadlého, s termínem, který poradce navrhuje.",
-      "fill": "Obsazeno {booked} z {capacity} míst",
-      "inTime": "Skončí před propadnutím",
-      "gap": "{days, plural, =0 {Skončí v den propadnutí} one {Začíná po propadnutí: # den bez školení} few {Začíná po propadnutí: # dny bez školení} other {Začíná po propadnutí: # dní bez školení}}",
-      "coveredOn": "Bez školení do {until}",
-      "reasons": {
-        "NO_SESSION": "Žádný termín není vypsán",
-        "NO_SEATS": "Všechny termíny jsou plné",
-        "CONFLICT": "Koliduje s jinými rezervacemi"
-      },
-      "todo": {
-        "schedule": "Vypsat termín",
-        "bookings": "Zobrazit rezervace"
-      },
       "shortfallTitle": "Vypište další termíny",
       "shortfall": "{course}: {people, plural, one {# osoba nemá} few {# osoby nemají} other {# osob nemá}} kde rezervovat místo.",
       "empty": "Každé školení v přehledu má rezervaci.",
       "readOnly": "Přihlašovat lidi mohou jen správci.",
-      "book": "Rezervovat…",
-      "bookOne": "Rezervovat {name}…",
-      "scheduleFor": "Naplánovat termín školení {course} pro: {name}",
-      "bookSelected": "Rezervovat {count, plural, one {# vybraného} few {# vybrané} other {# vybraných}} · {cost}",
+      "bookSelected": "Rezervovat {count, plural, one {# vybraný} few {# vybrané} other {# vybraných}}…",
       "clearSelection": "Zrušit výběr",
       "selectRow": "Vybrat {name}, {course}",
-      "selectPage": "Vybrat všechny navržené řádky na této stránce",
-      "sessionFor": "Termín pro {name}",
-      "choice": "{date} · {room} · {free, plural, =0 {plno} other {# volných}}",
-      "choiceLate": "{choice} · pozdě",
-      "dialog": {
-        "title": "Rezervovat {count, plural, one {# osobu} few {# osoby} other {# osob}}?",
-        "body": "Každá osoba dostane rezervaci na uvedený termín. Každá rezervace se při ukládání znovu ověří: volná místa, kolize a zda je školení stále potřeba.",
-        "person": "Osoba",
-        "training": "Školení",
-        "session": "Termín",
-        "price": "Cena",
-        "total": "Celkem: {cost}",
-        "over": "{session}: vybráno {count}, {free, plural, =0 {žádné volné místo} one {# volné místo} few {# volná místa} other {# volných míst}}. Zvolte pro některé jiný termín, nebo je vynechte.",
-        "confirm": "Rezervovat {count, plural, one {# osobu} few {# osoby} other {# osob}}",
-        "done": "Přihlášeno: {count, plural, one {# osoba} few {# osoby} other {# osob}}",
-        "partial": "Přihlášeno {applied}; {failed, plural, one {# odmítnuta} few {# odmítnuty} other {# odmítnuto}}:",
-        "refused": "Žádná rezervace nevznikla:",
-        "table": "Kdo je rezervován na který termín"
-      }
+      "selectPage": "Vybrat všechny navržené řádky na této stránce"
     },
     "planned": {
       "rows": "Každý řádek je jedno školení v nesouladu nebo před propadnutím, které už má rezervaci jménem. Termín, který skončí po propadnutí, nechá mezeru.",
@@ -1169,7 +1133,8 @@
       "coursesDescription": "Podíl splněných školení po kurzech, jen aktivní zaměstnanci.",
       "people": "Lidé",
       "peopleDescription": "{count, plural, one {# člověk, který neodešel.} few {# lidé, kteří neodešli.} other {# lidí, kteří neodešli.}}",
-      "noPeople": "Zatím tu nikdo nepracuje."
+      "noPeople": "Zatím tu nikdo nepracuje.",
+      "bookings": "Nadcházející rezervace"
     },
     "courseColumns": {
       "course": "Kurz",
@@ -1190,6 +1155,21 @@
       "booked": "termín {date}",
       "none": "Nikdo tu nepracuje.",
       "title": "Lidé"
+    },
+    "bookings": {
+      "title": "Nadcházející rezervace",
+      "description": "Všechny jmenné rezervace lidí z {name} na termíny, které teprve budou, od nejbližší.",
+      "empty": "Nikdo odtud nemá rezervaci na budoucí termín.",
+      "caption": "Nadcházející rezervace: {name}",
+      "columns": {
+        "person": "Osoba",
+        "course": "Školení",
+        "date": "Termín",
+        "room": "Místnost"
+      },
+      "remove": "Odebrat {name} z termínu {course}",
+      "removeConfirm": "Odebrat {name} z termínu {course}?",
+      "link": "{count, plural, one {# nadcházející rezervace} few {# nadcházející rezervace} other {# nadcházejících rezervací}}: {name}"
     }
   },
   "departments": {
@@ -1522,17 +1502,57 @@
     "add": "Rezervovat",
     "booking": "Rezervuji…",
     "choose": "Nejdřív vyberte, koho nebo co rezervovat.",
-    "noneLeft": "Tady už není co rezervovat.",
     "refused": "Nerezervováno: {reason}.",
     "person": "Pro koho rezervovat",
-    "session": "Na který termín",
-    "sessionOption": "{when} · {course} ({free, plural, one {volné # místo} few {volná # místa} other {volných # míst}})",
     "removeConfirm": "Odebrat {name} z tohoto termínu?",
     "booked": "Přihlášeno: {what}",
     "removeBody": "Místo se vrátí termínu. Pokud školení stále potřebuje, poradce mu znovu navrhne termín.",
     "keep": "Ponechat rezervaci",
     "cancel": "Zrušit rezervaci",
     "cancelled": "Rezervace zrušena",
-    "alreadyGone": "Tato rezervace už byla zrušena."
+    "alreadyGone": "Tato rezervace už byla zrušena.",
+    "book": "Rezervovat…",
+    "bookFor": "Rezervovat {course} pro: {name}…",
+    "bookAll": "Rezervovat vše potřebné ({count})",
+    "bookAllFor": "Rezervovat všechna školení, která potřebuje {name}…",
+    "bookAllIn": "Rezervovat všem z oddělení {department}, kdo potřebují {course}…",
+    "scheduleFor": "Naplánovat termín školení {course} pro: {name}",
+    "needOption": "{name} · {status, select, EXPIRED {propadlo {date}} EXPIRING {propadá {date}} other {nikdy neabsolvováno}}",
+    "noneNeed": "Toto školení teď nikdo nepotřebuje: všichni, pro které je povinné, ho mají platné nebo rezervované.",
+    "fill": "Obsazeno {booked} z {capacity} míst",
+    "inTime": "Skončí před propadnutím",
+    "gap": "{days, plural, =0 {Skončí v den propadnutí} one {Začíná po propadnutí: # den bez školení} few {Začíná po propadnutí: # dny bez školení} other {Začíná po propadnutí: # dní bez školení}}",
+    "coveredOn": "Bez školení do {until}",
+    "reasons": {
+      "NO_SESSION": "Žádný termín není vypsán",
+      "NO_SEATS": "Všechny termíny jsou plné",
+      "CONFLICT": "Koliduje s jinými rezervacemi"
+    },
+    "todo": {
+      "schedule": "Vypsat termín",
+      "bookings": "Zobrazit rezervace"
+    },
+    "sessionFor": "Termín pro {name}",
+    "choice": "{date} · {room} · {free, plural, =0 {plno} other {# volných}}",
+    "choiceLate": "{choice} · pozdě",
+    "dialog": {
+      "title": "Rezervovat školení",
+      "body": "Každé školení se rezervuje na termín, který je u něj vybraný: návrh poradce, pokud nezvolíte jiný. Každá rezervace se při ukládání znovu ověří: volná místa, kolize a zda je školení stále potřeba.",
+      "loading": "Hledám termíny…",
+      "nothing": "Není co rezervovat: všechna školení tady jsou platná nebo už rezervovaná.",
+      "table": "Kdo je rezervován na který termín",
+      "includeColumn": "Rezervovat",
+      "include": "Rezervovat {name}, {course}",
+      "person": "Osoba",
+      "training": "Školení",
+      "session": "Termín",
+      "price": "Cena",
+      "total": "Celkem: {cost}",
+      "over": "{session}: vybráno {count}, {free, plural, =0 {žádné volné místo} one {# volné místo} few {# volná místa} other {# volných míst}}. Zvolte pro některé jiný termín, nebo je vynechte.",
+      "confirm": "Rezervovat {count, plural, one {# školení} few {# školení} other {# školení}} · {cost}",
+      "done": "Rezervováno: {count, plural, one {# školení} few {# školení} other {# školení}}",
+      "partial": "Přihlášeno {applied}; {failed, plural, one {# odmítnuta} few {# odmítnuty} other {# odmítnuto}}:",
+      "refused": "Žádná rezervace nevznikla:"
+    }
   }
 }

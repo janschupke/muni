@@ -140,6 +140,15 @@ export function complianceRate(counts: ComplianceCounts): number {
   return (counts.VALID + counts.EXPIRING) / counts.total
 }
 
+/** What a count comes to: trainings held (valid or expiring), of how many, and the share. */
+export function complianceOf(counts: ComplianceCounts): {
+  held: number
+  total: number
+  rate: number
+} {
+  return { held: counts.VALID + counts.EXPIRING, total: counts.total, rate: complianceRate(counts) }
+}
+
 /** Worst status wins: MISSING > EXPIRED > EXPIRING > VALID. */
 export function worstStatus(statuses: Iterable<ComplianceStatus>): ComplianceStatus | null {
   const rank: Record<ComplianceStatus, number> = { VALID: 0, EXPIRING: 1, EXPIRED: 2, MISSING: 3 }

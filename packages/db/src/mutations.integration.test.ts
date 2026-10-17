@@ -6,6 +6,7 @@ import { roomMismatch } from '@muni/domain/rooms'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { deleteCourses, deleteRooms, unarchiveAll } from '../test/archive'
+import { needing } from '../test/needs'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { getDb } from './client'
 import { createDb } from './connect'
@@ -25,13 +26,13 @@ import {
   getSession,
   listCourseOptions,
   listDepartments,
-  listEmployeeBookings,
   listEmployees,
   listPositions,
   listProviderOptions,
   listRoomOptions,
   listRooms,
   listSessions,
+  listUpcomingBookings,
   moveSeatsMany,
   raiseCapacity,
   removeAssignment,
@@ -346,19 +347,45 @@ describe('bookings the main suite does not reach', () => {
   })
 
   it("lists a person's upcoming bookings, soonest first", async () => {
-    await applyAssignments([manual('T018', 'E0153'), manual('T020', 'E0153')], TEST_USER, opts)
-    const bookings = await listEmployeeBookings('E0153', opts)
+    // Someone who needs both trainings: every booking is checked for that.
+    const gdpr = new Set(await needing(db, 'T020', opts))
+    const person = (await needing(db, 'T018', opts)).find(p => gdpr.has(p))
+    if (!person) throw new Error('fixture: someone who needs BOZP-Z and GDPR')
+    const made = await applyAssignments(
+      [manual('T018', person), manual('T020', person)],
+      TEST_USER,
+      opts
+    )
+    expect(made.map(m => m.ok)).toEqual([true, true])
+    const bookings = await listUpcomingBookings({ employee: person }, opts)
     expect(bookings.map(b => [b.sessionExternalId, b.courseCode, b.source])).toEqual([
       ['T020', 'GDPR', 'MANUAL'],
       ['T018', 'BOZP-Z', 'MANUAL'],
     ])
     // Without an explicit clock, "upcoming" is relative to now; the 2027 session still is.
-    expect((await listEmployeeBookings('E0153', options)).map(b => b.sessionExternalId)).toContain(
-      'T018'
+    expect(
+      (await listUpcomingBookings({ employee: person }, options)).map(b => b.sessionExternalId)
+    ).toContain('T018')
+    expect(await removeAssignment('T018', person, options)).toBe(true)
+    expect(await removeAssignment('T018', person, options)).toBe(false)
+    await removeAssignment('T020', person, options)
+  })
+
+  it('refuses a booking for a training the person holds beyond the forecast', async () => {
+    const holder = await db.courseCompletion.findFirstOrThrow({
+      where: {
+        archivedAt: null,
+        course: { code: 'BOZP-Z' },
+        validUntil: { gt: new Date('2027-06-01') },
+      },
+      select: { employee: { select: { externalId: true } } },
+    })
+    const [outcome] = await applyAssignments(
+      [manual('T018', holder.employee.externalId)],
+      TEST_USER,
+      opts
     )
-    expect(await removeAssignment('T018', 'E0153', options)).toBe(true)
-    expect(await removeAssignment('T018', 'E0153', options)).toBe(false)
-    await removeAssignment('T020', 'E0153', options)
+    expect(outcome).toMatchObject({ ok: false, reason: 'NOT_NEEDED' })
   })
 
   it('uses the real clock when none is given', async () => {
@@ -570,17 +597,19 @@ describe('rooms', () => {
     }
     const created = await createSession(later, options)
     if (!created.ok) throw new Error('second session refused')
+    const [person] = await needing(db, 'S001', { ...options, now }, 1)
+    if (!person) throw new Error('fixture: someone who needs the course')
     const booked = await applyAssignments(
       ['S001', created.externalId].map(sessionExternalId => ({
         sessionExternalId,
-        employeeExternalId: 'E0153',
+        employeeExternalId: person,
         source: 'MANUAL' as const,
       })),
       TEST_USER,
       { ...options, now }
     )
     expect(booked.map(b => b.ok)).toEqual([true, true])
-    // Another room that suits the course is free then; but E0153 is at S001.
+    // Another room that suits the course is free then; but the person is at S001.
     const needs = (await listCourseOptions(options)).find(c => c.id === first.courseId)?.needs
     const other = (await listRoomOptions(options)).find(
       r => r.id !== first.room.id && needs && roomMismatch(r, needs, 5) === null
@@ -602,7 +631,7 @@ describe('rooms', () => {
         options
       )
     ).toMatchObject({ ok: true })
-    await db.sessionAssignment.deleteMany({ where: { employee: { externalId: 'E0153' } } })
+    await db.sessionAssignment.deleteMany({ where: { employee: { externalId: person } } })
   })
 
   it('imports rooms and creates the ones only sessions name', async () => {

@@ -304,14 +304,119 @@ test('reviews a planner offer, checks it, then creates the session with its peop
   await expect(page.getByText('450,00 Kč').first()).toBeVisible()
 })
 
-test('books a person from the advisor after confirming who goes where', async ({ page }) => {
-  await page.goto('/advisor?view=action')
-  const book = page.getByRole('button', { name: /^Book .+…$/ }).first()
-  const name = ((await book.getAttribute('aria-label')) ?? '').replace(/^Book (.+)…$/, '$1')
-  await book.click()
-  const dialog = page.getByRole('dialog', { name: 'Book 1 person?' })
-  await expect(dialog.getByRole('cell', { name })).toBeVisible()
-  await dialog.getByRole('button', { name: 'Book 1 person' }).click()
+/** The Book dialog, once it has read what it books. */
+const bookDialog = async (page: Page) => {
+  const dialog = page.getByRole('dialog', { name: 'Book trainings' })
+  await expect(dialog.getByRole('status')).toHaveCount(0)
+  return dialog
+}
+
+/** Confirms the dialog's bookings and waits for the toast. */
+const confirmBooking = async (page: Page, dialog: ReturnType<Page['getByRole']>) => {
+  await dialog.getByRole('button', { name: /^Book \d+ trainings? · / }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(page.getByText('Booked 1 person', { exact: true })).toBeVisible()
+  await expect(page.getByText(/^Booked \d+ trainings?$/)).toBeVisible()
+}
+
+test('books from either advisor tab the same way: a session chosen in the dialog', async ({
+  page,
+}) => {
+  for (const view of ['action', 'breakdown']) {
+    await page.goto(`/advisor?view=${view}`)
+    const book = page.getByRole('button', { name: /^Book .+ for .+…$/ }).first()
+    const name = ((await book.getAttribute('aria-label')) ?? '').replace(
+      /^Book .+ for (.+)…$/,
+      '$1'
+    )
+    await book.click()
+    const dialog = await bookDialog(page)
+    await expect(dialog.getByRole('cell', { name })).toBeVisible()
+    // The proposal, or one of the others it could take.
+    const choice = dialog.getByRole('combobox', { name: `Session for ${name}` })
+    await choice.click()
+    const options = page.getByRole('option')
+    await options.nth((await options.count()) > 1 ? 1 : 0).click()
+    await confirmBooking(page, dialog)
+  }
 })
+
+test('books what a person needs from their requirement row, on their page', async ({ page }) => {
+  // A training the advisor has a session for: its person and course, from the action tab.
+  await page.goto('/advisor?view=action')
+  const row = page
+    .getByRole('table', { name: 'Action required' })
+    .getByRole('row')
+    .filter({ has: page.getByRole('button', { name: /^Book / }) })
+    .first()
+  const course = (await row.locator('a[href^="/courses/"]').first().textContent()) ?? ''
+  await row.locator('a[href^="/employees/"]').first().click()
+  await expect(page).toHaveURL(/\/employees\/[^/?]+$/)
+  // Its place under the name, linked.
+  const header = page.getByRole('heading', { level: 1 }).locator('..')
+  await expect(
+    header.locator('a[href^="/departments/"], a[href^="/positions/"]').first()
+  ).toBeVisible()
+  // No list of every session there is: booking starts from a training the person needs.
+  await expect(page.getByRole('combobox', { name: 'Session to book on' })).toHaveCount(0)
+  await page.getByRole('button', { name: new RegExp(`^Book ${escape(course)} for `) }).click()
+  await confirmBooking(page, await bookDialog(page))
+})
+
+test('offers booking on a department’s people and in a compliance cell', async ({ page }) => {
+  // The department with the most people needing action; its people come most urgent first.
+  await page.goto('/departments?sort=actionNow&dir=desc')
+  const department = page.locator('tbody tr').first().locator('a[href^="/departments/"]').first()
+  const name = (await department.textContent()) ?? ''
+  await department.click()
+  await page
+    .getByRole('button', { name: /^Book every training .+ needs…$/ })
+    .first()
+    .click()
+  await expect((await bookDialog(page)).getByRole('combobox').first()).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  // Its row in the matrix: a course it does not fully hold opens the people to book.
+  await page.goto('/compliance')
+  await page
+    .getByRole('row', { name: new RegExp(`^${escape(name)}`) })
+    .getByRole('button', { name: /: (?!100%)\d+%, show people$/ })
+    .first()
+    .click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /^Book / })
+    .first()
+    .click()
+  await expect((await bookDialog(page)).getByRole('combobox').first()).toBeVisible()
+  await page.keyboard.press('Escape')
+})
+
+test('lists a department’s upcoming bookings behind its count', async ({ page }) => {
+  await page.goto('/departments')
+  const link = page.getByRole('link', { name: /upcoming bookings? of / }).first()
+  const count = Number(((await link.textContent()) ?? '').replace(/\D/g, ''))
+  await link.click()
+  await expect(page).toHaveURL(/\/departments\/[^/]+\/bookings$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'Upcoming bookings' })).toBeVisible()
+  const rows = page.locator('[data-paging="server"] tbody tr')
+  await expect(rows).toHaveCount(Math.min(count, 25))
+})
+
+test('offers on a session’s page only the people who need its course', async ({ page }) => {
+  await page.goto('/advisor?view=action')
+  await page
+    .getByRole('table', { name: 'Action required' })
+    .locator('a[href^="/sessions/T"]')
+    .first()
+    .click()
+  await expect(page).toHaveURL(/\?employee=/)
+  const person = page.getByRole('combobox', { name: 'Person to book' })
+  // Started with the person the advisor proposed it for.
+  await expect(person).toHaveText(/ · /)
+  await person.click()
+  for (const option of await page.getByRole('option').all())
+    await expect(option).toHaveText(/ · (expired .+|expires .+|never held)$/)
+  await page.keyboard.press('Escape')
+})
+
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

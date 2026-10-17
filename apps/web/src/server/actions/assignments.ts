@@ -44,8 +44,9 @@ const failedWith =
   }
 
 /**
- * Saves advisor (or manual) bookings. Each pair is re-checked on the server against the locked
- * session row: seats, status, clashes and, for advisor pairs, whether the training is still due.
+ * Saves bookings (the advisor's, or picked on a record's page). Each pair is re-checked on the
+ * server against the locked session row: seats, status, clashes, and whether the training is
+ * still due.
  */
 export async function applyAssignmentsAction(input: unknown): Promise<ApplyResult> {
   return asAdmin<ApplyResult>(
@@ -83,19 +84,19 @@ export type BookingState =
   | { status: 'refused'; reason: AssignmentFailure | Denied | 'invalid' | 'failed' }
 
 /**
- * Books one person on one session by hand (the session page adds a person, a person's page
- * adds a session). Every rule is checked on the server, as for the advisor's bookings.
+ * Books one person on one session by hand, from the session's page. Every rule is checked on
+ * the server, as for every booking (whether the training is still due included).
  */
 export async function addBookingAction(
-  fixed: { sessionExternalId?: string; employeeExternalId?: string },
+  sessionExternalId: string,
   _state: BookingState,
   form: FormData
 ): Promise<BookingState> {
   return asAdmin<BookingState>(
     async admin => {
       const parsed = bookingSchema.safeParse({
-        sessionExternalId: fixed.sessionExternalId ?? form.get('sessionExternalId'),
-        employeeExternalId: fixed.employeeExternalId ?? form.get('employeeExternalId'),
+        sessionExternalId,
+        employeeExternalId: form.get('employeeExternalId'),
       })
       if (!parsed.success) return { status: 'refused', reason: 'invalid' }
       const [outcome] = await applyAssignments([{ ...parsed.data, source: 'MANUAL' }], admin.id)

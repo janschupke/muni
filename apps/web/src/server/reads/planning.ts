@@ -11,7 +11,7 @@ import {
   loadCompliance,
   pageOf,
 } from '@muni/db/repositories'
-import { packPlan, planAssignments, tableItems } from '@muni/domain/advisor'
+import { itemsToBook, pack, planAssignments, tableItems } from '@muni/domain/advisor'
 import { groupOffers, planSessions } from '@muni/domain/planner'
 import { todayIn } from '@muni/utils/dates'
 import * as z from 'zod'
@@ -71,11 +71,33 @@ export const advisor = read({
     )
     return {
       // Packed: the same sessions recur on many items.
-      plan: packPlan({ ...plan, items: page.items }),
+      plan: pack({ ...plan, items: page.items }),
       asOf: input.asOf,
       bucket,
       page: { page: page.page, pageCount: page.pageCount, total: page.total },
       counts,
+    }
+  },
+})
+
+/**
+ * The trainings a "Book…" opens: a person's, a course's, a department's or a position's (or a
+ * mix) that need booking, as the advisor's plan has them, with the sessions each can take.
+ * Read when the dialog opens, from the plan as it is then.
+ */
+export const bookingChoices = read({
+  guard: 'admin',
+  input: z.object({
+    employee: z.string().min(1).max(32).optional(),
+    course: z.string().min(1).max(32).optional(),
+    department: z.string().min(1).max(64).optional(),
+    position: z.string().min(1).max(64).optional(),
+  }),
+  load: async query => {
+    const input = await getAdvisorInput()
+    return {
+      asOf: input.asOf,
+      items: pack(itemsToBook(planAssignments(input), query)),
     }
   },
 })

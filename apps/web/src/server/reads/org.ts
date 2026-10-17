@@ -3,23 +3,25 @@ import 'server-only'
 import {
   getDepartment,
   getDepartmentForEdit,
+  getGroupName,
   getPosition,
   getPositionForEdit,
   listDepartmentSummaries,
   listGroupMembers,
   listGroupOptions,
   listPositionSummaries,
+  listUpcomingBookings,
   pageEmployees,
   pageOf,
 } from '@muni/db/repositories'
 import { EMPLOYEE_SORT_KEYS } from '@muni/domain/enums'
 import * as z from 'zod'
 
-import { GROUP_SORT } from '@/lib/list-keys'
+import { BOOKING_SORT, GROUP_SORT } from '@/lib/list-keys'
 import { listQuery } from '@/lib/search-params'
 
 import { byId, listInput, read } from './define'
-import { departmentKeys, positionKeys } from './sorters'
+import { bookingKeys, departmentKeys, positionKeys } from './sorters'
 
 /** Departments, a page at a time, with how many people each has and how they comply. */
 export const departmentsList = read({
@@ -50,6 +52,27 @@ export const groupMembers = read({
   load: async ({ kind, id, page }) => {
     const members = await listGroupMembers(kind, id)
     return members && pageOf(members, { page: page ?? 1, pageSize: MEMBERS_PAGE }, {})
+  },
+})
+
+/**
+ * A department's or position's upcoming bookings (the ones its list counts): its people's
+ * named bookings on sessions still ahead, a page at a time, soonest first unless sorted.
+ */
+export const groupBookings = read({
+  guard: 'reader',
+  input: byId.extend({
+    kind: z.enum(['department', 'position']),
+    ...listInput(BOOKING_SORT),
+  }),
+  load: async ({ kind, id, ...list }) => {
+    const [name, bookings] = await Promise.all([
+      getGroupName(kind, id),
+      listUpcomingBookings(kind === 'department' ? { department: id } : { position: id }),
+    ])
+    return name === null
+      ? null
+      : { name, bookings: pageOf(bookings, listQuery(list, BOOKING_SORT), bookingKeys) }
   },
 })
 

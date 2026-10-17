@@ -5,6 +5,7 @@ import {
   complianceBand,
   type ComplianceCompletion,
   type ComplianceEmployee,
+  complianceOf,
   complianceRate,
   type ComplianceRequirement,
   computeCompliance,
@@ -113,6 +114,15 @@ describe('computeCompliance', () => {
 
   it('is fully compliant when nothing is required', () => {
     expect(complianceRate(countStatuses([]))).toBe(1)
+  })
+
+  it('counts what is held (valid or expiring) of what is required, with the share', () => {
+    expect(complianceOf({ VALID: 3, EXPIRING: 1, EXPIRED: 2, MISSING: 2, total: 8 })).toEqual({
+      held: 4,
+      total: 8,
+      rate: 0.5,
+    })
+    expect(complianceOf(countStatuses([]))).toEqual({ held: 0, total: 0, rate: 1 })
   })
 })
 

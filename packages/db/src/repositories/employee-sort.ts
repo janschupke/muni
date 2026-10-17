@@ -1,3 +1,4 @@
+import { complianceRate } from '@muni/domain/compliance'
 import type { ComplianceStatus, EmployeeSortKey, EmploymentState } from '@muni/domain/enums'
 
 import type { EmployeeListItem } from './employees'
@@ -40,7 +41,7 @@ function sortValue(e: EmployeeListItem, by: Exclude<EmployeeSortKey, 'name'>): S
       // The list shows no compliance for people who have left; sort them with the blanks.
       return e.status === 'LEFT' || e.compliance === null ? null : COMPLIANCE_ORDER[e.compliance]
     case 'required':
-      return e.counts.total === 0 ? null : (e.counts.VALID + e.counts.EXPIRING) / e.counts.total
+      return e.counts.total === 0 ? null : complianceRate(e.counts)
   }
 }
 

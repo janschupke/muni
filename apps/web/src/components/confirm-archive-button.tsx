@@ -74,8 +74,8 @@ export function ConfirmArchiveButton({
         open={open}
         onOpenChange={setOpen}
         title={t('archive.confirmTitle', { name })}
-        description={t('archive.confirmBody')}
-        confirmLabel={t('archive.confirm')}
+        // Until the server has said what goes with it, the button says it is checking.
+        confirmLabel={impact === 'loading' ? t('archive.checking') : t('archive.confirm')}
         tone="danger"
         disabled={impact === 'loading' || impact === null || refused !== null}
         returnFocusTo={() => trigger.current}
@@ -87,11 +87,7 @@ export function ConfirmArchiveButton({
           return { kind: 'done', toast: { title: t('archive.archivedToast', { name }) } }
         }}
       >
-        {impact === 'loading' && (
-          <p className="text-sm text-fg-muted" role="status">
-            {t('archive.checking')}
-          </p>
-        )}
+        <p className="text-sm text-fg-muted">{t('archive.confirmBody')}</p>
         {impact === null && <Alert tone="danger">{t('common.failed')}</Alert>}
         {impact !== 'loading' && impact?.ok && impact.removesBookings > 0 && (
           <Alert tone="warning">

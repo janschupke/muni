@@ -32,7 +32,6 @@ export function ConfirmDialog({
   open,
   onOpenChange,
   title,
-  description,
   confirmLabel,
   cancelLabel,
   tone = 'primary',
@@ -45,7 +44,6 @@ export function ConfirmDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   title: ReactNode
-  description?: ReactNode | undefined
   confirmLabel: string
   /** Default: "Keep as is". */
   cancelLabel?: string | undefined
@@ -55,6 +53,7 @@ export function ConfirmDialog({
   onConfirm: () => Promise<ConfirmOutcome>
   returnFocusTo?: (() => HTMLElement | null | undefined) | undefined
   className?: string | undefined
+  /** What confirming does, in words, and the choices: never empty. */
   children: ReactNode
 }) {
   const t = useTranslations('common')
@@ -103,7 +102,6 @@ export function ConfirmDialog({
       open={open}
       onOpenChange={change}
       title={title}
-      description={description}
       closeLabel={t('close')}
       returnFocusTo={returnFocusTo}
       className={className}

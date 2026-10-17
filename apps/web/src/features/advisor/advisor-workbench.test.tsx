@@ -59,7 +59,14 @@ const need = (
   status: AdvisorNeed['status'],
   validUntil: string | null
 ): AdvisorNeed => ({
-  employee: { externalId, name, department: 'Laboratoře', status: 'ACTIVE' },
+  employee: {
+    externalId,
+    name,
+    department: 'Laboratoře',
+    departmentId: 'dep_lab',
+    positionId: 'pos_lab',
+    status: 'ACTIVE',
+  },
   course: { code: 'BOZP-Z', name: 'BOZP – základní školení' },
   status,
   validUntil,
@@ -167,11 +174,13 @@ describe('AdvisorWorkbench', () => {
         .getAttribute('href')
     ).toBe('/courses/BOZP-Z/sessions/new')
     await user.click(
-      within(rowOf('Adámek Petr')).getByRole('button', { name: 'Book Adámek Petr…' })
+      within(rowOf('Adámek Petr')).getByRole('button', {
+        name: 'Book BOZP – základní školení for Adámek Petr…',
+      })
     )
-    const dialog = await screen.findByRole('dialog', { name: 'Book 1 person?' })
+    const dialog = await screen.findByRole('dialog', { name: 'Book trainings' })
     expect(applyAssignmentsAction).not.toHaveBeenCalled()
-    await user.click(within(dialog).getByRole('button', { name: 'Book 1 person' }))
+    await user.click(within(dialog).getByRole('button', { name: /^Book 1 training · 450,00\sKč$/ }))
     expect(applyAssignmentsAction).toHaveBeenCalledWith([
       { sessionExternalId: 'T018', employeeExternalId: 'E0001', source: 'ADVISOR' },
     ])
@@ -207,35 +216,42 @@ describe('AdvisorWorkbench', () => {
     expect(screen.queryByRole('checkbox')).toBeNull()
   })
 
-  it('books a person on the session the admin chose, after showing what it does', async () => {
-    const user = userEvent.setup()
-    const plan = planAssignments({
-      ...INPUT,
-      needs: [need('E0001', 'Adámek Petr', 'EXPIRED', '2026-09-01')],
-      sessions: [
-        session('T018', '2026-11-20', { capacity: 2 }),
-        session('T021', '2026-12-01', { capacity: 5, pricePerPerson: 600 }),
-      ],
-    })
-    renderWorkbench({ plan, view: 'action', canApply: true })
-    await expectNoAxeViolations()
-    // The proposal, with the other session that could take them to choose instead.
-    const choice = screen.getByRole('combobox', { name: 'Session for Adámek Petr' })
-    expect(choice.textContent).toMatch(/20.11.2026.*Aula A.*2 free/)
-    await user.click(choice)
-    await user.click(screen.getByRole('option', { name: /01.12.2026/ }))
-    await user.click(screen.getByRole('button', { name: 'Book Adámek Petr…' }))
-    // Nothing is booked before the admin confirms what the dialog shows.
-    const dialog = await screen.findByRole('dialog', { name: 'Book 1 person?' })
-    expect(applyAssignmentsAction).not.toHaveBeenCalled()
-    expect(within(dialog).getByText(/01.12.2026/)).toBeTruthy()
-    expect(within(dialog).getByText('Total: 600,00 Kč')).toBeTruthy()
-    await user.click(within(dialog).getByRole('button', { name: 'Book 1 person' }))
-    expect(applyAssignmentsAction).toHaveBeenCalledWith([
-      { sessionExternalId: 'T021', employeeExternalId: 'E0001', source: 'ADVISOR' },
-    ])
-    expect(await screen.findByText('Booked 1 person')).toBeTruthy()
-  })
+  it.each(['action', 'breakdown'] as const)(
+    'books from the %s tab on the session the admin chose in the dialog, after showing what it does',
+    async view => {
+      const user = userEvent.setup()
+      const plan = planAssignments({
+        ...INPUT,
+        needs: [need('E0001', 'Adámek Petr', 'EXPIRED', '2026-09-01')],
+        sessions: [
+          session('T018', '2026-11-20', { capacity: 2 }),
+          session('T021', '2026-12-01', { capacity: 5, pricePerPerson: 600 }),
+        ],
+      })
+      renderWorkbench({ plan, view, canApply: true })
+      await expectNoAxeViolations()
+      await user.click(
+        screen.getByRole('button', { name: 'Book BOZP – základní školení for Adámek Petr…' })
+      )
+      // The proposal, with the other session that could take them to choose instead.
+      const dialog = await screen.findByRole('dialog', { name: 'Book trainings' })
+      const choice = within(dialog).getByRole('combobox', { name: 'Session for Adámek Petr' })
+      expect(choice.textContent).toMatch(/20.11.2026.*Aula A.*2 free/)
+      expect(within(dialog).getByText(/^Total: 450,00\sKč$/)).toBeTruthy()
+      await user.click(choice)
+      await user.click(screen.getByRole('option', { name: /01.12.2026/ }))
+      // Nothing is booked before the admin confirms what the dialog shows.
+      expect(applyAssignmentsAction).not.toHaveBeenCalled()
+      expect(within(dialog).getByText(/^Total: 600,00\sKč$/)).toBeTruthy()
+      await user.click(
+        within(dialog).getByRole('button', { name: /^Book 1 training · 600,00\sKč$/ })
+      )
+      expect(applyAssignmentsAction).toHaveBeenCalledWith([
+        { sessionExternalId: 'T021', employeeExternalId: 'E0001', source: 'ADVISOR' },
+      ])
+      expect(await screen.findByText('Booked 1 training')).toBeTruthy()
+    }
+  )
 
   it('stops a booking that would overfill a session, until some are moved or left out', async () => {
     const user = userEvent.setup()
@@ -251,19 +267,27 @@ describe('AdvisorWorkbench', () => {
       ],
     })
     renderWorkbench({ plan, view: 'action', canApply: true })
-    // The first moved onto the one-seat session the second is proposed.
-    await user.click(screen.getByRole('combobox', { name: 'Session for Adámek Petr' }))
-    await user.click(screen.getByRole('option', { name: /01.12.2026/ }))
     await user.click(
       screen.getByRole('checkbox', { name: 'Select every proposed row on this page' })
     )
-    await user.click(screen.getByRole('button', { name: /^Book 2 selected/ }))
-    const dialog = await screen.findByRole('dialog', { name: 'Book 2 people?' })
+    await user.click(screen.getByRole('button', { name: 'Book 2 selected…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Book trainings' })
+    // The first moved onto the one-seat session the second is proposed.
+    await user.click(within(dialog).getByRole('combobox', { name: 'Session for Adámek Petr' }))
+    await user.click(screen.getByRole('option', { name: /01.12.2026/ }))
     expect(within(dialog).getByText(/2 chosen, 1 seat free/)).toBeTruthy()
-    expect(within(dialog).getByRole('button', { name: 'Book 2 people' })).toHaveProperty(
-      'disabled',
-      true
+    expect(
+      within(dialog).getByRole('button', { name: /^Book 2 trainings · 900,00\sKč$/ })
+    ).toHaveProperty('disabled', true)
+    // Left out, the other no longer overfills it.
+    await user.click(
+      within(dialog).getByRole('checkbox', { name: 'Book Bílá Jana, BOZP – základní školení' })
     )
+    expect(within(dialog).queryByText(/2 chosen/)).toBeNull()
+    await user.click(within(dialog).getByRole('button', { name: /^Book 1 training · 450,00\sKč$/ }))
+    expect(applyAssignmentsAction).toHaveBeenCalledWith([
+      { sessionExternalId: 'T021', employeeExternalId: 'E0001', source: 'ADVISOR' },
+    ])
   })
 
   it('links every view and count to its own URL', () => {
@@ -394,16 +418,16 @@ describe('AdvisorWorkbench', () => {
     })
     renderWorkbench({ view: 'action', canApply: true })
     await user.click(screen.getByRole('checkbox', { name: /^Select Adámek Petr/ }))
-    await user.click(screen.getByRole('button', { name: /^Book 1 selected/ }))
-    const dialog = await screen.findByRole('dialog', { name: 'Book 1 person?' })
-    await user.click(within(dialog).getByRole('button', { name: 'Book 1 person' }))
+    await user.click(screen.getByRole('button', { name: 'Book 1 selected…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Book trainings' })
+    await user.click(within(dialog).getByRole('button', { name: /^Book 1 training · 450,00\sKč$/ }))
     expect(await within(dialog).findByText('Nobody was booked:')).toBeTruthy()
     expect(
       within(dialog).getByText(/^Adámek Petr on BOZP – základní školení, .*: the session is full$/)
     ).toBeTruthy()
 
     applyAssignmentsAction.mockRejectedValueOnce(new Error('offline'))
-    const book = within(dialog).getByRole('button', { name: 'Book 1 person' })
+    const book = within(dialog).getByRole('button', { name: /^Book 1 training · 450,00\sKč$/ })
     await waitFor(() => {
       expect(book).toHaveProperty('disabled', false)
     })
@@ -441,13 +465,14 @@ describe('AdvisorWorkbench', () => {
     await user.click(
       screen.getByRole('checkbox', { name: 'Select every proposed row on this page' })
     )
-    await user.click(screen.getByRole('button', { name: /^Book 2 selected/ }))
-    const dialog = await screen.findByRole('dialog', { name: 'Book 2 people?' })
-    await user.click(within(dialog).getByRole('button', { name: 'Book 2 people' }))
+    await user.click(screen.getByRole('button', { name: 'Book 2 selected…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Book trainings' })
+    const book = within(dialog).getByRole('button', { name: /^Book 2 trainings · 900,00\sKč$/ })
+    await user.click(book)
     expect(await within(dialog).findByText(/^Booked 1; 1 was refused:/)).toBeTruthy()
     expect(within(dialog).getByText(/Bílá Jana on .*: clashes with another booking/)).toBeTruthy()
-    expect(screen.getByText('Booked 1 person')).toBeTruthy()
-    expect(within(dialog).queryByRole('button', { name: 'Book 2 people' })).toBeNull()
+    expect(screen.getByText('Booked 1 training')).toBeTruthy()
+    expect(book.isConnected).toBe(false)
   })
 
   it('asks the server for the order a header names, keeping the rows as they came', async () => {

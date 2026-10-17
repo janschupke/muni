@@ -13,7 +13,7 @@ import { readQuery } from '@/lib/query/queries'
 import { ComplianceMatrixTable } from './compliance-matrix'
 
 /** Every course against every department, and each department's people. */
-export function ComplianceView() {
+export function ComplianceView({ canBook }: { canBook: boolean }) {
   const t = useTranslations('compliance')
   const read = useQuery(readQuery('compliance', {}))
   const asOf = read.data?.asOf
@@ -28,7 +28,7 @@ export function ComplianceView() {
           matrix.courses.length === 0 ? (
             <EmptyState title={t('empty')} />
           ) : (
-            <ComplianceMatrixTable matrix={matrix} />
+            <ComplianceMatrixTable matrix={matrix} canBook={canBook} />
           )
         }
       </ReadView>

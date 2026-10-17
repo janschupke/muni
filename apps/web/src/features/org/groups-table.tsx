@@ -2,23 +2,21 @@
 
 import type { DepartmentSummary, PositionSummary } from '@muni/db/repositories'
 import { Badge } from '@muni/ui/badge'
-import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
-import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
-import { formatInteger, formatPercent, PLACEHOLDER } from '@muni/utils/format'
+import { formatInteger, PLACEHOLDER } from '@muni/utils/format'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo, useState } from 'react'
 
 import { PersonLink, personText } from '@/components/archived'
+import { HeldMeter } from '@/components/compliance-breakdown'
 import { usePaginationLabels } from '@/components/pagination-labels'
 import { ReadView } from '@/components/read-view'
 import { RowActions } from '@/components/record-actions'
 import { TableSkeleton } from '@/components/skeletons'
-import { rateTone } from '@/components/status-badges'
 import { readQuery } from '@/lib/query/queries'
 
 import { MembersTable } from './members-table'
@@ -37,7 +35,7 @@ export function GroupsTable(
     | { kind: 'positions'; groups: PositionSummary[] }
   ) & {
     paging: TablePaging
-    /** Admins get a pencil (rename) and archive on each row. */
+    /** Admins get a pencil (rename) and archive on each row, and book from an opened one. */
     canEdit?: boolean | undefined
   }
 ) {
@@ -102,17 +100,10 @@ export function GroupsTable(
           row.original.counts.total === 0 ? (
             PLACEHOLDER
           ) : (
-            <BarRow
-              layout="inline"
-              bar={
-                <Meter
-                  value={row.original.counts.VALID + row.original.counts.EXPIRING}
-                  max={row.original.counts.total}
-                  label={to('columns.compliance')}
-                  tone={rateTone(row.original.rate)}
-                />
-              }
-              value={formatPercent(row.original.rate, locale)}
+            <HeldMeter
+              counts={row.original.counts}
+              label={to('columns.compliance')}
+              figure="share"
             />
           ),
       }),
@@ -135,7 +126,19 @@ export function GroupsTable(
         header: to('columns.bookings'),
         sortFn: 'basic',
         meta: { align: 'right' },
-        cell: ({ getValue }) => n(getValue()),
+        cell: ({ row, getValue }) =>
+          getValue() === 0 ? (
+            n(0)
+          ) : (
+            <TextLink asChild hitArea>
+              <Link
+                href={`/${kind}/${row.original.id}/bookings`}
+                aria-label={to('bookings.link', { count: getValue(), name: row.original.name })}
+              >
+                {n(getValue())}
+              </Link>
+            </TextLink>
+          ),
       }),
       ...(canEdit
         ? [
@@ -165,7 +168,11 @@ export function GroupsTable(
       paging={paging}
       paginationLabels={paginationLabels}
       renderExpanded={g => (
-        <GroupMembers kind={kind === 'departments' ? 'department' : 'position'} group={g} />
+        <GroupMembers
+          kind={kind === 'departments' ? 'department' : 'position'}
+          group={g}
+          canBook={canEdit}
+        />
       )}
       getRowCanExpand={g => g.memberCount > 0}
       expandLabel={g => t('toggle', { name: g.name })}
@@ -178,9 +185,11 @@ export function GroupsTable(
 function GroupMembers({
   kind,
   group,
+  canBook,
 }: {
   kind: 'department' | 'position'
   group: { id: string; name: string; memberCount: number }
+  canBook: boolean
 }) {
   const [page, setPage] = useState(1)
   const read = useQuery({
@@ -199,6 +208,7 @@ function GroupMembers({
           members={members}
           onPageChange={setPage}
           other={kind === 'department' ? 'position' : 'department'}
+          canBook={canBook}
         />
       )}
     </ReadView>

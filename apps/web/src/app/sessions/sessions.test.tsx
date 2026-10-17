@@ -3,7 +3,6 @@ import {
   getAdvisorInput,
   getSession,
   listCourseOptions,
-  listEmployeeOptions,
   listRoomOptions,
   listSessions,
 } from '@muni/db/repositories'
@@ -29,7 +28,6 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
   listRoomOptions: vi.fn(),
   listCourseOptions: vi.fn(),
-  listEmployeeOptions: vi.fn(() => Promise.resolve([])),
   getAdvisorInput: vi.fn(),
   getSession: vi.fn(),
   listSessions: vi.fn(),
@@ -277,19 +275,18 @@ describe('session detail', () => {
   it('lets admins edit the session, book people and cancel a booking', async () => {
     const user = userEvent.setup()
     signInAs('ADMIN')
-    vi.mocked(listEmployeeOptions).mockResolvedValue([
-      { id: 'emp_E0001', externalId: 'E0001', name: 'Urbanová Tereza', departmentId: null },
-      { id: 'emp_E0153', externalId: 'E0153', name: 'Černá Marie', departmentId: 'dep_lab' },
-    ])
+    vi.mocked(getAdvisorInput).mockResolvedValue(NEEDING)
     await renderServer(SessionPage(props))
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '/sessions/T016/edit'
     )
     expect(screen.getByRole('button', { name: 'Archive' })).toBeTruthy()
-    // People not yet booked can be added by hand; the booked one is not offered.
+    // Only who needs the course and has nothing booked: not the booked one, not the valid one.
     await user.click(screen.getByRole('combobox', { name: 'Person to book' }))
-    expect(screen.getByRole('option', { name: 'Urbanová Tereza' })).toBeTruthy()
-    expect(screen.queryByRole('option', { name: 'Černá Marie' })).toBeNull()
+    expect(screen.getAllByRole('option').map(o => o.textContent)).toEqual([
+      'Urbanová Tereza · expired 01.09.2026',
+      'Adámek Petr · never held',
+    ])
     await user.keyboard('{Escape}')
     await expectNoAxeViolations()
     await user.click(screen.getByRole('button', { name: 'Cancel the booking of Černá Marie' }))
@@ -308,15 +305,12 @@ describe('session detail', () => {
 
   it('starts the booking with the person a link names, when they are on offer', async () => {
     signInAs('ADMIN')
-    vi.mocked(listEmployeeOptions).mockResolvedValue([
-      { id: 'emp_E0001', externalId: 'E0001', name: 'Urbanová Tereza', departmentId: null },
-      { id: 'emp_E0153', externalId: 'E0153', name: 'Černá Marie', departmentId: 'dep_lab' },
-    ])
+    vi.mocked(getAdvisorInput).mockResolvedValue(NEEDING)
     const page = (employee: string) =>
       SessionPage({ params: params({ externalId: 'T016' }), searchParams: params({ employee }) })
     const { unmount } = await renderServer(page('E0001'))
     expect(screen.getByRole('combobox', { name: 'Person to book' }).textContent).toBe(
-      'Urbanová Tereza'
+      'Urbanová Tereza · expired 01.09.2026'
     )
     unmount()
     // Černá Marie is booked already: not on offer, so the form starts empty.
@@ -332,6 +326,30 @@ describe('session detail', () => {
     ).toBeTruthy()
   })
 })
+
+/**
+ * Who needs BOZP-Z: Urbanová (expired) and Adámek (never held) have nothing booked; Černá is
+ * booked on T016 already.
+ */
+const NEEDING = (() => {
+  const input = advisorInput()
+  const [needed] = input.needs
+  const [t016, ...others] = input.sessions
+  if (!needed || !t016) throw new Error('fixture')
+  const person = (externalId: string, name: string) => ({
+    ...needed.employee,
+    externalId,
+    name,
+  })
+  return advisorInput({
+    needs: [
+      { ...needed, employee: person('E0001', 'Urbanová Tereza') },
+      { ...needed, employee: person('E0153', 'Černá Marie') },
+      { ...needed, employee: person('E0002', 'Adámek Petr'), status: 'MISSING', validUntil: null },
+    ],
+    sessions: [{ ...t016, assigned: ['E0153'], unnamedBookings: 0 }, ...others],
+  })
+})()
 
 describe('session edit', () => {
   const props = { params: params({ externalId: 'T016' }) }

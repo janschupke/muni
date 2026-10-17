@@ -33,6 +33,9 @@ export const ARCHIVED_SORT = ['name', 'when', 'archivedAt'] as const
 
 export const SESSION_SORT = ['course', 'date', 'room', 'capacity', 'price', 'status'] as const
 
+/** Upcoming bookings of a department's or a position's people. */
+export const BOOKING_SORT = ['person', 'course', 'date', 'room'] as const
+
 /** A person's completions (their page). */
 export const HISTORY_SORT = ['course', 'completedOn', 'validUntil', 'provider', 'price'] as const
 

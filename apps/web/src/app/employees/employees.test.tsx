@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 import {
+  getAdvisorInput,
   getCompletionForEdit,
   getEmployee,
   getEmployeeForEdit,
   getPersonName,
-  listBookableSessions,
   listCourseOptions,
   listDepartments,
-  listEmployeeBookings,
   listEmployeeOptions,
   listEmployees,
   listGroupOptions,
   listPositions,
   listProviderOptions,
+  listUpcomingBookings,
 } from '@muni/db/repositories'
 import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -21,7 +21,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
-import { booking, counts, employeeDetail, employeePage, employeeRow } from '@/test/fixtures'
+import {
+  advisorInput,
+  booking,
+  counts,
+  employeeDetail,
+  employeePage,
+  employeeRow,
+} from '@/test/fixtures'
 import { NotFoundError, router } from '@/test/next'
 import { at, params, renderServer } from '@/test/render'
 
@@ -40,16 +47,16 @@ import EmployeesPage, { generateMetadata as listMetadata } from './page'
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
+  getAdvisorInput: vi.fn(),
   getCompletionForEdit: vi.fn(),
   getEmployee: vi.fn(),
   getEmployeeForEdit: vi.fn(),
-  listBookableSessions: vi.fn(),
   listEmployeeOptions: vi.fn(),
   listGroupOptions: vi.fn(),
   getPersonName: vi.fn(),
   listCourseOptions: vi.fn(),
   listDepartments: vi.fn(),
-  listEmployeeBookings: vi.fn(),
+  listUpcomingBookings: vi.fn(),
   listEmployees: vi.fn(),
   listPositions: vi.fn(),
   listProviderOptions: vi.fn(),
@@ -62,8 +69,11 @@ vi.mock('@/server/actions/edit', () => ({
   saveEmployee: vi.fn(),
   saveCompletion: vi.fn(),
 }))
+const { applyAssignmentsAction } = vi.hoisted(() => ({
+  applyAssignmentsAction: vi.fn(() => Promise.resolve({ ok: true, applied: 1, failed: [] })),
+}))
 vi.mock('@/server/actions/assignments', () => ({
-  addBookingAction: vi.fn(() => Promise.resolve({ status: 'refused', reason: 'SESSION_FULL' })),
+  applyAssignmentsAction,
   removeAssignmentAction: vi.fn(),
 }))
 vi.mock('@/server/actions/archive', () => ({ archiveAction: vi.fn(), previewArchive: vi.fn() }))
@@ -99,16 +109,7 @@ beforeEach(() => {
     { id: 'emp_E0001', externalId: 'E0001', name: 'Urbanová Tereza', departmentId: null },
     { id: 'emp_E0153', externalId: 'E0153', name: 'Černá Marie', departmentId: 'dep_lab' },
   ])
-  vi.mocked(listBookableSessions).mockResolvedValue([
-    {
-      externalId: 'T020',
-      courseCode: 'BOZP-Z',
-      courseName: 'BOZP – základní školení',
-      startsAt: '2026-11-05T13:00:00.000Z',
-      endsAt: '2026-11-05T16:00:00.000Z',
-      free: 3,
-    },
-  ])
+  vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
   vi.mocked(getEmployeeForEdit).mockResolvedValue({
     id: 'emp_E0153',
     externalId: 'E0153',
@@ -126,7 +127,7 @@ beforeEach(() => {
     status: 'ACTIVE',
     note: null,
   })
-  vi.mocked(listEmployeeBookings).mockResolvedValue([booking()])
+  vi.mocked(listUpcomingBookings).mockResolvedValue([booking()])
 })
 
 describe('employee list', () => {
@@ -360,20 +361,34 @@ describe('employee detail', () => {
         .getByRole('link', { name: 'Edit Z000101 · Ochrana osobních údajů' })
         .getAttribute('href')
     ).toBe('/employees/E0153/completions/cmp_Z000101/edit')
-    expect(listBookableSessions).toHaveBeenCalledWith('E0153')
     await expectNoAxeViolations()
   })
 
-  it('books an admin’s pick of a session by hand, and says why the server refused it', async () => {
+  it('books only what the person needs, from its row, on the session the dialog proposes', async () => {
     const user = userEvent.setup()
     signInAs('ADMIN')
-    await renderServer(EmployeePage(props))
-    await user.click(screen.getByRole('combobox', { name: 'Session to book on' }))
-    await user.click(
-      screen.getByRole('option', { name: /BOZP – základní školení \(3 seats free\)/ })
+    const detail = employeeDetail()
+    const [bozp, gdpr] = detail.requirements
+    if (!bozp || !gdpr) throw new Error('fixture')
+    vi.mocked(getEmployee).mockResolvedValue(
+      employeeDetail({ requirements: [{ ...bozp, booked: null }, gdpr] })
     )
-    await user.click(screen.getByRole('button', { name: 'Book' }))
-    expect(await screen.findByText('Not booked: the session is full.')).toBeTruthy()
+    await renderServer(EmployeePage(props))
+    expect(screen.getByRole('heading', { name: 'Upcoming sessions' })).toBeTruthy()
+    // No list of every session there is: only the expired training, and nothing for the valid.
+    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.getAllByRole('button', { name: /^Book / })).toHaveLength(1)
+    await user.click(
+      screen.getByRole('button', { name: 'Book BOZP – základní školení for Marie Černá…' })
+    )
+    const dialog = await screen.findByRole('dialog', { name: 'Book trainings' })
+    expect(
+      await within(dialog).findByRole('combobox', { name: 'Session for Černá Marie' })
+    ).toBeTruthy()
+    await user.click(within(dialog).getByRole('button', { name: /^Book 1 training · 450,00\sKč$/ }))
+    expect(applyAssignmentsAction).toHaveBeenCalledWith([
+      { sessionExternalId: 'T018', employeeExternalId: 'E0153', source: 'MANUAL' },
+    ])
   })
 
   it('says when nothing is required, booked or recorded', async () => {
@@ -383,7 +398,7 @@ describe('employee detail', () => {
       completions: [],
     })
     vi.mocked(getEmployee).mockResolvedValue(withoutEmail)
-    vi.mocked(listEmployeeBookings).mockResolvedValue([])
+    vi.mocked(listUpcomingBookings).mockResolvedValue([])
     await renderServer(EmployeePage(props))
     expect(screen.getByText('No training is required for this person.')).toBeTruthy()
     expect(screen.getByText('No upcoming bookings.')).toBeTruthy()
@@ -422,7 +437,9 @@ describe('managers', () => {
     )
     expect(screen.getByRole('heading', { name: 'Team' })).toBeTruthy()
     expect(screen.getByText('2 direct reports who have not left')).toBeTruthy()
-    expect(screen.getByText('2 of 3 held')).toBeTruthy()
+    // One bar, the breakdown, with the share and the count over it.
+    expect(screen.getByText(/^67\s?%\s·\s2 of 3$/)).toBeTruthy()
+    expect(screen.getAllByRole('img', { name: /^Team/ })).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'Adámek Petr' }).getAttribute('href')).toBe(
       '/employees/E0002'
     )
@@ -430,10 +447,15 @@ describe('managers', () => {
     expect(
       screen.getByRole('link', { name: 'All direct reports in the list' }).getAttribute('href')
     ).toBe('/employees?manager=E0153')
-    // The person's own department and position link to their pages.
-    expect(screen.getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
-      '/departments/dep_lab'
+    // The person's own position and department link to their pages: under the name, and in
+    // the profile.
+    const header = screen.getByRole('heading', { level: 1 }).parentElement as HTMLElement
+    expect(within(header).getByRole('link', { name: 'Laborantka' }).getAttribute('href')).toBe(
+      '/positions/pos_lab'
     )
+    expect(
+      screen.getAllByRole('link', { name: 'Laboratoře' }).map(l => l.getAttribute('href'))
+    ).toEqual(['/departments/dep_lab', '/departments/dep_lab'])
   })
 
   it('see no team card without reports', async () => {
