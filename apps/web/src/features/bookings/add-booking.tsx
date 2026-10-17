@@ -80,7 +80,7 @@ export function AddBookingForm({
         </Field>
         <Button type="submit" variant="primary" disabled={pending}>
           <UserPlus aria-hidden />
-          {t('bookings.add')}
+          {pending ? t('bookings.booking') : t('bookings.add')}
         </Button>
       </div>
       {state.status === 'refused' && state.reason !== 'invalid' && (

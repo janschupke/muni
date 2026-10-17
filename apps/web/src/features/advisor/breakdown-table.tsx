@@ -8,9 +8,10 @@ import { formatMonth } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
 import { useId, useMemo } from 'react'
 
+import { usePaginationLabels } from '@/components/pagination-labels'
 import { RoomLink, SessionDateLink } from '@/components/session-links'
 
-import { col, itemId, usePaginationLabels, usePlanColumns } from './columns'
+import { col, itemId, usePlanColumns } from './columns'
 import { RemediationBadge, useBucketName } from './labels'
 
 /** One bucket's trainings: who, which, when it lapses, what is being done, and the gap. */

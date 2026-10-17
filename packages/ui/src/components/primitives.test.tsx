@@ -17,7 +17,7 @@ import { Skeleton, SkeletonText } from './skeleton'
 import { StepIndicator } from './step-indicator'
 import { CellStack, Table, TableContainer, TBody, Td, Th, THead, Tr } from './table'
 import { TextLink } from './text-link'
-import { Toolbar, ToolbarSummary } from './toolbar'
+import { Toolbar, ToolbarChip, ToolbarSummary } from './toolbar'
 
 describe('Alert', () => {
   it('announces danger assertively and everything else politely, always with an icon', () => {
@@ -161,13 +161,19 @@ describe('surfaces and layout', () => {
   it('shows an empty state as a box or a quiet line', () => {
     render(
       <>
-        <EmptyState title="Žádné termíny">Zkuste jiné období.</EmptyState>
-        <EmptyState title="Bez přihlášek" variant="inline" />
+        <EmptyState title="Žádné termíny" action={<a href="/sessions/new">Nový termín</a>}>
+          Zkuste jiné období.
+        </EmptyState>
+        <EmptyState title="Bez rezervací" variant="inline" />
         <EmptyState title="Nic" />
       </>
     )
     expect(screen.getByText('Zkuste jiné období.')).toBeTruthy()
-    expect(screen.getByText('Bez přihlášek').tagName).toBe('P')
+    expect(screen.getByText('Bez rezervací').tagName).toBe('P')
+    // What to do about it sits in the box, under its text.
+    expect(
+      screen.getByRole('link', { name: 'Nový termín' }).closest('.border-dashed')?.textContent
+    ).toContain('Žádné termíny')
   })
 
   it('lays out lists, toolbars and steps', () => {
@@ -178,6 +184,9 @@ describe('surfaces and layout', () => {
         </ItemList>
         <Toolbar asChild>
           <form role="search" aria-label="Filtry">
+            <ToolbarChip remove={<button type="button">Odebrat filtr</button>}>
+              Podřízení: Novák
+            </ToolbarChip>
             <ToolbarSummary>12 lidí</ToolbarSummary>
           </form>
         </Toolbar>
@@ -189,6 +198,10 @@ describe('surfaces and layout', () => {
     )
     expect(screen.getByText('Řádek').tagName).toBe('LI')
     expect(within(screen.getByRole('search')).getByText('12 lidí')).toBeTruthy()
+    // A filter from a link: its words and the button that drops it, at a control's height.
+    const chip = screen.getByText(/Podřízení: Novák/)
+    expect(within(chip).getByRole('button', { name: 'Odebrat filtr' })).toBeTruthy()
+    expect(chip.className).toContain('h-9')
     const steps = screen.getAllByRole('listitem').slice(1)
     expect(steps.map(s => s.getAttribute('aria-current'))).toEqual([null, 'step', null])
     // A finished step shows a tick instead of its number.

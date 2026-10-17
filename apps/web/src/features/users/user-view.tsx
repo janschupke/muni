@@ -25,7 +25,7 @@ export function UserView({ id }: { id: string }) {
     read.data && (read.data.user.name ?? read.data.user.email ?? read.data.user.clerkId)
   )
   return (
-    <ReadView query={read} skeleton={<DetailSkeleton />}>
+    <ReadView query={read} skeleton={<DetailSkeleton />} entity="users">
       {data => <UserDetail data={data} />}
     </ReadView>
   )

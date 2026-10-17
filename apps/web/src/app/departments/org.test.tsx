@@ -27,11 +27,13 @@ import {
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
-import EditPositionPage from '../positions/[id]/edit/page'
+import EditPositionPage, {
+  generateMetadata as editPositionMetadata,
+} from '../positions/[id]/edit/page'
 import PositionPage, { generateMetadata as positionMetadata } from '../positions/[id]/page'
 import NewPositionPage, { generateMetadata as newPositionMetadata } from '../positions/new/page'
 import PositionsPage, { generateMetadata as positionsMetadata } from '../positions/page'
-import EditDepartmentPage from './[id]/edit/page'
+import EditDepartmentPage, { generateMetadata as editDepartmentMetadata } from './[id]/edit/page'
 import DepartmentPage, { generateMetadata as departmentMetadata } from './[id]/page'
 import NewDepartmentPage, { generateMetadata as newDepartmentMetadata } from './new/page'
 import DepartmentsPage, { generateMetadata as departmentsMetadata } from './page'
@@ -135,7 +137,7 @@ describe('departments', () => {
     expect(within(marie).getByRole('link', { name: 'Laborantka' }).getAttribute('href')).toBe(
       '/positions/pos_lab'
     )
-    expect(within(marie).getByText('2 / 3')).toBeTruthy()
+    expect(within(marie).getByText('2 of 3')).toBeTruthy()
     // What needs attention: the expired course, and the session she is booked on.
     expect(within(marie).getByText('Expired')).toBeTruthy()
     expect(
@@ -200,11 +202,16 @@ describe('departments', () => {
         head: null,
         positions: [],
         courses: [],
+        members: [],
         counts: counts({ VALID: 0, EXPIRING: 0, EXPIRED: 0, MISSING: 0 }),
       })
     )
     await renderServer(DepartmentPage({ params: params({ id: 'dep_lab' }) }))
     expect(screen.getByText('Nobody has a position here.')).toBeTruthy()
+    // The people section stays, saying so, with no way to an empty list.
+    expect(screen.getByRole('heading', { level: 2, name: 'People' })).toBeTruthy()
+    expect(screen.getByText('Nobody works here yet.')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /in the employee list/i })).toBeNull()
     expect(screen.getByText('Nothing is required of this department.')).toBeTruthy()
     vi.mocked(getDepartment).mockResolvedValueOnce(null)
     await expect(renderServer(DepartmentPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
@@ -334,6 +341,9 @@ describe('managing departments and positions', () => {
     })
     await renderServer(EditDepartmentPage({ params: params({ id: 'dep_lab' }) }))
     expect(screen.getByRole('heading', { level: 1, name: 'Edit Laboratoře' })).toBeTruthy()
+    expect(await editDepartmentMetadata({ params: params({ id: 'dep_lab' }) })).toEqual({
+      title: 'Edit Laboratoře',
+    })
     expect(screen.getAllByRole('combobox', { name: 'Head' }).at(-1)?.textContent).toBe('Novák Jan')
     await renderServer(NewPositionPage())
     vi.mocked(getPositionForEdit).mockResolvedValue({
@@ -343,6 +353,9 @@ describe('managing departments and positions', () => {
     })
     await renderServer(EditPositionPage({ params: params({ id: 'pos_lab' }) }))
     expect(screen.getByRole('heading', { level: 1, name: 'Edit Laborant' })).toBeTruthy()
+    expect(await editPositionMetadata({ params: params({ id: 'pos_lab' }) })).toEqual({
+      title: 'Edit Laborant',
+    })
     expect(screen.getAllByRole('textbox', { name: /Name/ }).at(-1)).toHaveProperty(
       'value',
       'Laborant'

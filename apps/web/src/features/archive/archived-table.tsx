@@ -24,6 +24,7 @@ const col = createDataColumns<ArchivedItem>()
  */
 export function ArchivedTable({ kind, items }: { kind: Archivable; items: ArchivedItem[] }) {
   const t = useTranslations('archive')
+  const tc = useTranslations('common')
   const locale = useLocale()
   const columns = useMemo(() => {
     const nameOf = (item: ArchivedItem) =>
@@ -32,6 +33,8 @@ export function ArchivedTable({ kind, items }: { kind: Archivable; items: Archiv
       col.accessor(nameOf, {
         id: 'name',
         header: t('list.columns.name'),
+        // On a phone the table scrolls sideways; the name stays in view.
+        meta: { sticky: 'left' },
         sortFn: 'text',
         cell: ({ row }) => (
           <CellStack
@@ -66,14 +69,14 @@ export function ArchivedTable({ kind, items }: { kind: Archivable; items: Archiv
       }),
       col.display({
         id: 'actions',
-        header: () => <span className="sr-only">{t('list.columns.actions')}</span>,
+        header: () => <span className="sr-only">{tc('actions')}</span>,
         meta: { align: 'right' },
         cell: ({ row }) => (
           <UnarchiveButton kind={kind} id={row.original.id} name={nameOf(row.original)} compact />
         ),
       }),
     ])
-  }, [t, kind, locale])
+  }, [t, tc, kind, locale])
   return (
     <DataTable
       caption={t(`kinds.${kind}.title`)}

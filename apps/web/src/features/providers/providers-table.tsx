@@ -32,6 +32,8 @@ export function ProvidersTable({
       col.columns([
         col.accessor('name', {
           header: t('name'),
+          // On a phone the table scrolls sideways; the name stays in view.
+          meta: { sticky: 'left' },
           sortFn: 'text',
           cell: ({ row }) => (
             <TextLink asChild emphasis>

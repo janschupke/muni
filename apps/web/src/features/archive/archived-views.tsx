@@ -16,7 +16,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ArchivedBadge, UserName } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
 import { ReadView } from '@/components/read-view'
-import { DetailSkeleton, TableSkeleton } from '@/components/skeletons'
+import { ArchivedRecordSkeleton, TableSkeleton } from '@/components/skeletons'
 import { UnarchiveButton } from '@/components/unarchive-button'
 import type en from '@/i18n/messages/en.json'
 import { readQuery } from '@/lib/query/queries'
@@ -82,7 +82,7 @@ export function ArchivedRecordView({ kind, id }: { kind: Archivable; id: string 
   const read = useQuery(readQuery('archived-record', { kind, id }))
   useDocumentTitle(read.data?.title)
   return (
-    <ReadView query={read} skeleton={<DetailSkeleton />}>
+    <ReadView query={read} skeleton={<ArchivedRecordSkeleton />}>
       {record => <ArchivedRecordDetail kind={kind} record={record} />}
     </ReadView>
   )

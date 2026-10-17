@@ -25,6 +25,17 @@ import { NavigationHistory, parseHistory, readHistory } from './navigation-histo
 import { RequirementPanel } from './requirement-panel'
 import { SessionTable } from './session-table'
 import {
+  AdvisorSkeleton,
+  ArchivedRecordSkeleton,
+  DashboardSkeleton,
+  DetailSkeleton,
+  FormSkeleton,
+  ImportSkeleton,
+  ListSkeleton,
+  LoadingRegion,
+  PlannerSkeleton,
+} from './skeletons'
+import {
   ComplianceBadge,
   EmploymentBadge,
   OccupancyBadge,
@@ -970,7 +981,7 @@ describe('tables', () => {
       />
     )
     await user.click(screen.getByRole('button', { name: 'Date' }))
-    await user.click(screen.getByRole('button', { name: 'Location' }))
+    await user.click(screen.getByRole('button', { name: 'Room' }))
     await user.click(screen.getByRole('button', { name: 'Booked' }))
     expect(screen.getAllByRole('row')).toHaveLength(3)
 
@@ -1157,5 +1168,24 @@ describe('ConfirmDialog', () => {
     expect(within(dialog).queryByRole('button', { name: 'Cancel booking' })).toBeNull()
     await user.click(within(dialog).getAllByRole('button', { name: 'Close' }).at(-1) as HTMLElement)
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+})
+
+describe('skeletons', () => {
+  it('stand in for each page in its shape, saying it is loading', () => {
+    for (const skeleton of [
+      <AdvisorSkeleton key="advisor" />,
+      <PlannerSkeleton key="planner" />,
+      <ImportSkeleton key="import" />,
+      <ArchivedRecordSkeleton key="archived" />,
+      <DashboardSkeleton key="dashboard" />,
+      <DetailSkeleton key="detail" />,
+      <FormSkeleton key="form" />,
+      <ListSkeleton key="list" />,
+    ]) {
+      const { unmount } = renderClient(<LoadingRegion>{skeleton}</LoadingRegion>)
+      expect(screen.getByRole('status').textContent).toBe('Loading…')
+      unmount()
+    }
   })
 })

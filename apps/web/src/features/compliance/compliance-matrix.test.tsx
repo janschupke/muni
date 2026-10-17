@@ -23,6 +23,9 @@ describe('compliance matrix', () => {
     expect(within(lab).getByRole('button', { name: /Bezpečná.*0%/ }).className).toContain(
       'bg-heat-poor'
     )
+    expect(screen.getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
+      '/departments/dep_lab'
+    )
     const library = screen.getByRole('row', { name: /^Knihovna/ })
     expect(within(library).getByRole('button', { name: /BOZP.*100%/ }).className).toContain(
       'bg-heat-full'

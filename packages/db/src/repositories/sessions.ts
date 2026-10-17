@@ -91,8 +91,8 @@ export const sessionInclude = {
       employee: {
         select: {
           ...personSelect,
-          department: { select: { name: true } },
-          position: { select: { name: true } },
+          department: { select: { id: true, name: true } },
+          position: { select: { id: true, name: true } },
         },
       },
     },
@@ -130,8 +130,8 @@ interface SessionRow {
       lastName: string
       archivedAt: Date | null
       archiveTag: string | null
-      department: { name: string } | null
-      position: { name: string } | null
+      department: { id: string; name: string } | null
+      position: { id: string; name: string } | null
     }
   }[]
 }
@@ -158,7 +158,9 @@ export function toSessionItem(s: SessionRow): SessionListItem {
       const archived = isArchived(a.employee)
       return {
         person: toPersonRef(a.employee),
+        departmentId: archived ? null : (a.employee.department?.id ?? null),
         department: archived ? null : (a.employee.department?.name ?? null),
+        positionId: archived ? null : (a.employee.position?.id ?? null),
         position: archived ? null : (a.employee.position?.name ?? null),
         source: a.source,
         bookedAt: a.createdAt.toISOString(),

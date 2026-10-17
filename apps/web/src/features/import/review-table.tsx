@@ -7,8 +7,9 @@ import { Input } from '@muni/ui/field'
 import { IconButton } from '@muni/ui/icon-button'
 import { Tooltip } from '@muni/ui/tooltip'
 import { CircleX, Pencil, RotateCcw, Trash2, TriangleAlert, Undo2 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
 import { type ReactElement, useMemo, useState } from 'react'
+
+import { usePaginationLabels } from '@/components/pagination-labels'
 
 import { useImportText } from './use-issue-text'
 
@@ -69,7 +70,7 @@ export function ReviewTable({
   onRevert: (index: number) => void
 }) {
   const { t, fieldLabel, issueText } = useImportText()
-  const tc = useTranslations('common')
+  const paginationLabels = usePaginationLabels()
   const [editing, setEditing] = useState<{ index: number; field: string } | null>(null)
 
   const tableColumns = useMemo(() => {
@@ -226,12 +227,7 @@ export function ReviewTable({
       getRowId={r => String(r.index)}
       pagination={pagination}
       onPaginationChange={onPaginationChange}
-      paginationLabels={{
-        nav: tc('pagination'),
-        previous: tc('previous'),
-        next: tc('next'),
-        status: (page, pageCount) => tc('page', { page, pageCount }),
-      }}
+      paginationLabels={paginationLabels}
       className="text-xs"
       containerClassName="max-h-[70vh]"
       rowClassName={r => (r.row.isRemoved || r.row.isSkipped ? 'opacity-50' : undefined)}

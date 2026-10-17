@@ -54,7 +54,9 @@ export const session = (over: Partial<SessionListItem> = {}): SessionListItem =>
   bookings: [
     {
       person: { archived: false, externalId: 'E0153', name: 'Černá Marie' },
+      departmentId: 'dep_lab',
       department: 'Laboratoře',
+      positionId: 'pos_lab',
       position: 'Laborant',
       source: 'ADVISOR',
       bookedAt: '2026-10-10T08:00:00.000Z',
@@ -146,6 +148,8 @@ export const employeeDetail = (over: Partial<EmployeeDetail> = {}): EmployeeDeta
       status: 'EXPIRED',
       completedOn: '2024-09-01',
       validUntil: '2026-09-01',
+      daysLeft: -45,
+      booked: { sessionExternalId: 'T016', startsAt: '2026-11-04T08:00:00.000Z' },
     },
     {
       courseCode: 'GDPR',
@@ -153,6 +157,8 @@ export const employeeDetail = (over: Partial<EmployeeDetail> = {}): EmployeeDeta
       status: 'VALID',
       completedOn: '2025-11-05',
       validUntil: '2027-11-05',
+      daysLeft: 385,
+      booked: null,
     },
   ],
   completionRate: 0.5,
@@ -219,6 +225,7 @@ export const courseDetail = (over: Partial<CourseDetail> = {}): CourseDetail => 
   sessions: [session(), session({ externalId: 'T017', status: 'CANCELLED', bookings: [] })],
   recentCompletions: [
     {
+      id: 'cmp_Z000101',
       externalId: 'Z000101',
       employee: { archived: false, externalId: 'E0153', name: 'Černá Marie' },
       completedOn: '2024-09-01',
@@ -237,8 +244,13 @@ export const dashboard = (over: Partial<DashboardData> = {}): DashboardData => (
   people: { EXPIRING: 40, EXPIRED: 25, MISSING: 50 },
   rate: 0.85,
   byDepartment: [
-    { department: 'Laboratoře', rate: 0.72, counts: counts() },
-    { department: 'Knihovna', rate: 0.95, counts: counts({ MISSING: 0, EXPIRED: 0 }) },
+    { id: 'dep_lab', department: 'Laboratoře', rate: 0.72, counts: counts() },
+    {
+      id: 'dep_lib',
+      department: 'Knihovna',
+      rate: 0.95,
+      counts: counts({ MISSING: 0, EXPIRED: 0 }),
+    },
   ],
   upcomingSessions: [session()],
   ...over,
@@ -265,6 +277,7 @@ export const matrix = (over: Partial<ComplianceMatrix> = {}): ComplianceMatrix =
   ],
   rows: [
     {
+      departmentId: 'dep_lab',
       department: 'Laboratoře',
       headcount: 3,
       cells: {
@@ -328,6 +341,7 @@ export const matrix = (over: Partial<ComplianceMatrix> = {}): ComplianceMatrix =
       ],
     },
     {
+      departmentId: 'dep_lib',
       department: 'Knihovna',
       headcount: 1,
       cells: {
@@ -465,6 +479,7 @@ export const providerDetail = (over: Partial<ProviderDetail> = {}): ProviderDeta
   ],
   recentCompletions: [
     {
+      id: 'cmp_2801',
       externalId: 'Z002801',
       employee: { archived: false, externalId: 'E0153', name: 'Černá Marie' },
       courseCode: 'BOZP-Z',
@@ -475,6 +490,7 @@ export const providerDetail = (over: Partial<ProviderDetail> = {}): ProviderDeta
       price: 450.5,
     },
     {
+      id: 'cmp_2790',
       externalId: 'Z002790',
       employee: { archived: false, externalId: 'E0154', name: 'Adámek Petr' },
       courseCode: 'LEAD',

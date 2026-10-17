@@ -109,11 +109,10 @@ export function CompletionHistoryTable({
                 header: () => <span className="sr-only">{t('common.actions')}</span>,
                 meta: { headerClassName: 'w-0', align: 'right' },
                 cell: ({ row }) => (
-                  <RowActions
-                    kind="completion"
-                    id={row.original.id}
-                    name={`${row.original.courseName} (${row.original.externalId})`}
-                    editHref={`/employees/${editFor}/completions/${row.original.id}/edit`}
+                  <CompletionActions
+                    completion={row.original}
+                    personId={editFor}
+                    courseName={row.original.courseName}
                   />
                 ),
               }),
@@ -135,8 +134,41 @@ export function CompletionHistoryTable({
 
 const recent = createDataColumns<CourseCompletion>()
 
-/** The latest completions of one course. */
-export function RecentCompletionsTable({ completions }: { completions: CourseCompletion[] }) {
+/**
+ * A completion's pencil and archive, for admins, wherever it is listed. An archived person's
+ * completions stay as they are: the person's page is gone.
+ */
+export function CompletionActions({
+  completion,
+  personId,
+  courseName,
+}: {
+  completion: { id: string; externalId: string }
+  /** The person's ID, or null when they are archived. */
+  personId: string | null
+  courseName: string
+}) {
+  if (personId === null) return null
+  return (
+    <RowActions
+      kind="completion"
+      id={completion.id}
+      name={`${completion.externalId} · ${courseName}`}
+      editHref={`/employees/${personId}/completions/${completion.id}/edit`}
+    />
+  )
+}
+
+/** The latest completions of one course; each editable by admins (`canEdit`). */
+export function RecentCompletionsTable({
+  completions,
+  courseName,
+  canEdit,
+}: {
+  completions: CourseCompletion[]
+  courseName: string
+  canEdit: boolean
+}) {
   const t = useTranslations()
   const locale = useLocale()
 
@@ -165,8 +197,26 @@ export function RecentCompletionsTable({ completions }: { completions: CourseCom
             return value === undefined ? t('common.noExpiry') : formatDate(value, locale)
           },
         }),
+        ...(canEdit
+          ? [
+              recent.display({
+                id: 'actions',
+                header: () => <span className="sr-only">{t('common.actions')}</span>,
+                meta: { headerClassName: 'w-0', align: 'right' },
+                cell: ({ row }) => (
+                  <CompletionActions
+                    completion={row.original}
+                    personId={
+                      row.original.employee.archived ? null : row.original.employee.externalId
+                    }
+                    courseName={courseName}
+                  />
+                ),
+              }),
+            ]
+          : []),
       ]),
-    [locale, t]
+    [canEdit, courseName, locale, t]
   )
 
   return (

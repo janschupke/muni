@@ -6,10 +6,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
 import { ReadView } from '@/components/read-view'
-import { ListSkeleton } from '@/components/skeletons'
+import { RulesCard } from '@/components/rules-card'
+import { PlannerSkeleton } from '@/components/skeletons'
 import { readQuery } from '@/lib/query/queries'
 
 import { PlannerView } from './planner-view'
+
+const RULES = ['group', 'split', 'day', 'room'] as const
 
 /** The planner: sessions to open, one section per course, most urgent first. */
 export function PlannerPageView({ canCreate }: { canCreate: boolean }) {
@@ -18,7 +21,7 @@ export function PlannerPageView({ canCreate }: { canCreate: boolean }) {
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
-      <ReadView titled query={read} skeleton={<ListSkeleton columns={6} />}>
+      <ReadView titled query={read} skeleton={<PlannerSkeleton />}>
         {({ groups, rooms }) =>
           groups.length === 0 ? (
             <EmptyState title={t('empty')} />
@@ -27,7 +30,9 @@ export function PlannerPageView({ canCreate }: { canCreate: boolean }) {
           )
         }
       </ReadView>
-      <p className="mt-8 max-w-3xl text-xs text-fg-muted">{t('rule')}</p>
+      <div className="mt-8">
+        <RulesCard title={t('rules.title')} rules={RULES.map(rule => t(`rules.${rule}`))} />
+      </div>
     </>
   )
 }

@@ -32,13 +32,15 @@ import { OrgLink } from '@/components/org-links'
 import { ReadView } from '@/components/read-view'
 import { RecordActions } from '@/components/record-actions'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
+import { RequirementTable } from '@/components/requirement-panel'
 import { RoomLink, SessionDateLink } from '@/components/session-links'
 import { DetailSkeleton } from '@/components/skeletons'
-import { ComplianceBadge, EmploymentBadge, rateTone } from '@/components/status-badges'
+import { EmploymentBadge, rateTone } from '@/components/status-badges'
 import { TeamCard } from '@/components/team-card'
 import { AddBookingForm } from '@/features/bookings/add-booking'
 import { readQuery } from '@/lib/query/queries'
 import { useDocumentTitle } from '@/lib/query/use-document-title'
+import { useOfTotal } from '@/lib/use-of-total'
 import type { ReadOutput } from '@/server/reads/registry'
 
 /** A person's page: profile, bookings, requirements and history, read for the signed-in role. */
@@ -62,9 +64,9 @@ function EmployeeDetail({
 }: ReadOutput<'employee'> & { canEdit: boolean }) {
   const t = useTranslations('employees.detail')
   const te = useTranslations('employees')
-  const tc = useTranslations('courses')
   const tb = useTranslations('bookings')
   const locale = useLocale()
+  const ofTotal = useOfTotal()
   const name = displayName(employee)
   const date = (value: string | null) => formatOptional(value, v => formatDate(v, locale))
   const held = employee.requirements.filter(
@@ -216,7 +218,14 @@ function EmployeeDetail({
             />
             <CardBody>
               {employee.requirements.length === 0 ? (
-                <EmptyState variant="inline" title={t('noRequirements')} />
+                <EmptyState
+                  variant="inline"
+                  title={
+                    employee.status === 'LEFT' && employee.leftOn
+                      ? t('leftNothing', { date: date(employee.leftOn) })
+                      : t('noRequirements')
+                  }
+                />
               ) : (
                 <>
                   <BarRow
@@ -231,25 +240,11 @@ function EmployeeDetail({
                         tone={rateTone(employee.completionRate)}
                       />
                     }
-                    value={te('validOf', { valid: held, total: employee.requirements.length })}
+                    value={ofTotal(held, employee.requirements.length)}
                   />
-                  <ItemList>
-                    {employee.requirements.map(r => (
-                      <ItemListRow key={r.courseCode}>
-                        <TextLink asChild emphasis>
-                          <Link href={`/courses/${r.courseCode}`}>{r.courseName}</Link>
-                        </TextLink>
-                        <span className="flex items-center gap-3 text-fg-muted">
-                          {r.validUntil && (
-                            <span>
-                              {tc('detail.validUntil')} {date(r.validUntil)}
-                            </span>
-                          )}
-                          <ComplianceBadge status={r.status} />
-                        </span>
-                      </ItemListRow>
-                    ))}
-                  </ItemList>
+                  <div className="-mx-5 overflow-x-auto">
+                    <RequirementTable requirements={employee.requirements} />
+                  </div>
                 </>
               )}
             </CardBody>

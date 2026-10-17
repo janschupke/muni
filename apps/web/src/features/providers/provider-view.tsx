@@ -117,24 +117,29 @@ function ProviderDetail({ data, canEdit }: { data: ReadOutput<'provider'>; canEd
               {t('detail.byCourse')}
             </SectionHeading>
             {provider.byCourse.length === 0 ? (
-              <EmptyState variant="inline" title={t('detail.noCompletions')} />
+              <EmptyState title={t('detail.noCompletions')} />
             ) : (
               <ProviderCoursesTable rows={provider.byCourse} prices={provider.prices} />
             )}
           </>
         }
       />
-      {provider.recentCompletions.length > 0 && (
-        <>
-          <SectionHeading
-            description={t('detail.recentDescription', {
-              count: provider.recentCompletions.length,
-            })}
-          >
-            {t('detail.recent')}
-          </SectionHeading>
-          <ProviderCompletionsTable rows={provider.recentCompletions} prices={provider.prices} />
-        </>
+      <SectionHeading
+        description={
+          provider.recentCompletions.length > 0 &&
+          t('detail.recentDescription', { count: provider.recentCompletions.length })
+        }
+      >
+        {t('detail.recent')}
+      </SectionHeading>
+      {provider.recentCompletions.length === 0 ? (
+        <EmptyState title={t('detail.noRecent')} />
+      ) : (
+        <ProviderCompletionsTable
+          rows={provider.recentCompletions}
+          prices={provider.prices}
+          canEdit={canEdit}
+        />
       )}
     </>
   )

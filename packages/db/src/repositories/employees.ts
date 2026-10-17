@@ -22,7 +22,7 @@ import {
 } from './context'
 import { compareNames, type EmployeeSortKey, sortEmployees } from './employee-sort'
 import { stateOf, stateWhere, stillEmployed } from './employment'
-import { courseOf, loadNextBookings, type RequirementContext, requirementOf } from './requirements'
+import { loadNextBookings, type RequirementContext, requirementOf } from './requirements'
 
 export interface EmployeeListItem {
   /** Internal id (archiving acts on it). */
@@ -183,14 +183,6 @@ export async function listEmployees(
   }
 }
 
-interface EmployeeRequirementRow {
-  courseCode: string
-  courseName: string
-  status: ComplianceStatus
-  completedOn: IsoDate | null
-  validUntil: IsoDate | null
-}
-
 interface EmployeeCompletionRow {
   /** Internal id (editing and archiving act on it). */
   id: string
@@ -239,7 +231,7 @@ export interface EmployeeDetail {
   status: EmploymentState
   /** Leads their department. */
   leadsDepartment: boolean
-  requirements: EmployeeRequirementRow[]
+  requirements: EmployeeListRequirement[]
   completionRate: number
   completions: EmployeeCompletionRow[]
 }
@@ -299,11 +291,18 @@ export async function getEmployee(
       counts: countStatuses(own),
     }
   })
-  const courses = await db.course.findMany({
-    where: { id: { in: cells.map(c => c.courseId) } },
-    select: { id: true, code: true, name: true },
-  })
-  const courseById = new Map(courses.map(c => [c.id, c]))
+  const [courses, bookings] = await Promise.all([
+    db.course.findMany({
+      where: { id: { in: cells.map(c => c.courseId) } },
+      select: { id: true, code: true, name: true },
+    }),
+    loadNextBookings(db, undefined, [employee.id]),
+  ])
+  const context: RequirementContext = {
+    courses: new Map(courses.map(c => [c.id, c])),
+    asOf: compliance.options.asOf,
+    bookings,
+  }
   const policy = getPolicy()
 
   const base = sanitizeRecord(
@@ -334,13 +333,7 @@ export async function getEmployee(
     status: stateOf(employee, options?.asOf),
     leadsDepartment: employee.leadsDepartment,
     requirements: cells
-      .map(c => ({
-        courseCode: courseOf(courseById, c).code,
-        courseName: courseOf(courseById, c).name,
-        status: c.status,
-        completedOn: c.basis?.completedOn ?? null,
-        validUntil: c.basis?.validUntil ?? null,
-      }))
+      .map(c => requirementOf(c, context))
       .sort((a, b) => a.courseCode.localeCompare(b.courseCode)),
     completionRate: complianceRate(countStatuses(cells)),
     completions: employee.completions.map(c =>

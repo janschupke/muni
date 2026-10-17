@@ -73,8 +73,8 @@ const base = tsconfigRootDir => [
     settings: {
       // Without the TypeScript extensions and parser it follows only .js files, and finds
       // nothing.
-      'import-x/extensions': importX.flatConfigs.typescript.settings['import-x/extensions'],
-      'import-x/parsers': importX.flatConfigs.typescript.settings['import-x/parsers'],
+      'import-x/extensions': importX.flatConfigs.typescript.settings?.['import-x/extensions'],
+      'import-x/parsers': importX.flatConfigs.typescript.settings?.['import-x/parsers'],
       'import-x/resolver-next': [createTypeScriptImportResolver({ project: tsconfigRootDir })],
     },
     rules: { 'import-x/no-cycle': ['error', { ignoreExternal: true }] },

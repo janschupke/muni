@@ -128,7 +128,9 @@ function byDepartment(
 /** A named booking on a session; an archived person's department and position stay hidden. */
 export interface SessionBooking {
   person: PersonRef
+  departmentId: string | null
   department: string | null
+  positionId: string | null
   position: string | null
   /** Booked through the advisor (or the planner), or by hand. */
   source: 'ADVISOR' | 'MANUAL'
@@ -168,6 +170,8 @@ export interface CourseDetail extends Omit<CourseListItem, 'upcoming'> {
   /** Every session of the course, past and ahead, oldest first. */
   sessions: SessionListItem[]
   recentCompletions: {
+    /** Internal id (editing and archiving act on it). */
+    id: string
     externalId: string
     employee: PersonRef
     completedOn: IsoDate
@@ -215,6 +219,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     byDepartment: byDepartment(cells, compliance, departments),
     sessions: course.sessions.map(toSessionItem),
     recentCompletions: course.completions.map(c => ({
+      id: c.id,
       externalId: c.externalId,
       employee: toPersonRef(c.employee),
       completedOn: isoDateFromUtc(c.completedOn),

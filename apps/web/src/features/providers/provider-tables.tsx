@@ -10,6 +10,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { PersonLink, personText, RecordLink } from '@/components/archived'
+import { CompletionActions } from '@/components/completion-tables'
 
 type CourseRow = ProviderDetail['byCourse'][number]
 type CompletionRow = ProviderDetail['recentCompletions'][number]
@@ -84,9 +85,11 @@ const recent = createDataColumns<CompletionRow>()
 export function ProviderCompletionsTable({
   rows,
   prices,
+  canEdit,
 }: {
   rows: CompletionRow[]
   prices: boolean
+  canEdit: boolean
 }) {
   const t = useTranslations()
   const tc = useTranslations('providers.detail.columns')
@@ -147,8 +150,26 @@ export function ProviderCompletionsTable({
               }),
             ]
           : []),
+        ...(canEdit
+          ? [
+              recent.display({
+                id: 'actions',
+                header: () => <span className="sr-only">{t('common.actions')}</span>,
+                meta: { headerClassName: 'w-0', align: 'right' },
+                cell: ({ row }) => (
+                  <CompletionActions
+                    completion={row.original}
+                    personId={
+                      row.original.employee.archived ? null : row.original.employee.externalId
+                    }
+                    courseName={row.original.courseName}
+                  />
+                ),
+              }),
+            ]
+          : []),
       ]),
-    [locale, prices, t, tc]
+    [canEdit, locale, prices, t, tc]
   )
   return (
     <DataTable

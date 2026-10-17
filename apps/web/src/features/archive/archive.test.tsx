@@ -203,7 +203,7 @@ describe('archive and bring-back buttons', () => {
     await user.click(within(confirm).getByRole('button', { name: 'Bring back' }))
     expect(
       await screen.findByText(
-        'An active record now uses its name, IČO. Rename or archive that one first.'
+        'An active record now uses its name, Company ID (IČO). Rename or archive that one first.'
       )
     ).toBeTruthy()
   })

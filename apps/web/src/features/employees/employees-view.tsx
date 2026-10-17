@@ -1,11 +1,9 @@
 'use client'
 
-import { Alert } from '@muni/ui/alert'
 import { cn } from '@muni/ui/cn'
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
 import { Pagination } from '@muni/ui/pagination'
-import { TextLink } from '@muni/ui/text-link'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -64,23 +62,16 @@ export function EmployeesView({
             aria-busy={read.isPlaceholderData || undefined}
             className={cn('transition-opacity', read.isPlaceholderData && 'opacity-60')}
           >
-            {filters.manager && (
-              <Alert tone="info" variant="inline" className="mb-3">
-                {t('filters.manager', { name: managerName ?? filters.manager })}{' '}
-                <TextLink asChild tone="inherit">
-                  <Link
-                    href={withParams('/employees', query, { manager: undefined, page: undefined })}
-                  >
-                    {t('filters.clearManager')}
-                  </Link>
-                </TextLink>
-              </Alert>
-            )}
             <EmployeeFilters
               query={query}
               departments={departments}
               positions={positions}
               total={result.total}
+              manager={
+                filters.manager === undefined
+                  ? undefined
+                  : { label: t('filters.manager', { name: managerName ?? filters.manager }) }
+              }
             />
             {result.items.length === 0 ? (
               <EmptyState title={t('empty')} />

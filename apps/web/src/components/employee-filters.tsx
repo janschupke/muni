@@ -2,18 +2,22 @@
 
 import { COMPLIANCE_STATUSES, EMPLOYMENT_STATES } from '@muni/domain/enums'
 import { Button } from '@muni/ui/button'
+import { cn } from '@muni/ui/cn'
 import { Field, Input } from '@muni/ui/field'
+import { IconButton } from '@muni/ui/icon-button'
 import { Select } from '@muni/ui/select'
-import { Toolbar, ToolbarSummary } from '@muni/ui/toolbar'
-import { Filter, FilterX, Search } from 'lucide-react'
+import { Toolbar, ToolbarChip, ToolbarSummary } from '@muni/ui/toolbar'
+import { Filter, FilterX, Search, SlidersHorizontal, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useTransition } from 'react'
+import { useId, useState, useTransition } from 'react'
 
 import { withParams } from '@/lib/search-params'
 
 type Query = Record<string, string | undefined>
+
+const FILTERS = ['department', 'position', 'status', 'compliance'] as const
 
 /**
  * Search and filters for the employee list, kept in the URL. A select applies as soon as it
@@ -24,17 +28,23 @@ export function EmployeeFilters({
   departments,
   positions,
   total,
+  manager,
 }: {
   /** Every current URL parameter (filters and sort). */
   query: Query
   departments: string[]
   positions: string[]
   total: number
+  /** "Reports to …", when the list came from a person's team link: a chip that removes it. */
+  manager?: { label: string } | undefined
 }) {
   const t = useTranslations('employees')
   const ts = useTranslations('status')
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [open, setOpen] = useState(false)
+  const filtersId = useId()
+  const applied = FILTERS.filter(key => query[key]).length
 
   const apply = (changes: Query) => {
     startTransition(() => {
@@ -75,58 +85,92 @@ export function EmployeeFilters({
             </div>
           )}
         </Field>
-        <Field label={t('filters.department')} className="w-full sm:w-52">
-          {control => (
-            <Select
-              {...control}
-              value={query['department'] ?? ''}
-              onValueChange={department => {
-                apply({ department })
-              }}
-              emptyLabel={t('filters.any')}
-              options={departments.map(d => ({ value: d, label: d }))}
-            />
-          )}
-        </Field>
-        <Field label={t('filters.position')} className="w-full sm:w-48">
-          {control => (
-            <Select
-              {...control}
-              value={query['position'] ?? ''}
-              onValueChange={position => {
-                apply({ position })
-              }}
-              emptyLabel={t('filters.any')}
-              options={positions.map(p => ({ value: p, label: p }))}
-            />
-          )}
-        </Field>
-        <Field label={t('filters.status')} className="w-full sm:w-40">
-          {control => (
-            <Select
-              {...control}
-              value={query['status'] ?? ''}
-              onValueChange={status => {
-                apply({ status })
-              }}
-              emptyLabel={t('filters.any')}
-              options={EMPLOYMENT_STATES.map(s => ({ value: s, label: ts(`employment.${s}`) }))}
-            />
-          )}
-        </Field>
-        <Field label={t('filters.compliance')} className="w-full sm:w-40">
-          {control => (
-            <Select
-              {...control}
-              value={query['compliance'] ?? ''}
-              onValueChange={compliance => {
-                apply({ compliance })
-              }}
-              emptyLabel={t('filters.any')}
-              options={COMPLIANCE_STATUSES.map(s => ({ value: s, label: ts(`compliance.${s}`) }))}
-            />
-          )}
-        </Field>
+        <Button
+          type="button"
+          variant="secondary"
+          className="sm:hidden"
+          aria-expanded={open}
+          aria-controls={filtersId}
+          onClick={() => {
+            setOpen(o => !o)
+          }}
+        >
+          <SlidersHorizontal aria-hidden />
+          {t('filters.toggle', { count: applied })}
+        </Button>
+        {/* On a phone the four selects fold away behind the button; from `sm` up they sit in the row. */}
+        <div
+          id={filtersId}
+          className={cn('w-full flex-col gap-3 sm:contents', open ? 'flex' : 'hidden')}
+        >
+          <Field label={t('filters.department')} className="w-full sm:w-52">
+            {control => (
+              <Select
+                {...control}
+                value={query['department'] ?? ''}
+                onValueChange={department => {
+                  apply({ department })
+                }}
+                emptyLabel={t('filters.any')}
+                options={departments.map(d => ({ value: d, label: d }))}
+              />
+            )}
+          </Field>
+          <Field label={t('filters.position')} className="w-full sm:w-48">
+            {control => (
+              <Select
+                {...control}
+                value={query['position'] ?? ''}
+                onValueChange={position => {
+                  apply({ position })
+                }}
+                emptyLabel={t('filters.any')}
+                options={positions.map(p => ({ value: p, label: p }))}
+              />
+            )}
+          </Field>
+          <Field label={t('filters.status')} className="w-full sm:w-40">
+            {control => (
+              <Select
+                {...control}
+                value={query['status'] ?? ''}
+                onValueChange={status => {
+                  apply({ status })
+                }}
+                emptyLabel={t('filters.any')}
+                options={EMPLOYMENT_STATES.map(s => ({ value: s, label: ts(`employment.${s}`) }))}
+              />
+            )}
+          </Field>
+          <Field label={t('filters.compliance')} className="w-full sm:w-40">
+            {control => (
+              <Select
+                {...control}
+                value={query['compliance'] ?? ''}
+                onValueChange={compliance => {
+                  apply({ compliance })
+                }}
+                emptyLabel={t('filters.any')}
+                options={COMPLIANCE_STATUSES.map(s => ({ value: s, label: ts(`compliance.${s}`) }))}
+              />
+            )}
+          </Field>
+        </div>
+        {manager && (
+          <ToolbarChip
+            remove={
+              <IconButton asChild label={t('filters.clearManager')}>
+                <Link
+                  href={withParams('/employees', query, { manager: undefined, page: undefined })}
+                >
+                  <X aria-hidden />
+                </Link>
+              </IconButton>
+            }
+          >
+            {manager.label}
+          </ToolbarChip>
+        )}
         <Button type="submit" variant="primary">
           <Filter aria-hidden />
           {t('filters.apply')}

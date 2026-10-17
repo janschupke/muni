@@ -14,6 +14,7 @@ import { useTranslations } from 'next-intl'
 import { useMemo, useTransition } from 'react'
 
 import { withParams } from '@/lib/search-params'
+import { useOfTotal } from '@/lib/use-of-total'
 
 import { OrgLink } from './org-links'
 import { RowActions } from './record-actions'
@@ -51,6 +52,7 @@ export function EmployeesTable({
 }) {
   const t = useTranslations('employees')
   const tcommon = useTranslations('common')
+  const ofTotal = useOfTotal()
   const router = useRouter()
   const [pending, startTransition] = useTransition()
 
@@ -66,6 +68,8 @@ export function EmployeesTable({
         col.accessor(e => sortName(e), {
           id: 'name',
           header: t('columns.name'),
+          // On a phone the table scrolls sideways; the name stays in view.
+          meta: { sticky: 'left' },
           cell: ({ row }) => (
             <CellStack
               title={
@@ -140,7 +144,7 @@ export function EmployeesTable({
                     tone={rateTone(held / counts.total)}
                   />
                 }
-                value={t('validOf', { valid: held, total: counts.total })}
+                value={ofTotal(held, counts.total)}
               />
             )
           },
@@ -163,7 +167,7 @@ export function EmployeesTable({
             ]
           : []),
       ]),
-    [canEdit, omit, t, tcommon]
+    [canEdit, ofTotal, omit, t, tcommon]
   )
 
   return (

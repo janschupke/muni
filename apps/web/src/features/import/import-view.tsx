@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
 import { ReadView } from '@/components/read-view'
-import { TableSkeleton } from '@/components/skeletons'
+import { ImportSkeleton } from '@/components/skeletons'
 import { readQuery } from '@/lib/query/queries'
 
 import { ImportWizard } from './import-wizard'
@@ -24,7 +24,7 @@ export function ImportView() {
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
-      <ReadView titled query={read} skeleton={<TableSkeleton rows={3} columns={3} />}>
+      <ReadView titled query={read} skeleton={<ImportSkeleton />}>
         {({ reference, today }) => <ImportWizard reference={reference} today={today} />}
       </ReadView>
     </>

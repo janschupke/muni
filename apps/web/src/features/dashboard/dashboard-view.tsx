@@ -105,24 +105,28 @@ function Dashboard({ data, advisor, canEdit }: ReadOutput<'dashboard'> & { canEd
         <Card className="min-w-0 lg:col-span-2">
           <CardHeader title={t('byDepartment.title')} description={t('byDepartment.description')} />
           <CardBody>
-            <ComplianceLegend className="mb-4" />
-            <ul className="flex flex-col gap-3">
-              {data.byDepartment.map(d => (
-                <li key={d.department}>
-                  <BarRow
-                    label={
-                      <TextLink asChild>
-                        <Link href={`/employees?department=${encodeURIComponent(d.department)}`}>
-                          {d.department}
-                        </Link>
-                      </TextLink>
-                    }
-                    value={formatPercent(d.rate, locale)}
-                    bar={<ComplianceBar counts={d.counts} label={d.department} />}
-                  />
-                </li>
-              ))}
-            </ul>
+            {data.byDepartment.length === 0 ? (
+              <EmptyState variant="inline" title={t('byDepartment.empty')} />
+            ) : (
+              <>
+                <ComplianceLegend className="mb-4" />
+                <ul className="flex flex-col gap-3">
+                  {data.byDepartment.map(d => (
+                    <li key={d.id}>
+                      <BarRow
+                        label={
+                          <TextLink asChild>
+                            <Link href={`/departments/${d.id}`}>{d.department}</Link>
+                          </TextLink>
+                        }
+                        value={formatPercent(d.rate, locale)}
+                        bar={<ComplianceBar counts={d.counts} label={d.department} />}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </CardBody>
         </Card>
 

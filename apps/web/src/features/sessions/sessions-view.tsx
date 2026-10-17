@@ -1,6 +1,5 @@
 'use client'
 
-import { EmptyState } from '@muni/ui/empty-state'
 import { LinkTab, LinkTabs } from '@muni/ui/nav'
 import { PageHeader } from '@muni/ui/page-header'
 import { Select } from '@muni/ui/select'
@@ -11,7 +10,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
-import { ListActions } from '@/components/list-actions'
+import { ListActions, ListEmpty } from '@/components/list-actions'
 import { ReadView } from '@/components/read-view'
 import { SessionTable } from '@/components/session-table'
 import { TableSkeleton } from '@/components/skeletons'
@@ -32,6 +31,7 @@ export function SessionsView({
   canEdit: boolean
 }) {
   const t = useTranslations('sessions')
+  const create = canEdit && { href: '/sessions/new', label: t('new') }
   const router = useRouter()
   const read = useQuery({
     ...readQuery('sessions-list', sessionsListInput(when, roomId)),
@@ -43,13 +43,9 @@ export function SessionsView({
   return (
     <>
       <PageHeader
-        title={room ? t('titleAt', { location: room.name }) : t('title')}
+        title={room ? t('titleAt', { room: room.name }) : t('title')}
         description={t('description')}
-        actions={
-          canEdit && (
-            <ListActions kind="session" create={{ href: '/sessions/new', label: t('new') }} />
-          )
-        }
+        actions={create && <ListActions kind="session" create={create} />}
       />
       <Toolbar>
         <LinkTabs aria-label={t('title')}>
@@ -66,7 +62,7 @@ export function SessionsView({
           aria-label={t('roomFilter')}
           className="w-full sm:w-56"
           value={roomId ?? ''}
-          emptyLabel={t('allLocations')}
+          emptyLabel={t('allRooms')}
           onValueChange={value => {
             router.push(href({ room: value === '' ? undefined : value }))
           }}
@@ -82,7 +78,7 @@ export function SessionsView({
             }
           >
             {sessions.length === 0 ? (
-              <EmptyState title={t('empty')} />
+              <ListEmpty title={t('empty')} create={create} />
             ) : (
               <SessionTable sessions={sessions} canEdit={canEdit} />
             )}

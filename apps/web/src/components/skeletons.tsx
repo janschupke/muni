@@ -119,19 +119,84 @@ export function FormSkeleton({ fields = 6 }: { fields?: number }) {
   )
 }
 
+/** `count` figure cards in a row, as the overview and the advisor open with. */
+function StatCardsSkeleton({ count, className }: { count: number; className: string }) {
+  return (
+    <div className={cn('grid grid-cols-2 gap-3', className)}>
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className={cn(surfaceClass, 'flex flex-col gap-3 p-4')}>
+          <Skeleton className="h-3.5 w-20" />
+          <Skeleton className="h-7 w-16" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** The advisor below its heading: four figures, the tabs, then the open tab's table. */
+export function AdvisorSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <StatCardsSkeleton count={4} className="lg:grid-cols-4" />
+      <div className="flex flex-col gap-4">
+        <div className="flex gap-4 border-b border-border-default pb-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-5 w-28" />
+          ))}
+        </div>
+        <TableSkeleton columns={6} />
+      </div>
+    </div>
+  )
+}
+
+/** The planner below its heading: one card per course, each with its proposed sessions. */
+export function PlannerSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      {Array.from({ length: 3 }, (_, i) => (
+        <div key={i} className="flex flex-col gap-3">
+          <Skeleton className="h-6 w-72 max-w-full" />
+          <TableSkeleton rows={2} columns={6} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** The import's first step: the steps, then the drop area for the files. */
+export function ImportSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex gap-6">
+        {Array.from({ length: 3 }, (_, i) => (
+          <Skeleton key={i} className="h-5 w-24" />
+        ))}
+      </div>
+      <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border-emphasis">
+        <Skeleton className="size-8 rounded-full" />
+        <Skeleton className="h-4 w-64 max-w-full" />
+      </div>
+    </div>
+  )
+}
+
+/** An archived record: its heading, then one card of what was kept. */
+export function ArchivedRecordSkeleton() {
+  return (
+    <>
+      <HeaderSkeleton />
+      <CardSkeleton lines={8} className="max-w-3xl" />
+    </>
+  )
+}
+
 /** The overview: five figures, then the two panels. */
 export function DashboardSkeleton() {
   return (
     <>
       <HeaderSkeleton />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        {Array.from({ length: 5 }, (_, i) => (
-          <div key={i} className={cn(surfaceClass, 'flex flex-col gap-3 p-4')}>
-            <Skeleton className="h-3.5 w-20" />
-            <Skeleton className="h-7 w-16" />
-          </div>
-        ))}
-      </div>
+      <StatCardsSkeleton count={5} className="lg:grid-cols-5" />
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
         <CardSkeleton lines={8} className="lg:col-span-3" />
         <CardSkeleton lines={8} className="lg:col-span-2" />

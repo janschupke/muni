@@ -7,9 +7,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
-import { NotFoundError } from '@/test/next'
-import { params, renderServer } from '@/test/render'
+import { NotFoundError, route } from '@/test/next'
+import { params, renderClient, renderServer } from '@/test/render'
 
+import UserNotFound from './[id]/not-found'
 import UserPage from './[id]/page'
 import UsersPage, { generateMetadata } from './page'
 
@@ -68,7 +69,15 @@ describe('users', () => {
     expect(within(rows[0] as HTMLElement).getByText('Admin')).toBeTruthy()
     expect(within(rows[1] as HTMLElement).getByText('Viewer')).toBeTruthy()
     expect(rows[1]?.textContent).toContain('Oct 16, 2026')
+    // The name opens the user; the row has no second way there.
+    expect(screen.queryByRole('link', { name: /^Edit / })).toBeNull()
     await expectNoAxeViolations()
+  })
+
+  it('says when nobody has signed in yet', async () => {
+    vi.mocked(listUsers).mockResolvedValueOnce([])
+    await renderServer(UsersPage())
+    expect(screen.getByText('Nobody has signed in yet.')).toBeTruthy()
   })
 })
 
@@ -106,5 +115,9 @@ describe('a user', () => {
     await expect(renderServer(UserPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
       NotFoundError
     )
+    route.pathname = '/users/gone'
+    renderClient(<UserNotFound />)
+    expect(screen.getByRole('heading', { level: 1, name: 'User not found' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'All users' }).getAttribute('href')).toBe('/users')
   })
 })

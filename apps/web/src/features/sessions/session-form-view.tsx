@@ -46,7 +46,9 @@ export function SessionFormView({
               action={saveSession.bind(null, session.externalId)}
               cancelHref={href}
               heading={{
-                title: t('sessions.editTitle', { id: session.externalId }),
+                title: t('sessions.editTitle', {
+                  name: `${session.externalId} · ${session.courseName}`,
+                }),
                 eyebrow: <BackLink fallback={{ href, label: session.courseName }} />,
                 description: `${session.courseCode} · ${session.courseName}`,
               }}

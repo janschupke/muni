@@ -172,6 +172,25 @@ them back from there.
 
 ## UI
 
+### Glossary
+
+One word per thing, in both locales. The message test fails on the words in the last column.
+
+| Thing                                         | English          | Czech        | Not                     |
+| --------------------------------------------- | ---------------- | ------------ | ----------------------- |
+| A seat a person holds on a session            | booking          | rezervace    | přihláška               |
+| A part of the organisation                    | department       | oddělení     | útvar                   |
+| Who delivered a completion                    | provider         | poskytovatel | dodavatel               |
+| Where a session is held                       | room             | místnost     | location                |
+| A catalogue entry (a table column naming one) | course           | kurz         | training                |
+| A required course a person has valid          | held             | splněno      | valid trainings         |
+| A provider's registration number              | Company ID (IČO) | IČO          | a bare "IČO" in English |
+| Making a new record                           | Create …         | Vytvořit …   | Add …                   |
+
+"Přihlásit se" is signing in, and stays.
+
+### Forms
+
 Forms put the page heading inside the form, with Cancel and Save on its right, and the
 fields in one full-width card. Dates and times are typed or picked: `DatePicker` (a calendar
 on Radix Popover, driven fully from the keyboard) and `TimePicker` (hour and minute lists),
@@ -590,7 +609,8 @@ What the gates enforce:
   - both locales have the same keys;
   - every message parses as ICU, with the same arguments and tags in Czech and English;
   - keys looked up with a runtime value match their enum exactly;
-  - a key no source names fails.
+  - a key no source names fails;
+  - a word the glossary below replaced fails, in either locale.
 - **Git hooks**: `pnpm install` installs lefthook (`lefthook.yml`). A commit runs Prettier and each package's ESLint on the staged files only; everything else stays in `pnpm check` and CI.
 
 Playwright e2e and Lighthouse are not in `pnpm check` (they need browsers, a production build, the seeded test database and Clerk) but CI runs them in a second job, `e2e`: it migrates and seeds the test database, builds, installs Chromium and runs the a11y, access, crud and register suites and Lighthouse; on a failure it keeps the Playwright report and traces. Both jobs need the Clerk development keys as repository secrets, `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. The `check` job also runs `pnpm audit --prod --audit-level high`. Renovate (`renovate.json`) opens one pull request a week for minor and patch updates, and holds TypeScript below 7 and the prisma packages together.

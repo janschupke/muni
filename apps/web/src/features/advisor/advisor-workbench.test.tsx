@@ -385,7 +385,7 @@ describe('AdvisorWorkbench', () => {
         .slice(1)
         .map(r => within(r).getAllByRole('link')[0]?.textContent)
     expect(names()).toEqual(['Adámek Petr', 'Bílá Jana'])
-    for (const header of ['Person', 'Training', 'Lapses', 'Proposed session', 'Order']) {
+    for (const header of ['Person', 'Course', 'Lapses', 'Proposed session', 'Order']) {
       await user.click(screen.getByRole('button', { name: header }))
     }
     await user.click(screen.getByRole('button', { name: 'Person' }))

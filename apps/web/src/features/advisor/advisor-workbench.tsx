@@ -71,7 +71,7 @@ export function AdvisorWorkbench({
           label={t('kpi.now')}
           value={n(plan.totals.now)}
           hint={t('kpi.split', split(nowRow ? [nowRow] : []))}
-          tone="danger"
+          tone={plan.totals.now > 0 ? 'danger' : 'success'}
         />
         <StatCard
           href={advisorHref('breakdown', firstMonth ?? NOW)}

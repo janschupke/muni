@@ -22,7 +22,7 @@ export function CourseFormView({ code }: { code?: string | undefined }) {
             action={saveCourse.bind(null, code)}
             cancelHref={`/courses/${code}`}
             heading={{
-              title: t('forms.course.title', { code }),
+              title: t('forms.course.title', { name: course.name }),
               eyebrow: <BackLink fallback={{ href: `/courses/${code}`, label: course.name }} />,
             }}
             defaults={course}

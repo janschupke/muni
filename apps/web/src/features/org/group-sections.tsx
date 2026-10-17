@@ -40,17 +40,32 @@ export function GroupPeople({ kind, group }: { kind: Kind; group: Group }) {
   const filter = kind === 'departments' ? 'department' : 'position'
   return (
     <>
-      <SectionHeading description={t('peopleDescription', { count: group.members.length })}>
+      <SectionHeading
+        description={
+          group.members.length > 0 && t('peopleDescription', { count: group.members.length })
+        }
+      >
         {t('people')}
       </SectionHeading>
-      <EmployeesTable items={group.members} omit={filter} caption={t('people')} panelLevel={3} />
-      <p className="mt-3 text-sm">
-        <TextLink asChild arrow>
-          <Link href={`/employees?${filter}=${encodeURIComponent(group.name)}`}>
-            {tk('inList')}
-          </Link>
-        </TextLink>
-      </p>
+      {group.members.length === 0 ? (
+        <EmptyState title={t('noPeople')} />
+      ) : (
+        <>
+          <EmployeesTable
+            items={group.members}
+            omit={filter}
+            caption={t('people')}
+            panelLevel={3}
+          />
+          <p className="mt-3 text-sm">
+            <TextLink asChild arrow>
+              <Link href={`/employees?${filter}=${encodeURIComponent(group.name)}`}>
+                {tk('inList')}
+              </Link>
+            </TextLink>
+          </p>
+        </>
+      )}
     </>
   )
 }

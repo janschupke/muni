@@ -12,7 +12,7 @@ import { providerDetail, providerRow } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
-import EditProviderPage from './[id]/edit/page'
+import EditProviderPage, { generateMetadata as editMetadata } from './[id]/edit/page'
 import ProviderPage, { generateMetadata as providerMetadata } from './[id]/page'
 import NewProviderPage, { generateMetadata as newMetadata } from './new/page'
 import ProvidersPage, { generateMetadata as listMetadata } from './page'
@@ -81,7 +81,14 @@ describe('provider list', () => {
     ])
     expect(within(screen.getByRole('row', { name: /Interní/ })).getAllByText('—')).toHaveLength(3)
     expect(screen.queryByRole('link', { name: 'New provider' })).toBeNull()
-    for (const header of ['Provider', 'IČO', 'Completions', 'People', 'Courses', 'Spent'])
+    for (const header of [
+      'Provider',
+      'Company ID (IČO)',
+      'Completions',
+      'People',
+      'Courses',
+      'Spent',
+    ])
       await user.click(screen.getByRole('button', { name: header }))
     await expectNoAxeViolations()
   })
@@ -93,10 +100,11 @@ describe('provider list', () => {
     signInAs('ADMIN')
     vi.mocked(listProviders).mockResolvedValueOnce({ providers: [], prices: true })
     await renderServer(ProvidersPage())
-    expect(screen.getByRole('link', { name: 'New provider' }).getAttribute('href')).toBe(
+    // The empty list offers the first one where the table would be, as the header does.
+    const empty = screen.getByText(/No providers yet/).parentElement as HTMLElement
+    expect(within(empty).getByRole('link', { name: 'New provider' }).getAttribute('href')).toBe(
       '/providers/new'
     )
-    expect(screen.getByText(/No providers yet/)).toBeTruthy()
   })
 })
 
@@ -148,7 +156,11 @@ describe('provider detail', () => {
     expect(screen.getByText('No contact details yet.')).toBeTruthy()
     expect(screen.getByText('No completion names this provider yet.')).toBeTruthy()
     expect(screen.queryByText('Spent')).toBeNull()
-    expect(screen.queryByText('Latest completions')).toBeNull()
+    // The section stays, saying there is nothing in it yet.
+    expect(screen.getByRole('heading', { level: 2, name: 'Latest completions' })).toBeTruthy()
+    expect(
+      screen.getByText('Completions recorded with this provider are listed here.')
+    ).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '/providers/prov_int/edit'
     )
@@ -173,6 +185,10 @@ describe('provider forms', () => {
   it('edit a provider with its current values', async () => {
     signInAs('ADMIN')
     await renderServer(EditProviderPage({ params: params({ id: 'prov_vzor' }) }))
+    // The tab says what the heading says.
+    expect(await editMetadata({ params: params({ id: 'prov_vzor' }) })).toEqual({
+      title: 'Edit Vzorový školicí ústav',
+    })
     expect(
       screen.getByRole('heading', { level: 1, name: 'Edit Vzorový školicí ústav' })
     ).toBeTruthy()

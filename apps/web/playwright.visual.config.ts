@@ -4,7 +4,7 @@ import { loadRootEnv, productionServer } from './e2e/support/server'
 
 /**
  * Screenshots of every page and the states worth looking at (hover, open rows, forms with
- * errors, dialogs, popovers, skeletons), in both themes, for a person to review
+ * errors, dialogs, popovers, phone widths), in both themes, for a person to review
  * (e2e/visual.shots.ts), on the production build:
  *   pnpm --filter @muni/web build && pnpm test:visual
  * Nothing is compared automatically; the shots land in visual-shots/<theme>/ (outside

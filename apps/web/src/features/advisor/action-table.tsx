@@ -21,8 +21,10 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useCallback, useMemo, useState } from 'react'
 
+import { usePaginationLabels } from '@/components/pagination-labels'
+
 import type { Booking } from './book-dialog'
-import { col, itemId, SessionCell, usePaginationLabels, usePlanColumns } from './columns'
+import { col, itemId, SessionCell, usePlanColumns } from './columns'
 
 // Loaded when needed: the dialog opens when rows are booked.
 const BookDialog = dynamic(() => import('./book-dialog').then(m => m.BookDialog))

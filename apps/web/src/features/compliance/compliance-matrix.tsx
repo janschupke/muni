@@ -141,7 +141,7 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
                           }}
                         />
                         <TextLink asChild>
-                          <Link href={employeesHref(row.department)}>{row.department}</Link>
+                          <Link href={`/departments/${row.departmentId}`}>{row.department}</Link>
                         </TextLink>
                       </span>
                     </Th>

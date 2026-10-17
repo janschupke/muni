@@ -7,9 +7,11 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { Meter } from '@muni/ui/meter'
 import { TextLink } from '@muni/ui/text-link'
-import { formatInteger, formatPercent } from '@muni/utils/format'
+import { formatPercent } from '@muni/utils/format'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
+
+import { useOfTotal } from '@/lib/use-of-total'
 
 import { CapabilityList } from './room-badges'
 import { RoomLink, SessionDateLink } from './session-links'
@@ -19,8 +21,7 @@ import { OccupancyBadge, seatTone } from './status-badges'
 export function CoursePanel({ course }: { course: CourseListItem }) {
   const t = useTranslations('courses.panel')
   const ts = useTranslations('sessions')
-  const locale = useLocale()
-  const { sessionNeeds: needs } = course
+  const ofTotal = useOfTotal()
   return (
     <DetailGrid layout="thirds">
       <DetailPanel title={t('sessions')} count={course.upcoming.length}>
@@ -44,7 +45,7 @@ export function CoursePanel({ course }: { course: CourseListItem }) {
                     className="w-24"
                   />
                   <span className="text-xs text-fg-muted tabular-nums">
-                    {ts('booked', { booked: s.bookedCount, capacity: s.capacity })}
+                    {ofTotal(s.bookedCount, s.capacity)}
                   </span>
                   <OccupancyBadge booked={s.bookedCount} capacity={s.capacity} />
                 </span>
@@ -54,55 +55,70 @@ export function CoursePanel({ course }: { course: CourseListItem }) {
         )}
       </DetailPanel>
       <DetailPanel title={t('needs')}>
-        <DescriptionList>
-          <DescriptionItem label={t('length')}>
-            {needs.minutes === null ? t('noMinutes') : t('minutes', { minutes: needs.minutes })}
-          </DescriptionItem>
-          <DescriptionItem label={t('groupSize')}>
-            {needs.groupSize === null ? t('noGroup') : t('group', { size: needs.groupSize })}
-          </DescriptionItem>
-          <DescriptionItem label={t('onlineLabel')}>
-            {needs.onlineAllowed ? t('onlineYes') : t('onlineNo')}
-          </DescriptionItem>
-          <DescriptionItem label={t('equipment')}>
-            <CapabilityList capabilities={needs.capabilities} empty={t('noEquipment')} />
-          </DescriptionItem>
-        </DescriptionList>
+        <CourseNeeds needs={course.sessionNeeds} />
       </DetailPanel>
       <DetailPanel title={t('byDepartment')} count={course.byDepartment.length}>
-        {course.byDepartment.length === 0 ? (
-          <EmptyState variant="inline" title={t('noDepartments')} />
-        ) : (
-          <ItemList>
-            {course.byDepartment.map(d => {
-              const held = d.counts.VALID + d.counts.EXPIRING
-              return (
-                <ItemListRow key={d.id} className="gap-2">
-                  <HeatCell
-                    band={complianceBand(d.rate)}
-                    tooltip={t('departmentTitle', {
-                      department: d.name,
-                      held,
-                      total: d.counts.total,
-                    })}
-                    className="h-6 w-12 min-w-12 flex-none text-xs"
-                  >
-                    {formatPercent(d.rate, locale)}
-                  </HeatCell>
-                  <TextLink asChild>
-                    <Link href={`/departments/${d.id}`} className="min-w-0 truncate">
-                      {d.name}
-                    </Link>
-                  </TextLink>
-                  <span className="ml-auto text-xs text-fg-muted tabular-nums">
-                    {formatInteger(held, locale)}/{formatInteger(d.counts.total, locale)}
-                  </span>
-                </ItemListRow>
-              )
-            })}
-          </ItemList>
-        )}
+        <CourseByDepartment byDepartment={course.byDepartment} />
       </DetailPanel>
     </DetailGrid>
+  )
+}
+
+/** What one session of a course needs: its length, group size, whether online, equipment. */
+export function CourseNeeds({ needs }: { needs: CourseListItem['sessionNeeds'] }) {
+  const t = useTranslations('courses.panel')
+  return (
+    <DescriptionList>
+      <DescriptionItem label={t('length')}>
+        {needs.minutes === null ? t('noMinutes') : t('minutes', { minutes: needs.minutes })}
+      </DescriptionItem>
+      <DescriptionItem label={t('groupSize')}>
+        {needs.groupSize === null ? t('noGroup') : t('group', { size: needs.groupSize })}
+      </DescriptionItem>
+      <DescriptionItem label={t('onlineLabel')}>
+        {needs.onlineAllowed ? t('onlineYes') : t('onlineNo')}
+      </DescriptionItem>
+      <DescriptionItem label={t('equipment')}>
+        <CapabilityList capabilities={needs.capabilities} empty={t('noEquipment')} />
+      </DescriptionItem>
+    </DescriptionList>
+  )
+}
+
+/** How much each department holds a course, departments by name as the read sends them. */
+export function CourseByDepartment({
+  byDepartment,
+}: {
+  byDepartment: CourseListItem['byDepartment']
+}) {
+  const t = useTranslations('courses.panel')
+  const locale = useLocale()
+  const ofTotal = useOfTotal()
+  if (byDepartment.length === 0) return <EmptyState variant="inline" title={t('noDepartments')} />
+  return (
+    <ItemList>
+      {byDepartment.map(d => {
+        const held = d.counts.VALID + d.counts.EXPIRING
+        return (
+          <ItemListRow key={d.id} className="gap-2">
+            <HeatCell
+              band={complianceBand(d.rate)}
+              tooltip={t('departmentTitle', { department: d.name, held, total: d.counts.total })}
+              className="h-6 w-12 min-w-12 flex-none text-xs"
+            >
+              {formatPercent(d.rate, locale)}
+            </HeatCell>
+            <TextLink asChild>
+              <Link href={`/departments/${d.id}`} className="min-w-0 truncate">
+                {d.name}
+              </Link>
+            </TextLink>
+            <span className="ml-auto text-xs text-fg-muted tabular-nums">
+              {ofTotal(held, d.counts.total)}
+            </span>
+          </ItemListRow>
+        )
+      })}
+    </ItemList>
   )
 }

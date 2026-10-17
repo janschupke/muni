@@ -265,7 +265,7 @@ describe('dashboard', () => {
     // 85 % held is in the yellow band.
     expect(rate.className).toContain('before:bg-warning-fill')
     expect(screen.getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
-      '/employees?department=Laborato%C5%99e'
+      '/departments/dep_lab'
     )
     // The advisor alert: one overbooked session, two trainings with nothing booked.
     expect(screen.getByRole('status').textContent).toContain(
@@ -278,10 +278,11 @@ describe('dashboard', () => {
 
   it('stays quiet when nothing needs attention, and says when nothing is scheduled', async () => {
     vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput({ needs: [], sessions: [] }))
-    vi.mocked(getDashboard).mockResolvedValue(dashboard({ upcomingSessions: [] }))
+    vi.mocked(getDashboard).mockResolvedValue(dashboard({ upcomingSessions: [], byDepartment: [] }))
     await renderServer(DashboardPage())
     expect(screen.queryByRole('link', { name: 'Open the advisor' })).toBeNull()
     expect(screen.getByText('No sessions are scheduled.')).toBeTruthy()
+    expect(screen.getByText('No active employees with mandatory courses yet.')).toBeTruthy()
   })
 
   it('shows the upcoming sessions, with edit links for admins', async () => {

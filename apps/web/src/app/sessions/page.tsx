@@ -19,7 +19,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     getTranslations('sessions'),
     id ? listRoomOptions().then(rooms => rooms.find(r => r.id === id)) : undefined,
   ])
-  return { title: room ? t('titleAt', { location: room.name }) : t('title') }
+  return { title: room ? t('titleAt', { room: room.name }) : t('title') }
 }
 
 export default async function SessionsPage({ searchParams }: Props) {

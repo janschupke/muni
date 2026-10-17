@@ -4,7 +4,7 @@ import { PageHeader } from '@muni/ui/page-header'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
-import { ListActions } from '@/components/list-actions'
+import { ListActions, ListEmpty } from '@/components/list-actions'
 import { ReadView } from '@/components/read-view'
 import { TableSkeleton } from '@/components/skeletons'
 import { readQuery } from '@/lib/query/queries'
@@ -23,7 +23,9 @@ export function UsersView() {
         actions={<ListActions kind="user" />}
       />
       <ReadView titled query={read} skeleton={<TableSkeleton columns={4} />}>
-        {users => <UsersTable users={users} />}
+        {users =>
+          users.length === 0 ? <ListEmpty title={t('empty')} /> : <UsersTable users={users} />
+        }
       </ReadView>
     </>
   )

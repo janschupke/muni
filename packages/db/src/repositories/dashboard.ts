@@ -21,7 +21,7 @@ export interface DashboardData {
   /** Active people with at least one training in each state (the lists the cards link to). */
   people: Record<'EXPIRING' | 'EXPIRED' | 'MISSING', number>
   rate: number
-  byDepartment: { department: string; rate: number; counts: ComplianceCounts }[]
+  byDepartment: { id: string; department: string; rate: number; counts: ComplianceCounts }[]
   upcomingSessions: SessionListItem[]
 }
 
@@ -54,7 +54,12 @@ export async function getDashboard(options?: WithCompliance): Promise<DashboardD
     byDepartment: departments
       .map(d => {
         const deptCounts = countStatuses(cellsByDepartment.get(d.id) ?? [])
-        return { department: d.name, rate: complianceRate(deptCounts), counts: deptCounts }
+        return {
+          id: d.id,
+          department: d.name,
+          rate: complianceRate(deptCounts),
+          counts: deptCounts,
+        }
       })
       .filter(d => d.counts.total > 0)
       .sort((a, b) => a.rate - b.rate),
@@ -69,6 +74,7 @@ export interface ComplianceMatrix {
 }
 
 export interface ComplianceMatrixRow {
+  departmentId: string
   department: string
   headcount: number
   cells: Record<string, { counts: ComplianceCounts; rate: number } | null>
@@ -130,6 +136,7 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
     courses: courses.map(c => ({ code: c.code, name: c.name })),
     rows: departments
       .map(d => ({
+        departmentId: d.id,
         department: d.name,
         headcount: active.filter(e => e.departmentId === d.id).length,
         cells: Object.fromEntries(

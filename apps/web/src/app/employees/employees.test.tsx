@@ -25,9 +25,15 @@ import { booking, counts, employeeDetail, employeePage, employeeRow } from '@/te
 import { NotFoundError, router } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
-import EditCompletionPage from './[externalId]/completions/[id]/edit/page'
-import NewCompletionPage from './[externalId]/completions/new/page'
-import EditEmployeePage from './[externalId]/edit/page'
+import EditCompletionPage, {
+  generateMetadata as editCompletionMetadata,
+} from './[externalId]/completions/[id]/edit/page'
+import NewCompletionPage, {
+  generateMetadata as newCompletionMetadata,
+} from './[externalId]/completions/new/page'
+import EditEmployeePage, {
+  generateMetadata as editEmployeeMetadata,
+} from './[externalId]/edit/page'
 import EmployeePage, { generateMetadata as employeeMetadata } from './[externalId]/page'
 import NewEmployeePage, { generateMetadata as newMetadata } from './new/page'
 import EmployeesPage, { generateMetadata as listMetadata } from './page'
@@ -289,7 +295,7 @@ describe('employee detail', () => {
     expect(screen.getByText('m••••••••••@vzorova.example')).toBeTruthy()
     expect(screen.queryByText('Birth number')).toBeNull()
     expect(screen.getByText('50% of required trainings held')).toBeTruthy()
-    const held = screen.getByRole('meter', { name: 'Valid trainings' })
+    const held = screen.getByRole('meter', { name: 'Held' })
     expect([held.getAttribute('aria-valuenow'), held.getAttribute('aria-valuemax')]).toEqual([
       '1',
       '2',
@@ -344,7 +350,7 @@ describe('employee detail', () => {
     // Each completion can be corrected or archived.
     expect(
       screen
-        .getByRole('link', { name: 'Edit Ochrana osobních údajů (Z000101)' })
+        .getByRole('link', { name: 'Edit Z000101 · Ochrana osobních údajů' })
         .getAttribute('href')
     ).toBe('/employees/E0153/completions/cmp_Z000101/edit')
     expect(listBookableSessions).toHaveBeenCalledWith('E0153')
@@ -426,13 +432,24 @@ describe('managers', () => {
     expect(screen.queryByRole('heading', { name: 'Team' })).toBeNull()
   })
 
+  it('show what is required of someone who has left as nothing, since the day they left', async () => {
+    vi.mocked(getEmployee).mockResolvedValueOnce(
+      employeeDetail({ status: 'LEFT', leftOn: '2026-06-30', requirements: [] })
+    )
+    await renderServer(EmployeePage({ params: params({ externalId: 'E0153' }) }))
+    expect(screen.getByText('Left on Jun 30, 2026; nothing is required any more.')).toBeTruthy()
+  })
+
   it('narrow the list to their reports, with a way back to everyone', async () => {
     vi.mocked(getPersonName).mockResolvedValue('Urbanová Tereza')
     await renderServer(EmployeesPage({ searchParams: params({ manager: 'E0001' }) }))
     expect(listEmployees).toHaveBeenCalledWith(expect.objectContaining({ manager: 'E0001' }))
     expect(getPersonName).toHaveBeenCalledWith('E0001')
-    expect(screen.getByText(/Direct reports of Urbanová Tereza/)).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Show everyone' }).getAttribute('href')).toBe(
+    // A filter like the others, in the toolbar, that its own button removes.
+    expect(
+      within(screen.getByRole('search')).getByText(/Direct reports of Urbanová Tereza/)
+    ).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Remove this filter' }).getAttribute('href')).toBe(
       '/employees'
     )
     cleanup()
@@ -463,6 +480,7 @@ describe('employee forms', () => {
   it('keep offering a manager who has left to the people they managed', async () => {
     vi.mocked(listEmployeeOptions).mockResolvedValue([])
     await renderServer(EditEmployeePage(props))
+    expect(await editEmployeeMetadata(props)).toEqual({ title: 'Edit Marie Černá' })
     await userEvent.setup().click(screen.getByRole('combobox', { name: 'Manager' }))
     expect(screen.getByRole('option', { name: 'Urbanová Tereza' })).toBeTruthy()
   })
@@ -519,6 +537,9 @@ describe('employee forms', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Edit completion Z000101 of Černá Marie' })
     ).toBeTruthy()
+    expect(
+      await editCompletionMetadata({ params: params({ externalId: 'E0153', id: 'cmp_1' }) })
+    ).toEqual({ title: 'Edit completion Z000101 of Černá Marie' })
     expect(screen.getByText(/came from an import/)).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'Price (CZK)' })).toHaveProperty('value', '450')
     expect(screen.getByRole('combobox', { name: /Course/ }).textContent).toContain('Starý kurz')
@@ -537,7 +558,29 @@ describe('employee forms', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Record completion for Marie Černá' })
     ).toBeTruthy()
+    expect(await newCompletionMetadata(props)).toEqual({
+      title: 'Record completion for Marie Černá',
+    })
     expect(screen.getByRole('combobox', { name: /Course/ })).toBeTruthy()
     await expectNoAxeViolations()
+  })
+})
+
+describe('employee filters on a phone', () => {
+  it('fold the four selects behind one button that counts what is applied', async () => {
+    await renderServer(
+      EmployeesPage({ searchParams: params({ department: 'Laboratoře', status: 'ACTIVE' }) })
+    )
+    const toggle = screen.getByRole('button', { name: 'Filters (2)' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    const panel = document.getElementById(toggle.getAttribute('aria-controls') ?? '')
+    expect(panel?.className).toContain('hidden')
+    // From `sm` up the button hides and the selects sit in the row.
+    expect(toggle.className).toContain('sm:hidden')
+    expect(panel?.className).toContain('sm:contents')
+    await userEvent.setup().click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(panel?.className).not.toContain('hidden')
+    expect(within(panel as HTMLElement).getAllByRole('combobox')).toHaveLength(4)
   })
 })

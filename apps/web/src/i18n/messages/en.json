@@ -29,7 +29,8 @@
     "keepAsIs": "Keep as is",
     "working": "Working…",
     "failed": "That did not go through. Check the page and try again.",
-    "keepEditing": "Keep editing"
+    "keepEditing": "Keep editing",
+    "ofTotal": "{part} of {total}"
   },
   "nav": {
     "primary": "Main navigation",
@@ -128,7 +129,8 @@
     },
     "byDepartment": {
       "title": "Compliance by department",
-      "description": "Active employees only. Lowest first."
+      "description": "Active employees only. Lowest first.",
+      "empty": "No active employees with mandatory courses yet."
     },
     "upcoming": {
       "title": "Upcoming sessions",
@@ -153,7 +155,8 @@
       "apply": "Filter",
       "reset": "Reset",
       "manager": "Direct reports of {name}",
-      "clearManager": "Show everyone"
+      "clearManager": "Remove this filter",
+      "toggle": "{count, plural, =0 {Filters} other {Filters (#)}}"
     },
     "columns": {
       "name": "Name",
@@ -162,7 +165,7 @@
       "position": "Position",
       "status": "Employment",
       "compliance": "Compliance",
-      "valid": "Valid trainings"
+      "valid": "Held"
     },
     "total": "{count, plural, one {# employee} other {# employees}}",
     "empty": "No employees match these filters.",
@@ -191,9 +194,9 @@
         "inList": "All direct reports in the list",
         "heldOf": "{held} of {total} held"
       },
-      "cancelBookingConfirm": "Cancel the booking for {course}?"
+      "cancelBookingConfirm": "Cancel the booking for {course}?",
+      "leftNothing": "Left on {date}; nothing is required any more."
     },
-    "validOf": "{valid} of {total}",
     "panel": {
       "toggle": "Details for {name}",
       "header": "Details",
@@ -229,7 +232,8 @@
       "complianceDescription": "Across everyone this course is mandatory for.",
       "employee": "Employee",
       "completedOn": "Completed",
-      "validUntil": "Valid until"
+      "validUntil": "Valid until",
+      "nobodyRequired": "Nobody must hold this course yet. Add who it is required for on its edit page."
     },
     "newSession": "New session",
     "newTitle": "New session of {course}",
@@ -264,16 +268,15 @@
     "columns": {
       "course": "Course",
       "date": "Date",
-      "location": "Location",
       "capacity": "Booked",
       "price": "Price per person",
-      "status": "Status"
+      "status": "Status",
+      "room": "Room"
     },
-    "booked": "{booked} / {capacity}",
     "overbooked": "Overbooked",
     "full": "Full",
     "empty": "No sessions to show.",
-    "editTitle": "Edit session {id}",
+    "editTitle": "Edit {name}",
     "attendees": {
       "toggle": "Who is booked on {id}",
       "header": "Attendees",
@@ -282,22 +285,16 @@
       "noneNamed": "Nobody is booked by name yet; the advisor can suggest people.",
       "remove": "Cancel the booking of {name}"
     },
-    "titleAt": "Sessions at {location}",
-    "allLocations": "All locations",
+    "titleAt": "Sessions in {room}",
     "detail": {
-      "title": "Session",
-      "course": "Course",
-      "when": "Date and time",
-      "location": "Location",
-      "status": "Status",
-      "price": "Price per person",
-      "seats": "Seats"
+      "title": "Session"
     },
     "nearlyFull": "Almost full",
     "newTitle": "New session",
     "new": "New session",
     "expanded": {
       "session": "Session",
+      "course": "Course",
       "when": "When",
       "room": "Room",
       "roomSeats": "{seats, plural, one {# seat} other {# seats}}",
@@ -323,9 +320,11 @@
       "via": "Booked through",
       "viaAdvisor": "Advisor",
       "viaManual": "By hand",
-      "bookedOn": "Booked on"
+      "bookedOn": "Booked on",
+      "id": "ID"
     },
-    "roomFilter": "Room"
+    "roomFilter": "Room",
+    "allRooms": "All rooms"
   },
   "compliance": {
     "title": "Compliance matrix",
@@ -383,7 +382,7 @@
       "room_online_not_allowed": "This course is not held online.",
       "room_too_small": "The room has fewer seats than this session opens.",
       "room_missing_capabilities": "The room lacks equipment this course needs.",
-      "company_id": "Enter the 8-digit IČO; this one's check digit does not match.",
+      "company_id": "Enter the 8-digit company ID (IČO); this one's check digit does not match.",
       "room_archived": "The room is archived.",
       "course_archived": "The course is archived.",
       "unavailable": "This choice is no longer available; choose again.",
@@ -435,7 +434,7 @@
       "positionName": "Accountant"
     },
     "course": {
-      "title": "Edit course {code}",
+      "title": "Edit {name}",
       "name": "Name",
       "validityMonths": "Valid for (months)",
       "validityHelp": "Leave empty if the course never expires.",
@@ -566,8 +565,8 @@
       "course": "Create course",
       "courseCreated": "Course created",
       "courseSaved": "Course saved",
-      "employee": "Add employee",
-      "employeeCreated": "Employee added",
+      "employee": "Create employee",
+      "employeeCreated": "Employee created",
       "employeeSaved": "Employee saved",
       "completion": "Record completion",
       "completionCreated": "Completion recorded",
@@ -581,8 +580,8 @@
       "room": "Create room",
       "roomCreated": "Room created",
       "roomSaved": "Room saved",
-      "provider": "Add provider",
-      "providerCreated": "Provider added",
+      "provider": "Create provider",
+      "providerCreated": "Provider created",
       "providerSaved": "Provider saved",
       "session": "Schedule session",
       "sessionCreated": "Session scheduled",
@@ -697,7 +696,7 @@
       "courseCode": "Course",
       "date": "Date",
       "time": "Time",
-      "location": "Location",
+      "location": "Room",
       "capacity": "Capacity",
       "bookedCount": "Booked",
       "price": "Price",
@@ -811,6 +810,11 @@
         "title": "Provider not found",
         "body": "This provider does not exist, or it was deleted.",
         "back": "All providers"
+      },
+      "users": {
+        "title": "User not found",
+        "body": "This user does not exist, or they were archived.",
+        "back": "All users"
       }
     }
   },
@@ -866,7 +870,7 @@
     "columns": {
       "rank": "Order",
       "person": "Person",
-      "training": "Training",
+      "training": "Course",
       "lapses": "Lapses",
       "remediation": "Remediation",
       "window": "Without the training",
@@ -918,7 +922,7 @@
         "title": "Book {count, plural, one {# person} other {# people}}?",
         "body": "Each person is booked on the session shown. Every booking is checked again as it is saved: free seats, clashes, and whether the training is still due.",
         "person": "Person",
-        "training": "Training",
+        "training": "Course",
         "session": "Session",
         "price": "Price",
         "total": "Total: {cost}",
@@ -936,12 +940,6 @@
       "empty": "Nothing is booked yet.",
       "cancel": "Cancel booking",
       "removeConfirm": "Cancel the booking of {name} on {session}?"
-    },
-    "table": {
-      "pagination": "Pages",
-      "previous": "Previous",
-      "next": "Next",
-      "page": "Page {page} of {pageCount}"
     },
     "rules": {
       "title": "How the advisor decides",
@@ -1094,7 +1092,7 @@
     "empty": "No providers yet. Imports and recorded completions add them by name.",
     "columns": {
       "name": "Provider",
-      "companyId": "IČO",
+      "companyId": "Company ID (IČO)",
       "completions": "Completions",
       "people": "People",
       "courses": "Courses",
@@ -1103,7 +1101,7 @@
     },
     "detail": {
       "facts": "Provider",
-      "companyId": "IČO",
+      "companyId": "Company ID (IČO)",
       "email": "Email",
       "phone": "Phone",
       "website": "Website",
@@ -1130,14 +1128,15 @@
         "completedOn": "Completed",
         "validUntil": "Valid until",
         "price": "Price"
-      }
+      },
+      "noRecent": "Completions recorded with this provider are listed here."
     },
     "form": {
       "newTitle": "New provider",
       "editTitle": "Edit {name}",
       "name": "Name",
       "nameHelp": "Renaming changes the name on every completion with this provider.",
-      "companyId": "IČO",
+      "companyId": "Company ID (IČO)",
       "companyIdHelp": "8 digits; spaces are fine.",
       "email": "Email",
       "phone": "Phone",
@@ -1162,7 +1161,8 @@
       "courses": "Mandatory courses",
       "coursesDescription": "Share held per course, active people only.",
       "people": "People",
-      "peopleDescription": "{count, plural, =0 {Nobody works here yet.} one {# person who has not left.} other {# people who have not left.}}"
+      "peopleDescription": "{count, plural, one {# person who has not left.} other {# people who have not left.}}",
+      "noPeople": "Nobody works here yet."
     },
     "courseColumns": {
       "course": "Course",
@@ -1178,7 +1178,6 @@
       "status": "Employment",
       "held": "Held",
       "attention": "Needs attention",
-      "heldOf": "{held} / {total}",
       "allValid": "All held",
       "nothingRequired": "Nothing required",
       "booked": "booked for {date}",
@@ -1270,7 +1269,6 @@
       "RUNS_PAST_MIDNIGHT": "At its usual time and length a session would end after midnight.",
       "NO_FREE_SLOT": "No free slot in the next {days} days."
     },
-    "rule": "Trainings no session can take are grouped by course and due date (lapsed ones within two weeks, the rest the day before they lapse) and split by the course's group size, or by the largest room that suits it. Each session gets the first working day from tomorrow (weekends and public holidays are not) with a valid room free at the course's usual time: online if the course allows it, otherwise a room with everything the course needs and enough seats, rooms used before first.",
     "readOnly": "Only admins can create sessions.",
     "otherRooms": "or {rooms}",
     "review": {
@@ -1311,6 +1309,13 @@
       "lapses": "Lapses on",
       "rooms": "Other rooms free then",
       "noRooms": "No other suitable room is free then."
+    },
+    "rules": {
+      "title": "How the planner decides",
+      "group": "Trainings no existing session can take are grouped by course and due date: lapsed ones within two weeks, the rest the day before they lapse.",
+      "split": "Each group is split by the course's group size, or by the largest room that suits it.",
+      "day": "Each session gets the first working day from tomorrow (weekends and public holidays are not) with a suitable room free at the course's usual time.",
+      "room": "A suitable room is online if the course allows it, otherwise one with everything the course needs and enough seats; rooms used before come first."
     }
   },
   "landing": {
@@ -1386,7 +1391,8 @@
       "roleLosesAdmin": "They stop being an admin: no more editing, booking, importing or changing roles.",
       "roleApplies": "It applies within five minutes, or at their next sign-in.",
       "roleChanged": "Role changed to {role}"
-    }
+    },
+    "empty": "Nobody has signed in yet."
   },
   "archive": {
     "archived": "archived",
@@ -1421,7 +1427,7 @@
       "code": "code",
       "externalId": "ID",
       "email": "email",
-      "companyId": "IČO",
+      "companyId": "Company ID (IČO)",
       "clerkId": "sign-in account",
       "department": "Department",
       "position": "Position",
@@ -1491,8 +1497,7 @@
         "name": "Name",
         "when": "Date",
         "archivedAt": "Archived on",
-        "archivedBy": "Archived by",
-        "actions": "Actions"
+        "archivedBy": "Archived by"
       }
     },
     "record": {
@@ -1508,6 +1513,7 @@
   },
   "bookings": {
     "add": "Book",
+    "booking": "Booking…",
     "choose": "Choose whom or what to book first.",
     "noneLeft": "Nothing left to book here.",
     "refused": "Not booked: {reason}.",

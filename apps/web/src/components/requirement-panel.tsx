@@ -36,7 +36,11 @@ export function RequirementPanel({
   )
 }
 
-function RequirementTable({ requirements }: { requirements: EmployeeListRequirement[] }) {
+/**
+ * Each required course: its state, until when it is valid (and in how many days), when it was
+ * last completed and the booking that renews it. The row panel and the person's page share it.
+ */
+export function RequirementTable({ requirements }: { requirements: EmployeeListRequirement[] }) {
   const t = useTranslations('employees.panel')
   const tc = useTranslations('common')
   const locale = useLocale()

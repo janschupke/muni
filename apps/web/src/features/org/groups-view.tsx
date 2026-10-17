@@ -1,12 +1,11 @@
 'use client'
 
-import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 
-import { ListActions } from '@/components/list-actions'
+import { ListActions, ListEmpty } from '@/components/list-actions'
 import { ReadView } from '@/components/read-view'
 import { TableSkeleton } from '@/components/skeletons'
 import { readQuery } from '@/lib/query/queries'
@@ -58,22 +57,25 @@ function GroupsPage<G>({
   children: (groups: G[]) => ReactNode
 }) {
   const t = useTranslations(kind)
+  const create = canEdit && { href: `/${kind}/new`, label: t('new') }
   return (
     <>
       <PageHeader
         title={t('title')}
         description={t('description')}
         actions={
-          canEdit && (
+          create && (
             <ListActions
               kind={kind === 'departments' ? 'department' : 'position'}
-              create={{ href: `/${kind}/new`, label: t('new') }}
+              create={create}
             />
           )
         }
       />
       <ReadView titled query={read} skeleton={<TableSkeleton columns={4} />}>
-        {groups => (groups.length === 0 ? <EmptyState title={t('empty')} /> : children(groups))}
+        {groups =>
+          groups.length === 0 ? <ListEmpty title={t('empty')} create={create} /> : children(groups)
+        }
       </ReadView>
     </>
   )

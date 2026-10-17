@@ -87,13 +87,3 @@ export function SessionCell({
     />
   )
 }
-
-export function usePaginationLabels() {
-  const t = useTranslations('advisor.table')
-  return {
-    nav: t('pagination'),
-    previous: t('previous'),
-    next: t('next'),
-    status: (page: number, pageCount: number) => t('page', { page, pageCount }),
-  }
-}

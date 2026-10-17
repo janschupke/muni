@@ -8,7 +8,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
-const ENTITIES = [
+/** The lists everyone signed in can open: where a lost reader can go next. */
+const LISTS = [
   'employees',
   'courses',
   'sessions',
@@ -17,7 +18,7 @@ const ENTITIES = [
   'departments',
   'positions',
 ] as const
-export type Entity = (typeof ENTITIES)[number]
+export type Entity = (typeof LISTS)[number] | 'users'
 
 /** "Page not found" naming the address, or, under a record's route, which record is missing. */
 export function NotFoundMessage({ entity }: { entity?: Entity | undefined }) {
@@ -59,7 +60,7 @@ export function NotFoundMessage({ entity }: { entity?: Entity | undefined }) {
     >
       <p className="mb-2">{t('goTo')}</p>
       <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1">
-        {ENTITIES.map(e => (
+        {LISTS.map(e => (
           <li key={e}>
             <TextLink asChild>
               <Link href={`/${e}`}>{tn(e)}</Link>

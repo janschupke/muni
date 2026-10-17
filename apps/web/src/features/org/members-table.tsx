@@ -5,12 +5,13 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { Meter } from '@muni/ui/meter'
 import { CellStack, Table, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
-import { formatDateTime, formatInteger, PLACEHOLDER } from '@muni/utils/format'
+import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { OrgLink } from '@/components/org-links'
 import { ComplianceBadge, EmploymentBadge, rateTone } from '@/components/status-badges'
+import { useOfTotal } from '@/lib/use-of-total'
 
 /**
  * A department's or position's people, one record each: where else they sit, their
@@ -30,6 +31,7 @@ export function MembersTable({
 }) {
   const t = useTranslations('org.members')
   const locale = useLocale()
+  const ofTotal = useOfTotal()
   if (members.length === 0) return <EmptyState variant="inline" title={t('none')} />
   return (
     <DetailPanel title={t('title')} count={members.length} flush>
@@ -85,10 +87,7 @@ export function MembersTable({
                           tone={rateTone(held / m.counts.total)}
                         />
                       }
-                      value={t('heldOf', {
-                        held: formatInteger(held, locale),
-                        total: formatInteger(m.counts.total, locale),
-                      })}
+                      value={ofTotal(held, m.counts.total)}
                     />
                   )}
                 </Td>

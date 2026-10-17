@@ -20,7 +20,7 @@ import { NotFoundError, router } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
 import AdvisorPage, { generateMetadata as advisorMetadata } from '../advisor/page'
-import EditSessionPage from './[externalId]/edit/page'
+import EditSessionPage, { generateMetadata as editSessionMetadata } from './[externalId]/edit/page'
 import SessionPage, { generateMetadata as sessionMetadata } from './[externalId]/page'
 import NewSessionsPage, { generateMetadata as newSessionMetadata } from './new/page'
 import SessionsPage, { generateMetadata as listMetadata } from './page'
@@ -116,11 +116,11 @@ describe('session list', () => {
 
   it('filters by room and keeps it across the upcoming/past tabs', async () => {
     expect(await listMetadata(search({ room: 'room_aula_a' }))).toEqual({
-      title: 'Sessions at Aula A',
+      title: 'Sessions in Aula A',
     })
     await renderServer(SessionsPage(search({ when: 'past', room: 'room_aula_a' })))
     expect(listSessions).toHaveBeenCalledWith({ window: 'past', room: 'room_aula_a' })
-    expect(screen.getByRole('heading', { level: 1, name: 'Sessions at Aula A' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Sessions in Aula A' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Upcoming' }).getAttribute('href')).toBe(
       '/sessions?room=room_aula_a'
     )
@@ -129,7 +129,7 @@ describe('session list', () => {
     const filter = screen.getByRole('combobox', { name: 'Room' })
     expect(filter.textContent).toContain('Aula A')
     await userEvent.setup().click(filter)
-    await userEvent.setup().click(screen.getByRole('option', { name: 'All locations' }))
+    await userEvent.setup().click(screen.getByRole('option', { name: 'All rooms' }))
     expect(router.push).toHaveBeenCalledWith('/sessions?when=past')
   })
 
@@ -193,7 +193,14 @@ describe('session detail', () => {
       '/rooms/room_aula_a'
     )
     expect(screen.getByRole('meter', { name: 'Seats' }).getAttribute('aria-valuenow')).toBe('30')
-    expect(screen.getByText('Full')).toBeTruthy()
+    expect(screen.getByText('1 by name · 29 without a name · none free')).toBeTruthy()
+    // Everything the opened row shows: whether the room suits it, and who each person is.
+    expect(screen.getByText('The room suits it.')).toBeTruthy()
+    const people = screen.getByRole('table', { name: 'Booked by name' })
+    expect(within(people).getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
+      '/departments/dep_lab'
+    )
+    expect(within(people).getByText('Advisor')).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Cancel the booking/ })).toBeNull()
   })
@@ -248,7 +255,12 @@ describe('session edit', () => {
   it('edits a session for admins, with Save and Cancel on the heading row', async () => {
     await renderServer(EditSessionPage(props))
     expect(requireAdminPage).toHaveBeenCalled()
-    expect(screen.getByRole('heading', { level: 1, name: 'Edit session T016' })).toBeTruthy()
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Edit T016 · BOZP – základní školení' })
+    ).toBeTruthy()
+    expect(await editSessionMetadata(props)).toEqual({
+      title: 'Edit T016 · BOZP – základní školení',
+    })
     expect(screen.getByRole('combobox', { name: /Room/ }).textContent).toContain('Aula A')
     // Its course can change too.
     expect(screen.getByRole('combobox', { name: /Course/ }).textContent).toContain('BOZP-Z')

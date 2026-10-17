@@ -128,7 +128,7 @@ for (const theme of ['light', 'dark'] as const) {
       await page.goto('/employees/new')
       await loaded(page)
       await shot(page, 'form-employee-new-disabled-checkbox')
-      await page.getByRole('button', { name: 'Add employee' }).click()
+      await page.getByRole('button', { name: 'Create employee' }).click()
       await shot(page, 'form-employee-new-submitted')
 
       await page.goto('/users')
@@ -150,18 +150,9 @@ for (const theme of ['light', 'dark'] as const) {
       await page.keyboard.press('Escape')
     })
 
-    test('skeletons', async ({ page }) => {
-      // Reads never answer, so every page stays on its skeleton.
-      await page.route('**/api/read/**', () => new Promise(() => undefined))
-      for (const route of ['/', '/employees', '/employees/E0153', '/courses/BOZP-Z/edit']) {
-        await page.goto(route)
-        await expect(page.locator('[aria-busy="true"]').first()).toBeVisible()
-        await shot(
-          page,
-          `skeleton-${route === '/' ? 'overview' : route.slice(1).replaceAll('/', '-')}`
-        )
-      }
-    })
+    // No skeleton shots: pages arrive with their data from the server, so a skeleton shows
+    // only when that read fails (past the read limit, a database error), which a browser
+    // cannot cause. components.test.tsx renders each one.
 
     test('sidebar collapsed, phone drawer, phone page', async ({ page }) => {
       await page.goto('/courses')
@@ -174,6 +165,20 @@ for (const theme of ['light', 'dark'] as const) {
       await page.getByRole('button', { name: 'Menu', exact: true }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
       await shot(page, 'phone-drawer', false)
+      await page.keyboard.press('Escape')
+      // The list scrolled sideways keeps the name in view; the filters fold behind a button.
+      await page.goto('/employees')
+      await loaded(page)
+      await shot(page, 'phone-employees', false)
+      await page.getByRole('button', { name: /^Filters/ }).click()
+      await shot(page, 'phone-employees-filters', false)
+      await page.getByRole('table', { name: 'Employees' }).evaluate(table => {
+        table.parentElement?.scrollBy({ left: 400 })
+      })
+      await shot(page, 'phone-employees-scrolled', false)
+      await page.goto('/sessions/T016')
+      await loaded(page)
+      await shot(page, 'phone-session')
     })
 
     test('advisor: choosing, booking and resolving, asked before anything is done', async ({

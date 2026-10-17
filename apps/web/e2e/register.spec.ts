@@ -21,7 +21,7 @@ test.describe('Czech browser', () => {
     await page.goto('/')
     await expect(page.getByRole('heading', { level: 1, name: 'Přehled' })).toBeVisible()
     await expect(page.getByText('Aktivní zaměstnanci', { exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Plnění podle útvarů' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Plnění podle oddělení' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Laboratoře' })).toBeVisible()
     // Viewers get no administration: no import link.
     await expect(page.getByRole('link', { name: 'Import' })).toHaveCount(0)
@@ -175,7 +175,7 @@ test.describe('register (viewer)', () => {
     const detail = page.locator(`#${(await toggle.getAttribute('aria-controls')) ?? ''}`)
     await expect(detail.getByRole('columnheader', { name: 'Valid until' })).toBeVisible()
     await expect(detail.getByText(/in \d+ days|ago/).first()).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Valid trainings' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Held' })).toBeVisible()
   })
 
   test('back links return to the page the reader came from, filters included', async ({ page }) => {

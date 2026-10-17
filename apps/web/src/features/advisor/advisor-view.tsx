@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
 import { ReadView } from '@/components/read-view'
-import { ListSkeleton } from '@/components/skeletons'
+import { AdvisorSkeleton } from '@/components/skeletons'
 import { readQuery } from '@/lib/query/queries'
 import type { ReadOutput } from '@/server/reads/registry'
 
@@ -31,7 +31,7 @@ export function AdvisorView({
   return (
     <>
       <PageHeader title={t('title')} description={t('description', { months: FORECAST_MONTHS })} />
-      <ReadView titled query={read} skeleton={<ListSkeleton columns={6} />}>
+      <ReadView titled query={read} skeleton={<AdvisorSkeleton />}>
         {({ plan, asOf }) => (
           <AdvisorWorkbench
             plan={plan}

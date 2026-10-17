@@ -201,7 +201,7 @@ describe('ImportWizard', () => {
     expect(alerts).toEqual([
       'obri.csv is larger than 10 MB.',
       'prazdny.csv: the file is empty.',
-      'terminy.csv: required columns are missing: Location, Capacity.',
+      'terminy.csv: required columns are missing: Room, Capacity.',
     ])
     expect(screen.getByText(/delimiter “TAB” · 1 row/)).toBeTruthy()
     expect(screen.getByText('Ignored columns: barva')).toBeTruthy()

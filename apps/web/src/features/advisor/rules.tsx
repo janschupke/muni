@@ -1,6 +1,7 @@
 import { FORECAST_MONTHS } from '@muni/domain/advisor'
-import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { useTranslations } from 'next-intl'
+
+import { RulesCard } from '@/components/rules-card'
 
 const RULES = ['scope', 'remedied', 'overbooking', 'order', 'choice', 'unplaced'] as const
 
@@ -8,15 +9,6 @@ const RULES = ['scope', 'remedied', 'overbooking', 'order', 'choice', 'unplaced'
 export function AdvisorRules() {
   const t = useTranslations('advisor.rules')
   return (
-    <Card>
-      <CardHeader title={t('title')} />
-      <CardBody>
-        <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm text-fg-muted marker:text-fg-subtle">
-          {RULES.map(rule => (
-            <li key={rule}>{t(rule, { months: FORECAST_MONTHS })}</li>
-          ))}
-        </ol>
-      </CardBody>
-    </Card>
+    <RulesCard title={t('title')} rules={RULES.map(rule => t(rule, { months: FORECAST_MONTHS }))} />
   )
 }

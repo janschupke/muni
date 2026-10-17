@@ -1,22 +1,21 @@
 'use client'
 
 import type { SessionListItem } from '@muni/db/repositories'
-import { roomMismatch } from '@muni/domain/rooms'
-import { Badge } from '@muni/ui/badge'
 import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable } from '@muni/ui/data-table'
-import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { DetailGrid, DetailPanel } from '@muni/ui/detail-panel'
 import { EmptyState } from '@muni/ui/empty-state'
 import { Meter } from '@muni/ui/meter'
-import { CellStack, Table, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
-import { toZonedParts } from '@muni/utils/dates'
-import { formatCurrency, formatDate, formatTimeRange, PLACEHOLDER } from '@muni/utils/format'
+import { CellStack } from '@muni/ui/table'
+import { formatCurrency } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
-import { PersonLink, RecordLink } from './archived'
+import { useOfTotal } from '@/lib/use-of-total'
+
+import { RecordLink } from './archived'
 import { RowActions } from './record-actions'
+import { SessionAttendees, SessionFacts } from './session-details'
 import { RoomLink, SessionDateLink } from './session-links'
 import { OccupancyBadge, seatTone, SessionStatusBadge } from './status-badges'
 
@@ -43,6 +42,7 @@ export function SessionTable({
   const t = useTranslations('sessions')
   const tc = useTranslations('common')
   const locale = useLocale()
+  const ofTotal = useOfTotal()
 
   const columns = useMemo(
     () =>
@@ -52,6 +52,8 @@ export function SessionTable({
               col.accessor('courseName', {
                 id: 'course',
                 header: t('columns.course'),
+                // On a phone the table scrolls sideways; the name stays in view.
+                meta: { sticky: 'left' },
                 sortFn: 'text',
                 cell: ({ row }) => (
                   <CellStack
@@ -91,8 +93,8 @@ export function SessionTable({
           ? []
           : [
               col.accessor(s => s.room.name, {
-                id: 'location',
-                header: t('columns.location'),
+                id: 'room',
+                header: t('columns.room'),
                 sortFn: 'text',
                 cell: ({ row }) => <RoomLink room={row.original.room} />,
               }),
@@ -115,10 +117,7 @@ export function SessionTable({
                   tone={seatTone(row.original.bookedCount, row.original.capacity)}
                 />
               }
-              value={t('booked', {
-                booked: row.original.bookedCount,
-                capacity: row.original.capacity,
-              })}
+              value={ofTotal(row.original.bookedCount, row.original.capacity)}
               after={
                 <OccupancyBadge
                   booked={row.original.bookedCount}
@@ -154,7 +153,7 @@ export function SessionTable({
                   <RowActions
                     kind="session"
                     id={row.original.id}
-                    name={row.original.externalId}
+                    name={`${row.original.externalId} · ${row.original.courseName}`}
                     editHref={`/sessions/${row.original.externalId}/edit`}
                   />
                 ),
@@ -162,7 +161,7 @@ export function SessionTable({
             ]
           : []),
       ]),
-    [canEdit, compact, locale, showCourse, t, tc]
+    [canEdit, compact, locale, ofTotal, showCourse, t, tc]
   )
 
   return (
@@ -184,113 +183,23 @@ export function SessionTable({
 
 /**
  * An opened session: the session itself (when, the room against what the course needs, the
- * seats, the price, the status) and who is booked on it by name, how and when.
+ * seats, the price, the status) and who is booked on it by name, how and when. Its page shows
+ * the same two parts.
  */
 function SessionDetails({ session: s, level }: { session: SessionListItem; level: 2 | 3 }) {
   const t = useTranslations('sessions.expanded')
   const ta = useTranslations('sessions.attendees')
-  const tu = useTranslations('forms.session.unfit')
-  const tcap = useTranslations('status.capability')
-  const locale = useLocale()
   const named = s.bookings.length
-  const free = Math.max(0, s.capacity - s.bookedCount)
-  const over = Math.max(0, s.bookedCount - s.capacity)
-  const room = { ...s.room, capacity: s.roomSeats, capabilities: s.roomCapabilities }
-  const unfit = roomMismatch(room, s.needs, s.capacity)
-  const needs = [
-    ...(s.needs.sessionMinutes === null ? [] : [t('minutes', { count: s.needs.sessionMinutes })]),
-    ...(s.needs.groupSize === null ? [] : [t('groupSize', { count: s.needs.groupSize })]),
-    ...(s.needs.onlineAllowed ? [t('canBeOnline')] : []),
-    ...(s.needs.capabilities.length > 0
-      ? [t('equipment', { list: s.needs.capabilities.map(c => tcap(c)).join(', ') })]
-      : []),
-  ]
   return (
     <DetailGrid layout="narrow-wide">
       <DetailPanel title={t('session')} level={level}>
-        <DescriptionList>
-          <DescriptionItem label={t('when')}>
-            {formatTimeRange(s.startsAt, s.endsAt, locale)}
-          </DescriptionItem>
-          <DescriptionItem label={t('room')}>
-            <span className="flex flex-col gap-0.5">
-              <span>
-                <RoomLink room={s.room} />
-                {' · '}
-                {s.roomSeats === null ? t('roomOnline') : t('roomSeats', { seats: s.roomSeats })}
-              </span>
-              <span className={unfit ? 'text-danger-fg' : 'text-fg-muted'}>
-                {unfit ? t('unfit', { reason: tu(unfit.kind) }) : t('fits')}
-              </span>
-            </span>
-          </DescriptionItem>
-          {needs.length > 0 && (
-            <DescriptionItem label={t('needs')}>{needs.join(' · ')}</DescriptionItem>
-          )}
-          <DescriptionItem label={t('seats')}>
-            <BarRow
-              layout="inline"
-              bar={
-                <Meter
-                  value={s.bookedCount}
-                  max={s.capacity}
-                  label={t('seats')}
-                  tone={seatTone(s.bookedCount, s.capacity)}
-                />
-              }
-              value={`${String(s.bookedCount)} / ${String(s.capacity)}`}
-            />
-            <span className="mt-1 block text-xs text-fg-muted">
-              {t('seatsText', { named, unnamed: s.unnamedBookings, free })}
-              {over > 0 && <span className="text-danger-fg"> · {t('over', { count: over })}</span>}
-            </span>
-          </DescriptionItem>
-          <DescriptionItem label={t('price')}>
-            {s.pricePerPerson === null
-              ? t('noPrice')
-              : t('priceText', {
-                  price: formatCurrency(s.pricePerPerson, locale),
-                  total: formatCurrency(s.pricePerPerson * s.bookedCount, locale),
-                  booked: s.bookedCount,
-                })}
-          </DescriptionItem>
-          <DescriptionItem label={t('status')}>
-            <SessionStatusBadge status={s.status} />
-          </DescriptionItem>
-        </DescriptionList>
+        <SessionFacts session={s} />
       </DetailPanel>
       <DetailPanel title={t('people')} count={named} flush={named > 0} level={level}>
         {named === 0 ? (
           <EmptyState variant="inline" title={ta('noneNamed')} />
         ) : (
-          <Table density="compact" aria-label={t('people')}>
-            <THead>
-              <tr>
-                <Th>{t('person')}</Th>
-                <Th>{t('department')}</Th>
-                <Th>{t('position')}</Th>
-                <Th>{t('via')}</Th>
-                <Th>{t('bookedOn')}</Th>
-              </tr>
-            </THead>
-            <TBody>
-              {s.bookings.map(b => (
-                <Tr key={b.person.archived ? b.person.tag : b.person.externalId}>
-                  <Td>
-                    <PersonLink person={b.person} />
-                  </Td>
-                  <Td>{b.department ?? PLACEHOLDER}</Td>
-                  <Td>{b.position ?? PLACEHOLDER}</Td>
-                  <Td>
-                    <Badge tone={b.source === 'ADVISOR' ? 'accent' : 'neutral'}>
-                      {b.source === 'ADVISOR' ? t('viaAdvisor') : t('viaManual')}
-                    </Badge>
-                  </Td>
-                  <Td nowrap>{formatDate(toZonedParts(b.bookedAt).date, locale)}</Td>
-                </Tr>
-              ))}
-            </TBody>
-          </Table>
+          <SessionAttendees session={s} />
         )}
       </DetailPanel>
     </DetailGrid>

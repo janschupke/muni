@@ -8,10 +8,20 @@ import { upcomingSessionWhere } from './sessions'
 /** Soonest named booking per `${employeeId}|${courseId}`. */
 export type NextBookings = Map<string, { sessionExternalId: string; startsAt: string }>
 
-/** Each person's soonest named booking per course, among planned sessions still ahead. */
-export async function loadNextBookings(db: Db, now = new Date()): Promise<NextBookings> {
+/**
+ * Each person's soonest named booking per course, among planned sessions still ahead; only
+ * `employeeIds`' when given (one person's page).
+ */
+export async function loadNextBookings(
+  db: Db,
+  now = new Date(),
+  employeeIds?: readonly string[]
+): Promise<NextBookings> {
   const bookings = await db.sessionAssignment.findMany({
-    where: { session: upcomingSessionWhere(now) },
+    where: {
+      session: upcomingSessionWhere(now),
+      ...(employeeIds && { employeeId: { in: [...employeeIds] } }),
+    },
     select: {
       employeeId: true,
       session: { select: { externalId: true, startsAt: true, courseId: true } },
@@ -39,7 +49,7 @@ export interface RequirementContext {
 }
 
 /** The course a cell is about. Cells come from the mandatory courses, which callers load. */
-export function courseOf<C>(courses: ReadonlyMap<string, C>, cell: ComplianceCell): C {
+function courseOf<C>(courses: ReadonlyMap<string, C>, cell: ComplianceCell): C {
   const course = courses.get(cell.courseId)
   if (!course) throw new Error(`No course ${cell.courseId} for a compliance cell`)
   return course

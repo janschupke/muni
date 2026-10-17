@@ -121,6 +121,16 @@ function sourceLiterals(): Set<string> {
   return literals
 }
 
+/**
+ * One word per thing (the README's glossary). Each pattern is a word that lost: a booking is
+ * a rezervace, never a přihláška (přihlásit se is signing in); a department is an oddělení;
+ * a provider is a poskytovatel; a room is a Room, never a location.
+ */
+const LOSING_TERMS: Record<'cs' | 'en', readonly RegExp[]> = {
+  cs: [/přihlášk/i, /útvar/i, /dodavatel/i],
+  en: [/\blocations?\b/i, /\bIČO\b(?! *\))/],
+}
+
 describe('message catalogs', () => {
   const csLeaves = leaves(cs)
   const enLeaves = leaves(en)
@@ -148,6 +158,21 @@ describe('message catalogs', () => {
         .filter(k => k.startsWith(`${family}.`))
         .map(k => k.slice(family.length + 1))
       expect(keys.sort(), family).toEqual([...values].sort())
+    }
+  })
+
+  it('use one word per thing, as the glossary says', () => {
+    for (const [locale, catalog] of [
+      ['cs', csLeaves],
+      ['en', enLeaves],
+    ] as const) {
+      const losing = [...catalog].filter(([, value]) =>
+        LOSING_TERMS[locale].some(term => term.test(String(value)))
+      )
+      expect(
+        losing.map(([key]) => key),
+        locale
+      ).toEqual([])
     }
   })
 

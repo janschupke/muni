@@ -23,9 +23,11 @@ import { params, renderServer } from '@/test/render'
 
 import CompliancePage, { generateMetadata as complianceMetadata } from '../compliance/page'
 import ImportPage, { generateMetadata as importMetadata } from '../import/page'
-import EditCoursePage from './[code]/edit/page'
+import EditCoursePage, { generateMetadata as editCourseMetadata } from './[code]/edit/page'
 import CoursePage, { generateMetadata as courseMetadata } from './[code]/page'
-import NewSessionPage from './[code]/sessions/new/page'
+import NewSessionPage, {
+  generateMetadata as newCourseSessionMetadata,
+} from './[code]/sessions/new/page'
 import NewCoursePage, { generateMetadata as newCourseMetadata } from './new/page'
 import CoursesPage, { generateMetadata as listMetadata } from './page'
 
@@ -178,10 +180,11 @@ describe('course detail', () => {
     await renderServer(CoursePage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'BOZP – základní školení' })).toBeTruthy()
     expect(screen.getByText('BOZP-Z · 24 months')).toBeTruthy()
-    // Who must hold it, each department and position linking to its page.
-    expect(screen.getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
-      '/departments/dep_lab'
-    )
+    // Who must hold it, each department and position linking to its page; the department
+    // again under compliance by department, as the course's opened row shows it.
+    for (const link of screen.getAllByRole('link', { name: 'Laboratoře' }))
+      expect(link.getAttribute('href')).toBe('/departments/dep_lab')
+    expect(screen.getByRole('heading', { level: 2, name: 'A session needs' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Vedoucí oddělení' }).getAttribute('href')).toBe(
       '/positions/pos_head'
     )
@@ -190,7 +193,8 @@ describe('course detail', () => {
         (_, el) => el?.tagName === 'LI' && el.textContent === 'Department: Laboratoře'
       )
     ).toBeTruthy()
-    expect(screen.getByText('70%')).toBeTruthy()
+    // The course's rate, and Laboratoře's in the breakdown by department.
+    expect(screen.getAllByText('70%')).toHaveLength(2)
     expect(screen.getByRole('link', { name: 'Černá Marie' }).getAttribute('href')).toBe(
       '/employees/E0153'
     )
@@ -207,10 +211,18 @@ describe('course detail', () => {
       '/courses/BOZP-Z/edit'
     )
     expect(screen.getByRole('button', { name: 'Archive' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Edit T016' }).getAttribute('href')).toBe(
-      '/sessions/T016/edit'
-    )
-    expect(screen.getByRole('button', { name: 'Archive T016' })).toBeTruthy()
+    expect(
+      screen.getByRole('link', { name: 'Edit T016 · BOZP – základní školení' }).getAttribute('href')
+    ).toBe('/sessions/T016/edit')
+    expect(
+      screen.getByRole('button', { name: 'Archive T016 · BOZP – základní školení' })
+    ).toBeTruthy()
+    // Each recent completion can be corrected or archived from here too.
+    expect(
+      screen
+        .getByRole('link', { name: 'Edit Z000101 · BOZP – základní školení' })
+        .getAttribute('href')
+    ).toBe('/employees/E0153/completions/cmp_Z000101/edit')
     await expectNoAxeViolations()
   })
 
@@ -234,7 +246,10 @@ describe('course detail', () => {
     vi.mocked(getCourseForEdit).mockResolvedValue(courseForEdit({ departmentIds: ['dep_lab'] }))
     await renderServer(EditCoursePage(props))
     expect(requireAdminPage).toHaveBeenCalled()
-    expect(screen.getByRole('heading', { level: 1, name: 'Edit course BOZP-Z' })).toBeTruthy()
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Edit BOZP – základní školení' })
+    ).toBeTruthy()
+    expect(await editCourseMetadata(props)).toEqual({ title: 'Edit BOZP – základní školení' })
     expect(screen.getByRole('textbox', { name: 'Name' })).toHaveProperty(
       'value',
       'BOZP – základní školení'
@@ -291,6 +306,9 @@ describe('new session', () => {
     cleanup()
     await renderServer(NewSessionPage(props))
     expect(requireAdminPage).toHaveBeenCalled()
+    expect(await newCourseSessionMetadata(props)).toEqual({
+      title: 'New session of BOZP – základní školení',
+    })
     expect(
       screen.getByRole('heading', { level: 1, name: 'New session of BOZP – základní školení' })
     ).toBeTruthy()

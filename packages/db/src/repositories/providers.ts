@@ -44,6 +44,8 @@ export interface ProviderDetail extends ProviderListItem {
   byCourse: (ProviderTotals & { code: string; name: string })[]
   /** The newest completions, newest first. */
   recentCompletions: {
+    /** Internal id (editing and archiving act on it). */
+    id: string
     externalId: string
     employee: PersonRef
     courseCode: string
@@ -159,6 +161,7 @@ export async function getProvider(
       orderBy: [{ completedOn: 'desc' }, { externalId: 'desc' }],
       take: RECENT_COMPLETIONS,
       select: {
+        id: true,
         externalId: true,
         completedOn: true,
         validUntil: true,
@@ -176,6 +179,7 @@ export async function getProvider(
     prices,
     byCourse: perCourse.map(row => ({ code: row.code, name: row.name, ...totalsOf(row, prices) })),
     recentCompletions: recent.map(c => ({
+      id: c.id,
       externalId: c.externalId,
       employee: toPersonRef(c.employee),
       courseCode: c.course.code,

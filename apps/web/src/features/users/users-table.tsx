@@ -17,7 +17,10 @@ const col = createDataColumns<UserListItem>()
 /** Sorting by role puts admins first. */
 const rank = (role: Role) => ROLES.length - ROLES.indexOf(role)
 
-/** Everyone with access and their role; each opens to change the role, or archive the user. */
+/**
+ * Everyone with access and their role. The name opens the user, where the role changes; the
+ * row's only action is archiving, since editing is that same page.
+ */
 export function UsersTable({ users }: { users: UserListItem[] }) {
   const tcommon = useTranslations('common')
   const t = useTranslations('users.columns')
@@ -29,6 +32,8 @@ export function UsersTable({ users }: { users: UserListItem[] }) {
         col.accessor(u => u.name ?? undefined, {
           id: 'name',
           header: t('name'),
+          // On a phone the table scrolls sideways; the name stays in view.
+          meta: { sticky: 'left' },
           sortFn: 'text',
           cell: ({ row, getValue }) => (
             <TextLink asChild emphasis>
@@ -69,7 +74,6 @@ export function UsersTable({ users }: { users: UserListItem[] }) {
               kind="user"
               id={row.original.id}
               name={row.original.name ?? row.original.email ?? row.original.id}
-              editHref={`/users/${row.original.id}`}
             />
           ),
         }),

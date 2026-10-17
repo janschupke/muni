@@ -13,7 +13,7 @@ import { ONLINE, roomDetail, roomRow } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
-import EditRoomPage from './[id]/edit/page'
+import EditRoomPage, { generateMetadata as editRoomMetadata } from './[id]/edit/page'
 import RoomPage, { generateMetadata as roomMetadata } from './[id]/page'
 import NewRoomPage, { generateMetadata as newMetadata } from './new/page'
 import RoomsPage, { generateMetadata as listMetadata } from './page'
@@ -82,8 +82,11 @@ describe('room list', () => {
     signInAs('ADMIN')
     vi.mocked(listRooms).mockResolvedValue([])
     await renderServer(RoomsPage())
-    expect(screen.getByRole('link', { name: 'New room' }).getAttribute('href')).toBe('/rooms/new')
-    expect(screen.getByText('No rooms yet.')).toBeTruthy()
+    // The empty list offers the first one where the table would be, as the header does.
+    const empty = screen.getByText('No rooms yet.').parentElement as HTMLElement
+    expect(within(empty).getByRole('link', { name: 'New room' }).getAttribute('href')).toBe(
+      '/rooms/new'
+    )
   })
 })
 
@@ -226,6 +229,9 @@ describe('room forms', () => {
     signInAs('ADMIN')
     await renderServer(EditRoomPage({ params: params({ id: 'room_aula_a' }) }))
     expect(screen.getByRole('heading', { level: 1, name: 'Edit Aula A' })).toBeTruthy()
+    expect(await editRoomMetadata({ params: params({ id: 'room_aula_a' }) })).toEqual({
+      title: 'Edit Aula A',
+    })
     expect(screen.getByRole('textbox', { name: /Seats/ })).toHaveProperty('value', '40')
     expect(screen.getByRole('checkbox', { name: 'Projector' }).getAttribute('aria-checked')).toBe(
       'true'

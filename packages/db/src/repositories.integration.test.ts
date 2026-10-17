@@ -693,6 +693,16 @@ describe('assignments', () => {
     expect(listed.items[0]?.requirements.find(r => r.courseCode === 'BOZP-Z')?.booked).toEqual(
       booked
     )
+    // The person's page shows each requirement as their list row does.
+    const detail = await getEmployee(need.employee.externalId, 'VIEWER', options)
+    expect(detail?.requirements).toEqual(listed.items[0]?.requirements)
+    // The session names where the person works, linkable.
+    const onSession = (await getSession('T018', options))?.bookings.find(
+      b => !b.person.archived && b.person.externalId === need.employee.externalId
+    )
+    expect(onSession?.department).toBe(need.employee.department)
+    expect(typeof onSession?.departmentId).toBe('string')
+    expect(typeof onSession?.positionId).toBe('string')
     await removeAssignment('T018', need.employee.externalId, options)
   })
 

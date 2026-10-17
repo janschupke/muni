@@ -1,5 +1,5 @@
 import { Slot } from 'radix-ui'
-import type { HTMLAttributes } from 'react'
+import type { HTMLAttributes, ReactNode } from 'react'
 
 import { cn } from '../cn'
 
@@ -28,5 +28,18 @@ export function ToolbarSummary({ className, ...props }: HTMLAttributes<HTMLSpanE
       className={cn('ml-auto flex h-9 items-center text-sm text-fg-muted', className)}
       {...props}
     />
+  )
+}
+
+/**
+ * A filter applied from elsewhere (a link), which has no control in the toolbar: what it is,
+ * and `remove`, an icon button that drops it. Sits on the controls' line, at their height.
+ */
+export function ToolbarChip({ children, remove }: { children: ReactNode; remove: ReactNode }) {
+  return (
+    <span className="inline-flex h-9 items-center gap-1 rounded-md border border-border-default bg-tint pr-0.5 pl-3 text-sm text-fg">
+      {children}
+      {remove}
+    </span>
   )
 }
