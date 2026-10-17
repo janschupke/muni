@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { getProvider, getProviderForEdit, listProviders, recordExists } from '@muni/db/repositories'
+import { getProvider, getProviderForEdit, listProviders } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -104,7 +104,7 @@ describe('provider detail', () => {
   const props = { params: params({ id: 'prov_vzor' }) }
 
   it('shows its details, its totals, per course and its latest completions', async () => {
-    expect(await providerMetadata()).toEqual({ title: 'Providers' })
+    expect(await providerMetadata(props)).toEqual({ title: 'Vzorový školicí ústav' })
     await renderServer(ProviderPage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'Vzorový školicí ústav' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'kurzy@vzor.example' }).getAttribute('href')).toBe(
@@ -152,8 +152,10 @@ describe('provider detail', () => {
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '/providers/prov_int/edit'
     )
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(ProviderPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
+    vi.mocked(getProvider).mockResolvedValueOnce(null)
+    await expect(renderServer(ProviderPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
+      NotFoundError
+    )
   })
 })
 
@@ -177,10 +179,10 @@ describe('provider forms', () => {
     expect(screen.getByRole('textbox', { name: /IČO/ })).toHaveProperty('value', '00216224')
     expect(screen.getByText(/Renaming changes the name/)).toBeTruthy()
     await expectNoAxeViolations()
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(EditProviderPage({ params: params({ id: 'gone' }) })).rejects.toThrow(
-      NotFoundError
-    )
+    vi.mocked(getProviderForEdit).mockResolvedValueOnce(null)
+    await expect(
+      renderServer(EditProviderPage({ params: params({ id: 'gone' }) }))
+    ).rejects.toThrow(NotFoundError)
   })
 })
 

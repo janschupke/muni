@@ -14,6 +14,9 @@ declare namespace NodeJS {
     MUNI_SANITIZE_POLICY?: string
     /** Days before expiry that count as "expiring". */
     MUNI_EXPIRING_DAYS?: string
+    /** Reads and writes a user may make per minute (defaults 300 and 60). */
+    MUNI_RATE_LIMIT_READS?: string
+    MUNI_RATE_LIMIT_WRITES?: string
     /** Clerk (required): every page but the landing needs a signed-in user. */
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?: string
   }

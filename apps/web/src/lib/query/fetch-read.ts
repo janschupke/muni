@@ -13,7 +13,7 @@ export class ReadError extends Error {
 
 /**
  * A read's input as its query string; empty values (and anything not a value) are left out.
- * @internal Exported for its tests.
+ * The server's prefetch parses a page's input through it too, as the browser would send it.
  */
 export function readSearch(input: Record<string, unknown>): string {
   const search = new URLSearchParams()

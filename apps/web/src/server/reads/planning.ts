@@ -8,8 +8,9 @@ import {
   getDashboard,
   getPlannerInput,
   listRoomOptions,
+  loadCompliance,
 } from '@muni/db/repositories'
-import { planAssignments } from '@muni/domain/advisor'
+import { packPlan, planAssignments } from '@muni/domain/advisor'
 import { groupOffers, planSessions } from '@muni/domain/planner'
 import { todayIn } from '@muni/utils/dates'
 
@@ -23,7 +24,12 @@ export const dashboard = read({
   guard: 'reader',
   input: none,
   load: async () => {
-    const [data, advisorInput] = await Promise.all([getDashboard(), getAdvisorInput()])
+    // One compliance load for both: the figures and the advisor's counts.
+    const compliance = loadCompliance()
+    const [data, advisorInput] = await Promise.all([
+      getDashboard({ compliance }),
+      getAdvisorInput({ compliance }),
+    ])
     const plan = planAssignments(advisorInput)
     return {
       data,
@@ -42,7 +48,8 @@ export const advisor = read({
   input: none,
   load: async () => {
     const input = await getAdvisorInput()
-    return { plan: planAssignments(input), asOf: input.asOf }
+    // Packed: the same sessions recur on hundreds of items.
+    return { plan: packPlan(planAssignments(input)), asOf: input.asOf }
   },
 })
 

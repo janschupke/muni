@@ -57,8 +57,8 @@ describe('ImportWizard', () => {
 
     await user.click(screen.getByRole('button', { name: 'Review rows' }))
 
-    // Review step: the sessions tab has the two known errors.
-    await user.click(screen.getByRole('tab', { name: /Sessions/ }))
+    // Review step (loaded when needed): the sessions tab has the two known errors.
+    await user.click(await screen.findByRole('tab', { name: /Sessions/ }))
     const panel = screen.getByRole('tabpanel')
     const errorsCard = within(panel).getByRole('button', { name: /Errors/ })
     expect(errorsCard.textContent).toContain('2')
@@ -115,7 +115,7 @@ describe('ImportWizard', () => {
     if (!input) throw new Error('file input missing')
     await user.upload(input, [csv('katalog_skoleni.csv'), csv('absolvovana_skoleni.csv')])
     await user.click(await screen.findByRole('button', { name: 'Review rows' }))
-    await user.click(screen.getByRole('tab', { name: /Completions/ }))
+    await user.click(await screen.findByRole('tab', { name: /Completions/ }))
     const panel = screen.getByRole('tabpanel')
 
     const lines = () =>

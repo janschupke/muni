@@ -64,10 +64,12 @@ export async function pathOf(
 }
 
 /**
- * The page's data is there: pages read it in the browser, showing skeletons in a loading
- * region (`aria-busy`) until it comes. Checks and audits wait for this, or they would judge
- * the skeletons.
+ * The page is there and runs in the browser: its data arrived (pages bring it from the
+ * server; anything read in the browser shows skeletons in a loading region, `aria-busy`),
+ * and the app has started (`data-hydrated` on the root), so a link is followed in the app.
+ * Checks, audits and clicks wait for this, or they would judge skeletons or reload the page.
  */
 export async function loaded(page: Page): Promise<void> {
+  await expect(page.locator('html[data-hydrated]')).toHaveCount(1)
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
 }

@@ -2,11 +2,22 @@ import 'server-only'
 
 import { hitRateLimit } from '@muni/db/repositories'
 
+/** A whole number of requests per minute from the environment, or the default. */
+const perMinute = (value: string | undefined, fallback: number) => {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
 /**
  * Requests a user may make per minute: reads (every page and refetch) and writes (every save,
  * booking and import chunk). Far above what a person clicking does; they stop a script.
+ * `MUNI_RATE_LIMIT_READS` / `MUNI_RATE_LIMIT_WRITES` change them (the browser tests, which
+ * click faster than anyone, raise them).
  */
-export const RATE_LIMITS = { read: 300, write: 60 } as const
+export const RATE_LIMITS = {
+  read: perMinute(process.env.MUNI_RATE_LIMIT_READS, 300),
+  write: perMinute(process.env.MUNI_RATE_LIMIT_WRITES, 60),
+}
 
 export class RateLimitedError extends Error {
   override name = 'RateLimitedError'

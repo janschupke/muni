@@ -7,8 +7,8 @@ import { THEME_BOOT_SCRIPT } from '@muni/ui/theme/boot'
 import { TooltipProvider } from '@muni/ui/tooltip'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
-import { NextIntlClientProvider } from 'next-intl'
-import { getLocale, getTranslations } from 'next-intl/server'
+import { type Messages, NextIntlClientProvider } from 'next-intl'
+import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import type { ReactNode } from 'react'
 
 import { AppFooter } from '@/components/app-footer'
@@ -26,12 +26,22 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
+/**
+ * What the browser needs translated before anyone signs in: the shell's own words (the
+ * landing and the sign-in pages are rendered on the server). Signed in, every page's views
+ * are in the browser, and they use nearly the whole catalog.
+ */
+const SIGNED_OUT = ['common', 'errors', 'back', 'nav'] as const
+const signedOut = (messages: Messages) =>
+  Object.fromEntries(SIGNED_OUT.map(namespace => [namespace, messages[namespace]]))
+
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [locale, user, t, requestHeaders] = await Promise.all([
+  const [locale, user, t, requestHeaders, messages] = await Promise.all([
     getLocale(),
     getSessionUser(),
     getTranslations('common'),
     headers(),
+    getMessages(),
   ])
   // The Content-Security-Policy's nonce (set per request by the proxy): the one inline script
   // here carries it, as Next's and Clerk's do.
@@ -51,7 +61,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         </head>
         <body className="min-h-dvh">
-          <NextIntlClientProvider>
+          <NextIntlClientProvider messages={user ? messages : signedOut(messages)}>
             {/* One read cache per user and role: another account never sees this one's data. */}
             <QueryProvider scope={user ? `${user.id}:${user.role}` : 'anon'}>
               <TooltipProvider>

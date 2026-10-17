@@ -33,6 +33,7 @@ export {
   type SeatMoveRequest,
 } from './assignments'
 export { getPolicy, type RepoOptions } from './context'
+export { type ComplianceSnapshot, loadCompliance } from './context'
 export {
   type CourseDetail,
   type CourseListItem,
@@ -112,6 +113,7 @@ export {
   getDepartment,
   getPosition,
   listDepartmentSummaries,
+  listGroupMembers,
   listPositionSummaries,
   type PositionDetail,
   type PositionSummary,

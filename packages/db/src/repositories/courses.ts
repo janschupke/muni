@@ -20,7 +20,15 @@ import {
 } from './context'
 import { activeDepartments } from './lookups'
 import { needsOf, needsSelect } from './session-fit'
-import { isUpcoming, sessionInclude, toSessionItem, upcomingSessionWhere } from './sessions'
+import {
+  isUpcoming,
+  sessionInclude,
+  type SessionSummary,
+  sessionSummarySelect,
+  toSessionItem,
+  toSessionSummary,
+  upcomingSessionWhere,
+} from './sessions'
 
 /** A course's effective session needs as its pages show them. */
 const sessionNeedsOf = (course: Parameters<typeof needsOf>[0]) => {
@@ -54,7 +62,7 @@ export interface CourseListItem {
     capabilities: Capability[]
   }
   /** Planned sessions still ahead, soonest first. */
-  upcoming: SessionListItem[]
+  upcoming: SessionSummary[]
   /** Per department where the course applies to someone active. */
   byDepartment: { id: string; name: string; counts: ComplianceCounts; rate: number }[]
 }
@@ -70,7 +78,7 @@ export async function listCourses(options?: RepoOptions): Promise<CourseListItem
         capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
         sessions: {
           where: upcomingSessionWhere(now),
-          include: sessionInclude,
+          select: sessionSummarySelect,
           orderBy: { startsAt: 'asc' },
         },
         _count: { select: { completions: { where: ACTIVE } } },
@@ -95,7 +103,7 @@ export async function listCourses(options?: RepoOptions): Promise<CourseListItem
       counts,
       rate: complianceRate(counts),
       sessionNeeds: sessionNeedsOf(course),
-      upcoming: course.sessions.map(toSessionItem),
+      upcoming: course.sessions.map(toSessionSummary),
       byDepartment: byDepartment(cells, compliance, departments),
     }
   })
@@ -147,17 +155,17 @@ export interface SessionListItem {
   roomCapabilities: Capability[]
   /** What a session of the course needs (its length, group size, online, equipment). */
   needs: SessionNeeds & { sessionMinutes: number | null }
-  /** Named bookings (assignments), oldest first; archived people anonymised. */
-  assigned: PersonRef[]
-  /** The same bookings with who each person is and how they were booked. */
+  /** Named bookings, oldest first, with who each person is (archived people anonymised)
+   * and how they were booked. */
   bookings: SessionBooking[]
-  /** Derived: unnamedBookings + assigned.length. */
+  /** Derived: unnamedBookings + bookings.length. */
   bookedCount: number
   pricePerPerson: number | null
   status: SessionStatus
 }
 
-export interface CourseDetail extends CourseListItem {
+export interface CourseDetail extends Omit<CourseListItem, 'upcoming'> {
+  /** Every session of the course, past and ahead, oldest first. */
   sessions: SessionListItem[]
   recentCompletions: {
     externalId: string
@@ -186,7 +194,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
   })
   if (!course) return null
   const [compliance, departments] = await Promise.all([
-    loadCompliance(options),
+    loadCompliance({ ...options, scope: { courseIds: [course.id] } }),
     activeDepartments(options),
   ])
   const cells = countedCells(compliance).filter(c => c.courseId === course.id)
@@ -204,7 +212,6 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     counts,
     rate: complianceRate(counts),
     sessionNeeds: sessionNeedsOf(course),
-    upcoming: upcoming.map(toSessionItem),
     byDepartment: byDepartment(cells, compliance, departments),
     sessions: course.sessions.map(toSessionItem),
     recentCompletions: course.completions.map(c => ({

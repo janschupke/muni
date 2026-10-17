@@ -72,6 +72,11 @@ function Recorder() {
 }
 
 export function NavigationHistory({ children }: { children: ReactNode }) {
+  // The page runs in the browser from here on: links navigate in the app (and are recorded).
+  // Browser tests wait for this mark before they follow a link.
+  useEffect(() => {
+    document.documentElement.dataset['hydrated'] = ''
+  }, [])
   return (
     <>
       {/* useSearchParams needs a boundary; the recorder renders nothing, so null is exact. */}

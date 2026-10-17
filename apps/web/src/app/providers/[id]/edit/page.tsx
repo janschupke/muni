@@ -1,12 +1,14 @@
-import { recordExists } from '@muni/db/repositories'
-import { notFound } from 'next/navigation'
-
 import { ProviderFormView } from '@/features/providers/provider-form-view'
 import { requireAdminPage } from '@/server/auth'
+import { prefetched } from '@/server/prefetch'
 
 export default async function EditProviderPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdminPage()
+  const user = await requireAdminPage()
   const { id } = await params
-  if (!(await recordExists('provider', id))) notFound()
-  return <ProviderFormView id={id} />
+  return prefetched(
+    user,
+    [{ name: 'provider-form', input: { id } }],
+    <ProviderFormView id={id} />,
+    { form: true }
+  )
 }

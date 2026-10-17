@@ -33,7 +33,7 @@ export function AddBookingForm({
   const t = useTranslations()
   // A booked choice leaves the list; the select starts over.
   const [round, setRound] = useState(0)
-  const afterWrite = useAfterWrite()
+  const afterWrite = useAfterWrite('booking')
   const toast = useToast()
   const [state, formAction, pending] = useActionState(
     async (previous: BookingState, form: FormData): Promise<BookingState> => {

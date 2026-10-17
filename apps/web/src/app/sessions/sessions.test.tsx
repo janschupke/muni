@@ -6,7 +6,6 @@ import {
   listEmployeeOptions,
   listRoomOptions,
   listSessions,
-  recordExists,
 } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -57,7 +56,7 @@ const online = session({
   room: ONLINE,
   capacity: 100,
   unnamedBookings: 12,
-  assigned: [],
+  bookings: [],
   bookedCount: 12,
   pricePerPerson: null,
 })
@@ -71,7 +70,7 @@ beforeEach(() => {
       externalId: 'T030',
       bookedCount: 31,
       unnamedBookings: 31,
-      assigned: [],
+      bookings: [],
       capacity: 30,
     }),
   ])
@@ -169,13 +168,13 @@ describe('session detail', () => {
   const props = { params: params({ externalId: 'T016' }) }
 
   it('is titled by course and date once its data is there; an unknown ID is not found', async () => {
-    expect(await sessionMetadata()).toEqual({ title: 'Sessions' })
+    expect(await sessionMetadata(props)).toEqual({ title: 'BOZP – základní školení · Nov 4, 2026' })
     await renderServer(SessionPage(props))
     expect(document.title).toBe('BOZP – základní školení · Nov 4, 2026 · Training register')
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(SessionPage({ params: params({ externalId: 'T999' }) })).rejects.toThrow(
-      NotFoundError
-    )
+    vi.mocked(getSession).mockResolvedValueOnce(null)
+    await expect(
+      renderServer(SessionPage({ params: params({ externalId: 'T999' }) }))
+    ).rejects.toThrow(NotFoundError)
   })
 
   it('shows the facts, seats and named bookings, read-only for viewers', async () => {
@@ -254,8 +253,8 @@ describe('session edit', () => {
   })
 
   it('is a 404 for an unknown session', async () => {
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(EditSessionPage(props)).rejects.toThrow(NotFoundError)
+    vi.mocked(getSession).mockResolvedValueOnce(null)
+    await expect(renderServer(EditSessionPage(props))).rejects.toThrow(NotFoundError)
   })
 
   it('keeps an archived course on a past session as its own option', async () => {

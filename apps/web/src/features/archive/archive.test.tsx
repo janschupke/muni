@@ -1,10 +1,5 @@
 // @vitest-environment jsdom
-import {
-  type ArchivedItem,
-  getArchivedRecord,
-  listArchived,
-  recordExists,
-} from '@muni/db/repositories'
+import { type ArchivedItem, getArchivedRecord, listArchived } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -152,7 +147,7 @@ describe('archived record pages', () => {
   })
 
   it('are a 404 for a record that is not archived', async () => {
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
+    vi.mocked(getArchivedRecord).mockResolvedValueOnce(null)
     await expect(renderServer(ArchivedRoom({ params: params({ id: 'room_1' }) }))).rejects.toThrow(
       NotFoundError
     )

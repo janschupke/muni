@@ -778,9 +778,9 @@ describe('a planned session with the people it is for', () => {
     if (!created.ok) return
     const saved = await getSession(created.externalId, options)
     expect(saved?.bookedCount).toBe(2)
-    expect(saved?.assigned.map(p => (p.archived ? '' : p.externalId)).toSorted()).toEqual(
-      people.toSorted()
-    )
+    expect(
+      saved?.bookings.map(({ person: p }) => (p.archived ? '' : p.externalId)).toSorted()
+    ).toEqual(people.toSorted())
 
     // Its capacity can grow while the room has the seats, never shrink this way.
     expect(await raiseCapacity(created.externalId, 12, options)).toEqual({ ok: true })

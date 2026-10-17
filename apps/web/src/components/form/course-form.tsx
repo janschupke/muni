@@ -50,6 +50,7 @@ export function CourseForm({
     value === null ? t('derivedNone') : t('derivedValue', { value })
   return (
     <FormShell
+      writes="course"
       {...shell}
       isNew={isNew}
       spec={isNew ? courseCreateSpec : courseEditSpec}

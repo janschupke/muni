@@ -6,6 +6,7 @@ import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 
 
 import { ToastsProvider } from '@/components/toasts'
 import en from '@/i18n/messages/en.json'
+import { STALE_MS } from '@/lib/query/query-client'
 
 type Props = Record<string, unknown>
 
@@ -33,10 +34,16 @@ export async function resolveServer(node: ReactNode): Promise<ReactNode> {
   return changed ? cloneElement(element, props) : element
 }
 
-/** A read cache of its own for one test: nothing retried, nothing dropped while it runs. */
+/**
+ * A read cache of its own for one test, fresh as long as the app's (so a page's prefetched
+ * reads are not asked again): nothing retried, nothing dropped while it runs.
+ */
 export const testQueryClient = () =>
   new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity, staleTime: STALE_MS },
+      mutations: { retry: false },
+    },
   })
 
 /** The providers the root layout puts around every page. */

@@ -14,6 +14,7 @@ import { ReadView } from '@/components/read-view'
 import { SessionTable } from '@/components/session-table'
 import { HeaderSkeleton, TableSkeleton } from '@/components/skeletons'
 import { readQuery } from '@/lib/query/queries'
+import { sessionsListInput } from '@/lib/read-inputs'
 import { withParams } from '@/lib/search-params'
 
 const WINDOWS = ['upcoming', 'past'] as const
@@ -30,7 +31,7 @@ export function SessionsView({
 }) {
   const t = useTranslations('sessions')
   const read = useQuery({
-    ...readQuery('sessions-list', { when: when === 'past' ? 'past' : undefined, room: roomId }),
+    ...readQuery('sessions-list', sessionsListInput(when, roomId)),
     placeholderData: keepPreviousData,
   })
   const href = (changes: Record<string, string | undefined>) =>

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { getUser, listUsers, recordExists, type UserListItem } from '@muni/db/repositories'
+import { getUser, listUsers, type UserListItem } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -102,7 +102,9 @@ describe('a user', () => {
     expect(screen.getByText('You cannot change your own role.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Change role' })).toHaveProperty('disabled', true)
     expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull()
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(UserPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
+    vi.mocked(getUser).mockResolvedValueOnce(null)
+    await expect(renderServer(UserPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
+      NotFoundError
+    )
   })
 })

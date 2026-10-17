@@ -18,6 +18,7 @@ import {
   validateBatch,
 } from '@muni/importer'
 import { StepIndicator } from '@muni/ui/step-indicator'
+import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import { useState, useTransition } from 'react'
 
@@ -26,9 +27,11 @@ import { useAfterWrite } from '@/lib/query/use-after-write'
 import { commitImportChunk, findArchived } from './actions'
 import { ConfirmStep } from './confirm-step'
 import { type ImportJob, ProgressStep } from './progress-step'
-import { ReviewStep } from './review-step'
 import { type RejectedFile, UploadStep } from './upload-step'
 import { useImportText } from './use-issue-text'
+
+// Loaded when needed: the review's table, once files are read.
+const ReviewStep = dynamic(() => import('./review-step').then(m => m.ReviewStep))
 
 const CHUNK = 500
 
@@ -53,7 +56,7 @@ export function ImportWizard({
   const [archived, setArchived] = useState<ArchivedKeys>(NO_ARCHIVED)
   const reference = { ...snapshot, archived }
   const { t } = useImportText()
-  const afterWrite = useAfterWrite()
+  const afterWrite = useAfterWrite('import')
   const tp = useTranslations('import.progress')
   const ctx = { today }
   const [step, setStep] = useState(0)

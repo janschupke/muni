@@ -7,24 +7,29 @@ import { useCallback, useEffect, useEffectEvent } from 'react'
 import { type ToastMessage, useToast } from '@/components/toasts'
 import { isLocalHref } from '@/lib/local-href'
 
+import { changedBy, type WriteKind } from './invalidation'
+
 /**
- * What every successful write does next. Pages not on screen drop their cached data, so the
- * next visit (often the record just saved) loads afresh instead of showing what it was. When
- * the write goes on to `href`, the page being left is only marked stale; otherwise it
- * refetches in the background. A write can touch much (a booking changes the session, the
- * person and the dashboard), so everything is refreshed.
+ * What every successful write does next. Reads the write changed (`kind`, see WRITES) and
+ * not on screen drop their cached data, so the next visit (often the record just saved)
+ * loads afresh instead of showing what it was. When the write goes on to `href`, those on
+ * screen are only marked stale; otherwise they refetch in the background.
  */
-export function useAfterWrite(): (href?: string) => void {
+export function useAfterWrite(kind: WriteKind): (href?: string) => void {
   const client = useQueryClient()
   const router = useRouter()
   return useCallback(
     (href?: string) => {
-      client.removeQueries({ type: 'inactive' })
-      void client.invalidateQueries({ refetchType: href ? 'none' : 'active' })
+      const changed = changedBy(kind)
+      client.removeQueries({ type: 'inactive', predicate: q => changed(q.queryKey) })
+      void client.invalidateQueries({
+        predicate: q => changed(q.queryKey),
+        refetchType: href ? 'none' : 'active',
+      })
       // Only ever within the app, whatever a server answered.
       if (href && isLocalHref(href)) router.push(href)
     },
-    [client, router]
+    [client, router, kind]
   )
 }
 
@@ -34,12 +39,13 @@ export function useAfterWrite(): (href?: string) => void {
  * runs `useAfterWrite`.
  */
 export function useWhenWritten(
+  kind: WriteKind,
   outcome: object,
   written: boolean,
   href: string | undefined,
   message: ToastMessage
 ): void {
-  const afterWrite = useAfterWrite()
+  const afterWrite = useAfterWrite(kind)
   const toast = useToast()
   const announce = useEffectEvent(() => {
     toast(message)

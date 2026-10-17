@@ -13,7 +13,6 @@ import {
   listGroupOptions,
   listPositions,
   listProviderOptions,
-  recordExists,
 } from '@muni/db/repositories'
 import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -125,6 +124,21 @@ beforeEach(() => {
 })
 
 describe('employee list', () => {
+  it('paints with its data: the server read it, and the browser asks nothing', async () => {
+    const fetches = vi.spyOn(globalThis, 'fetch')
+    // Filters, a sort and a page from the address: the server's read is the view's.
+    await renderServer(
+      EmployeesPage({
+        searchParams: params({ department: 'Laboratoře', sort: 'name', dir: 'desc', page: '2' }),
+      })
+    )
+    const person = { params: params({ externalId: 'E0153' }) }
+    await renderServer(EmployeePage(person))
+    signInAs('ADMIN')
+    await renderServer(EditEmployeePage(person))
+    expect(fetches).not.toHaveBeenCalled()
+  })
+
   const search = (query: Record<string, string>) => ({ searchParams: params(query) })
 
   it('reads filters, sort and page from the URL', async () => {
@@ -253,14 +267,14 @@ describe('employee detail', () => {
   const props = { params: params({ externalId: 'E0153' }) }
 
   it('is titled by the person once their data is there; an unknown ID is not found', async () => {
-    expect(await employeeMetadata()).toEqual({ title: 'Employees' })
+    expect(await employeeMetadata(props)).toEqual({ title: 'Marie Černá' })
     await renderServer(EmployeePage(props))
     expect(document.title).toBe('Marie Černá · Training register')
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(EmployeePage({ params: params({ externalId: 'E9999' }) })).rejects.toThrow(
-      NotFoundError
-    )
-    expect(recordExists).toHaveBeenCalledWith('employee', 'E9999')
+    vi.mocked(getEmployee).mockResolvedValueOnce(null)
+    await expect(
+      renderServer(EmployeePage({ params: params({ externalId: 'E9999' }) }))
+    ).rejects.toThrow(NotFoundError)
+    expect(getEmployee).toHaveBeenLastCalledWith('E9999', 'VIEWER')
   })
 
   it('shows the profile, requirements, bookings and history to viewers, read-only', async () => {
@@ -436,14 +450,12 @@ describe('employee forms', () => {
   })
 
   it('require an admin and an existing person', async () => {
-    vi.mocked(recordExists)
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(false)
-    await expect(EditEmployeePage(props)).rejects.toThrow(NotFoundError)
-    await expect(NewCompletionPage(props)).rejects.toThrow(NotFoundError)
+    vi.mocked(getEmployeeForEdit).mockResolvedValueOnce(null).mockResolvedValueOnce(null)
+    await expect(renderServer(EditEmployeePage(props))).rejects.toThrow(NotFoundError)
+    await expect(renderServer(NewCompletionPage(props))).rejects.toThrow(NotFoundError)
+    vi.mocked(getCompletionForEdit).mockResolvedValueOnce(null)
     await expect(
-      EditCompletionPage({ params: params({ externalId: 'E0153', id: 'cmp_1' }) })
+      renderServer(EditCompletionPage({ params: params({ externalId: 'E0153', id: 'cmp_1' }) }))
     ).rejects.toThrow(NotFoundError)
     expect(requireAdminPage).toHaveBeenCalledTimes(3)
   })
@@ -515,8 +527,9 @@ describe('employee forms', () => {
     expect(screen.getByText(/12 months from completion/)).toBeTruthy()
     // Under another person's address, the completion is not found.
     cleanup()
-    await renderServer(EditCompletionPage({ params: params({ externalId: 'E0001', id: 'cmp_1' }) }))
-    expect(screen.getByRole('heading', { name: 'Employee not found' })).toBeTruthy()
+    await expect(
+      renderServer(EditCompletionPage({ params: params({ externalId: 'E0001', id: 'cmp_1' }) }))
+    ).rejects.toThrow(NotFoundError)
   })
 
   it('record a completion against the course list', async () => {

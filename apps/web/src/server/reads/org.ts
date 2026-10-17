@@ -6,24 +6,33 @@ import {
   getPosition,
   getPositionForEdit,
   listDepartmentSummaries,
+  listGroupMembers,
   listGroupOptions,
   listPositionSummaries,
 } from '@muni/db/repositories'
+import * as z from 'zod'
 
 import { byId, none, read } from './define'
 
-/** Every department, with its people and compliance. */
+/** Every department, with how many people it has and how they comply. */
 export const departmentsList = read({
   guard: 'reader',
   input: none,
   load: () => listDepartmentSummaries(),
 })
 
-/** Every position, with its people and compliance. */
+/** Every position, with how many people hold it and how they comply. */
 export const positionsList = read({
   guard: 'reader',
   input: none,
   load: () => listPositionSummaries(),
+})
+
+/** A department's or position's people with their records, when its row in the list opens. */
+export const groupMembers = read({
+  guard: 'reader',
+  input: byId.extend({ kind: z.enum(['department', 'position']) }),
+  load: ({ kind, id }) => listGroupMembers(kind, id),
 })
 
 /** A department's page: its head, positions, courses and people. */

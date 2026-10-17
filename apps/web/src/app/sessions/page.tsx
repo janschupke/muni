@@ -4,8 +4,10 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { SessionsView } from '@/features/sessions/sessions-view'
+import { sessionsListInput } from '@/lib/read-inputs'
 import { param, type SearchParams } from '@/lib/search-params'
 import { requireReader } from '@/server/auth'
+import { prefetched } from '@/server/prefetch'
 
 interface Props {
   searchParams: SearchParams
@@ -23,11 +25,11 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 export default async function SessionsPage({ searchParams }: Props) {
   const user = await requireReader()
   const params = await searchParams
-  return (
-    <SessionsView
-      when={param(params, 'when') === 'past' ? 'past' : 'upcoming'}
-      room={param(params, 'room')}
-      canEdit={canWrite(user.role)}
-    />
+  const when = param(params, 'when') === 'past' ? 'past' : 'upcoming'
+  const room = param(params, 'room')
+  return prefetched(
+    user,
+    [{ name: 'sessions-list', input: sessionsListInput(when, room) }],
+    <SessionsView when={when} room={room} canEdit={canWrite(user.role)} />
   )
 }

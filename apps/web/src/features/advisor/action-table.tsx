@@ -16,12 +16,16 @@ import { Select } from '@muni/ui/select'
 import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatDate, formatTimeRange } from '@muni/utils/format'
 import { ArrowRight, CalendarCheck, CalendarPlus } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useCallback, useMemo, useState } from 'react'
 
-import { BookDialog, type Booking } from './book-dialog'
+import type { Booking } from './book-dialog'
 import { col, itemId, SessionCell, usePaginationLabels, usePlanColumns } from './columns'
+
+// Loaded when needed: the dialog opens when rows are booked.
+const BookDialog = dynamic(() => import('./book-dialog').then(m => m.BookDialog))
 
 type SessionProposal = Extract<Proposal, { kind: 'SESSION' }>
 export type ProposedItem = PlanItem & { proposal: SessionProposal }

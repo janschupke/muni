@@ -66,6 +66,7 @@ vi.mock('next-intl/server', async () => {
     getTranslations: (namespace?: string) =>
       Promise.resolve(createTranslator({ locale: 'en', messages: en, namespace } as never)),
     getLocale: () => Promise.resolve('en'),
+    getMessages: () => Promise.resolve(en),
     // The request config is a plain async function in tests.
     getRequestConfig: <T>(factory: T) => factory,
   }

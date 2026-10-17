@@ -23,6 +23,7 @@ export function DepartmentForm({
   const tp = useTranslations('forms.placeholders')
   return (
     <FormShell
+      writes="group"
       {...shell}
       spec={departmentSpec}
       submitLabel={shell.isNew ? tsave('department') : tsave('changes')}
@@ -63,6 +64,7 @@ export function PositionForm({
   const tp = useTranslations('forms.placeholders')
   return (
     <FormShell
+      writes="group"
       {...shell}
       spec={positionSpec}
       submitLabel={shell.isNew ? tsave('position') : tsave('changes')}

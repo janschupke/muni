@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server'
 
 import { RoomsView } from '@/features/rooms/rooms-view'
 import { requireReader } from '@/server/auth'
+import { prefetched } from '@/server/prefetch'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('rooms'))('title') }
@@ -11,5 +12,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RoomsPage() {
   const user = await requireReader()
-  return <RoomsView canEdit={canWrite(user.role)} />
+  return prefetched(
+    user,
+    [{ name: 'rooms-list', input: {} }],
+    <RoomsView canEdit={canWrite(user.role)} />
+  )
 }

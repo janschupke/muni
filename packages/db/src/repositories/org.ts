@@ -47,7 +47,12 @@ interface GroupSummary {
   actionNow: number
   /** Named bookings of members on sessions still ahead. */
   upcomingBookings: number
-  /** Its people (active and on leave), each with their record: most urgent first, then by name. */
+  /** Its people, active and on leave (their records are read when a row opens). */
+  memberCount: number
+}
+
+/** Its people (active and on leave), each with their record: most urgent first, then by name. */
+interface WithMembers {
   members: EmployeeListItem[]
 }
 
@@ -63,11 +68,11 @@ export interface PositionSummary extends GroupSummary {
   departments: { id: string; name: string; count: number }[]
 }
 
-export interface DepartmentDetail extends DepartmentSummary {
+export interface DepartmentDetail extends DepartmentSummary, WithMembers {
   courses: CourseCompliance[]
 }
 
-export interface PositionDetail extends PositionSummary {
+export interface PositionDetail extends PositionSummary, WithMembers {
   courses: CourseCompliance[]
 }
 
@@ -154,11 +159,6 @@ function summarise(org: Org, members: Member[]): Omit<GroupSummary, 'id' | 'name
   const cells = activeCells(org, members)
   const counts = countStatuses(cells)
   const memberIds = new Set(members.map(m => m.id))
-  const records = members.map(m =>
-    employeeRecord(m, org.cellsByEmployee.get(m.id) ?? [], org.context)
-  )
-  sortEmployees(records, 'name', false)
-  sortEmployees(records, 'compliance', false)
   return {
     active: members.filter(m => m.status === 'ACTIVE').length,
     parentalLeave: members.filter(m => m.status === 'PARENTAL_LEAVE').length,
@@ -169,8 +169,18 @@ function summarise(org: Org, members: Member[]): Omit<GroupSummary, 'id' | 'name
       cells.filter(c => c.status === 'EXPIRED' || c.status === 'MISSING').map(c => c.employeeId)
     ).size,
     upcomingBookings: org.bookings.filter(b => memberIds.has(b.employeeId)).length,
-    members: records,
+    memberCount: members.length,
   }
+}
+
+/** The members' records: most urgent first, then by name. */
+function memberRecords(org: Org, members: Member[]): EmployeeListItem[] {
+  const records = members.map(m =>
+    employeeRecord(m, org.cellsByEmployee.get(m.id) ?? [], org.context)
+  )
+  sortEmployees(records, 'name', false)
+  sortEmployees(records, 'compliance', false)
+  return records
 }
 
 /** The groups a group is paired with, each with how many members hold that pair; largest first. */
@@ -291,7 +301,11 @@ export async function getDepartment(
   ])
   if (!department) return null
   const members = org.people.filter(p => p.departmentId === id)
-  return { ...departmentSummary(org, department), courses: coursesOf(org, members) }
+  return {
+    ...departmentSummary(org, department),
+    members: memberRecords(org, members),
+    courses: coursesOf(org, members),
+  }
 }
 
 export async function listPositionSummaries(
@@ -321,5 +335,29 @@ export async function getPosition(
   ])
   if (!position) return null
   const members = org.people.filter(p => p.positionId === id)
-  return { ...positionSummary(org, position), courses: coursesOf(org, members) }
+  return {
+    ...positionSummary(org, position),
+    members: memberRecords(org, members),
+    courses: coursesOf(org, members),
+  }
+}
+
+/** A department's or position's people with their records, for its row in the list. */
+export async function listGroupMembers(
+  kind: 'department' | 'position',
+  id: string,
+  options?: RepoOptions & { now?: Date }
+): Promise<EmployeeListItem[] | null> {
+  const where = { id, ...ACTIVE }
+  const [org, group] = await Promise.all([
+    loadOrg(options),
+    kind === 'department'
+      ? dbOf(options).department.findFirst({ where, select: { id: true } })
+      : dbOf(options).position.findFirst({ where, select: { id: true } }),
+  ])
+  if (!group) return null
+  return memberRecords(
+    org,
+    org.people.filter(p => (kind === 'department' ? p.departmentId : p.positionId) === id)
+  )
 }

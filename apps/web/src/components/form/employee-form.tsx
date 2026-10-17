@@ -71,6 +71,7 @@ export function EmployeeForm({
   const otherHead = head && !(defaults.leadsDepartment && departmentId === defaults.departmentId)
   return (
     <FormShell
+      writes="person"
       {...shell}
       spec={employeeSpec}
       submitLabel={shell.isNew ? tsave('employee') : tsave('changes')}

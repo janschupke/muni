@@ -633,7 +633,10 @@ describe('archived people are anonymised everywhere but on their own admin page'
       archived: true,
       tag,
     })
-    expect((await getSession('T001', options))?.assigned).toContainEqual({ archived: true, tag })
+    expect((await getSession('T001', options))?.bookings.map(b => b.person)).toContainEqual({
+      archived: true,
+      tag,
+    })
 
     // Only the admin's page for the archived record says who it was.
     const revealed = await getArchivedRecord('employee', id, 'ADMIN', options)

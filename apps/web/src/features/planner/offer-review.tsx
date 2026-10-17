@@ -37,7 +37,7 @@ export function OfferReview({
   const t = useTranslations('planner.review')
   const tc = useTranslations('common')
   const toast = useToast()
-  const afterWrite = useAfterWrite()
+  const afterWrite = useAfterWrite('session')
   const [pending, startTransition] = useTransition()
   // Which request is out: each button says "working" only for its own.
   const [sending, setSending] = useState<'check' | 'create' | null>(null)

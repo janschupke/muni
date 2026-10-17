@@ -395,3 +395,46 @@ function shortfallOf(queued: PlanItem[]): AdvisorPlan['shortfall'] {
     (a, b) => b.people - a.people || a.courseCode.localeCompare(b.courseCode)
   )
 }
+
+/** A plan as it travels to the browser: each session once, named by its ID elsewhere. */
+export interface PackedPlan {
+  sessions: Record<string, AdvisorSession>
+  /** The plan, with `{ $session: externalId }` wherever it held a session. */
+  plan: unknown
+}
+
+const isSession = (value: object): value is AdvisorSession =>
+  'externalId' in value && 'unnamedBookings' in value && 'courseCode' in value
+
+/**
+ * Packs a plan for sending. A plan names the same few sessions on hundreds of items (the
+ * proposal and its alternatives, overbooked targets): sent once each, the plan is a fraction
+ * of the size. `unpackPlan` gives back the same plan.
+ */
+export function packPlan(plan: AdvisorPlan): PackedPlan {
+  const sessions: Record<string, AdvisorSession> = {}
+  const walk = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(walk)
+    if (value === null || typeof value !== 'object') return value
+    if (isSession(value)) {
+      sessions[value.externalId] = value
+      return { $session: value.externalId }
+    }
+    return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, walk(inner)]))
+  }
+  return { sessions, plan: walk(plan) }
+}
+
+export function unpackPlan(packed: PackedPlan): AdvisorPlan {
+  const walk = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(walk)
+    if (value === null || typeof value !== 'object') return value
+    if ('$session' in value && typeof value.$session === 'string') {
+      const session = packed.sessions[value.$session]
+      if (!session) throw new Error(`The plan names an unknown session ${value.$session}`)
+      return session
+    }
+    return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, walk(inner)]))
+  }
+  return walk(packed.plan) as AdvisorPlan
+}

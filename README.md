@@ -606,6 +606,7 @@ the repo root, applies migrations, then builds.
 | `DIRECT_URL`                                            | Supabase session pooler or direct connection (port 5432), used for migrations |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | Clerk production keys                                                         |
 | `MUNI_SANITIZE_POLICY`, `MUNI_EXPIRING_DAYS`            | optional                                                                      |
+| `MUNI_RATE_LIMIT_READS`, `MUNI_RATE_LIMIT_WRITES`       | optional: per user and minute (defaults 300 and 60)                           |
 
 `prisma.config.ts` refuses to run migrations against port 6543. A production deploy without
 `DIRECT_URL` fails; previews without a database skip migrations. The function region is

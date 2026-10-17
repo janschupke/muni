@@ -26,13 +26,15 @@ import {
   PLACEHOLDER,
 } from '@muni/utils/format'
 import { CalendarPlus, Clock, TriangleAlert } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo, useState } from 'react'
 
 import { RoomLink } from '@/components/session-links'
 
-import { OfferReview } from './offer-review'
+// Loaded when needed: the review opens when an offer is chosen.
+const OfferReview = dynamic(() => import('./offer-review').then(m => m.OfferReview))
 
 const col = createDataColumns<SessionOffer>()
 

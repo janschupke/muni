@@ -31,6 +31,7 @@ export function ProviderForm({
   const tp = useTranslations('forms.placeholders')
   return (
     <FormShell
+      writes="provider"
       {...shell}
       spec={providerSpec}
       submitLabel={shell.isNew ? tsave('provider') : tsave('changes')}

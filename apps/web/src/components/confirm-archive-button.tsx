@@ -37,7 +37,7 @@ export function ConfirmArchiveButton({
 }) {
   const t = useTranslations()
   const refusal = useRefusalText(kind)
-  const afterWrite = useAfterWrite()
+  const afterWrite = useAfterWrite('archive')
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [impact, setImpact] = useState<ArchiveImpact | null | 'loading'>('loading')

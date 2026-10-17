@@ -5,9 +5,9 @@ import {
   getPosition,
   getPositionForEdit,
   listDepartmentSummaries,
+  listGroupMembers,
   listGroupOptions,
   listPositionSummaries,
-  recordExists,
 } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -20,6 +20,7 @@ import {
   counts,
   departmentDetail,
   departmentSummary,
+  members,
   positionDetail,
   positionSummary,
 } from '@/test/fixtures'
@@ -68,8 +69,8 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   listGroupOptions: vi.fn(),
   getPosition: vi.fn(),
   listDepartmentSummaries: vi.fn(),
+  listGroupMembers: vi.fn(() => Promise.resolve(members())),
   listPositionSummaries: vi.fn(),
-  recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 
 vi.mock('@/server/auth')
@@ -93,7 +94,7 @@ beforeEach(() => {
       actionNow: 0,
       head: null,
       positions: [],
-      members: [],
+      memberCount: 0,
     }),
   ])
   vi.mocked(getDepartment).mockResolvedValue(departmentDetail())
@@ -125,7 +126,8 @@ describe('departments', () => {
     expect(within(library).queryByRole('button')).toBeNull()
 
     await user.click(within(lab).getByRole('button', { name: 'People in Laboratoře' }))
-    const people = screen.getByRole('table', { name: 'People of Laboratoře' })
+    // Read when the row opens.
+    const people = await screen.findByRole('table', { name: 'People of Laboratoře' })
     const marie = within(people).getByRole('row', { name: /Černá Marie/ })
     expect(within(marie).getByRole('link', { name: 'Černá Marie' }).getAttribute('href')).toBe(
       '/employees/E0153'
@@ -163,7 +165,7 @@ describe('departments', () => {
 
   it('show one department: its head, positions, courses and people', async () => {
     const props = { params: params({ id: 'dep_lab' }) }
-    expect(await departmentMetadata()).toEqual({ title: 'Departments' })
+    expect(await departmentMetadata(props)).toEqual({ title: 'Laboratoře' })
     await renderServer(DepartmentPage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'Laboratoře' })).toBeTruthy()
     expect(screen.getAllByRole('link', { name: 'Urbanová Tereza' })[0]?.getAttribute('href')).toBe(
@@ -204,8 +206,10 @@ describe('departments', () => {
     await renderServer(DepartmentPage({ params: params({ id: 'dep_lab' }) }))
     expect(screen.getByText('Nobody has a position here.')).toBeTruthy()
     expect(screen.getByText('Nothing is required of this department.')).toBeTruthy()
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(DepartmentPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
+    vi.mocked(getDepartment).mockResolvedValueOnce(null)
+    await expect(renderServer(DepartmentPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
+      NotFoundError
+    )
   })
 })
 
@@ -222,7 +226,7 @@ describe('positions', () => {
     const intern = screen.getByRole('row', { name: /Stážista/ })
     expect(within(intern).getByText('—')).toBeTruthy()
     await user.click(within(lab).getByRole('button', { name: 'People with the position Laborant' }))
-    const people = screen.getByRole('table', { name: 'People of Laborant' })
+    const people = await screen.findByRole('table', { name: 'People of Laborant' })
     expect(
       within(within(people).getByRole('row', { name: /Černá Marie/ }))
         .getByRole('link', { name: 'Laboratoře' })
@@ -239,7 +243,7 @@ describe('positions', () => {
 
   it('show one position: its departments, courses and people', async () => {
     const props = { params: params({ id: 'pos_lab' }) }
-    expect(await positionMetadata()).toEqual({ title: 'Positions' })
+    expect(await positionMetadata(props)).toEqual({ title: 'Laborant' })
     await renderServer(PositionPage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'Laborant' })).toBeTruthy()
     expect(
@@ -257,8 +261,10 @@ describe('positions', () => {
     await renderServer(PositionPage({ params: params({ id: 'pos_lab' }) }))
     expect(screen.getByText('Nobody with this position belongs to a department.')).toBeTruthy()
     expect(screen.getByText('Nothing is required of this position.')).toBeTruthy()
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(PositionPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
+    vi.mocked(getPosition).mockResolvedValueOnce(null)
+    await expect(renderServer(PositionPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
+      NotFoundError
+    )
   })
 })
 
@@ -271,14 +277,14 @@ describe('access', () => {
     await expect(PositionsPage()).rejects.toThrow('redirect to sign-in')
     await expect(PositionPage(props)).rejects.toThrow('redirect to sign-in')
     // The titles name the section only: they read nothing.
-    expect(await departmentMetadata()).toEqual({ title: 'Departments' })
+    expect(await departmentMetadata(props)).toEqual({ title: 'Departments' })
     expect(requireReader).toHaveBeenCalledTimes(4)
     for (const read of [
       listDepartmentSummaries,
       getDepartment,
       listPositionSummaries,
       getPosition,
-      recordExists,
+      listGroupMembers,
     ])
       expect(read).not.toHaveBeenCalled()
   })
@@ -347,13 +353,13 @@ describe('managing departments and positions', () => {
         .getByRole('checkbox', { name: 'Laboratoře' })
         .getAttribute('aria-checked')
     ).toBe('true')
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(EditDepartmentPage({ params: params({ id: 'gone' }) })).rejects.toThrow(
-      NotFoundError
-    )
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(EditPositionPage({ params: params({ id: 'gone' }) })).rejects.toThrow(
-      NotFoundError
-    )
+    vi.mocked(getDepartmentForEdit).mockResolvedValueOnce(null)
+    await expect(
+      renderServer(EditDepartmentPage({ params: params({ id: 'gone' }) }))
+    ).rejects.toThrow(NotFoundError)
+    vi.mocked(getPositionForEdit).mockResolvedValueOnce(null)
+    await expect(
+      renderServer(EditPositionPage({ params: params({ id: 'gone' }) }))
+    ).rejects.toThrow(NotFoundError)
   })
 })

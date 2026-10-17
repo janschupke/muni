@@ -1,7 +1,5 @@
 'use client'
 
-import type { EmployeeSortKey } from '@muni/db/repositories'
-import type { ComplianceStatus, EmploymentState } from '@muni/domain/enums'
 import { Alert } from '@muni/ui/alert'
 import { cn } from '@muni/ui/cn'
 import { EmptyState } from '@muni/ui/empty-state'
@@ -18,16 +16,13 @@ import { ListActions } from '@/components/list-actions'
 import { ReadView } from '@/components/read-view'
 import { ListSkeleton } from '@/components/skeletons'
 import { readQuery } from '@/lib/query/queries'
+import {
+  type EmployeeListFilters,
+  type EmployeeListSort,
+  employeesListInput,
+  employeesQuery,
+} from '@/lib/read-inputs'
 import { withParams } from '@/lib/search-params'
-
-export interface EmployeeListFilters {
-  q?: string | undefined
-  department?: string | undefined
-  position?: string | undefined
-  status?: EmploymentState | undefined
-  compliance?: ComplianceStatus | undefined
-  manager?: string | undefined
-}
 
 /**
  * The employee list as the address asks for it (filters, sort, page). Changing them keeps the
@@ -40,16 +35,16 @@ export function EmployeesView({
   canEdit,
 }: {
   filters: EmployeeListFilters
-  sort: { by: EmployeeSortKey; desc: boolean } | undefined
+  sort: EmployeeListSort | undefined
   page: number
   canEdit: boolean
 }) {
   const t = useTranslations('employees')
   const tc = useTranslations('common')
   // Everything that shapes the list; page links and filter changes carry it along.
-  const query = { ...filters, sort: sort?.by, dir: sort?.desc ? ('desc' as const) : undefined }
+  const query = employeesQuery(filters, sort)
   const read = useQuery({
-    ...readQuery('employees-list', { ...query, page }),
+    ...readQuery('employees-list', employeesListInput(filters, sort, page)),
     placeholderData: keepPreviousData,
   })
   return (

@@ -26,7 +26,7 @@ export function RoleForm({
   disabled: boolean
 }) {
   const t = useTranslations()
-  const afterWrite = useAfterWrite()
+  const afterWrite = useAfterWrite('role')
   const trigger = useRef<HTMLButtonElement>(null)
   const [chosen, setChosen] = useState<Role>(role)
   const [open, setOpen] = useState(false)

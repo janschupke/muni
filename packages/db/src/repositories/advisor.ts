@@ -2,7 +2,7 @@ import { type AdvisorInput, type AdvisorNeed, forecastEnd } from '@muni/domain/a
 import { sortName } from '@muni/domain/names'
 
 import { ACTIVE } from './archive'
-import { dbOf, loadCompliance, type RepoOptions, toAmount } from './context'
+import { dbOf, loadCompliance, toAmount, type WithCompliance } from './context'
 import { stillEmployed } from './employment'
 import { roomRefSelect, toRoomRef } from './sessions'
 
@@ -13,12 +13,12 @@ import { roomRefSelect, toRoomRef } from './sessions'
  * Names and departments are already public on the employee list; nothing sensitive is read.
  */
 export async function getAdvisorInput(
-  options?: RepoOptions & { now?: Date }
+  options?: WithCompliance & { now?: Date }
 ): Promise<AdvisorInput> {
   const db = dbOf(options)
   const now = options?.now ?? new Date()
   const [compliance, employees, courses, sessions] = await Promise.all([
-    loadCompliance(options),
+    options?.compliance ?? loadCompliance(options),
     db.employee.findMany({
       where: { ...ACTIVE, ...stillEmployed(options?.asOf) },
       select: {

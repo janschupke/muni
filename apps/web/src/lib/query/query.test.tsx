@@ -11,6 +11,7 @@ import { router } from '@/test/next'
 import { Providers, renderClient, testQueryClient } from '@/test/render'
 
 import { fetchRead, ReadError, readSearch } from './fetch-read'
+import { changedBy } from './invalidation'
 import { makeQueryClient, STALE_MS } from './query-client'
 import { useAfterWrite } from './use-after-write'
 import { useDocumentTitle } from './use-document-title'
@@ -114,7 +115,7 @@ describe('after a write', () => {
       <Providers client={client}>{children}</Providers>
     )
     const invalidate = vi.spyOn(client, 'invalidateQueries')
-    const { result } = renderHook(() => useAfterWrite(), { wrapper })
+    const { result } = renderHook(() => useAfterWrite('booking'), { wrapper })
     act(() => {
       result.current('/rooms/r1')
     })
@@ -125,6 +126,28 @@ describe('after a write', () => {
       result.current()
     })
     expect(router.push).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves alone what the write cannot have changed', () => {
+    const client = testQueryClient()
+    client.setQueryData(['read', 'users-list', {}], ['kept'])
+    client.setQueryData(['read', 'rooms-list', {}], ['dropped'])
+    client.setQueryData(['read', 'dashboard', {}], ['kept'])
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <Providers client={client}>{children}</Providers>
+    )
+    const { result } = renderHook(() => useAfterWrite('room'), { wrapper })
+    act(() => {
+      result.current('/rooms')
+    })
+    // A room is on the rooms' pages and the planning ones, never on the users'.
+    expect(client.getQueryData(['read', 'users-list', {}])).toEqual(['kept'])
+    expect(client.getQueryData(['read', 'rooms-list', {}])).toBeUndefined()
+    expect(client.getQueryData(['read', 'dashboard', {}])).toBeUndefined()
+    expect(changedBy('role')(['read', 'user', { id: 'u1' }])).toBe(true)
+    expect(changedBy('role')(['read', 'dashboard', {}])).toBe(false)
+    expect(changedBy('import')(['read', 'dashboard', {}])).toBe(true)
+    expect(changedBy('import')(['probe'])).toBe(false)
   })
 
   it('names the tab after the record once it is there', () => {

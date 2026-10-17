@@ -281,7 +281,11 @@ export async function getEmployee(
   })
   if (!employee) return null
 
-  const compliance = await loadCompliance(options)
+  // Theirs and their team's only.
+  const compliance = await loadCompliance({
+    ...options,
+    scope: { employeeIds: [employee.id, ...employee.reports.map(r => r.id)] },
+  })
   const cells = compliance.cells.filter(c => c.employeeId === employee.id)
   const cellsByPerson = Map.groupBy(compliance.cells, c => c.employeeId)
   const reports = employee.reports.toSorted(compareNames).map((r): TeamMember => {

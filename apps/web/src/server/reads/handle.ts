@@ -1,11 +1,10 @@
 import 'server-only'
 
-import { canWrite } from '@muni/domain/enums'
-
 import { getSessionUser, isAccountArchived } from '@/server/auth'
 import { RateLimitedError, spendRequest } from '@/server/rate-limit'
 
 import { type ReadName, reads } from './registry'
+import { runRead } from './run'
 
 const answer = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   Response.json(body, {
@@ -24,14 +23,11 @@ const isRead = (name: string): name is ReadName => Object.hasOwn(reads, name)
  */
 export async function handleRead(name: string, search: URLSearchParams): Promise<Response> {
   if (!isRead(name)) return answer(404, { error: 'unknown_read' })
-  const definition = reads[name]
   const user = await getSessionUser()
   if (!user)
     return (await isAccountArchived())
       ? answer(403, { error: 'archived' })
       : answer(401, { error: 'unauthenticated' })
-  if (definition.guard === 'admin' && !canWrite(user.role))
-    return answer(403, { error: 'forbidden' })
   try {
     await spendRequest('read', user.id)
   } catch (error) {
@@ -42,15 +38,18 @@ export async function handleRead(name: string, search: URLSearchParams): Promise
       { 'Retry-After': String(error.retryAfterSeconds) }
     )
   }
-  const input = definition.input.safeParse(Object.fromEntries(search))
-  if (!input.success) return answer(400, { error: 'invalid_input' })
   try {
-    // Each read parses its own input above; the union of loads takes it as it parsed.
-    const data = await (definition.load as (input: unknown, u: typeof user) => Promise<unknown>)(
-      input.data,
-      user
-    )
-    return data === null ? answer(404, { error: 'not_found' }) : answer(200, data)
+    const result = await runRead(name, Object.fromEntries(search), user)
+    switch (result.kind) {
+      case 'ok':
+        return answer(200, result.data)
+      case 'not_found':
+        return answer(404, { error: 'not_found' })
+      case 'forbidden':
+        return answer(403, { error: 'forbidden' })
+      case 'invalid':
+        return answer(400, { error: 'invalid_input' })
+    }
   } catch (error) {
     console.error(error)
     return answer(500, { error: 'failed' })

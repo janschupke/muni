@@ -27,6 +27,7 @@ import {
   listCourses,
   listDepartmentSummaries,
   listEmployees,
+  listGroupMembers,
   listPositionSummaries,
   listRooms,
   listSessions,
@@ -396,9 +397,15 @@ describe('course list', () => {
       capabilities: [],
     })
     expect(bozp?.upcoming.length).toBe(bozp?.upcomingSessions)
-    expect(bozp?.upcoming.every(s => s.status === 'PLANNED' && s.courseCode === 'BOZP-Z')).toBe(
-      true
-    )
+    // Each with what a list shows: when, where and how full.
+    expect(Object.keys(bozp?.upcoming[0] ?? {}).toSorted()).toEqual([
+      'bookedCount',
+      'capacity',
+      'endsAt',
+      'externalId',
+      'room',
+      'startsAt',
+    ])
     expect((await getCourse('BOZP-Z', options))?.byDepartment).toEqual(bozp?.byDepartment)
     // A course's rate counts active people, as its department rows do: the rows add up to
     // it, but for the few people with no department, whom the dashboard counts the same way.
@@ -436,12 +443,16 @@ describe('departments and positions', () => {
       (lab?.active ?? 0) + (lab?.parentalLeave ?? 0)
     )
     expect(lab?.actionNow).toBeGreaterThan(0)
-    // Its people, each with the same record the employee list shows, most urgent first.
-    expect(lab?.members).toHaveLength((lab?.active ?? 0) + (lab?.parentalLeave ?? 0))
-    expect(['EXPIRED', 'MISSING']).toContain(lab?.members[0]?.compliance)
-    const first = lab?.members[0]
+    // Its people, counted in the list and read when its row opens: each with the same
+    // record the employee list shows, most urgent first.
+    const members = await listGroupMembers('department', lab?.id ?? '', options)
+    expect(lab?.memberCount).toBe((lab?.active ?? 0) + (lab?.parentalLeave ?? 0))
+    expect(members).toHaveLength(lab?.memberCount ?? -1)
+    expect(['EXPIRED', 'MISSING']).toContain(members?.[0]?.compliance)
+    const first = members?.[0]
     const listed = await listEmployees({ q: first?.externalId }, options)
     expect(listed.items).toEqual([first])
+    expect(await listGroupMembers('department', 'nope', options)).toBeNull()
   })
 
   it('show a department’s courses and why it must hold them', async () => {
@@ -469,9 +480,10 @@ describe('departments and positions', () => {
     expect(positions.map(p => p.name)).toContain('Řidič')
     const driver = positions.find(p => p.name === 'Řidič')
     expect(driver?.departments.length).toBeGreaterThan(0)
-    expect(driver?.members.every(m => m.position === 'Řidič')).toBe(true)
-    expect(driver?.members).toHaveLength((driver?.active ?? 0) + (driver?.parentalLeave ?? 0))
     const detail = await getPosition(driver?.id ?? '', options)
+    expect(detail?.members.every(m => m.position === 'Řidič')).toBe(true)
+    expect(detail?.members).toHaveLength((driver?.active ?? 0) + (driver?.parentalLeave ?? 0))
+    expect(await listGroupMembers('position', driver?.id ?? '', options)).toEqual(detail?.members)
     expect(detail?.courses.find(c => c.code === 'RIDIC')?.requiredBy).toMatchObject([
       { scope: 'POSITION', target: 'Řidič' },
     ])
@@ -697,7 +709,9 @@ describe('assignments', () => {
     expect(await applyAssignments([request], TEST_USER, opts)).toEqual([{ request, ok: true }])
     expect(await booked('T018')).toBe((before ?? 0) + 1)
     expect(
-      (await getSession('T018', options))?.assigned.map(a => (a.archived ? a.tag : a.externalId))
+      (await getSession('T018', options))?.bookings.map(({ person: a }) =>
+        a.archived ? a.tag : a.externalId
+      )
     ).toEqual([need.employee.externalId])
     const row = await db.sessionAssignment.findFirstOrThrow({
       where: { session: { externalId: 'T018' } },
@@ -791,7 +805,7 @@ describe('assignments', () => {
     await seedFromDirectory(db, DATA_DIR, asOf)
     const t003 = await getSession('T003', options)
     expect(t003).toMatchObject({ bookedCount: 5, unnamedBookings: 4 })
-    expect(t003?.assigned).toHaveLength(1)
+    expect(t003?.bookings).toHaveLength(1)
   })
 
   it('moves anonymous seats to repair overbooking, within the rules', async () => {

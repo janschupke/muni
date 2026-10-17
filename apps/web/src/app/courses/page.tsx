@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server'
 
 import { CoursesView } from '@/features/courses/courses-view'
 import { requireReader } from '@/server/auth'
+import { prefetched } from '@/server/prefetch'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('courses'))('title') }
@@ -11,5 +12,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function CoursesPage() {
   const user = await requireReader()
-  return <CoursesView canEdit={canWrite(user.role)} />
+  return prefetched(
+    user,
+    [{ name: 'courses-list', input: {} }],
+    <CoursesView canEdit={canWrite(user.role)} />
+  )
 }

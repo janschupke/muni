@@ -41,6 +41,7 @@ export function RoomForm({
   const [kind, setKind] = useState<string>(defaults.kind)
   return (
     <FormShell
+      writes="room"
       {...shell}
       spec={roomSpec}
       submitLabel={shell.isNew ? tsave('room') : tsave('changes')}

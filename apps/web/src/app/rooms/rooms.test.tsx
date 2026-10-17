@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { getRoom, getRoomForEdit, listRooms, recordExists } from '@muni/db/repositories'
-import { screen, within } from '@testing-library/react'
+import { getRoom, getRoomForEdit, listRooms } from '@muni/db/repositories'
+import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { archiveAction, previewArchive } from '@/server/actions/archive'
 import { requireAdminPage } from '@/server/auth'
+import { RateLimitedError, spendRequest } from '@/server/rate-limit'
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { ONLINE, roomDetail, roomRow } from '@/test/fixtures'
@@ -86,13 +87,35 @@ describe('room list', () => {
   })
 })
 
+describe('a page’s data from the server', () => {
+  it('falls back to reading in the browser past the read limit, or when the server read fails', async () => {
+    signInAs('VIEWER')
+    const fetches = vi.spyOn(globalThis, 'fetch')
+    // Past the minute's limit: the page renders, and its view asks (and is told to wait).
+    vi.mocked(spendRequest).mockRejectedValueOnce(new RateLimitedError(30))
+    vi.mocked(spendRequest).mockRejectedValueOnce(new RateLimitedError(30))
+    await renderServer(RoomsPage())
+    expect(fetches).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText(/Too many requests in a short time/)).toBeTruthy()
+    cleanup()
+    // A read that throws on the server is the browser's to try again.
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(listRooms).mockRejectedValueOnce(new Error('timeout'))
+    await renderServer(RoomsPage())
+    expect(log).toHaveBeenCalled()
+    expect(fetches).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('room detail', () => {
   const props = { params: params({ id: 'room_aula_a' }) }
 
   it('is titled by the room, or by the id when unknown', async () => {
-    expect(await roomMetadata()).toEqual({ title: 'Rooms' })
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(RoomPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
+    expect(await roomMetadata(props)).toEqual({ title: 'Aula A' })
+    vi.mocked(getRoom).mockResolvedValueOnce(null)
+    await expect(renderServer(RoomPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
+      NotFoundError
+    )
   })
 
   it('shows its equipment, its sessions and which courses fit, read-only for viewers', async () => {
@@ -208,8 +231,10 @@ describe('room forms', () => {
       'true'
     )
     await expectNoAxeViolations()
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(EditRoomPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
+    vi.mocked(getRoomForEdit).mockResolvedValueOnce(null)
+    await expect(renderServer(EditRoomPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
+      NotFoundError
+    )
   })
 })
 

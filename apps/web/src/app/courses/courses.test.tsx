@@ -164,11 +164,14 @@ describe('course detail', () => {
   const props = { params: params({ code: 'BOZP-Z' }) }
 
   it('is titled by the course once its data is there; an unknown code is not found', async () => {
-    expect(await courseMetadata()).toEqual({ title: 'Courses' })
+    // The tab names the course from the server on, from the same read the page shows.
+    expect(await courseMetadata(props)).toEqual({ title: 'BOZP – základní školení' })
     await renderServer(CoursePage(props))
     expect(document.title).toBe('BOZP – základní školení · Training register')
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(CoursePage({ params: params({ code: 'NOPE' }) })).rejects.toThrow(NotFoundError)
+    vi.mocked(getCourse).mockResolvedValueOnce(null)
+    await expect(renderServer(CoursePage({ params: params({ code: 'NOPE' }) }))).rejects.toThrow(
+      NotFoundError
+    )
   })
 
   it('shows who must hold it, how many do, its sessions and recent completions', async () => {
@@ -243,8 +246,8 @@ describe('course detail', () => {
       'true'
     )
     await expectNoAxeViolations()
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(EditCoursePage(props)).rejects.toThrow(NotFoundError)
+    vi.mocked(getCourseForEdit).mockResolvedValueOnce(null)
+    await expect(renderServer(EditCoursePage(props))).rejects.toThrow(NotFoundError)
   })
 
   it('adds a course: admins open an empty form from the list', async () => {

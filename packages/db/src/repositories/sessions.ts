@@ -33,6 +33,44 @@ export const toRoomRef = (room: {
 
 export type SessionWindow = 'upcoming' | 'past'
 
+/** What a list of sessions shows of each: when, where, and how full. */
+export const sessionSummarySelect = {
+  externalId: true,
+  startsAt: true,
+  endsAt: true,
+  capacity: true,
+  unnamedBookings: true,
+  room: { select: roomRefSelect },
+  _count: { select: { assignments: true } },
+} as const
+
+export interface SessionSummary {
+  externalId: string
+  startsAt: string
+  endsAt: string
+  room: RoomRef
+  capacity: number
+  /** Unnamed plus named bookings. */
+  bookedCount: number
+}
+
+export const toSessionSummary = (s: {
+  externalId: string
+  startsAt: Date
+  endsAt: Date
+  capacity: number
+  unnamedBookings: number
+  room: Parameters<typeof toRoomRef>[0]
+  _count: { assignments: number }
+}): SessionSummary => ({
+  externalId: s.externalId,
+  startsAt: s.startsAt.toISOString(),
+  endsAt: s.endsAt.toISOString(),
+  room: toRoomRef(s.room),
+  capacity: s.capacity,
+  bookedCount: s.unnamedBookings + s._count.assignments,
+})
+
 /**
  * What every session read selects: the course and what its sessions need, the room with its
  * seats and equipment, and the named bookings with who they are and how they were made.
@@ -115,7 +153,6 @@ export function toSessionItem(s: SessionRow): SessionListItem {
     needs: needsOf(s.course),
     capacity: s.capacity,
     unnamedBookings: s.unnamedBookings,
-    assigned: s.assignments.map(a => toPersonRef(a.employee)),
     // An archived person shows only as their tag: nothing else about them.
     bookings: s.assignments.map(a => {
       const archived = isArchived(a.employee)

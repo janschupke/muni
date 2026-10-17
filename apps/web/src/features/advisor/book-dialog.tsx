@@ -40,7 +40,7 @@ export function BookDialog({
   const t = useTranslations('advisor.action.dialog')
   const tr = useTranslations('advisor.outcome')
   const locale = useLocale()
-  const afterWrite = useAfterWrite()
+  const afterWrite = useAfterWrite('booking')
   const when = (s: AdvisorSession) => formatTimeRange(s.startsAt, s.endsAt, locale)
   const cost = bookings.reduce((sum, b) => sum + (b.session.pricePerPerson ?? 0), 0)
 

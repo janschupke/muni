@@ -31,7 +31,7 @@ export function RemoveBookingButton({
   const reasons = useTranslations('advisor.outcome.reasons')
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
-  const afterWrite = useAfterWrite()
+  const afterWrite = useAfterWrite('booking')
   return (
     <>
       <IconButton

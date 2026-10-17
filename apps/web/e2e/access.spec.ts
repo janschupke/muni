@@ -17,6 +17,8 @@ test.describe('visitors', () => {
     const html = await page.content()
     for (const data of ['Laboratoře', 'E0153', 'vzorova.example', 'BOZP'])
       expect(html, data).not.toContain(data)
+    // Nor the signed-in pages' words: the browser gets only the shell's messages.
+    expect(html).not.toContain('Another planned session uses this room at that time.')
 
     await page.getByRole('link', { name: 'Create account' }).click()
     await expect(page).toHaveURL(/\/sign-up/)

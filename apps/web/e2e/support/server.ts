@@ -14,6 +14,9 @@ export function productionServer(port: number): NonNullable<PlaywrightTestConfig
       DATABASE_URL: TEST_DB,
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '',
       CLERK_SECRET_KEY: process.env['CLERK_SECRET_KEY'] ?? '',
+      // The suites click far faster than a person; the limits themselves have unit tests.
+      MUNI_RATE_LIMIT_READS: '100000',
+      MUNI_RATE_LIMIT_WRITES: '100000',
     },
   }
 }

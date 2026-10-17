@@ -9,8 +9,7 @@ import { SplitLayout } from '@muni/ui/layout'
 import { Meter } from '@muni/ui/meter'
 import { PageHeader } from '@muni/ui/page-header'
 import { TextLink } from '@muni/ui/text-link'
-import { toZonedParts } from '@muni/utils/dates'
-import { formatCurrency, formatDate, formatTimeRange } from '@muni/utils/format'
+import { formatCurrency, formatTimeRange } from '@muni/utils/format'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -26,6 +25,7 @@ import { OccupancyBadge, seatTone, SessionStatusBadge } from '@/components/statu
 import { AddBookingForm } from '@/features/bookings/add-booking'
 import { readQuery } from '@/lib/query/queries'
 import { useDocumentTitle } from '@/lib/query/use-document-title'
+import { sessionTitle } from '@/lib/titles'
 import type { ReadOutput } from '@/server/reads/registry'
 
 /** A session's page: when and where, its seats, and who is booked. */
@@ -33,9 +33,7 @@ export function SessionView({ externalId, canEdit }: { externalId: string; canEd
   const locale = useLocale()
   const read = useQuery(readQuery('session', { externalId }))
   const found = read.data?.session
-  useDocumentTitle(
-    found && `${found.courseName} · ${formatDate(toZonedParts(found.startsAt).date, locale)}`
-  )
+  useDocumentTitle(found && sessionTitle(found, locale))
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="sessions">
       {data => <SessionDetail {...data} canEdit={canEdit} />}
@@ -47,7 +45,8 @@ function SessionDetail({ session, people, canEdit }: ReadOutput<'session'> & { c
   const t = useTranslations('sessions')
   const tb = useTranslations('bookings')
   const locale = useLocale()
-  const booked = new Set(session.assigned.flatMap(a => (a.archived ? [] : [a.externalId])))
+  const attendees = session.bookings.map(b => b.person)
+  const booked = new Set(attendees.flatMap(a => (a.archived ? [] : [a.externalId])))
   // Booking by hand is for planned sessions that have not started.
   const bookable =
     canEdit && session.status === 'PLANNED' && new Date(session.startsAt) > new Date()
@@ -115,9 +114,9 @@ function SessionDetail({ session, people, canEdit }: ReadOutput<'session'> & { c
         main={
           <Card>
             <CardHeader
-              title={t('attendees.named', { count: session.assigned.length })}
+              title={t('attendees.named', { count: attendees.length })}
               description={t('attendees.summary', {
-                named: session.assigned.length,
+                named: attendees.length,
                 unnamed: session.unnamedBookings,
               })}
             />
@@ -132,11 +131,11 @@ function SessionDetail({ session, people, canEdit }: ReadOutput<'session'> & { c
                     .map(p => ({ value: p.externalId, label: p.name }))}
                 />
               )}
-              {session.assigned.length === 0 ? (
+              {attendees.length === 0 ? (
                 <EmptyState variant="inline" title={t('attendees.noneNamed')} />
               ) : (
                 <ItemList>
-                  {session.assigned.map(a => (
+                  {attendees.map(a => (
                     <ItemListRow key={a.archived ? a.tag : a.externalId}>
                       <PersonLink person={a} />
                       {canEdit && !a.archived && (

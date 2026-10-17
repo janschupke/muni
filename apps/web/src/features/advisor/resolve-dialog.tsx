@@ -38,7 +38,7 @@ export function ResolveDialog({
   const t = useTranslations('advisor.overbooked.dialog')
   const tr = useTranslations('advisor.overbooked.refused')
   const locale = useLocale()
-  const afterWrite = useAfterWrite()
+  const afterWrite = useAfterWrite('session')
   const { session } = o
   const when = (s: AdvisorSession) => formatTimeRange(s.startsAt, s.endsAt, locale)
   const named = session.assigned.length

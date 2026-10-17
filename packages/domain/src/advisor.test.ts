@@ -8,8 +8,10 @@ import {
   forecastEnd,
   forecastMonths,
   MAX_ALTERNATIVES,
+  packPlan,
   planAssignments,
   seatsFree,
+  unpackPlan,
 } from './advisor'
 
 const AS_OF = '2026-10-16'
@@ -221,6 +223,28 @@ describe('the queue', () => {
     )
     expect(itemOf(p, 'E1').proposal).toBeNull()
     expect(itemOf(p, 'E2').proposal).toMatchObject({ kind: 'SESSION', rank: 1 })
+  })
+})
+
+describe('the plan on the wire', () => {
+  it('sends each session once and gives back the same plan', () => {
+    const sessions = [
+      session('BOZP', '2026-11-04', { capacity: 3 }),
+      session('BOZP', '2026-11-12', { capacity: 3 }),
+    ]
+    const p = plan(
+      ['E1', 'E2', 'E3', 'E4'].map(id => need(id, 'BOZP', 'EXPIRED')),
+      sessions
+    )
+    const packed = packPlan(p)
+    expect(Object.keys(packed.sessions).toSorted()).toEqual(
+      sessions.map(s => s.externalId).toSorted()
+    )
+    expect(JSON.stringify(packed).length).toBeLessThan(JSON.stringify(p).length)
+    expect(unpackPlan(JSON.parse(JSON.stringify(packed)) as typeof packed)).toEqual(p)
+    expect(() => unpackPlan({ sessions: {}, plan: { session: { $session: 'T1' } } })).toThrow(
+      'unknown session T1'
+    )
   })
 })
 

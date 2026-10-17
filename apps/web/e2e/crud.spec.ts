@@ -47,7 +47,9 @@ test('creates, renames, archives and brings back a department', async ({ page })
   await expect(page.getByRole('heading', { level: 1, name: 'E2E útvar 2' })).toBeVisible()
   await page.goto('/departments/archived')
   await page.getByRole('main').getByRole('link', { name: 'E2E útvar 2', exact: true }).click()
-  await page.getByRole('button', { name: 'Bring back' }).click()
+  // On the record's own page: the list's row has a "Bring back E2E útvar 2" button too.
+  await expect(page).toHaveURL(/\/departments\/archived\/[^/]+$/)
+  await page.getByRole('button', { name: 'Bring back', exact: true }).click()
   // It asks first, then says why it cannot.
   await page
     .getByRole('dialog', { name: 'Bring back E2E útvar 2?' })
@@ -142,7 +144,7 @@ test('plans a session with the time picker, books a person by hand, and cancels 
   await expect(
     refusal.getByText('1 seat is taken on this session.', { exact: false })
   ).toBeVisible()
-  await refusal.getByRole('button', { name: 'Cancel' }).click()
+  await refusal.getByRole('button', { name: 'Keep as is' }).click()
 
   await page.getByRole('button', { name: 'Cancel the booking of Malá Alena' }).click()
   await page

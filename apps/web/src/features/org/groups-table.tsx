@@ -8,13 +8,17 @@ import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent, PLACEHOLDER } from '@muni/utils/format'
+import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { PersonLink, personText } from '@/components/archived'
+import { ReadView } from '@/components/read-view'
 import { RowActions } from '@/components/record-actions'
+import { TableSkeleton } from '@/components/skeletons'
 import { rateTone } from '@/components/status-badges'
+import { readQuery } from '@/lib/query/queries'
 
 import { MembersTable } from './members-table'
 
@@ -153,15 +157,36 @@ export function GroupsTable(
       data={props.groups}
       getRowId={g => g.id}
       renderExpanded={g => (
-        <MembersTable
-          name={g.name}
-          members={g.members}
-          other={kind === 'departments' ? 'position' : 'department'}
-        />
+        <GroupMembers kind={kind === 'departments' ? 'department' : 'position'} group={g} />
       )}
-      getRowCanExpand={g => g.members.length > 0}
+      getRowCanExpand={g => g.memberCount > 0}
       expandLabel={g => t('toggle', { name: g.name })}
       expandHeader={to('panelHeader')}
     />
+  )
+}
+
+/** An opened row's people, read when it opens. */
+function GroupMembers({
+  kind,
+  group,
+}: {
+  kind: 'department' | 'position'
+  group: { id: string; name: string; memberCount: number }
+}) {
+  const read = useQuery(readQuery('group-members', { kind, id: group.id }))
+  return (
+    <ReadView
+      query={read}
+      skeleton={<TableSkeleton rows={Math.min(group.memberCount, 6)} columns={5} />}
+    >
+      {members => (
+        <MembersTable
+          name={group.name}
+          members={members}
+          other={kind === 'department' ? 'position' : 'department'}
+        />
+      )}
+    </ReadView>
   )
 }

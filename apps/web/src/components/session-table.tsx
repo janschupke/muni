@@ -175,7 +175,7 @@ function SessionDetails({ session: s }: { session: SessionListItem }) {
   const tu = useTranslations('forms.session.unfit')
   const tcap = useTranslations('status.capability')
   const locale = useLocale()
-  const named = s.assigned.length
+  const named = s.bookings.length
   const free = Math.max(0, s.capacity - s.bookedCount)
   const over = Math.max(0, s.bookedCount - s.capacity)
   const room = { ...s.room, capacity: s.roomSeats, capabilities: s.roomCapabilities }

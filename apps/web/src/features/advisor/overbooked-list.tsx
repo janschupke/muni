@@ -11,13 +11,15 @@ import { Meter } from '@muni/ui/meter'
 import { TextLink } from '@muni/ui/text-link'
 import { formatTimeRange } from '@muni/utils/format'
 import { ArrowRightLeft } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 import { RoomLink, SessionDateLink } from '@/components/session-links'
 
-import { ResolveDialog } from './resolve-dialog'
+// Loaded when needed: the dialog opens when a session is chosen.
+const ResolveDialog = dynamic(() => import('./resolve-dialog').then(m => m.ResolveDialog))
 
 /**
  * Sessions over capacity, with the advisor's suggestion. An admin resolves each one in a

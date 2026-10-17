@@ -3,7 +3,7 @@ import { sortName } from '@muni/domain/names'
 
 import { ACTIVE } from './archive'
 import { mandatoryCourse } from './audience'
-import { dbOf, loadCompliance, type RepoOptions } from './context'
+import { dbOf, loadCompliance, type RepoOptions, type WithCompliance } from './context'
 import type { SessionListItem } from './courses'
 import { compareNames } from './employee-sort'
 import type { EmployeeListRequirement } from './employees'
@@ -25,9 +25,9 @@ export interface DashboardData {
   upcomingSessions: SessionListItem[]
 }
 
-export async function getDashboard(options?: RepoOptions): Promise<DashboardData> {
+export async function getDashboard(options?: WithCompliance): Promise<DashboardData> {
   const [compliance, departments, upcomingSessions] = await Promise.all([
-    loadCompliance(options),
+    options?.compliance ?? loadCompliance(options),
     activeDepartments(options),
     listSessions({ window: 'upcoming', limit: 6 }, options),
   ])

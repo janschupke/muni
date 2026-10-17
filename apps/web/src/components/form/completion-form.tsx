@@ -59,6 +59,7 @@ export function CompletionForm({
   )
   return (
     <FormShell
+      writes="person"
       {...shell}
       spec={completionSpec}
       submitLabel={shell.isNew ? tsave('completion') : tsave('changes')}

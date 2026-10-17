@@ -34,7 +34,7 @@ export function UnarchiveButton({
 }) {
   const t = useTranslations('archive')
   const refusal = useRefusalText(kind)
-  const afterWrite = useAfterWrite()
+  const afterWrite = useAfterWrite('archive')
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const show = () => {

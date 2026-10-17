@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server'
 
 import { GroupsView } from '@/features/org/groups-view'
 import { requireReader } from '@/server/auth'
+import { prefetched } from '@/server/prefetch'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('positions'))('title') }
@@ -11,5 +12,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PositionsPage() {
   const user = await requireReader()
-  return <GroupsView kind="positions" canEdit={canWrite(user.role)} />
+  return prefetched(
+    user,
+    [{ name: 'positions-list', input: {} }],
+    <GroupsView kind="positions" canEdit={canWrite(user.role)} />
+  )
 }

@@ -53,7 +53,7 @@ export function SessionFormView({
               courses={courses}
               rooms={rooms}
               self={session.externalId}
-              named={session.assigned.length}
+              named={session.bookings.length}
               defaults={{
                 courseId: session.courseId,
                 date: start.date,

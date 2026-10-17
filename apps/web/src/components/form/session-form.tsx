@@ -202,6 +202,7 @@ export function SessionForm({
 
   return (
     <FormShell
+      writes="session"
       action={action}
       cancelHref={cancelHref}
       heading={heading}

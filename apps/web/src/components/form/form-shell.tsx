@@ -32,6 +32,7 @@ import {
 
 import { type FieldErrorKey, type FormState, IDLE } from '@/lib/form'
 import { type FormSpec, parseForm } from '@/lib/form-inputs'
+import type { WriteKind } from '@/lib/query/invalidation'
 import { useWhenWritten } from '@/lib/query/use-after-write'
 
 import { ConfirmDialog } from '../confirm-dialog'
@@ -139,6 +140,7 @@ export function FormShell({
   clientErrors: live,
   submitLabel,
   savedMessage,
+  writes,
   confirm,
   children,
 }: {
@@ -153,6 +155,8 @@ export function FormShell({
   submitLabel: string
   /** The toast once it is saved: "Course created". */
   savedMessage: string
+  /** What saving it changes, so the pages that show it read afresh. */
+  writes: WriteKind
   /** Asks before a save that does more than it shows; null when this one needs no asking. */
   confirm?: ((form: FormData) => SaveConfirmation | null) | undefined
   children: ReactNode
@@ -162,6 +166,7 @@ export function FormShell({
   const submitRef = useRef<HTMLButtonElement>(null)
   const [state, formAction, pending] = useActionState(action, IDLE)
   useWhenWritten(
+    writes,
     state,
     state.status === 'saved',
     state.status === 'saved' ? state.href : undefined,

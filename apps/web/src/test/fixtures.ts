@@ -51,7 +51,6 @@ export const session = (over: Partial<SessionListItem> = {}): SessionListItem =>
   needs: { sessionMinutes: 180, groupSize: 30, onlineAllowed: false, capabilities: ['PROJECTOR'] },
   capacity: 30,
   unnamedBookings: 29,
-  assigned: [{ archived: false, externalId: 'E0153', name: 'Černá Marie' }],
   bookings: [
     {
       person: { archived: false, externalId: 'E0153', name: 'Černá Marie' },
@@ -217,7 +216,7 @@ export const courseDetail = (over: Partial<CourseDetail> = {}): CourseDetail => 
     { scope: 'DEPARTMENT', target: 'Laboratoře', targetId: 'dep_lab', archived: false },
     { scope: 'POSITION', target: 'Vedoucí oddělení', targetId: 'pos_head', archived: false },
   ],
-  sessions: [session(), session({ externalId: 'T017', status: 'CANCELLED', assigned: [] })],
+  sessions: [session(), session({ externalId: 'T017', status: 'CANCELLED', bookings: [] })],
   recentCompletions: [
     {
       externalId: 'Z000101',
@@ -530,7 +529,7 @@ export const roomDetail = (over: Partial<RoomDetail> = {}): RoomDetail => {
 }
 
 /** A group's people: one needing attention, one fully held (on leave), one with nothing required. */
-const members = (): EmployeeListItem[] => [
+export const members = (): EmployeeListItem[] => [
   employeeRow(),
   employeeRow({
     externalId: 'E0154',
@@ -580,7 +579,7 @@ export const departmentSummary = (over: Partial<DepartmentSummary> = {}): Depart
     { id: 'pos_lab', name: 'Laborant', count: 24 },
     { id: 'pos_head', name: 'Vedoucí', count: 1 },
   ],
-  members: members(),
+  memberCount: members().length,
   ...over,
 })
 
@@ -605,6 +604,7 @@ const courseCompliance = [
 
 export const departmentDetail = (over: Partial<DepartmentDetail> = {}): DepartmentDetail => ({
   ...departmentSummary(),
+  members: members(),
   courses: courseCompliance,
   ...over,
 })
@@ -620,12 +620,13 @@ export const positionSummary = (over: Partial<PositionSummary> = {}): PositionSu
   actionNow: 8,
   upcomingBookings: 2,
   departments: [{ id: 'dep_lab', name: 'Laboratoře', count: 24 }],
-  members: members(),
+  memberCount: members().length,
   ...over,
 })
 
 export const positionDetail = (over: Partial<PositionDetail> = {}): PositionDetail => ({
   ...positionSummary(),
+  members: members(),
   courses: courseCompliance,
   ...over,
 })
