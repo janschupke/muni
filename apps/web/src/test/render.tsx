@@ -1,5 +1,6 @@
 import { TooltipProvider } from '@muni/ui/tooltip'
-import { render } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react'
 
@@ -31,24 +32,53 @@ export async function resolveServer(node: ReactNode): Promise<ReactNode> {
   return changed ? cloneElement(element, props) : element
 }
 
+/** A read cache of its own for one test: nothing retried, nothing dropped while it runs. */
+export const testQueryClient = () =>
+  new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
+  })
+
 /** The providers the root layout puts around every page. */
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({
+  children,
+  client = testQueryClient(),
+}: {
+  children: ReactNode
+  client?: QueryClient | undefined
+}) {
   return (
     <NextIntlClientProvider locale="en" messages={en} timeZone="Europe/Prague">
-      <TooltipProvider>{children}</TooltipProvider>
+      <QueryClientProvider client={client}>
+        <TooltipProvider>{children}</TooltipProvider>
+      </QueryClientProvider>
     </NextIntlClientProvider>
   )
 }
 
-/** Awaits a server component (a page's promise) and renders it inside the app's providers. */
+/** Every read the page made has answered (reads go to the server's handler, `reads.ts`). */
+async function settled(client: QueryClient) {
+  await waitFor(() => {
+    const queries = client.getQueryCache().getAll()
+    if (client.isFetching() > 0 || queries.some(q => q.state.status === 'pending'))
+      throw new Error('reads still running')
+  })
+}
+
+/**
+ * Awaits a server component (a page's promise), renders it inside the app's providers, and
+ * waits for the data its views read.
+ */
 export async function renderServer(page: ReactNode | Promise<ReactNode>) {
   const tree = await resolveServer(await page)
-  return render(<Providers>{tree}</Providers>)
+  const client = testQueryClient()
+  const result = render(<Providers client={client}>{tree}</Providers>)
+  await settled(client)
+  return { ...result, client }
 }
 
 /** Renders a client component inside the app's providers. */
-export function renderClient(ui: ReactNode) {
-  return render(<Providers>{ui}</Providers>)
+export function renderClient(ui: ReactNode, client: QueryClient = testQueryClient()) {
+  return { ...render(<Providers client={client}>{ui}</Providers>), client }
 }
 
 /** A page's `params` / `searchParams` prop. */

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { getProvider, getProviderForEdit, listProviders } from '@muni/db/repositories'
+import { getProvider, getProviderForEdit, listProviders, recordExists } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -22,6 +22,7 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   getProvider: vi.fn(),
   getProviderForEdit: vi.fn(),
   listProviders: vi.fn(),
+  recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/providers', () => ({ saveProvider: vi.fn() }))
@@ -103,7 +104,7 @@ describe('provider detail', () => {
   const props = { params: params({ id: 'prov_vzor' }) }
 
   it('shows its details, its totals, per course and its latest completions', async () => {
-    expect(await providerMetadata(props)).toEqual({ title: 'Vzorový školicí ústav' })
+    expect(await providerMetadata()).toEqual({ title: 'Providers' })
     await renderServer(ProviderPage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'Vzorový školicí ústav' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'kurzy@vzor.example' }).getAttribute('href')).toBe(
@@ -151,8 +152,7 @@ describe('provider detail', () => {
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '/providers/prov_int/edit'
     )
-    vi.mocked(getProvider).mockResolvedValue(null)
-    expect(await providerMetadata({ params: params({ id: 'gone' }) })).toEqual({ title: 'gone' })
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(ProviderPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
   })
 })
@@ -169,6 +169,7 @@ describe('provider forms', () => {
   })
 
   it('edit a provider with its current values', async () => {
+    signInAs('ADMIN')
     await renderServer(EditProviderPage({ params: params({ id: 'prov_vzor' }) }))
     expect(
       screen.getByRole('heading', { level: 1, name: 'Edit Vzorový školicí ústav' })
@@ -176,7 +177,7 @@ describe('provider forms', () => {
     expect(screen.getByRole('textbox', { name: /IČO/ })).toHaveProperty('value', '00216224')
     expect(screen.getByText(/Renaming changes the name/)).toBeTruthy()
     await expectNoAxeViolations()
-    vi.mocked(getProviderForEdit).mockResolvedValue(null)
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(EditProviderPage({ params: params({ id: 'gone' }) })).rejects.toThrow(
       NotFoundError
     )

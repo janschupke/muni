@@ -2,6 +2,7 @@ import { afterEach, vi } from 'vitest'
 
 import { installMatchMedia, resetMedia } from './media'
 import { resetNext } from './next'
+import { routeReadsToHandler } from './reads'
 
 // Next's server modules only work inside a request; these stand in for them in every test.
 // A test file can still replace one with its own `vi.mock`.
@@ -79,6 +80,7 @@ if (typeof window !== 'undefined') {
     scrollIntoView: () => undefined,
   })
   installMatchMedia()
+  routeReadsToHandler()
 }
 
 afterEach(async () => {

@@ -7,8 +7,6 @@ import {
   unarchiveRecord,
 } from '@muni/db/repositories'
 import { ARCHIVABLE, type Archivable } from '@muni/domain/archive'
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 
 import { archiveRefused, type ArchiveState } from '@/lib/form'
 import { requireAdmin } from '@/server/auth'
@@ -53,9 +51,7 @@ export async function archiveAction(
     return { status: 'refused', reason: 'generic' }
   }
   if (!impact.ok) return archiveRefused(impact.reason, impact.count)
-  revalidatePath('/', 'layout')
-  if (then) redirect(then)
-  return { status: 'done' }
+  return then ? { status: 'done', href: then } : { status: 'done' }
 }
 
 /** Brings an archived record back, then shows `then` (or stays, reporting `done`). */
@@ -82,7 +78,5 @@ export async function unarchiveAction(
           reason: outcome.reason === 'NOT_FOUND' ? 'not_found' : 'parent_archived',
         }
   }
-  revalidatePath('/', 'layout')
-  if (then) redirect(then)
-  return { status: 'done' }
+  return then ? { status: 'done', href: then } : { status: 'done' }
 }

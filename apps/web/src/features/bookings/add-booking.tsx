@@ -8,6 +8,7 @@ import { UserPlus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useActionState, useState } from 'react'
 
+import { useAfterWrite } from '@/lib/query/use-after-write'
 import { addBookingAction, type BookingState } from '@/server/actions/assignments'
 
 const IDLE: BookingState = { status: 'idle' }
@@ -31,10 +32,14 @@ export function AddBookingForm({
   const t = useTranslations()
   // A booked choice leaves the list; the select starts over.
   const [round, setRound] = useState(0)
+  const afterWrite = useAfterWrite()
   const [state, formAction, pending] = useActionState(
     async (previous: BookingState, form: FormData) => {
       const next = await addBookingAction(fixed, previous, form)
-      if (next.status === 'done') setRound(r => r + 1)
+      if (next.status === 'done') {
+        setRound(r => r + 1)
+        afterWrite()
+      }
       return next
     },
     IDLE

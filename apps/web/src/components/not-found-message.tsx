@@ -17,7 +17,7 @@ const ENTITIES = [
   'departments',
   'positions',
 ] as const
-type Entity = (typeof ENTITIES)[number]
+export type Entity = (typeof ENTITIES)[number]
 
 /** "Page not found" naming the address, or, under a record's route, which record is missing. */
 export function NotFoundMessage({ entity }: { entity?: Entity | undefined }) {

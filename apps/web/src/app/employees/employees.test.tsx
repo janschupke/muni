@@ -13,6 +13,7 @@ import {
   listGroupOptions,
   listPositions,
   listProviderOptions,
+  recordExists,
 } from '@muni/db/repositories'
 import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -49,6 +50,7 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   listProviderOptions: vi.fn(),
   listDepartmentPositions: vi.fn(() => Promise.resolve({ dep_lab: ['pos_lab'] })),
   listDepartmentHeads: vi.fn(() => Promise.resolve({})),
+  recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/edit', () => ({
@@ -250,15 +252,15 @@ describe('employee list', () => {
 describe('employee detail', () => {
   const props = { params: params({ externalId: 'E0153' }) }
 
-  it('is titled by the person, or by the ID when unknown', async () => {
-    expect(await employeeMetadata(props)).toEqual({ title: 'Marie Černá' })
-    vi.mocked(getEmployee).mockResolvedValue(null)
-    expect(await employeeMetadata({ params: params({ externalId: 'E9999' }) })).toEqual({
-      title: 'E9999',
-    })
+  it('is titled by the person once their data is there; an unknown ID is not found', async () => {
+    expect(await employeeMetadata()).toEqual({ title: 'Employees' })
+    await renderServer(EmployeePage(props))
+    expect(document.title).toBe('Marie Černá · Training register')
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(EmployeePage({ params: params({ externalId: 'E9999' }) })).rejects.toThrow(
       NotFoundError
     )
+    expect(recordExists).toHaveBeenCalledWith('employee', 'E9999')
   })
 
   it('shows the profile, requirements, bookings and history to viewers, read-only', async () => {
@@ -429,10 +431,15 @@ describe('managers', () => {
 
 describe('employee forms', () => {
   const props = { params: params({ externalId: 'E0153' }) }
+  beforeEach(() => {
+    signInAs('ADMIN')
+  })
 
   it('require an admin and an existing person', async () => {
-    vi.mocked(getEmployeeForEdit).mockResolvedValue(null)
-    vi.mocked(getCompletionForEdit).mockResolvedValue(null)
+    vi.mocked(recordExists)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
     await expect(EditEmployeePage(props)).rejects.toThrow(NotFoundError)
     await expect(NewCompletionPage(props)).rejects.toThrow(NotFoundError)
     await expect(
@@ -506,9 +513,10 @@ describe('employee forms', () => {
     expect(screen.getByRole('combobox', { name: /Provider/ }).textContent).toBe('Zaniklá firma')
     expect(screen.getByRole('combobox', { name: /Employee/ }).textContent).toBe('Černá Marie')
     expect(screen.getByText(/12 months from completion/)).toBeTruthy()
-    await expect(
-      EditCompletionPage({ params: params({ externalId: 'E0001', id: 'cmp_1' }) })
-    ).rejects.toThrow(NotFoundError)
+    // Under another person's address, the completion is not found.
+    cleanup()
+    await renderServer(EditCompletionPage({ params: params({ externalId: 'E0001', id: 'cmp_1' }) }))
+    expect(screen.getByRole('heading', { name: 'Employee not found' })).toBeTruthy()
   })
 
   it('record a completion against the course list', async () => {

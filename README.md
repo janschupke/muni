@@ -194,11 +194,38 @@ disagree about what is valid:
   was visited (`data-touched`) or is wrong (`data-invalid`).
 - **Save on an edit form** stays off until something differs from what was loaded.
 - **When the form opens,** the first field has the focus.
-- **Placeholders** show example values (`jana.novakova@firma.cz`, `BOZP-01`, a date in the
+- **Placeholders** show example values (`jana.novakova@firma.cz`, `KURZ-01`, a date in the
   locale's order).
 - **Checks the form makes on its own** (`clientErrors` on `FormShell`): the session form
   checks the room, seats, course and times as they change, and asks the server whether the
   room is free then.
+
+### Data and state
+
+Pages read their data in the browser through TanStack Query; the server only guards them.
+
+- **A page on the server** checks who may see it (`requireReader` / `requireAdminPage`), reads
+  its address (search params) and, for a record's page, whether the record is there
+  (`recordExists`), so a missing one still answers 404. It then renders a client view.
+- **A view reads** with `useQuery(readQuery(name, input))` from `/api/read/<name>`. Every
+  read is defined once in `apps/web/src/server/reads/` (who may run it, its input as a zod
+  schema, its load) and checked by one handler: 401 signed out, 403 archived or not an
+  admin, 400 bad input, 404 unknown read or missing record. A read returns plain JSON;
+  one that returns a `Date` or a `Map` does not compile.
+- **Caching:** data stays fresh for 5 minutes. A revisit inside that time renders from the
+  cache with no request; after it, the page shows what it has and refetches in the
+  background, also when the window regains focus. Only server errors are retried. The
+  cache belongs to one user and role: another sign-in starts empty.
+- **Loading:** the first visit shows a skeleton shaped like the page (`components/skeletons.tsx`,
+  in a `role="status"` region). Filtering, sorting or paging a list keeps the current rows,
+  dimmed, until the next ones arrive. A failed read offers to try again. There is no
+  `loading.tsx`: it would flash on every navigation, cached or not.
+- **Forms read fresh:** a form's read is never cached or refetched while it is open, so an
+  edit starts from what is saved and typing is never overwritten.
+- **After a write,** the action returns where to go (`{ status: 'saved', href }`). The
+  browser drops the cache of every page not on screen, marks the rest stale, and then
+  navigates (`useWhenWritten`). Actions do not refresh server routes; only the language
+  switch does, because it re-renders the layout.
 
 Pages are built from `@muni/ui` primitives, one subpath export each (`@muni/ui/select`,
 `@muni/ui/data-table`, …). Primitives that wrap a link take `asChild`
@@ -452,7 +479,9 @@ statements, functions and branches of everything under `src/`, files without tes
 Only tests, test helpers and the generated Prisma client are left out. `@muni/db` is measured
 over its unit and integration tests together, against the test database, so `pnpm coverage`
 needs `pnpm db:up`. In the web app, pages and server actions are unit-tested too: the tests
-render async server components with mocked repositories (`apps/web/src/test/`).
+render async server components with mocked repositories (`apps/web/src/test/`). A view's
+reads go straight to the read handler (`test/reads.ts`), so a page test runs the same guard
+and load as the real route, and `renderServer` waits until every read has answered.
 
 ## Checks
 

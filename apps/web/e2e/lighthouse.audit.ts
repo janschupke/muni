@@ -7,7 +7,7 @@ import { type BrowserContext, chromium, expect, type Page, test } from '@playwri
 import lighthouse, { type Flags } from 'lighthouse'
 import desktopConfig from 'lighthouse/core/config/desktop-config.js'
 
-import { APP_PAGES, pathOf } from './support/pages'
+import { APP_PAGES, loaded, pathOf } from './support/pages'
 import { baseUrlOf } from './support/server'
 import { storageState } from './support/users'
 
@@ -140,6 +140,7 @@ for (const entry of APP_PAGES.filter(p => p.status === undefined)) {
   test(`${name} page`, async ({ baseURL }) => {
     const route = await pathOf(entry, async url => {
       await keepAlive.goto(`${baseUrlOf(baseURL)}${url}`)
+      await loaded(keepAlive)
       return keepAlive.content()
     })
     await expectScores(name, route, `${baseUrlOf(baseURL)}${route}`, SIGNED_IN_PORT)

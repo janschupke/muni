@@ -24,7 +24,8 @@
     "skipToContent": "Přeskočit na obsah",
     "editLabel": "Upravit {name}",
     "actions": "Akce",
-    "remove": "Odebrat"
+    "remove": "Odebrat",
+    "loading": "Načítání…"
   },
   "nav": {
     "primary": "Hlavní navigace",
@@ -360,14 +361,14 @@
       "invalid_time": "Zadejte čas, např. 9:30.",
       "invalid_phone": "Zadejte telefonní číslo: číslice a mezery, případně + na začátku.",
       "invalid_national_id": "Zadejte 6 číslic, případně lomítko, a pak 3 nebo 4 číslice.",
-      "invalid_code": "Použijte velká písmena a číslice, části spojené pomlčkou (BOZP-01).",
+      "invalid_code": "Použijte velká písmena a číslice, části spojené pomlčkou (KURZ-01).",
       "not_a_number": "Zadejte číslo.",
       "too_small_number": "Zadejte alespoň {min}.",
       "too_big_number": "Zadejte nejvýše {max}.",
       "too_long": "Nejvýše {max, plural, one {# znak} few {# znaky} other {# znaků}}."
     },
     "placeholders": {
-      "code": "BOZP-01",
+      "code": "KURZ-01",
       "courseName": "Školení požární ochrany",
       "months": "24",
       "firstName": "Jana",
@@ -660,6 +661,8 @@
     "notFoundBody": "Na adrese {path} nic není. Adresa může být chybně zadaná, nebo byl záznam odstraněn.",
     "errorTitle": "Něco se pokazilo",
     "errorBody": "Stránku se nepodařilo načíst. Často pomůže zkusit to znovu; pokud chyba trvá, nahlaste níže uvedený kód.",
+    "loadFailedTitle": "Data se nepodařilo načíst",
+    "loadFailedBody": "Server neodpověděl. Zkontrolujte připojení a zkuste to znovu.",
     "reference": "Kód chyby: {digest}",
     "retry": "Zkusit znovu",
     "home": "Přejít na přehled",

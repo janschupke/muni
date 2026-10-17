@@ -1,31 +1,12 @@
-import { getPositionForEdit, listGroupOptions } from '@muni/db/repositories'
+import { recordExists } from '@muni/db/repositories'
 import { notFound } from 'next/navigation'
-import { getTranslations } from 'next-intl/server'
 
-import { BackLink } from '@/components/back-link'
-import { PositionForm } from '@/components/form/entity-forms'
-import { savePositionAction } from '@/server/actions/groups'
+import { PositionFormView } from '@/features/org/group-form-views'
 import { requireAdminPage } from '@/server/auth'
 
 export default async function EditPositionPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdminPage()
   const { id } = await params
-  const [group, departments, t] = await Promise.all([
-    getPositionForEdit(id),
-    listGroupOptions('department'),
-    getTranslations('positions'),
-  ])
-  if (!group) notFound()
-  return (
-    <PositionForm
-      action={savePositionAction.bind(null, id)}
-      cancelHref={`/positions/${id}`}
-      heading={{
-        title: t('editTitle', { name: group.name }),
-        eyebrow: <BackLink fallback={{ href: `/positions/${id}`, label: group.name }} />,
-      }}
-      defaults={group}
-      departments={departments}
-    />
-  )
+  if (!(await recordExists('position', id))) notFound()
+  return <PositionFormView id={id} />
 }

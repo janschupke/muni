@@ -4,7 +4,6 @@ import { getDb } from '@muni/db/client'
 import { findArchivedKeys } from '@muni/db/reference'
 import { COMMIT_CHUNK_SIZE, commitChunk, CommitValidationError } from '@muni/db/writer'
 import { type ArchivedKeys, DATASET_KINDS, type DatasetKind, NO_ARCHIVED } from '@muni/importer'
-import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 
 import { requireAdmin } from '@/server/auth'
@@ -35,7 +34,6 @@ export async function commitImportChunk(
   }
   try {
     const result = await commitChunk(getDb(), kind, records)
-    revalidatePath('/', 'layout')
     return { ok: true, ...result }
   } catch (error) {
     if (error instanceof CommitValidationError) {

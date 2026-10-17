@@ -8,8 +8,6 @@ import {
 } from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
 import { type SessionCreate, sessionCreateSchema } from '@muni/domain/schemas'
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import * as z from 'zod'
 
 import { formError, type FormState, sessionProblem } from '@/lib/form'
@@ -34,7 +32,6 @@ export async function createOfferedSession(input: SessionCreate): Promise<Create
   try {
     const result = await createSession(parsed.data)
     if (!result.ok) return { ok: false, reason: result.problem }
-    revalidatePath('/', 'layout')
     return { ok: true, externalId: result.externalId }
   } catch (error) {
     console.error(error)
@@ -58,8 +55,7 @@ export async function saveNewSession(_state: FormState, form: FormData): Promise
     return formError('generic')
   }
   if (!result.ok) return sessionProblem(result.problem)
-  revalidatePath('/', 'layout')
-  redirect(`/sessions/${result.externalId}`)
+  return { status: 'saved', href: `/sessions/${result.externalId}` }
 }
 
 const slotSchema = z.object({

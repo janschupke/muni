@@ -174,11 +174,17 @@ const form = (fields: Record<string, string>) => {
 const idle = { status: 'idle' } as const
 
 /** Runs an action that ends in a redirect; returns where it went. */
+/**
+ * Where an action or guard sends the user: a guard redirects (throws), a save answers with
+ * the page to show next (`saved` / `done` with `href`), which the browser then opens.
+ */
 async function redirectOf(action: Promise<unknown>): Promise<string> {
-  const error = await action.catch((e: unknown) => e)
-  if (!(error instanceof RedirectError))
-    throw new Error(`expected a redirect, got ${String(error)}`)
-  return error.url
+  const outcome = await action.catch((e: unknown) => e)
+  if (outcome instanceof RedirectError) return outcome.url
+  const state = outcome as { status?: unknown; href?: unknown } | null
+  if ((state?.status === 'saved' || state?.status === 'done') && typeof state.href === 'string')
+    return state.href
+  throw new Error(`expected a redirect, got ${JSON.stringify(outcome)}`)
 }
 
 describe('session user', () => {
@@ -363,7 +369,8 @@ describe('edit actions', () => {
       onlineAllowed: null,
       capabilities: [],
     })
-    expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
+    // The browser refreshes its own read cache; no server route is refreshed.
+    expect(revalidatePath).not.toHaveBeenCalled()
     // "Yes" and "No" override it; anything else leaves it to the sessions.
     for (const [posted, value] of [
       ['yes', true],
@@ -838,7 +845,6 @@ describe('booking actions', () => {
       reason: 'TARGET_FULL',
     })
     await expect(moveSeatsAction({ from: 'T016', to: 'T018', count: 0 })).rejects.toThrow()
-    expect(revalidatePath).toHaveBeenCalledTimes(2)
   })
 
   it('book one person by hand, as the admin, and say why the server refused', async () => {
@@ -1024,7 +1030,6 @@ describe('room actions', () => {
       'room_lab',
       expect.objectContaining({ capabilities: [] })
     )
-    expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
     // Smaller than sessions planned in it need: refused, with how many.
     vi.mocked(updateRoom).mockResolvedValueOnce({
       ok: false,
@@ -1083,7 +1088,6 @@ describe('provider actions', () => {
     expect(await redirectOf(saveProvider('prov_1', idle, form(providerForm)))).toBe(
       '/providers/prov_1'
     )
-    expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
   })
 
   it('name what is wrong: the IČO, the email, a taken name or IČO, a provider that is gone', async () => {
@@ -1137,7 +1141,6 @@ describe('session creation', () => {
       courseCode: 'POZ-OCH',
     })
     expect(await createOfferedSession(create)).toEqual({ ok: true, externalId: 'S001' })
-    expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
     expect(await createOfferedSession({ ...create, endTime: '09:00' })).toEqual({
       ok: false,
       reason: 'invalid',
@@ -1217,7 +1220,6 @@ describe('archive actions', () => {
     vi.mocked(archiveRecord).mockResolvedValue({ ok: true, removesBookings: 2 })
     expect(await redirectOf(archiveAction('room', 'room_1', '/rooms', idle))).toBe('/rooms')
     expect(archiveRecord).toHaveBeenCalledWith('room', 'room_1', 'usr_1')
-    expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
     // From a list row, the page stays.
     expect(await archiveAction('room', 'room_1', null, idle)).toEqual({ status: 'done' })
   })

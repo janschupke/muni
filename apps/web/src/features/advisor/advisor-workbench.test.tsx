@@ -5,14 +5,12 @@ import {
   type AdvisorSession,
   planAssignments,
 } from '@muni/domain/advisor'
-import { TooltipProvider } from '@muni/ui/tooltip'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import en from '@/i18n/messages/en.json'
 import { expectNoAxeViolations } from '@/test/axe'
+import { renderClient } from '@/test/render'
 
 import { AdvisorWorkbench } from './advisor-workbench'
 
@@ -89,18 +87,14 @@ function renderWorkbench({
   canApply?: boolean
   plan?: ReturnType<typeof planAssignments>
 } = {}) {
-  return render(
-    <NextIntlClientProvider locale="en" messages={en} timeZone="Europe/Prague">
-      <TooltipProvider>
-        <AdvisorWorkbench
-          plan={plan}
-          asOf={INPUT.asOf}
-          view={view}
-          bucket={bucket}
-          canApply={canApply}
-        />
-      </TooltipProvider>
-    </NextIntlClientProvider>
+  return renderClient(
+    <AdvisorWorkbench
+      plan={plan}
+      asOf={INPUT.asOf}
+      view={view}
+      bucket={bucket}
+      canApply={canApply}
+    />
   )
 }
 

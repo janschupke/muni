@@ -13,6 +13,7 @@ import { Container, SplitLayout } from './layout'
 import { PageHeader } from './page-header'
 import { PageMessage } from './page-message'
 import { SectionHeading } from './section-heading'
+import { Skeleton, SkeletonText } from './skeleton'
 import { StepIndicator } from './step-indicator'
 import { CellStack, Table, TableContainer, TBody, Td, Th, THead, Tr } from './table'
 import { TextLink } from './text-link'
@@ -231,5 +232,24 @@ describe('Table', () => {
     expect(screen.getByText('E0153').className).toContain('text-xs')
     expect(screen.getByText('Bez meta').parentElement?.children).toHaveLength(1)
     expect(screen.getByText('450 Kč').className).toContain('text-right')
+  })
+})
+
+describe('Skeleton', () => {
+  it('stands in for content, hidden from assistive technology', () => {
+    const { container } = render(
+      <>
+        <Skeleton className="h-8 w-40" />
+        <SkeletonText lines={3} />
+        <SkeletonText lines={1} />
+      </>
+    )
+    const blocks = container.querySelectorAll('[aria-hidden="true"]')
+    expect(blocks[0]?.className).toContain('h-8 w-40')
+    expect(blocks[0]?.className).toContain('motion-safe:animate-pulse')
+    // A paragraph's last line is shorter; a single line is full.
+    const [, paragraph, line] = [...container.children]
+    expect(paragraph?.lastElementChild?.className).toContain('w-2/3')
+    expect(line?.lastElementChild?.className).toContain('w-full')
   })
 })

@@ -10,6 +10,7 @@ import { useTranslations } from 'next-intl'
 import { useActionState } from 'react'
 
 import { type FormState, IDLE } from '@/lib/form'
+import { useWhenWritten } from '@/lib/query/use-after-write'
 
 /** A user's role, changed by an admin (not their own: `disabled`). */
 export function RoleForm({
@@ -23,6 +24,7 @@ export function RoleForm({
 }) {
   const t = useTranslations()
   const [state, formAction, pending] = useActionState(action, IDLE)
+  useWhenWritten(state, state.status === 'saved', state.status === 'saved' ? state.href : undefined)
   const error = state.status === 'error' ? state.fieldErrors['role'] : undefined
   return (
     <form action={formAction} className="flex flex-col gap-3">

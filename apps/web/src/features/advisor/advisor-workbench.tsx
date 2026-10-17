@@ -17,6 +17,7 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useState, useTransition } from 'react'
 
+import { useAfterWrite } from '@/lib/query/use-after-write'
 import {
   applyAssignmentsAction,
   type ApplyResult,
@@ -62,6 +63,7 @@ export function AdvisorWorkbench({
   const t = useTranslations('advisor')
   const locale = useLocale()
   const [pending, startTransition] = useTransition()
+  const afterWrite = useAfterWrite()
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   const n = (value: number) => formatInteger(value, locale)
 
@@ -83,6 +85,7 @@ export function AdvisorWorkbench({
           ])
         )
         setOutcome({ kind: 'applied', result, names, sessions })
+        afterWrite()
       } catch {
         setOutcome({ kind: 'error' })
       }
@@ -104,6 +107,7 @@ export function AdvisorWorkbench({
           else failed += m.count
         }
         setOutcome({ kind: 'moved', moved, failed })
+        afterWrite()
       } catch {
         setOutcome({ kind: 'error' })
       }

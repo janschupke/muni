@@ -24,7 +24,8 @@
     "skipToContent": "Skip to content",
     "editLabel": "Edit {name}",
     "actions": "Actions",
-    "remove": "Remove"
+    "remove": "Remove",
+    "loading": "Loading…"
   },
   "nav": {
     "primary": "Main navigation",
@@ -360,14 +361,14 @@
       "invalid_time": "Enter a time of day, such as 9:30.",
       "invalid_phone": "Enter a phone number: digits and spaces, with + in front if you like.",
       "invalid_national_id": "Enter 6 digits, a slash if you like, then 3 or 4 digits.",
-      "invalid_code": "Use capital letters and digits, in parts joined by hyphens (BOZP-01).",
+      "invalid_code": "Use capital letters and digits, in parts joined by hyphens (KURZ-01).",
       "not_a_number": "Enter a number.",
       "too_small_number": "Enter at least {min}.",
       "too_big_number": "Enter at most {max}.",
       "too_long": "Use at most {max} characters."
     },
     "placeholders": {
-      "code": "BOZP-01",
+      "code": "KURZ-01",
       "courseName": "Fire safety training",
       "months": "24",
       "firstName": "Jana",
@@ -660,6 +661,8 @@
     "notFoundBody": "Nothing lives at {path}. The address may be mistyped, or the record was removed.",
     "errorTitle": "Something went wrong",
     "errorBody": "The page could not be loaded. Trying again often helps; if it keeps failing, report the reference below.",
+    "loadFailedTitle": "Could not load the data",
+    "loadFailedBody": "The server did not answer. Check the connection and try again.",
     "reference": "Reference: {digest}",
     "retry": "Try again",
     "home": "Go to overview",

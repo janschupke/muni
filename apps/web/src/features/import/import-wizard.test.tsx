@@ -3,14 +3,12 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { EMPTY_REFERENCE } from '@muni/importer'
-import { TooltipProvider } from '@muni/ui/tooltip'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import en from '@/i18n/messages/en.json'
 import { expectNoAxeViolations } from '@/test/axe'
+import { renderClient } from '@/test/render'
 
 import { ImportWizard } from './import-wizard'
 
@@ -23,20 +21,13 @@ vi.mock('./actions', () => ({
   commitImportChunk: (kind: string, records: unknown[]) => commitImportChunk(kind, records),
   findArchived: async () => (await import('@muni/importer')).NO_ARCHIVED,
 }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
 
 const DATA = path.join(import.meta.dirname, '../../../../../data')
 const csv = (name: string) =>
   new File([readFileSync(path.join(DATA, name))], name, { type: 'text/csv' })
 
 function renderWizard() {
-  return render(
-    <NextIntlClientProvider locale="en" messages={en} timeZone="Europe/Prague">
-      <TooltipProvider>
-        <ImportWizard reference={EMPTY_REFERENCE} today="2026-10-16" />
-      </TooltipProvider>
-    </NextIntlClientProvider>
-  )
+  return renderClient(<ImportWizard reference={EMPTY_REFERENCE} today="2026-10-16" />)
 }
 
 afterEach(() => {

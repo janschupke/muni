@@ -50,9 +50,10 @@ export type FieldErrorKey =
 /** What can go wrong with the whole form: i18n keys under forms.errors. */
 export type FormErrorKey = 'not_found' | 'generic'
 
-/** What a form action returns when it does not redirect. */
+/** What a form action returns: saved (and where to go next), or what is wrong. */
 export type FormState =
   | { status: 'idle' }
+  | { status: 'saved'; href: string }
   | {
       status: 'error'
       fieldErrors: Partial<Record<string, FieldErrorKey>>
@@ -75,12 +76,12 @@ type ArchiveRefusalKey =
   | 'generic'
 
 /**
- * What an archive or unarchive action returns when it does not leave the page: done, or why
- * not (with how many things are in the way, or which unique fields are taken).
+ * What an archive or unarchive action returns: done (and where to go next, if the page is
+ * left), or why not (with how many things are in the way, or which unique fields are taken).
  */
 export type ArchiveState =
   | { status: 'idle' }
-  | { status: 'done' }
+  | { status: 'done'; href?: string | undefined }
   | {
       status: 'refused'
       reason: ArchiveRefusalKey

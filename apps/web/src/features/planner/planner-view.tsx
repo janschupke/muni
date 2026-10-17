@@ -21,6 +21,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 
 import { RoomLink } from '@/components/session-links'
+import { useAfterWrite } from '@/lib/query/use-after-write'
 import { createOfferedSession, type CreateOutcome } from '@/server/actions/sessions'
 
 export interface PlannerGroup {
@@ -280,6 +281,7 @@ function CreateButton({
 }) {
   const t = useTranslations('planner')
   const [pending, startTransition] = useTransition()
+  const afterWrite = useAfterWrite()
   const { slot, room, capacity } = offer
   if (!slot || !room || capacity === null) return null
   return (
@@ -299,7 +301,8 @@ function CreateButton({
             pricePerPerson: null,
             status: 'PLANNED',
           })
-          // The action revalidates: a created session leaves the refreshed plan by itself.
+          // A created session leaves the refreshed plan by itself.
+          if (outcome.ok) afterWrite()
           onResult(outcome)
         })
       }}

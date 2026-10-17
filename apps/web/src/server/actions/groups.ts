@@ -6,8 +6,6 @@ import {
   saveDepartment,
   savePosition,
 } from '@muni/db/repositories'
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 
 import { formError, type FormState, refusedField } from '@/lib/form'
 import { departmentSpec, parseForm, positionSpec } from '@/lib/form-inputs'
@@ -35,8 +33,7 @@ async function finish(save: () => Promise<GroupWrite>, path: string): Promise<Fo
     return formError('generic')
   }
   if (!saved.ok) return refused(saved)
-  revalidatePath('/', 'layout')
-  redirect(`${path}/${saved.id}`)
+  return { status: 'saved', href: `${path}/${saved.id}` }
 }
 
 /** Creates a department (`id` null) or saves one (its name and head), then shows it. */

@@ -11,6 +11,7 @@ import { useTranslations } from 'next-intl'
 import { useActionState, useRef, useState, useTransition } from 'react'
 
 import { ARCHIVE_IDLE, archiveRefused, type ArchiveState } from '@/lib/form'
+import { useWhenWritten } from '@/lib/query/use-after-write'
 import { archiveAction, previewArchive } from '@/server/actions/archive'
 
 import { useRefusalText } from './use-refusal-text'
@@ -46,6 +47,7 @@ export function ConfirmArchiveButton({
     if (next.status === 'done') setOpen(false)
     return next
   }, ARCHIVE_IDLE)
+  useWhenWritten(state, state.status === 'done', state.status === 'done' ? state.href : undefined)
 
   const show = () => {
     setOpen(true)

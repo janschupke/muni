@@ -7,6 +7,7 @@ import {
   listDepartmentSummaries,
   listGroupOptions,
   listPositionSummaries,
+  recordExists,
 } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -68,6 +69,7 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   getPosition: vi.fn(),
   listDepartmentSummaries: vi.fn(),
   listPositionSummaries: vi.fn(),
+  recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 
 vi.mock('@/server/auth')
@@ -161,7 +163,7 @@ describe('departments', () => {
 
   it('show one department: its head, positions, courses and people', async () => {
     const props = { params: params({ id: 'dep_lab' }) }
-    expect(await departmentMetadata(props)).toEqual({ title: 'Laboratoře' })
+    expect(await departmentMetadata()).toEqual({ title: 'Departments' })
     await renderServer(DepartmentPage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'Laboratoře' })).toBeTruthy()
     expect(screen.getAllByRole('link', { name: 'Urbanová Tereza' })[0]?.getAttribute('href')).toBe(
@@ -202,8 +204,7 @@ describe('departments', () => {
     await renderServer(DepartmentPage({ params: params({ id: 'dep_lab' }) }))
     expect(screen.getByText('Nobody has a position here.')).toBeTruthy()
     expect(screen.getByText('Nothing is required of this department.')).toBeTruthy()
-    vi.mocked(getDepartment).mockResolvedValue(null)
-    expect(await departmentMetadata({ params: params({ id: 'gone' }) })).toEqual({ title: 'gone' })
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(DepartmentPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
   })
 })
@@ -238,7 +239,7 @@ describe('positions', () => {
 
   it('show one position: its departments, courses and people', async () => {
     const props = { params: params({ id: 'pos_lab' }) }
-    expect(await positionMetadata(props)).toEqual({ title: 'Laborant' })
+    expect(await positionMetadata()).toEqual({ title: 'Positions' })
     await renderServer(PositionPage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'Laborant' })).toBeTruthy()
     expect(
@@ -256,8 +257,7 @@ describe('positions', () => {
     await renderServer(PositionPage({ params: params({ id: 'pos_lab' }) }))
     expect(screen.getByText('Nobody with this position belongs to a department.')).toBeTruthy()
     expect(screen.getByText('Nothing is required of this position.')).toBeTruthy()
-    vi.mocked(getPosition).mockResolvedValue(null)
-    expect(await positionMetadata({ params: params({ id: 'gone' }) })).toEqual({ title: 'gone' })
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(PositionPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
   })
 })
@@ -268,13 +268,18 @@ describe('access', () => {
     const props = { params: params({ id: 'dep_lab' }) }
     await expect(DepartmentsPage()).rejects.toThrow('redirect to sign-in')
     await expect(DepartmentPage(props)).rejects.toThrow('redirect to sign-in')
-    await expect(departmentMetadata(props)).rejects.toThrow('redirect to sign-in')
     await expect(PositionsPage()).rejects.toThrow('redirect to sign-in')
     await expect(PositionPage(props)).rejects.toThrow('redirect to sign-in')
-    // A detail page checks for itself (it needs the role) and through its loader, which its
-    // metadata shares.
-    expect(requireReader).toHaveBeenCalledTimes(7)
-    for (const read of [listDepartmentSummaries, getDepartment, listPositionSummaries, getPosition])
+    // The titles name the section only: they read nothing.
+    expect(await departmentMetadata()).toEqual({ title: 'Departments' })
+    expect(requireReader).toHaveBeenCalledTimes(4)
+    for (const read of [
+      listDepartmentSummaries,
+      getDepartment,
+      listPositionSummaries,
+      getPosition,
+      recordExists,
+    ])
       expect(read).not.toHaveBeenCalled()
   })
 })
@@ -304,6 +309,7 @@ describe('managing departments and positions', () => {
   })
 
   it('create and edit them: a department with its head, a position with its departments', async () => {
+    signInAs('ADMIN')
     vi.mocked(listGroupOptions).mockResolvedValue([
       { id: 'dep_lab', name: 'Laboratoře' },
       { id: 'dep_lib', name: 'Knihovna' },
@@ -341,11 +347,11 @@ describe('managing departments and positions', () => {
         .getByRole('checkbox', { name: 'Laboratoře' })
         .getAttribute('aria-checked')
     ).toBe('true')
-    vi.mocked(getDepartmentForEdit).mockResolvedValue(null)
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(EditDepartmentPage({ params: params({ id: 'gone' }) })).rejects.toThrow(
       NotFoundError
     )
-    vi.mocked(getPositionForEdit).mockResolvedValue(null)
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(EditPositionPage({ params: params({ id: 'gone' }) })).rejects.toThrow(
       NotFoundError
     )

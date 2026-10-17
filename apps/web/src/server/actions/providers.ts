@@ -1,8 +1,6 @@
 'use server'
 
 import { createProvider, updateProvider } from '@muni/db/repositories'
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 
 import { formError, type FormState } from '@/lib/form'
 import { parseForm, providerSpec } from '@/lib/form-inputs'
@@ -28,6 +26,5 @@ export async function saveProvider(
     return formError('generic')
   }
   if (!saved.ok) return { status: 'error', fieldErrors: { [saved.taken]: 'taken' } }
-  revalidatePath('/', 'layout')
-  redirect(`/providers/${saved.id}`)
+  return { status: 'saved', href: `/providers/${saved.id}` }
 }

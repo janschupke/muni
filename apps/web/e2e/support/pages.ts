@@ -1,3 +1,5 @@
+import { expect, type Page } from '@playwright/test'
+
 type AppPage =
   | { name: string; path: string; status?: number }
   /** A page whose id the database picks: the first link under `prefix` on the `via` page. */
@@ -59,4 +61,13 @@ export async function pathOf(
   const match = new RegExp(`href="(${escaped}(?!new"|archived")[^"/?]+)"`).exec(html)
   if (!match?.[1]) throw new Error(`No ${page.prefix} link on ${page.via}`)
   return match[1]
+}
+
+/**
+ * The page's data is there: pages read it in the browser, showing skeletons in a loading
+ * region (`aria-busy`) until it comes. Checks and audits wait for this, or they would judge
+ * the skeletons.
+ */
+export async function loaded(page: Page): Promise<void> {
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
 }

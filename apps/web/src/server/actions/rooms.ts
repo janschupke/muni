@@ -1,8 +1,6 @@
 'use server'
 
 import { createRoom, type RoomWrite, updateRoom } from '@muni/db/repositories'
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 
 import { formError, type FormState, refusedField } from '@/lib/form'
 import { parseForm, roomSpec } from '@/lib/form-inputs'
@@ -30,6 +28,5 @@ export async function saveRoom(
     return formError('generic')
   }
   if (!saved.ok) return refusedField(saved.field, 'sessions_unfit', { count: saved.count })
-  revalidatePath('/', 'layout')
-  redirect(`/rooms/${saved.id}`)
+  return { status: 'saved', href: `/rooms/${saved.id}` }
 }

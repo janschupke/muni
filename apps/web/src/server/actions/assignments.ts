@@ -8,7 +8,6 @@ import {
   removeAssignment,
 } from '@muni/db/repositories'
 import { bookingSchema } from '@muni/domain/schemas'
-import { revalidatePath } from 'next/cache'
 import * as z from 'zod'
 
 import { requireAdmin } from '@/server/auth'
@@ -39,7 +38,6 @@ export async function applyAssignmentsAction(input: unknown): Promise<ApplyResul
   const user = await requireAdmin()
   const requests = applyInput.parse(input)
   const outcomes = await applyAssignments(requests, user.id)
-  revalidatePath('/', 'layout')
   return {
     applied: outcomes.filter(o => o.ok).length,
     failed: outcomes.flatMap(o =>
@@ -78,7 +76,6 @@ export async function addBookingAction(
   })
   if (!parsed.success) return { status: 'refused', reason: 'invalid' }
   const [outcome] = await applyAssignments([{ ...parsed.data, source: 'MANUAL' }], user.id)
-  revalidatePath('/', 'layout')
   return !outcome || outcome.ok ? { status: 'done' } : { status: 'refused', reason: outcome.reason }
 }
 
@@ -86,7 +83,6 @@ export async function removeAssignmentAction(input: unknown): Promise<boolean> {
   await requireAdmin()
   const { sessionExternalId, employeeExternalId } = bookingSchema.parse(input)
   const removed = await removeAssignment(sessionExternalId, employeeExternalId)
-  revalidatePath('/', 'layout')
   return removed
 }
 
@@ -98,6 +94,5 @@ export async function moveSeatsAction(
     .object({ from: externalId, to: externalId, count: z.int().min(1).max(10_000) })
     .parse(input)
   const result = await moveSeats(from, to, count)
-  revalidatePath('/', 'layout')
   return result
 }

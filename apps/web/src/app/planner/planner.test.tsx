@@ -18,6 +18,7 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
   getAdvisorInput: vi.fn(),
   getPlannerInput: vi.fn(),
+  recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/sessions', () => ({

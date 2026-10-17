@@ -3,8 +3,6 @@
 import { clerkClient } from '@clerk/nextjs/server'
 import { canSetUserRole, setUserRole } from '@muni/db/repositories'
 import { parseRole, roleMetadata } from '@muni/domain/enums'
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 
 import { formError, type FormState } from '@/lib/form'
 import { requireAdmin } from '@/server/auth'
@@ -40,6 +38,5 @@ export async function saveUserRole(
     console.error(error)
     return formError('generic')
   }
-  revalidatePath('/', 'layout')
-  redirect(`/users/${userId}`)
+  return { status: 'saved', href: `/users/${userId}` }
 }

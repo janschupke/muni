@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { getRoom, getRoomForEdit, listRooms } from '@muni/db/repositories'
+import { getRoom, getRoomForEdit, listRooms, recordExists } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -22,6 +22,7 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   getRoom: vi.fn(),
   getRoomForEdit: vi.fn(),
   listRooms: vi.fn(),
+  recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/edit', () => ({ saveSession: vi.fn() }))
@@ -89,9 +90,8 @@ describe('room detail', () => {
   const props = { params: params({ id: 'room_aula_a' }) }
 
   it('is titled by the room, or by the id when unknown', async () => {
-    expect(await roomMetadata(props)).toEqual({ title: 'Aula A' })
-    vi.mocked(getRoom).mockResolvedValue(null)
-    expect(await roomMetadata({ params: params({ id: 'gone' }) })).toEqual({ title: 'gone' })
+    expect(await roomMetadata()).toEqual({ title: 'Rooms' })
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(RoomPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
   })
 
@@ -200,6 +200,7 @@ describe('room forms', () => {
   })
 
   it('edit a room with its current values', async () => {
+    signInAs('ADMIN')
     await renderServer(EditRoomPage({ params: params({ id: 'room_aula_a' }) }))
     expect(screen.getByRole('heading', { level: 1, name: 'Edit Aula A' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /Seats/ })).toHaveProperty('value', '40')
@@ -207,7 +208,7 @@ describe('room forms', () => {
       'true'
     )
     await expectNoAxeViolations()
-    vi.mocked(getRoomForEdit).mockResolvedValue(null)
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(EditRoomPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
   })
 })

@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { setupClerkTestingToken } from '@clerk/testing/playwright'
 import type { Page } from '@playwright/test'
 
-import { APP_PAGES, pathOf } from './support/pages'
+import { APP_PAGES, loaded, pathOf } from './support/pages'
 import { baseUrlOf } from './support/server'
 import { expect, test } from './support/test'
 import { storageState } from './support/users'
@@ -56,9 +56,11 @@ for (const theme of ['light', 'dark'] as const) {
       test(`${entry.name} page`, async ({ page }) => {
         const path = await pathOf(entry, async url => {
           await page.goto(url)
+          await loaded(page)
           return page.content()
         })
         await page.goto(path)
+        await loaded(page)
         await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
         await expectNoViolations(page, path)
       })

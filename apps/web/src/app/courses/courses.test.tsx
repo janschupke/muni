@@ -7,6 +7,7 @@ import {
   getCourseForEdit,
   listCourseOptions,
   listCourses,
+  recordExists,
 } from '@muni/db/repositories'
 import { EMPTY_REFERENCE } from '@muni/importer'
 import { screen, within } from '@testing-library/react'
@@ -47,6 +48,7 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   ),
   listCourseOptions: vi.fn(),
   listCourses: vi.fn(),
+  recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 vi.mock('@muni/db/client', () => ({ getDb: vi.fn(() => 'db') }))
 vi.mock('@muni/db/reference', () => ({ loadReferenceSnapshot: vi.fn() }))
@@ -148,10 +150,11 @@ describe('course list', () => {
 describe('course detail', () => {
   const props = { params: params({ code: 'BOZP-Z' }) }
 
-  it('is titled by the course, or the code when unknown', async () => {
-    expect(await courseMetadata(props)).toEqual({ title: 'BOZP – základní školení' })
-    vi.mocked(getCourse).mockResolvedValue(null)
-    expect(await courseMetadata({ params: params({ code: 'NOPE' }) })).toEqual({ title: 'NOPE' })
+  it('is titled by the course once its data is there; an unknown code is not found', async () => {
+    expect(await courseMetadata()).toEqual({ title: 'Courses' })
+    await renderServer(CoursePage(props))
+    expect(document.title).toBe('BOZP – základní školení · Training register')
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(CoursePage({ params: params({ code: 'NOPE' }) })).rejects.toThrow(NotFoundError)
   })
 
@@ -211,6 +214,7 @@ describe('course detail', () => {
   })
 
   it('edits the name, validity and who must hold it, for admins only', async () => {
+    signInAs('ADMIN')
     vi.mocked(getCourseForEdit).mockResolvedValue(courseForEdit({ departmentIds: ['dep_lab'] }))
     await renderServer(EditCoursePage(props))
     expect(requireAdminPage).toHaveBeenCalled()
@@ -226,7 +230,7 @@ describe('course detail', () => {
       'true'
     )
     await expectNoAxeViolations()
-    vi.mocked(getCourseForEdit).mockResolvedValue(null)
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(EditCoursePage(props)).rejects.toThrow(NotFoundError)
   })
 
@@ -283,12 +287,14 @@ describe('new session', () => {
   })
 
   it('falls back to three hours and an empty group, and 404s for an unknown course', async () => {
+    signInAs('ADMIN')
     vi.mocked(listCourseOptions).mockResolvedValue([
       { ...bozp, needs: { ...bozp.needs, sessionMinutes: null, groupSize: null } },
     ])
     await renderServer(NewSessionPage(props))
     expect(screen.getByRole('textbox', { name: /^End/ })).toHaveProperty('value', '12:00')
     expect(screen.getByRole('textbox', { name: /Capacity/ })).toHaveProperty('value', '')
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(NewSessionPage({ params: params({ code: 'NOPE' }) })).rejects.toThrow(
       NotFoundError
     )
@@ -324,6 +330,7 @@ describe('compliance matrix', () => {
 
 describe('import page', () => {
   it('requires an admin and starts the wizard against what exists', async () => {
+    signInAs('ADMIN')
     expect(await importMetadata()).toEqual({ title: 'Import' })
     await renderServer(ImportPage())
     expect(requireAdminPage).toHaveBeenCalled()

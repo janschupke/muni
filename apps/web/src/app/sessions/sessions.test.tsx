@@ -6,6 +6,7 @@ import {
   listEmployeeOptions,
   listRoomOptions,
   listSessions,
+  recordExists,
 } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -33,6 +34,7 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   getAdvisorInput: vi.fn(),
   getSession: vi.fn(),
   listSessions: vi.fn(),
+  recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/edit', () => ({ saveSession: vi.fn() }))
@@ -163,12 +165,11 @@ describe('session list', () => {
 describe('session detail', () => {
   const props = { params: params({ externalId: 'T016' }) }
 
-  it('is titled by course and date, or by the ID when unknown', async () => {
-    expect(await sessionMetadata(props)).toEqual({ title: 'BOZP – základní školení · Nov 4, 2026' })
-    vi.mocked(getSession).mockResolvedValue(null)
-    expect(await sessionMetadata({ params: params({ externalId: 'T999' }) })).toEqual({
-      title: 'T999',
-    })
+  it('is titled by course and date once its data is there; an unknown ID is not found', async () => {
+    expect(await sessionMetadata()).toEqual({ title: 'Sessions' })
+    await renderServer(SessionPage(props))
+    expect(document.title).toBe('BOZP – základní školení · Nov 4, 2026 · Training register')
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(SessionPage({ params: params({ externalId: 'T999' }) })).rejects.toThrow(
       NotFoundError
     )
@@ -231,6 +232,9 @@ describe('session detail', () => {
 
 describe('session edit', () => {
   const props = { params: params({ externalId: 'T016' }) }
+  beforeEach(() => {
+    signInAs('ADMIN')
+  })
 
   it('edits a session for admins, with Save and Cancel on the heading row', async () => {
     await renderServer(EditSessionPage(props))
@@ -244,7 +248,7 @@ describe('session edit', () => {
   })
 
   it('is a 404 for an unknown session', async () => {
-    vi.mocked(getSession).mockResolvedValue(null)
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(EditSessionPage(props)).rejects.toThrow(NotFoundError)
   })
 

@@ -18,8 +18,9 @@ import {
   validateBatch,
 } from '@muni/importer'
 import { StepIndicator } from '@muni/ui/step-indicator'
-import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
+
+import { useAfterWrite } from '@/lib/query/use-after-write'
 
 import { commitImportChunk, findArchived } from './actions'
 import { ConfirmStep } from './confirm-step'
@@ -51,7 +52,7 @@ export function ImportWizard({
   const [archived, setArchived] = useState<ArchivedKeys>(NO_ARCHIVED)
   const reference = { ...snapshot, archived }
   const { t } = useImportText()
-  const router = useRouter()
+  const afterWrite = useAfterWrite()
   const ctx = { today }
   const [step, setStep] = useState(0)
   const [files, setFiles] = useState<Partial<Record<DatasetKind, ParsedFile>>>({})
@@ -114,7 +115,7 @@ export function ImportWizard({
         const result = await commitImportChunk(kind, records.slice(i, i + CHUNK))
         if (!result.ok) {
           setJob({ status: 'failed', total, written: done, message: result.detail ?? result.error })
-          router.refresh()
+          afterWrite()
           return
         }
         const sum = results[kind] ?? { created: 0, updated: 0, skipped: 0 }
@@ -128,7 +129,7 @@ export function ImportWizard({
       }
     }
     setJob({ status: 'succeeded', total, results })
-    router.refresh()
+    afterWrite()
   }
 
   const reset = () => {

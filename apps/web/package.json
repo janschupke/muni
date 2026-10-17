@@ -22,6 +22,7 @@
     "@muni/importer": "workspace:*",
     "@muni/ui": "workspace:*",
     "@muni/utils": "workspace:*",
+    "@tanstack/react-query": "catalog:",
     "lucide-react": "catalog:",
     "next": "catalog:",
     "next-intl": "catalog:",

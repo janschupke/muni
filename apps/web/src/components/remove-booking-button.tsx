@@ -7,6 +7,7 @@ import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRef, useState, useTransition } from 'react'
 
+import { useAfterWrite } from '@/lib/query/use-after-write'
 import { removeAssignmentAction } from '@/server/actions/assignments'
 
 /**
@@ -30,6 +31,7 @@ export function RemoveBookingButton({
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
+  const afterWrite = useAfterWrite()
   return (
     <>
       <IconButton
@@ -65,6 +67,7 @@ export function RemoveBookingButton({
               startTransition(async () => {
                 await removeAssignmentAction({ sessionExternalId, employeeExternalId })
                 setOpen(false)
+                afterWrite()
               })
             }}
           >

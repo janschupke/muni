@@ -9,6 +9,7 @@ import { useTranslations } from 'next-intl'
 import { useActionState } from 'react'
 
 import { ARCHIVE_IDLE, type ArchiveState } from '@/lib/form'
+import { useWhenWritten } from '@/lib/query/use-after-write'
 import { unarchiveAction } from '@/server/actions/archive'
 
 import { useRefusalText } from './use-refusal-text'
@@ -36,6 +37,7 @@ export function UnarchiveButton({
     async (previous: ArchiveState) => unarchiveAction(kind, id, then, previous),
     ARCHIVE_IDLE
   )
+  useWhenWritten(state, state.status === 'done', state.status === 'done' ? state.href : undefined)
   return (
     <form action={formAction} className="flex flex-wrap items-center gap-2">
       {compact ? (

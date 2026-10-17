@@ -3,7 +3,7 @@ import { Button } from '@muni/ui/button'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
 
-import { ArchivedListLink } from '@/features/archive/archived-pages'
+import { ArchivedListLink } from '@/features/archive/archived-list-link'
 
 /** A list's header actions for admins: its archived records, and a new record when it has one. */
 export function ListActions({

@@ -11,8 +11,6 @@ import {
   updateEmployee,
   updateSession,
 } from '@muni/db/repositories'
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 
 import { formError, type FormState, refusedField, sessionProblem } from '@/lib/form'
 import {
@@ -71,8 +69,7 @@ export async function saveCourse(
     }
   }
   if (!saved.ok) return refused(saved)
-  revalidatePath('/', 'layout')
-  redirect(`/courses/${saved.code}`)
+  return { status: 'saved', href: `/courses/${saved.code}` }
 }
 
 export async function saveSession(
@@ -90,8 +87,7 @@ export async function saveSession(
     return failure(error)
   }
   if (!result.ok) return sessionProblem(result.problem)
-  revalidatePath('/', 'layout')
-  redirect(`/sessions/${externalId}`)
+  return { status: 'saved', href: `/sessions/${externalId}` }
 }
 
 /** Saves a person (or, with `externalId` null, adds one with an app ID), then shows them. */
@@ -113,8 +109,7 @@ export async function saveEmployee(
     return failure(error)
   }
   if (!saved.ok) return refused(saved)
-  revalidatePath('/', 'layout')
-  redirect(`/employees/${saved.externalId}`)
+  return { status: 'saved', href: `/employees/${saved.externalId}` }
 }
 
 /**
@@ -139,6 +134,5 @@ export async function saveCompletion(
     return failure(error)
   }
   if (!saved.ok) return refused(saved)
-  revalidatePath('/', 'layout')
-  redirect(`/employees/${saved.employeeExternalId}`)
+  return { status: 'saved', href: `/employees/${saved.employeeExternalId}` }
 }

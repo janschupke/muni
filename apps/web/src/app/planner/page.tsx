@@ -1,13 +1,8 @@
-import { getAdvisorInput, getPlannerInput } from '@muni/db/repositories'
-import { planAssignments } from '@muni/domain/advisor'
 import { canWrite } from '@muni/domain/enums'
-import { planSessions } from '@muni/domain/planner'
-import { EmptyState } from '@muni/ui/empty-state'
-import { PageHeader } from '@muni/ui/page-header'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { type PlannerGroup, PlannerView } from '@/features/planner/planner-view'
+import { PlannerPageView } from '@/features/planner/planner-page-view'
 import { requireReader } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,32 +11,5 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PlannerPage() {
   const user = await requireReader()
-  const [advisor, planner, t] = await Promise.all([
-    getAdvisorInput(),
-    getPlannerInput(),
-    getTranslations('planner'),
-  ])
-  const offers = planSessions({
-    asOf: advisor.asOf,
-    items: planAssignments(advisor).items,
-    ...planner,
-  })
-  // One section per course, in the order of its most urgent offer.
-  const groups = [...Map.groupBy(offers, o => o.course.code).values()].map(
-    (courseOffers): PlannerGroup => ({
-      course: (courseOffers[0] as (typeof offers)[number]).course,
-      offers: courseOffers,
-    })
-  )
-  return (
-    <>
-      <PageHeader title={t('title')} description={t('description')} />
-      {groups.length === 0 ? (
-        <EmptyState title={t('empty')} />
-      ) : (
-        <PlannerView groups={groups} canCreate={canWrite(user.role)} />
-      )}
-      <p className="mt-8 max-w-3xl text-xs text-fg-muted">{t('rule')}</p>
-    </>
-  )
+  return <PlannerPageView canCreate={canWrite(user.role)} />
 }

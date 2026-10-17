@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { getUser, listUsers, type UserListItem } from '@muni/db/repositories'
+import { getUser, listUsers, recordExists, type UserListItem } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -17,6 +17,7 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
   getUser: vi.fn(),
   listUsers: vi.fn(),
+  recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 vi.mock('@/server/auth')
 vi.mock('@/server/actions/archive', () => ({ archiveAction: vi.fn(), previewArchive: vi.fn() }))
@@ -32,8 +33,8 @@ const user = (overrides: Partial<UserListItem>): UserListItem => ({
   email: 'jana@example.com',
   name: 'Jana Nová',
   role: 'VIEWER',
-  lastSignInAt: new Date('2026-10-16T07:30:00Z'),
-  createdAt: new Date('2026-10-01T00:00:00Z'),
+  lastSignInAt: '2026-10-16T07:30:00.000Z',
+  createdAt: '2026-10-01T00:00:00.000Z',
   ...overrides,
 })
 
@@ -96,7 +97,7 @@ describe('a user', () => {
     expect(screen.getByText('You cannot change your own role.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Change role' })).toHaveProperty('disabled', true)
     expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull()
-    vi.mocked(getUser).mockResolvedValue(null)
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
     await expect(UserPage({ params: params({ id: 'gone' }) })).rejects.toThrow(NotFoundError)
   })
 })

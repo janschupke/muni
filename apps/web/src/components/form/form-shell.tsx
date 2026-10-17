@@ -32,6 +32,7 @@ import {
 
 import { type FieldErrorKey, type FormState, IDLE } from '@/lib/form'
 import { type FormSpec, parseForm } from '@/lib/form-inputs'
+import { useWhenWritten } from '@/lib/query/use-after-write'
 
 /** An error the form knows before it is sent (a key under forms.errors, and its values). */
 export interface ClientError {
@@ -136,6 +137,9 @@ export function FormShell({
   const t = useTranslations()
   const formRef = useRef<HTMLFormElement>(null)
   const [state, formAction, pending] = useActionState(action, IDLE)
+  useWhenWritten(state, state.status === 'saved', state.status === 'saved' ? state.href : undefined)
+  // Saved: the next page is on its way; nothing more to send from here.
+  const busy = pending || state.status === 'saved'
 
   const [version, setVersion] = useState(0)
   const [initial, setInitial] = useState<Snapshot | null>(null)
@@ -263,9 +267,9 @@ export function FormShell({
                 {t('common.cancel')}
               </Link>
             </Button>
-            <Button type="submit" variant="primary" disabled={pending || (!isNew && clean)}>
+            <Button type="submit" variant="primary" disabled={busy || (!isNew && clean)}>
               <Save aria-hidden />
-              {pending ? t('common.saving') : t('common.save')}
+              {busy ? t('common.saving') : t('common.save')}
             </Button>
           </>
         }
