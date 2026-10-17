@@ -25,7 +25,7 @@ export function PageMessage({
         <div
           className={cn(
             'mb-5 flex size-14 items-center justify-center rounded-full [&_svg]:size-7',
-            tone === 'danger' ? 'bg-danger-soft text-danger-fg' : 'bg-surface-sunken text-fg-muted'
+            tone === 'danger' ? 'bg-danger-soft text-danger-fg' : 'bg-tint text-fg-muted'
           )}
         >
           {icon}

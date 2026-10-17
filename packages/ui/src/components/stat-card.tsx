@@ -28,7 +28,7 @@ export interface StatCardProps {
 }
 
 const interactive =
-  'transition-[background-color,border-color,box-shadow,translate] hover:-translate-y-px hover:bg-state-hover hover:shadow-overlay'
+  'transition-[background-color,border-color,box-shadow,translate] hover:-translate-y-px hover:shadow-overlay hover:layer-hover'
 
 /** A headline number: static, a filter toggle, or a link to what it counts. */
 export function StatCard({

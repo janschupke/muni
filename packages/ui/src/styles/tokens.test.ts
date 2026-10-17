@@ -1,10 +1,16 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-// Reads tokens.css as data: ramps are hex values, roles are light-dark() pairs of ramps or
-// aliases of other roles. Checks that a form control never shares its container's fill.
+import { composite, contrast, deltaE, MIN, oklab, parseColor, type Rgba } from './color-math'
+
+// The colour contract. tokens.css is read as data (ramps are hex values, roles are colours,
+// aliases or light-dark() pairs of them), and every pairing the UI renders is checked in
+// both themes: a filled shape against what it sits on (OKLab ΔE), a control's outline or a
+// meaningful graphic (3:1), text (4.5:1). Translucent roles are composited over each surface
+// first. A colour utility used anywhere in the app must belong to a pairing here, so a new
+// use cannot skip the contract.
 
 const css = readFileSync(join(import.meta.dirname, 'tokens.css'), 'utf8')
 
@@ -12,18 +18,32 @@ const pairs = (pattern: RegExp) =>
   new Map([...css.matchAll(pattern)].map(([, key = '', value = '']) => [key, value.trim()]))
 const ramps = pairs(/--ramp-([\w-]+):\s*(#[0-9a-f]{6});/gi)
 const roles = pairs(/--(p-[\w-]+):\s*([^;]+);/g)
+/** Tailwind colour name (bg-<name>) → the role it reads. */
+const utilities = pairs(/--color-([\w-]+):\s*var\(--(p-[\w-]+)\);/g)
 
 type Theme = 'light' | 'dark'
 
-function resolve(value: string, theme: Theme): string {
-  const [, light, dark] = /^light-dark\((.+),\s*(var\(.+\))\)$/.exec(value) ?? []
-  if (light && dark) return resolve(theme === 'light' ? light : dark, theme)
-  const [, name] = /^var\(--([\w-]+)\)$/.exec(value) ?? []
-  if (!name) throw new Error(`cannot resolve ${value}`)
+/** Splits `a, b` at its top-level comma. */
+function splitPair(value: string): [string, string] {
+  let depth = 0
+  for (let i = 0; i < value.length; i++) {
+    const c = value[i]
+    if (c === '(') depth++
+    else if (c === ')') depth--
+    else if (c === ',' && depth === 0) return [value.slice(0, i).trim(), value.slice(i + 1).trim()]
+  }
+  throw new Error(`no pair in ${value}`)
+}
+
+function resolve(value: string, theme: Theme): Rgba {
+  const pair = /^light-dark\((.+)\)$/.exec(value)?.[1]
+  if (pair) return resolve(splitPair(pair)[theme === 'light' ? 0 : 1], theme)
+  const name = /^var\(--([\w-]+)\)$/.exec(value)?.[1]
+  if (!name) return parseColor(value)
   if (name.startsWith('ramp-')) {
     const hex = ramps.get(name.slice('ramp-'.length))
     if (!hex) throw new Error(`no ramp ${name}`)
-    return hex
+    return parseColor(hex)
   }
   const role = roles.get(name)
   if (!role) throw new Error(`no role ${name}`)
@@ -32,62 +52,199 @@ function resolve(value: string, theme: Theme): string {
 
 const role = (name: string, theme: Theme) => resolve(`var(--p-${name})`, theme)
 
-const channels = (hex: string) =>
-  [1, 3, 5].map(i => {
-    const c = parseInt(hex.slice(i, i + 2), 16) / 255
-    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-  }) as [number, number, number]
+/** A stack of roles, bottom first, as one opaque colour. */
+const paint = (stack: readonly string[], theme: Theme) =>
+  stack.reduce<Rgba>((below, name) => composite(role(name, theme), below), [0, 0, 0, 0])
 
-function oklab(hex: string): [number, number, number] {
-  const [r, g, b] = channels(hex)
-  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
-  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
-  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
-  return [
-    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
-    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
-    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
-  ]
+const CANVAS = ['surface-base']
+const RAISED = ['surface-elevated']
+const OVERLAY = ['surface-overlay']
+const WELL = ['surface-elevated', 'surface-sunken']
+const CONTROL = ['control']
+const CONTAINERS = [CANVAS, RAISED, OVERLAY]
+const SURFACES = [CANVAS, RAISED, OVERLAY, WELL]
+const TRACKS = SURFACES.map(s => [...s, 'chart-track'])
+const SOFT = ['success', 'warning', 'serious', 'danger', 'info'] as const
+
+type Kind = keyof typeof MIN
+interface Pairing {
+  kind: Kind
+  /** The role painted on top (translucent ones are composited over each background). */
+  fg: string
+  on: readonly (readonly string[])[]
+  why: string
 }
 
-const deltaE = (a: string, b: string) => {
-  const [x, y] = [oklab(a), oklab(b)]
-  return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2])
+const PAIRINGS: Pairing[] = [
+  // The ladder: each layer stands apart from the one it sits on.
+  { kind: 'separation', fg: 'surface-elevated', on: [CANVAS], why: 'cards on the page' },
+  { kind: 'separation', fg: 'surface-sunken', on: [RAISED], why: 'wells in cards' },
+  { kind: 'separation', fg: 'control', on: CONTAINERS, why: 'fields and buttons' },
+  { kind: 'separation', fg: 'chart-track', on: SURFACES, why: 'bar tracks' },
+  { kind: 'separation', fg: 'tint', on: SURFACES, why: 'skeletons, neutral badges' },
+  {
+    kind: 'separation',
+    fg: 'state-hover',
+    on: [...SURFACES, CONTROL],
+    why: 'hovered rows, items, buttons',
+  },
+  { kind: 'separation', fg: 'state-active', on: [RAISED, CONTROL], why: 'pressed buttons' },
+  { kind: 'separation', fg: 'state-selected', on: [RAISED, OVERLAY], why: 'current nav item' },
+  ...SOFT.map((tone): Pairing => ({
+    kind: 'separation',
+    fg: `${tone}-soft`,
+    on: [RAISED, WELL],
+    why: 'tinted cells and rows',
+  })),
+  { kind: 'separation', fg: 'accent-soft', on: [RAISED], why: 'accent badges' },
+  ...['full', 'high', 'fair', 'low', 'poor'].map((band): Pairing => ({
+    kind: 'separation',
+    fg: `heat-${band}`,
+    on: [RAISED],
+    why: 'heat cells',
+  })),
+
+  // Signal fills meet in stacked bars: each pair stays apart.
+  ...['success-fill', 'warning-fill', 'serious-fill', 'danger-fill'].flatMap((fill, i, all) =>
+    all.slice(i + 1).map((other): Pairing => ({
+      kind: 'categorical',
+      fg: fill,
+      on: [[other]],
+      why: 'neighbouring bar segments',
+    }))
+  ),
+
+  // Outlines and graphics, WCAG 1.4.11.
+  {
+    kind: 'nonText',
+    fg: 'border-control',
+    on: [...CONTAINERS, CONTROL],
+    why: 'a field’s outline',
+  },
+  {
+    kind: 'nonText',
+    fg: 'focus-ring',
+    on: [...CONTAINERS, CONTROL],
+    why: 'the focus outline',
+  },
+  ...['accent', 'success-fill', 'warning-fill', 'serious-fill', 'danger-fill', 'info-fill'].map(
+    (fill): Pairing => ({
+      kind: 'nonText',
+      fg: fill,
+      on: [...SURFACES, ...TRACKS],
+      why: 'bar fills, status dots, stripes',
+    })
+  ),
+  { kind: 'nonText', fg: 'accent', on: [RAISED], why: 'a checked checkbox' },
+
+  // Text, WCAG 1.4.3.
+  ...['fg', 'fg-muted', 'fg-subtle', 'accent-text'].map((ink): Pairing => ({
+    kind: 'text',
+    fg: ink,
+    on: [
+      ...SURFACES,
+      CONTROL,
+      ['surface-elevated', 'state-hover'],
+      ['surface-elevated', 'state-selected'],
+    ],
+    why: 'text and placeholders',
+  })),
+  ...SOFT.map((tone): Pairing => ({
+    kind: 'text',
+    fg: `${tone}-fg`,
+    on: [[`${tone}-soft`], RAISED, CANVAS, WELL],
+    why: 'status text, badges, alerts',
+  })),
+  { kind: 'text', fg: 'accent-text', on: [['accent-soft']], why: 'accent badge' },
+  { kind: 'text', fg: 'accent-fg', on: [['accent'], ['accent-hover']], why: 'primary button' },
+  { kind: 'text', fg: 'danger-ink', on: [['danger-fill']], why: 'danger button' },
+  ...['full', 'high', 'fair', 'low', 'poor'].map((band): Pairing => ({
+    kind: 'text',
+    fg: `heat-${band}-ink`,
+    on: [[`heat-${band}`]],
+    why: 'rates printed in heat cells',
+  })),
+]
+
+/** Roles used for something no pairing above describes. */
+const EXEMPT = new Set([
+  // Under every modal; not a surface anything is read against.
+  'p-scrim',
+  // Hairlines between things that already differ in fill or sit in a framed box.
+  'p-border-default',
+  'p-border-muted',
+  'p-border-emphasis',
+  // The danger button's hover is a darker red with the same white text.
+  'p-accent-hover',
+  // Status borders frame badges and alerts whose fill and text are checked.
+  'p-success-border',
+  'p-warning-border',
+  'p-serious-border',
+  'p-danger-border',
+  'p-info-border',
+  // Chart hairlines with their values printed beside them.
+  'p-chart-grid',
+  'p-chart-axis',
+])
+
+/** A Tailwind class that paints a colour: `bg-surface-elevated` → `surface-elevated`. */
+const COLOUR_UTILITY =
+  /^(?:bg|text|border(?:-[trblxy])?|divide|outline|ring|fill|stroke|from|via|to|decoration|placeholder|caret|accent)-([a-z-]+)$/
+
+const ratio = (kind: Kind, fg: string, on: readonly string[], theme: Theme) => {
+  const base = paint(on, theme)
+  const top = composite(role(fg, theme), base)
+  return kind === 'separation' || kind === 'categorical' ? deltaE(top, base) : contrast(top, base)
 }
 
-const luminance = (hex: string) => {
-  const [r, g, b] = channels(hex)
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b
-}
-const contrast = (a: string, b: string) => {
-  const [x, y] = [luminance(a), luminance(b)]
-  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
-}
-
-/** Each control fill, and the surfaces it is used on. */
-const PLACEMENTS = [
-  { control: 'control-on-base', surfaces: ['surface-base'] },
-  { control: 'control-on-raised', surfaces: ['surface-elevated', 'surface-overlay'] },
-] as const
-
-describe('form control surfaces', () => {
+describe('colour contract', () => {
   for (const theme of ['light', 'dark'] as const) {
-    for (const { control, surfaces } of PLACEMENTS) {
-      for (const surface of surfaces) {
-        it(`${control} stands apart from ${surface} (${theme})`, () => {
-          expect(deltaE(role(control, theme), role(surface, theme))).toBeGreaterThanOrEqual(0.02)
+    it(`the ladder: page, card, overlay, control get lighter (${theme})`, () => {
+      const l = (name: string) => oklab(role(name, theme))[0]
+      expect(l('surface-base')).toBeLessThan(l('surface-elevated'))
+      expect(l('surface-elevated')).toBeLessThanOrEqual(l('surface-overlay'))
+      expect(l('surface-overlay')).toBeLessThan(l('control'))
+      expect(l('surface-sunken')).toBeLessThan(l('surface-elevated'))
+    })
+
+    for (const { kind, fg, on, why } of PAIRINGS) {
+      for (const stack of on) {
+        it(`${fg} on ${stack.join(' + ')}: ${why} (${theme})`, () => {
+          expect(ratio(kind, fg, stack, theme)).toBeGreaterThanOrEqual(MIN[kind])
         })
       }
-      it(`placeholder and text read on ${control} (${theme})`, () => {
-        expect(contrast(role('fg-subtle', theme), role(control, theme))).toBeGreaterThanOrEqual(4.5)
-        expect(contrast(role('fg', theme), role(control, theme))).toBeGreaterThanOrEqual(7)
-      })
     }
   }
 
-  it('a control on the page is raised like a card', () => {
-    expect(roles.get('p-control-on-base')).toBe('var(--p-surface-elevated)')
-    expect(css).toContain('--control-surface: var(--p-control-on-base);')
-    expect(css).toMatch(/@utility raised \{\s*--control-surface: var\(--p-control-on-raised\);/)
+  it('every colour the app uses is in a pairing', () => {
+    const covered = new Set(PAIRINGS.flatMap(p => [p.fg, ...p.on.flat()]).map(r => `p-${r}`))
+    const roots = [
+      join(import.meta.dirname, '..'),
+      join(import.meta.dirname, '../../../../apps/web/src'),
+    ]
+    const used = new Map<string, string>()
+    for (const root of roots) {
+      for (const file of readdirSync(root, { recursive: true, encoding: 'utf8' })) {
+        if (!/\.tsx?$/.test(file) || /\.test\.tsx?$/.test(file)) continue
+        const source = readFileSync(join(root, file), 'utf8')
+        for (const [token] of source.matchAll(/[\w:[\]&/.!-]+/g)) {
+          // `hover:bg-state-hover/50` → `bg-state-hover`
+          const bare = (token.split(':').pop() ?? '').replace(/^!/, '').replace(/\/[\d.]+$/, '')
+          const name = COLOUR_UTILITY.exec(bare)?.[1]
+          const mapped = name === undefined ? undefined : utilities.get(name)
+          if (mapped) used.set(mapped, file)
+        }
+        for (const [, name = ''] of source.matchAll(/var\(--color-([\w-]+)\)/g)) {
+          const mapped = utilities.get(name)
+          if (mapped) used.set(mapped, file)
+        }
+      }
+    }
+    // The scan itself works: it finds the everyday roles.
+    expect([...used.keys()]).toEqual(
+      expect.arrayContaining(['p-surface-elevated', 'p-fg-muted', 'p-control'])
+    )
+    const missing = [...used].filter(([r]) => !covered.has(r) && !EXEMPT.has(r))
+    expect(missing).toEqual([])
   })
 })

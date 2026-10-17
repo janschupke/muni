@@ -1,7 +1,7 @@
 import type { EmployeeListItem } from '@muni/db/repositories'
 import { BarRow } from '@muni/ui/bar-row'
 import { Meter } from '@muni/ui/meter'
-import { CellStack, Table, TBody, Td, Th, THead } from '@muni/ui/table'
+import { CellStack, Table, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDateTime, formatInteger, PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
@@ -45,7 +45,7 @@ export function MembersTable({
           const held = m.counts.VALID + m.counts.EXPIRING
           const attention = m.requirements.filter(r => r.status !== 'VALID')
           return (
-            <tr key={m.externalId}>
+            <Tr key={m.externalId}>
               <Td>
                 <CellStack
                   title={
@@ -125,7 +125,7 @@ export function MembersTable({
                   </ul>
                 )}
               </Td>
-            </tr>
+            </Tr>
           )
         })}
       </TBody>

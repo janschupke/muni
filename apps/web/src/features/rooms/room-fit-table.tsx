@@ -1,7 +1,7 @@
 import type { RoomDetail } from '@muni/db/repositories'
 import type { RoomMismatch } from '@muni/domain/rooms'
 import { Badge } from '@muni/ui/badge'
-import { Table, TableContainer, TBody, Td, Th, THead } from '@muni/ui/table'
+import { Table, TableContainer, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger } from '@muni/utils/format'
 import { CircleCheck, CircleX } from 'lucide-react'
@@ -37,7 +37,7 @@ export function RoomFitTable({ room }: { room: Pick<RoomDetail, 'name' | 'kind' 
         </THead>
         <TBody>
           {room.courses.map(c => (
-            <tr key={c.code}>
+            <Tr key={c.code}>
               <Td>
                 <TextLink asChild emphasis>
                   <Link href={`/courses/${c.code}`}>{c.name}</Link>
@@ -66,7 +66,7 @@ export function RoomFitTable({ room }: { room: Pick<RoomDetail, 'name' | 'kind' 
               <Td>
                 <Verdict mismatch={c.fit.mismatch} />
               </Td>
-            </tr>
+            </Tr>
           ))}
         </TBody>
       </Table>

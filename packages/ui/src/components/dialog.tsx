@@ -51,7 +51,7 @@ export function Dialog({
             target.focus()
           }}
           className={cn(
-            'fixed top-1/2 left-1/2 z-50 flex max-h-[85dvh] w-[calc(100vw-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border-default bg-surface-overlay text-fg shadow-overlay outline-none raised data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in',
+            'fixed top-1/2 left-1/2 z-50 flex max-h-[85dvh] w-[calc(100vw-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border-default bg-surface-overlay text-fg shadow-overlay outline-none data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in',
             className
           )}
         >
@@ -112,7 +112,7 @@ export function Drawer({
             event.preventDefault()
             ;(event.currentTarget as HTMLElement).focus()
           }}
-          className="fixed inset-y-0 left-0 z-50 flex w-80 max-w-[85vw] flex-col border-r border-border-default bg-surface-elevated text-fg shadow-overlay outline-none raised data-[state=closed]:animate-drawer-out data-[state=open]:animate-drawer-in"
+          className="fixed inset-y-0 left-0 z-50 flex w-80 max-w-[85vw] flex-col border-r border-border-default bg-surface-elevated text-fg shadow-overlay outline-none data-[state=closed]:animate-drawer-out data-[state=open]:animate-drawer-in"
         >
           <div className="flex items-center justify-between gap-4 border-b border-border-muted px-4 py-3">
             <DialogPrimitive.Title className="text-sm font-semibold">{title}</DialogPrimitive.Title>

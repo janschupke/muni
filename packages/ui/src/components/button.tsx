@@ -11,7 +11,7 @@ export const buttonClass = cva(
       variant: {
         primary: 'bg-accent text-accent-fg hover:bg-accent-hover',
         secondary:
-          'border border-border-default bg-surface-elevated text-fg hover:bg-state-hover active:bg-state-active',
+          'border border-border-default bg-control text-fg hover:layer-hover active:layer-active',
         ghost: 'text-fg-muted hover:bg-state-hover hover:text-fg active:bg-state-active',
         danger: 'bg-danger-fill text-danger-ink hover:opacity-90',
       },

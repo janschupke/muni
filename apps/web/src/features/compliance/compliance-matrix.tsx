@@ -31,7 +31,8 @@ import { COMPLIANCE, ComplianceBadge } from '@/components/status-badges'
 
 const HEAD = 'border-b-0 px-2 py-1'
 // The department column stays put while the courses scroll sideways on narrow screens.
-const STICKY = 'sticky left-0 z-10 bg-surface-elevated'
+// layer-row paints the row's hover over the column's own fill.
+const STICKY = 'sticky left-0 z-10 bg-surface-elevated layer-row'
 
 // A person's cell: the status's own tint, icon and (for screen readers) words.
 const STATUS_CELL: Record<ComplianceStatus, string> = {
@@ -196,7 +197,7 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
                   </Tr>
                   {isOpen &&
                     row.people.map(person => (
-                      <tr
+                      <Tr
                         key={person.externalId}
                         id={personRowId(rowIndex, person.externalId)}
                         className="motion-safe:animate-fade-in"
@@ -224,7 +225,7 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
                             />
                           </Td>
                         ))}
-                      </tr>
+                      </Tr>
                     ))}
                 </Fragment>
               )
@@ -427,7 +428,7 @@ function CellPeople({ row, code }: { row: ComplianceMatrixRow; code: string }) {
       </THead>
       <TBody>
         {people.map(({ person, requirement: r }) => (
-          <tr key={person.externalId}>
+          <Tr key={person.externalId}>
             <Td nowrap>
               <TextLink asChild>
                 <Link href={`/employees/${person.externalId}`}>{person.name}</Link>
@@ -465,7 +466,7 @@ function CellPeople({ row, code }: { row: ComplianceMatrixRow; code: string }) {
                 PLACEHOLDER
               )}
             </Td>
-          </tr>
+          </Tr>
         ))}
       </TBody>
     </Table>

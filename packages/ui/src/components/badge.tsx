@@ -8,7 +8,7 @@ export const badgeClass = cva(
   {
     variants: {
       tone: {
-        neutral: 'border-border-default bg-surface-sunken text-fg-muted',
+        neutral: 'border-border-default bg-tint text-fg-muted',
         accent: 'border-info-border bg-accent-soft text-accent-text',
         success: 'border-success-border bg-success-soft text-success-fg',
         warning: 'border-warning-border bg-warning-soft text-warning-fg',

@@ -10,7 +10,7 @@ export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>
   return (
     <div
       aria-hidden
-      className={cn('rounded-md bg-surface-sunken motion-safe:animate-pulse', className)}
+      className={cn('rounded-md bg-tint motion-safe:animate-pulse', className)}
       {...props}
     />
   )

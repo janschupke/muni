@@ -11,7 +11,7 @@ import { cn } from '../cn'
 
 /** Shared by Input, Textarea and the Select trigger. */
 export const controlClass =
-  'w-full rounded-md border border-border-default bg-control px-3 py-2 text-sm text-fg placeholder:text-fg-subtle hover:border-border-emphasis aria-invalid:border-danger-fill aria-invalid:focus-visible:outline-danger-fill disabled:opacity-60'
+  'w-full rounded-md border border-border-control bg-control px-3 py-2 text-sm text-fg placeholder:text-fg-subtle hover:border-fg-muted aria-invalid:border-danger-fill aria-invalid:focus-visible:outline-danger-fill disabled:cursor-not-allowed disabled:border-border-default disabled:bg-transparent disabled:text-fg-muted'
 
 /**
  * Label, control, help and error. The label wraps nothing: help and error are linked with

@@ -5,7 +5,7 @@ import { cn } from '../cn'
 
 /** The raised surface every card-like box shares (cards, stat cards, table frames). */
 export const surfaceClass =
-  'raised rounded-lg border border-border-default bg-surface-elevated shadow-card'
+  'rounded-lg border border-border-default bg-surface-elevated shadow-card'
 
 /** A raised surface; a `<section>`, or with `asChild` its child (`<li>` in a list). */
 export function Card({

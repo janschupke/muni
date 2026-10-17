@@ -64,6 +64,26 @@ describe('Field', () => {
   })
 })
 
+describe('disabled controls', () => {
+  it('lose their fill instead of fading, so they never look like an enabled one', () => {
+    render(
+      <>
+        <Input aria-label="Jméno" disabled />
+        <Checkbox label="Vede oddělení" disabled />
+      </>
+    )
+    for (const control of [
+      screen.getByRole('textbox', { name: 'Jméno' }),
+      screen.getByRole('checkbox', { name: 'Vede oddělení' }),
+    ]) {
+      expect(control.className).toContain('bg-control')
+      expect(control.className).toContain('border-border-control')
+      expect(control.className).toContain('disabled:bg-transparent')
+      expect(control.className).not.toMatch(/disabled:opacity/)
+    }
+  })
+})
+
 describe('Checkbox', () => {
   it('can be marked wrong and described', () => {
     render(

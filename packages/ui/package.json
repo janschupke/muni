@@ -8,6 +8,7 @@
   ],
   "exports": {
     "./styles/tokens.css": "./src/styles/tokens.css",
+    "./color-math": "./src/styles/color-math.ts",
     "./cn": "./src/cn.ts",
     "./alert": "./src/components/alert.tsx",
     "./badge": "./src/components/badge.tsx",

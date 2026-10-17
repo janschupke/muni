@@ -139,7 +139,7 @@ describe('surfaces and layout', () => {
       .slice(2)
       .map(h => h.previousElementSibling?.className ?? '')
     expect(errorIcon).toContain('bg-danger-soft')
-    expect(emptyIcon).toContain('bg-surface-sunken')
+    expect(emptyIcon).toContain('bg-tint')
     expect(screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent)).toEqual([
       'Nadcházející termíny',
       'Profil',
@@ -232,6 +232,27 @@ describe('Table', () => {
     expect(screen.getByText('E0153').className).toContain('text-xs')
     expect(screen.getByText('Bez meta').parentElement?.children).toHaveLength(1)
     expect(screen.getByText('450 Kč').className).toContain('text-right')
+  })
+
+  it('shows a row’s hover in its pinned cells too, over their own fill', () => {
+    render(
+      <Table>
+        <TBody>
+          <Tr>
+            <Td sticky="left">Marie Černá</Td>
+            <Td>450 Kč</Td>
+          </Tr>
+        </TBody>
+      </Table>
+    )
+    const row = screen.getByRole('row')
+    // The row publishes its state; the pinned cell paints it over its opaque fill.
+    expect(row.className).toContain('hover:[--row-state:var(--color-state-hover)]')
+    expect(row.className).toContain('bg-(--row-state)')
+    const pinned = screen.getByText('Marie Černá')
+    expect(pinned.className).toContain('bg-surface-elevated')
+    expect(pinned.className).toContain('layer-row')
+    expect(screen.getByText('450 Kč').className).not.toContain('layer-row')
   })
 })
 

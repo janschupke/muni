@@ -44,7 +44,18 @@ export function TBody({ className, ...props }: HTMLAttributes<HTMLTableSectionEl
 }
 
 export function Tr({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn('transition-colors hover:bg-state-hover', className)} {...props} />
+  return (
+    <tr
+      className={cn(
+        // The row's state as a variable: cells without a fill show the row's background, and
+        // sticky cells paint it over their own (layer-row). No transition: a background
+        // image cannot fade, so a fading row would lag behind its pinned cells.
+        'bg-(--row-state) hover:[--row-state:var(--color-state-hover)]',
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
 export interface CellLayout {
@@ -79,7 +90,7 @@ export function Th({
         // Row headers sit outside <thead>, so they need their own alignment.
         'border-b border-border-default px-3 py-2 text-left font-medium whitespace-nowrap',
         cellLayout({ align, nowrap, sticky }),
-        sticky && 'z-20 bg-surface-sunken',
+        sticky && 'z-20 bg-surface-sunken layer-row',
         className
       )}
       {...props}
@@ -99,7 +110,7 @@ export function Td({
       className={cn(
         'px-3 py-2 align-middle text-fg',
         cellLayout({ align, nowrap, sticky }),
-        sticky && 'z-[1] bg-surface-elevated',
+        sticky && 'z-[1] bg-surface-elevated layer-row',
         className
       )}
       {...props}

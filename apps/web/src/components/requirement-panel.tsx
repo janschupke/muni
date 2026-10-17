@@ -1,5 +1,5 @@
 import type { EmployeeListRequirement } from '@muni/db/repositories'
-import { Table, TBody, Td, Th, THead } from '@muni/ui/table'
+import { Table, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDate, formatDateTime, formatRelativeDays, PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
@@ -26,7 +26,7 @@ export function RequirementPanel({ requirements }: { requirements: EmployeeListR
       </THead>
       <TBody>
         {requirements.map(r => (
-          <tr key={r.courseCode}>
+          <Tr key={r.courseCode}>
             <Td>
               <TextLink asChild>
                 <Link href={`/courses/${r.courseCode}`}>{r.courseName}</Link>
@@ -67,7 +67,7 @@ export function RequirementPanel({ requirements }: { requirements: EmployeeListR
                 PLACEHOLDER
               )}
             </Td>
-          </tr>
+          </Tr>
         ))}
       </TBody>
     </Table>

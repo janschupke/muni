@@ -5,7 +5,9 @@
  * one ramp per signal hue (green, yellow, orange, red) and the brand blue, plus the
  * compliance heat scale. Steps run light (50) to dark (900); hue ramps are generated in
  * OKLCH with the status anchors pinned (green 500, yellow 300, orange 400, red 500 are the
- * dataviz reference status colours). Blue is the reference sequential ramp.
+ * dataviz reference status colours; fills step away from them where 3:1 on every surface and
+ * telling neighbours apart need it, see the contract in tokens.test.ts). Blue is the reference
+ * sequential ramp.
  *
  * Layer 2, roles (--p-*): each role picks a light and a dark step with light-dark(), so the
  * theme is one block. color-scheme selects the side: the OS preference by default, pinned
@@ -30,6 +32,7 @@
   --ramp-neutral-200: #e1e0d9;
   --ramp-neutral-300: #c3c2b7;
   --ramp-neutral-400: #9c9b94;
+  --ramp-neutral-450: #858480;
   --ramp-neutral-500: #6b6a65;
   --ramp-neutral-600: #52514e;
   --ramp-neutral-650: #4a4945;
@@ -70,6 +73,7 @@
   --ramp-yellow-300: #fab219;
   --ramp-yellow-400: #d2940a;
   --ramp-yellow-500: #b07b03;
+  --ramp-yellow-550: #9f6e02;
   --ramp-yellow-600: #8e6301;
   --ramp-yellow-700: #6e4b00;
   --ramp-yellow-800: #483000;
@@ -129,16 +133,21 @@
 }
 
 :root {
-  --p-surface-base: light-dark(var(--ramp-neutral-50), var(--ramp-neutral-950));
-  --p-surface-elevated: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-850));
+  /*
+   * Surfaces form one ladder, and a higher layer is lighter in both themes: the page
+   * (base), then cards, the sidebar and the header (elevated), then dialogs and popovers
+   * (overlay; in light they share the card fill and stand out by shadow). Form controls are
+   * the top layer, the lightest fill anywhere, so a field stands out on every surface
+   * without depending on where it sits; a disabled one drops its fill. Wells (table
+   * heads, opened rows) sink below the card. Tracks and skeletons are translucent ink:
+   * they darken whatever they sit on, so they show on every layer, wells included.
+   */
+  --p-surface-base: light-dark(var(--ramp-neutral-100), var(--ramp-neutral-950));
+  --p-surface-elevated: light-dark(var(--ramp-neutral-50), var(--ramp-neutral-850));
   --p-surface-sunken: light-dark(var(--ramp-neutral-100), var(--ramp-neutral-900));
-  --p-surface-overlay: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-800));
-  /* Form controls take their fill from the surface they sit on (--control-surface): on the
-     page they are raised like a card; on a raised surface (cards, dialogs, menus, the
-     sidebar) they sink a step, so a field never shares its container's background. */
-  --p-control-on-base: var(--p-surface-elevated);
-  --p-control-on-raised: light-dark(var(--ramp-neutral-50), var(--ramp-neutral-900));
-  --control-surface: var(--p-control-on-base);
+  --p-surface-overlay: light-dark(var(--ramp-neutral-50), var(--ramp-neutral-800));
+  --p-control: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-750));
+  --p-tint: light-dark(rgb(11 11 11 / 0.06), rgb(255 255 255 / 0.08));
 
   --p-fg: light-dark(var(--ramp-neutral-1000), var(--ramp-neutral-75));
   --p-fg-muted: light-dark(var(--ramp-neutral-600), var(--ramp-neutral-300));
@@ -148,6 +157,8 @@
   --p-border-default: light-dark(var(--ramp-neutral-200), var(--ramp-neutral-750));
   --p-border-muted: light-dark(var(--ramp-neutral-150), var(--ramp-neutral-800));
   --p-border-emphasis: light-dark(var(--ramp-neutral-300), var(--ramp-neutral-650));
+  /* A form control's outline: 3:1 against the control and every surface (WCAG 1.4.11). */
+  --p-border-control: var(--ramp-neutral-450);
 
   --p-accent: light-dark(var(--ramp-blue-500), var(--ramp-blue-400));
   --p-accent-hover: light-dark(var(--ramp-blue-550), var(--ramp-blue-350));
@@ -156,29 +167,29 @@
   --p-accent-text: light-dark(var(--ramp-blue-550), var(--ramp-blue-250));
 
   --p-success-fg: light-dark(var(--ramp-green-700), var(--ramp-green-300));
-  --p-success-fill: var(--ramp-green-500);
-  --p-success-soft: light-dark(var(--ramp-green-50), var(--ramp-green-900));
+  --p-success-fill: light-dark(var(--ramp-green-600), var(--ramp-green-500));
+  --p-success-soft: light-dark(var(--ramp-green-100), var(--ramp-green-900));
   --p-success-border: light-dark(var(--ramp-green-200), var(--ramp-green-800));
 
   --p-warning-fg: light-dark(var(--ramp-yellow-700), var(--ramp-yellow-300));
-  --p-warning-fill: var(--ramp-yellow-300);
-  --p-warning-soft: light-dark(var(--ramp-yellow-50), var(--ramp-yellow-900));
+  --p-warning-fill: light-dark(var(--ramp-yellow-550), var(--ramp-yellow-300));
+  --p-warning-soft: light-dark(var(--ramp-yellow-100), var(--ramp-yellow-900));
   --p-warning-border: light-dark(var(--ramp-yellow-200), var(--ramp-yellow-800));
 
   --p-serious-fg: light-dark(var(--ramp-orange-700), var(--ramp-orange-300));
-  --p-serious-fill: var(--ramp-orange-400);
-  --p-serious-soft: light-dark(var(--ramp-orange-50), var(--ramp-orange-900));
+  --p-serious-fill: light-dark(var(--ramp-orange-600), var(--ramp-orange-300));
+  --p-serious-soft: light-dark(var(--ramp-orange-100), var(--ramp-orange-900));
   --p-serious-border: light-dark(var(--ramp-orange-200), var(--ramp-orange-800));
 
   --p-danger-fg: light-dark(var(--ramp-red-700), var(--ramp-red-300));
-  --p-danger-fill: var(--ramp-red-500);
-  --p-danger-soft: light-dark(var(--ramp-red-50), var(--ramp-red-900));
+  --p-danger-fill: light-dark(var(--ramp-red-700), var(--ramp-red-400));
+  --p-danger-soft: light-dark(var(--ramp-red-100), var(--ramp-red-900));
   --p-danger-border: light-dark(var(--ramp-red-200), var(--ramp-red-800));
-  --p-danger-ink: var(--ramp-neutral-0);
+  --p-danger-ink: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-1000));
 
   --p-info-fg: light-dark(var(--ramp-blue-550), var(--ramp-blue-250));
-  --p-info-fill: light-dark(var(--ramp-blue-450), var(--ramp-blue-400));
-  --p-info-soft: light-dark(var(--ramp-blue-50), var(--ramp-blue-900));
+  --p-info-fill: light-dark(var(--ramp-blue-500), var(--ramp-blue-400));
+  --p-info-soft: light-dark(var(--ramp-blue-100), var(--ramp-blue-900));
   --p-info-border: light-dark(var(--ramp-blue-200), var(--ramp-blue-550));
 
   --p-state-hover: light-dark(rgb(11 11 11 / 0.04), rgb(255 255 255 / 0.05));
@@ -189,7 +200,7 @@
 
   --p-chart-grid: light-dark(var(--ramp-neutral-200), var(--ramp-neutral-750));
   --p-chart-axis: light-dark(var(--ramp-neutral-300), var(--ramp-neutral-700));
-  --p-chart-track: light-dark(var(--ramp-neutral-150), var(--ramp-neutral-750));
+  --p-chart-track: light-dark(rgb(11 11 11 / 0.06), rgb(255 255 255 / 0.1));
 
   --p-heat-full: light-dark(var(--ramp-heat-full-light), var(--ramp-heat-full-dark));
   --p-heat-high: light-dark(var(--ramp-heat-high-light), var(--ramp-heat-high-dark));
@@ -212,7 +223,8 @@
   --color-surface-elevated: var(--p-surface-elevated);
   --color-surface-sunken: var(--p-surface-sunken);
   --color-surface-overlay: var(--p-surface-overlay);
-  --color-control: var(--control-surface);
+  --color-control: var(--p-control);
+  --color-tint: var(--p-tint);
 
   --color-fg: var(--p-fg);
   --color-fg-muted: var(--p-fg-muted);
@@ -222,6 +234,7 @@
   --color-border-default: var(--p-border-default);
   --color-border-muted: var(--p-border-muted);
   --color-border-emphasis: var(--p-border-emphasis);
+  --color-border-control: var(--p-border-control);
 
   --color-accent: var(--p-accent);
   --color-accent-hover: var(--p-accent-hover);
@@ -287,9 +300,20 @@
   --shadow-overlay: 0 8px 24px var(--p-shadow-color), 0 2px 6px var(--p-shadow-color);
 }
 
-/* A raised surface: form controls inside it use the sunken control fill. */
-@utility raised {
-  --control-surface: var(--p-control-on-raised);
+/*
+ * State layers: a hovered or pressed element keeps its own fill and gets the state tint
+ * painted over it, so the state shows on any surface and an opaque fill never hides it.
+ * A table row publishes its state as --row-state; its sticky cells, which need an opaque
+ * fill to cover what scrolls under them, paint it the same way.
+ */
+@utility layer-hover {
+  background-image: linear-gradient(var(--p-state-hover), var(--p-state-hover));
+}
+@utility layer-active {
+  background-image: linear-gradient(var(--p-state-active), var(--p-state-active));
+}
+@utility layer-row {
+  background-image: linear-gradient(var(--row-state, transparent), var(--row-state, transparent));
 }
 
 /*

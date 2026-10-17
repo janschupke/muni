@@ -1,7 +1,7 @@
 import type { CourseCompliance } from '@muni/db/repositories'
 import { complianceBand } from '@muni/domain/compliance'
 import { HeatCell } from '@muni/ui/charts/heat-cell'
-import { Table, TableContainer, TBody, Td, Th, THead } from '@muni/ui/table'
+import { Table, TableContainer, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent } from '@muni/utils/format'
 import Link from 'next/link'
@@ -27,7 +27,7 @@ export function CourseComplianceTable({ courses }: { courses: CourseCompliance[]
         </THead>
         <TBody>
           {courses.map(c => (
-            <tr key={c.code}>
+            <Tr key={c.code}>
               <Td>
                 <TextLink asChild emphasis>
                   <Link href={`/courses/${c.code}`}>{c.name}</Link>
@@ -54,7 +54,7 @@ export function CourseComplianceTable({ courses }: { courses: CourseCompliance[]
                 {formatInteger(c.counts.VALID + c.counts.EXPIRING, locale)} /{' '}
                 {formatInteger(c.counts.total, locale)}
               </Td>
-            </tr>
+            </Tr>
           ))}
         </TBody>
       </Table>

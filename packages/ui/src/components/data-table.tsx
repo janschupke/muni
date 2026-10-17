@@ -233,7 +233,12 @@ export function DataTable<TData extends RowData>({
               const cells = row.getAllCells()
               return (
                 <Fragment key={row.id}>
-                  <Tr className={cn(rowClassName?.(row.original), open && 'bg-state-hover')}>
+                  <Tr
+                    className={cn(
+                      rowClassName?.(row.original),
+                      open && '[--row-state:var(--color-state-hover)]'
+                    )}
+                  >
                     {expandable && (
                       <Td className="w-0 px-1">
                         {row.getCanExpand() && (

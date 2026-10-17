@@ -43,7 +43,7 @@ export function Checkbox({
         disabled={disabled}
         aria-invalid={invalid}
         aria-describedby={describedBy}
-        className="flex size-4 shrink-0 items-center justify-center rounded-sm border border-border-emphasis bg-control text-accent-fg disabled:opacity-60 aria-invalid:border-danger-fill data-[state=checked]:border-accent data-[state=checked]:bg-accent"
+        className="flex size-4 shrink-0 items-center justify-center rounded-sm border border-border-control bg-control text-accent-fg disabled:cursor-not-allowed disabled:border-border-default disabled:bg-transparent aria-invalid:border-danger-fill data-[state=checked]:border-accent data-[state=checked]:bg-accent disabled:data-[state=checked]:border-border-default disabled:data-[state=checked]:bg-tint disabled:data-[state=checked]:text-fg-muted"
       >
         <CheckboxPrimitive.Indicator>
           <Check aria-hidden className="size-3" strokeWidth={3} />

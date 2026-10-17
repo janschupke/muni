@@ -96,7 +96,7 @@ export function Select({
           <SelectPrimitive.Content
             position="popper"
             sideOffset={4}
-            className="z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) origin-(--radix-select-content-transform-origin) overflow-hidden rounded-md border border-border-default bg-surface-overlay text-sm text-fg shadow-overlay raised data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in"
+            className="z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) origin-(--radix-select-content-transform-origin) overflow-hidden rounded-md border border-border-default bg-surface-overlay text-sm text-fg shadow-overlay data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in"
           >
             <SelectPrimitive.Viewport className="p-1">
               {hasEmptyOption && <SelectItem value={EMPTY}>{emptyLabel}</SelectItem>}
