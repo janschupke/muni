@@ -26,6 +26,7 @@ export const ISSUE_CODES = [
   'VALIDITY_BEFORE_COMPLETION',
   'COURSE_NOT_FOUND',
   'EMPLOYEE_NOT_FOUND',
+  'LEFT_WITHOUT_DATE',
   // automatic fixes (warnings)
   'EXCEL_SERIAL_DATE',
   'FREE_PRICE',
@@ -51,6 +52,11 @@ export const ISSUE_CODES = [
   'OVERBOOKED',
   'ZERO_CAPACITY',
   'FUTURE_COMPLETION',
+  'MANAGER_CYCLE',
+  'ROOM_TOO_SMALL',
+  'ROOM_UNSUITABLE',
+  'ROOM_BUSY',
+  'WILL_CREATE',
   // left out (warnings that skip the row)
   'ARCHIVED',
 ] as const

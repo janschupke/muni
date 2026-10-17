@@ -3,6 +3,7 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { unarchiveAll } from '../test/archive'
+import { completionOf } from '../test/records'
 import { createDb } from './client'
 import {
   createCompletion,
@@ -173,15 +174,12 @@ describe('a new provider', () => {
     })
     // A completion recorded in the app names it; no price and no expiry stay empty.
     await createCompletion(
-      'E0153',
-      {
-        courseCode: 'LEAD',
+      await completionOf(db, {
+        employee: 'E0153',
+        course: 'LEAD',
         completedOn: asOf,
-        validUntil: null,
         provider: 'Druhý dodavatel',
-        price: null,
-        note: null,
-      },
+      }),
       options
     )
     expect(await getProvider(created.id, 'FULL', options)).toMatchObject({

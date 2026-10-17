@@ -1,3 +1,4 @@
+import { type RoomFacts, roomKindOfName, roomMismatch } from '@muni/domain/rooms'
 import type {
   CompletionInput,
   CourseInput,
@@ -68,6 +69,48 @@ function archivedChecks(reference: ReferenceSnapshot) {
 const archivedIssue = (field: string, value: string) =>
   issue(field, 'ARCHIVED', 'warning', { value })
 
+/**
+ * Announces each name the import will create a record for (a department, position or
+ * provider the register does not have yet), once, on the first row that names it.
+ */
+function creations(known: readonly string[], keyOf: (value: string) => string) {
+  const existing = new Set(known.map(keyOf))
+  const announced = new Set<string>()
+  return (field: string, value: string | null): ValidationIssue[] => {
+    if (value === null) return []
+    const key = keyOf(value)
+    if (existing.has(key) || announced.has(key)) return []
+    announced.add(key)
+    return [issue(field, 'WILL_CREATE', 'warning', { value })]
+  }
+}
+
+/**
+ * Who would end up managing themselves: walking up from each person (in file order), a link
+ * that leads back to them is dropped, which breaks the loop for everyone else in it.
+ */
+function managerLoops(links: Map<string, string | null>, order: readonly string[]) {
+  const dropped = new Set<string>()
+  for (const id of order) {
+    const seen = new Set<string>()
+    for (let up = links.get(id) ?? null; up !== null && !seen.has(up); up = links.get(up) ?? null) {
+      if (up === id) {
+        links.set(id, null)
+        dropped.add(id)
+        break
+      }
+      seen.add(up)
+    }
+  }
+  return dropped
+}
+
+/** Whether two sessions on the same day overlap (wall-clock `HH:mm`). */
+const overlaps = (
+  a: { date: string; startTime: string; endTime: string },
+  b: { date: string; startTime: string; endTime: string }
+) => a.date === b.date && a.startTime < b.endTime && b.startTime < a.endTime
+
 /** Rows that can serve as a reference for other rows: mapped cleanly and not removed. */
 const usable = <T>(row: ParsedRow<T>): row is ParsedRow<T> & { base: { data: T } } =>
   !row.isRemoved && row.base.data !== null
@@ -132,6 +175,8 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
   )
   const departments = new Canonicalizer(departmentValues, reference.departments, DEPARTMENT_ALIASES)
   const positions = new Canonicalizer(positionValues, reference.positions)
+  const newDepartment = creations(reference.departments, v => departments.keyOf(v))
+  const newPosition = creations(reference.positions, v => positions.keyOf(v))
 
   // ---- courses ----------------------------------------------------------------------------
   const firstCourse = firstRowByKey(courseRows, d => d.code)
@@ -231,6 +276,9 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
         })
       )
     }
+    // Announced on a row that will be imported, not on one an error leaves out.
+    if (![...row.base.issues, ...extra].some(i => i.severity === 'error'))
+      extra.push(...newDepartment('department', department), ...newPosition('position', position))
     return finalize<EmployeeInput>(row, { ...data, department, position }, extra)
   })
 
@@ -253,6 +301,37 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
       warnings: [
         ...row.warnings,
         issue('managerEmail', 'MANAGER_NOT_FOUND', 'warning', { value: managerEmail }),
+      ],
+    }
+  })
+
+  // Nobody may end up managing themselves, directly or round a loop.
+  const idByEmail = new Map<string, string>(
+    reference.employees.flatMap(e => (e.email ? [[e.email, e.externalId] as const] : []))
+  )
+  const imported = out.employees.filter(
+    (r): r is typeof r & { data: EmployeeInput } =>
+      r.isValid && !r.isSkipped && !r.isRemoved && r.data !== null
+  )
+  for (const row of imported) if (row.data.email) idByEmail.set(row.data.email, row.data.externalId)
+  const links = new Map(
+    imported.map(r => [
+      r.data.externalId,
+      r.data.managerEmail ? (idByEmail.get(r.data.managerEmail) ?? null) : null,
+    ])
+  )
+  const loops = managerLoops(
+    links,
+    imported.map(r => r.data.externalId)
+  )
+  out.employees = out.employees.map(row => {
+    if (!row.data || !loops.has(row.data.externalId) || row.isSkipped || row.isRemoved) return row
+    return {
+      ...row,
+      data: { ...row.data, managerEmail: null },
+      warnings: [
+        ...row.warnings,
+        issue('managerEmail', 'MANAGER_CYCLE', 'warning', { value: row.data.managerEmail ?? '' }),
       ],
     }
   })
@@ -297,6 +376,28 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
     sessionRows,
     d => `${d.courseCode}|${d.date}|${d.startTime}|${fold(d.location)}`
   )
+  // What each room offers: the rooms file wins over the register; a room neither knows is
+  // created from its sessions, so it fits them.
+  const facts = new Map<string, Omit<RoomFacts, 'id'>>(
+    (reference.roomFacts ?? []).map(r => [rooms.keyOf(r.name), r])
+  )
+  for (const row of out.rooms) {
+    if (!row.isValid || row.isSkipped || row.isRemoved || !row.data) continue
+    const known = facts.get(rooms.keyOf(row.data.name))
+    facts.set(rooms.keyOf(row.data.name), {
+      ...row.data,
+      capabilities: row.data.capabilities ?? known?.capabilities ?? [],
+    })
+  }
+  const needsByCourse = new Map(
+    reference.courses.flatMap(c => (c.needs ? [[c.code, c.needs]] : []))
+  )
+  // Planned sessions that hold a room: the register's (unless this batch replaces them) and
+  // the batch's own, in file order.
+  const batchIds = new Set(sessionRows.filter(usable).map(r => r.base.data.externalId))
+  const held = (reference.plannedSessions ?? [])
+    .filter(s => !batchIds.has(s.externalId))
+    .map(s => ({ ...s, key: rooms.keyOf(s.room) }))
   out.sessions = sessionRows.map(row => {
     const extra: Extra = []
     if (!usable(row)) return finalize(row, null, extra)
@@ -321,6 +422,27 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
       )
     }
     const location = rooms.canonical(data.location)
+    const room = facts.get(rooms.keyOf(data.location))
+    if (!owner && data.status === 'PLANNED') {
+      if (room && room.kind !== 'ONLINE' && room.capacity !== null && room.capacity < data.capacity)
+        extra.push(
+          issue('capacity', 'ROOM_TOO_SMALL', 'warning', {
+            value: data.capacity,
+            capacity: room.capacity,
+          })
+        )
+      const needs = needsByCourse.get(data.courseCode)
+      if (room && needs && roomMismatch({ ...room, id: '' }, needs, null))
+        extra.push(issue('location', 'ROOM_UNSUITABLE', 'warning', { value: location }))
+      // An online room is never taken; a room only the sessions name is online by its name.
+      if ((room?.kind ?? roomKindOfName(location)) !== 'ONLINE' && !slotTwin) {
+        const key = rooms.keyOf(data.location)
+        const clash = held.find(h => h.key === key && overlaps(h, data))
+        if (clash)
+          extra.push(issue('location', 'ROOM_BUSY', 'warning', { otherId: clash.externalId }))
+        held.push({ ...data, room: location, key })
+      }
+    }
     if (archived.room(data.location)) {
       extra.push(archivedIssue('location', data.location))
     } else if (!knownRooms.has(data.location)) {
@@ -343,6 +465,7 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
       .flatMap(r => (r.base.data.provider ? [r.base.data.provider] : [])),
     reference.providers
   )
+  const newProvider = creations(reference.providers, v => providers.keyOf(v))
   out.completions = completionRows.map(row => {
     const extra: Extra = []
     if (!usable(row)) return finalize(row, null, extra)
@@ -414,6 +537,8 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
         )
         data = { ...data, provider }
       }
+      if (![...row.base.issues, ...extra].some(i => i.severity === 'error'))
+        extra.push(...newProvider('provider', data.provider))
     }
     return finalize<CompletionInput>(row, data, extra)
   })

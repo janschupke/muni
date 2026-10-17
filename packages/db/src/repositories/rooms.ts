@@ -12,6 +12,7 @@ import {
 import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions } from './context'
 import type { SessionListItem } from './courses'
+import { needsOf, needsSelect } from './session-fit'
 import { listSessions, upcomingSessionWhere } from './sessions'
 
 export interface RoomListItem {
@@ -137,9 +138,7 @@ export async function getRoom(
       select: {
         code: true,
         name: true,
-        groupSize: true,
-        onlineAllowed: true,
-        capabilities: { select: { capability: true } },
+        ...needsSelect,
       },
       orderBy: { code: 'asc' },
     }),
@@ -151,19 +150,10 @@ export async function getRoom(
     note: room.note,
     upcoming,
     pastCount,
-    courses: courses.map(c => ({
-      code: c.code,
-      name: c.name,
-      fit: roomFit(
-        listed,
-        {
-          groupSize: c.groupSize,
-          onlineAllowed: c.onlineAllowed,
-          capabilities: c.capabilities.map(x => x.capability),
-        },
-        c.groupSize
-      ),
-    })),
+    courses: courses.map(c => {
+      const needs = needsOf(c)
+      return { code: c.code, name: c.name, fit: roomFit(listed, needs, needs.groupSize) }
+    }),
   }
 }
 

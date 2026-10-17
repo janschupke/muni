@@ -1,4 +1,4 @@
-import { type RoomMismatch, roomMismatch } from '@muni/domain/rooms'
+import type { RoomMismatch } from '@muni/domain/rooms'
 import {
   APP_ID_PREFIX,
   type RoomEdit,
@@ -8,12 +8,21 @@ import {
   type SessionEdit,
   sessionEditSchema,
 } from '@muni/domain/schemas'
+import { sessionIssues } from '@muni/domain/sessions'
 import { zonedTimeToUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
 
 import type { Tx } from '../client'
 import { ACTIVE, isArchived } from './archive'
 import { dbOf, type RepoOptions } from './context'
+import {
+  lockSessions,
+  needsOf,
+  needsSelect,
+  newlyUnfit,
+  roomFactsOf,
+  roomFactsSelect,
+} from './session-fit'
 
 // Mutations. Callers (server actions) must have verified a signed-in user first;
 // the input is re-parsed here regardless of what the caller validated.
@@ -26,6 +35,8 @@ export type SessionProblem =
   | 'ROOM_MISSING_CAPABILITIES'
   | 'ROOM_ARCHIVED'
   | 'COURSE_ARCHIVED'
+  /** Fewer seats than are booked (unnamed and named together). */
+  | 'OVER_CAPACITY'
 
 export type SessionWrite =
   { ok: true; externalId: string; courseCode: string } | { ok: false; problem: SessionProblem }
@@ -36,48 +47,28 @@ const MISMATCH_PROBLEM: Record<RoomMismatch['kind'], SessionProblem> = {
   MISSING_CAPABILITIES: 'ROOM_MISSING_CAPABILITIES',
 }
 
-/**
- * Whether a planned session of the course may take the room at that time: the room suits
- * what the course needs and has a seat for each place the session opens, and no other
- * planned session holds it then. An online room is never taken: it has no walls. Nothing is
- * planned in an archived room or of an archived course. Run inside the transaction that
- * writes, after the sessions lock (archiving a room or course takes it too).
- */
-async function sessionProblem(
+interface SessionFacts {
+  courseId: string
+  roomId: string
+  startsAt: Date
+  endsAt: Date
+  capacity: number
+  /** Unnamed plus named bookings. */
+  booked: number
+  planned: boolean
+}
+
+/** Whether another planned session holds the room then. An online room is never taken. */
+async function roomBusy(
   tx: Tx,
-  session: { courseId: string; roomId: string; startsAt: Date; endsAt: Date; capacity: number },
+  session: Pick<SessionFacts, 'roomId' | 'startsAt' | 'endsAt'>,
   self: string | null
-): Promise<SessionProblem | null> {
-  const [room, course] = await Promise.all([
-    tx.room.findUniqueOrThrow({
-      where: { id: session.roomId },
-      select: {
-        id: true,
-        name: true,
-        kind: true,
-        capacity: true,
-        capabilities: true,
-        archivedAt: true,
-      },
-    }),
-    tx.course.findUniqueOrThrow({
-      where: { id: session.courseId },
-      select: { groupSize: true, onlineAllowed: true, capabilities: true, archivedAt: true },
-    }),
-  ])
-  if (isArchived(room)) return 'ROOM_ARCHIVED'
-  if (isArchived(course)) return 'COURSE_ARCHIVED'
-  const mismatch = roomMismatch(
-    { ...room, capabilities: room.capabilities.map(c => c.capability) },
-    { ...course, capabilities: course.capabilities.map(c => c.capability) },
-    session.capacity
-  )
-  if (mismatch) return MISMATCH_PROBLEM[mismatch.kind]
-  if (room.kind === 'ONLINE') return null
+): Promise<boolean> {
   const clash = await tx.courseSession.findFirst({
     where: {
       ...ACTIVE,
-      roomId: room.id,
+      roomId: session.roomId,
+      room: { kind: { not: 'ONLINE' } },
       status: 'PLANNED',
       startsAt: { lt: session.endsAt },
       endsAt: { gt: session.startsAt },
@@ -85,12 +76,67 @@ async function sessionProblem(
     },
     select: { id: true },
   })
-  return clash ? 'ROOM_BUSY' : null
+  return clash !== null
 }
 
-/** Session writes take turns, so two cannot both find a room free and both take it. */
-const lockSessions = (tx: Tx) =>
-  tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('course_sessions'))`
+/**
+ * Whether the session may be saved so: its seats hold its bookings; when planned, the room
+ * suits what the course needs and has a seat for each place, and no other planned session
+ * holds it then (`sessionIssues`, which the form runs as the user types, plus the clash).
+ * Nothing moves into an archived room or to an archived course; a session already there
+ * (a past one) keeps it. Run inside the transaction that writes, after the sessions lock
+ * (archiving a room or course takes it too).
+ */
+async function sessionProblem(
+  tx: Tx,
+  session: SessionFacts,
+  current: { externalId: string; courseId: string; roomId: string } | null
+): Promise<SessionProblem | null> {
+  const [room, course] = await Promise.all([
+    tx.room.findUniqueOrThrow({
+      where: { id: session.roomId },
+      select: { ...roomFactsSelect, archivedAt: true },
+    }),
+    tx.course.findUniqueOrThrow({
+      where: { id: session.courseId },
+      select: { ...needsSelect, archivedAt: true },
+    }),
+  ])
+  if (isArchived(room) && room.id !== current?.roomId) return 'ROOM_ARCHIVED'
+  if (isArchived(course) && session.courseId !== current?.courseId) return 'COURSE_ARCHIVED'
+  for (const issue of sessionIssues({
+    startTime: '',
+    endTime: '',
+    capacity: session.capacity,
+    booked: session.booked,
+    planned: session.planned,
+    room: roomFactsOf(room),
+    needs: needsOf(course),
+  })) {
+    if (issue.kind === 'BELOW_BOOKED') return 'OVER_CAPACITY'
+    if (issue.kind === 'ROOM') return MISMATCH_PROBLEM[issue.mismatch.kind]
+  }
+  if (session.planned && (await roomBusy(tx, session, current?.externalId ?? null)))
+    return 'ROOM_BUSY'
+  return null
+}
+
+/**
+ * Whether the room is free then, for the session form to say while the user picks (no lock:
+ * saving checks again). `self` is the session being edited, which never clashes with itself.
+ */
+export async function checkSessionSlot(
+  input: { roomId: string; date: string; startTime: string; endTime: string },
+  self: string | null,
+  options?: RepoOptions
+): Promise<'ROOM_BUSY' | null> {
+  const startsAt = zonedTimeToUtc(input.date, input.startTime)
+  const endsAt = zonedTimeToUtc(input.date, input.endTime)
+  if (!(endsAt > startsAt)) return null
+  return dbOf(options).$transaction(async tx =>
+    (await roomBusy(tx, { roomId: input.roomId, startsAt, endsAt }, self)) ? 'ROOM_BUSY' : null
+  )
+}
 
 export async function updateSession(
   externalId: string,
@@ -100,39 +146,46 @@ export async function updateSession(
   const data = sessionEditSchema.parse(input)
   return dbOf(options).$transaction(async tx => {
     await lockSessions(tx)
-    const current = await tx.courseSession.findFirstOrThrow({
+    const found = await tx.courseSession.findFirstOrThrow({
       where: { externalId, ...ACTIVE },
-      select: { id: true, courseId: true, course: { select: { code: true } } },
+      select: { id: true },
     })
+    // The row too, as booking takes it: a seat booked meanwhile is counted below.
+    const [current] = await tx.$queryRaw<{ id: string; course_id: string; room_id: string }[]>`
+      SELECT id, course_id, room_id FROM course_sessions WHERE id = ${found.id} FOR UPDATE`
+    if (!current) throw new Error(`Session ${externalId} vanished under its lock`)
+    const named = await tx.sessionAssignment.count({ where: { sessionId: current.id } })
     const startsAt = zonedTimeToUtc(data.date, data.startTime)
     const endsAt = zonedTimeToUtc(data.date, data.endTime)
-    if (data.status === 'PLANNED') {
-      const problem = await sessionProblem(
-        tx,
-        {
-          courseId: current.courseId,
-          roomId: data.roomId,
-          startsAt,
-          endsAt,
-          capacity: data.capacity,
-        },
-        externalId
-      )
-      if (problem) return { ok: false, problem }
-    }
-    await tx.courseSession.update({
+    const problem = await sessionProblem(
+      tx,
+      {
+        courseId: data.courseId,
+        roomId: data.roomId,
+        startsAt,
+        endsAt,
+        capacity: data.capacity,
+        booked: data.unnamedBookings + named,
+        planned: data.status === 'PLANNED',
+      },
+      { externalId, courseId: current.course_id, roomId: current.room_id }
+    )
+    if (problem) return { ok: false, problem }
+    const saved = await tx.courseSession.update({
       where: { id: current.id },
       data: {
         startsAt,
         endsAt,
+        course: { connect: { id: data.courseId } },
         room: { connect: { id: data.roomId } },
         capacity: data.capacity,
         unnamedBookings: data.unnamedBookings,
         pricePerPerson: data.pricePerPerson,
         status: data.status,
       },
+      select: { course: { select: { code: true } } },
     })
-    return { ok: true, externalId, courseCode: current.course.code }
+    return { ok: true, externalId, courseCode: saved.course.code }
   })
 }
 
@@ -147,20 +200,26 @@ export async function createSession(
   const data = sessionCreateSchema.parse(input)
   return dbOf(options).$transaction(async tx => {
     await lockSessions(tx)
-    const course = await tx.course.findFirstOrThrow({
-      where: { code: data.courseCode, ...ACTIVE },
+    const course = await tx.course.findUniqueOrThrow({
+      where: { id: data.courseId },
       select: { id: true, code: true },
     })
     const startsAt = zonedTimeToUtc(data.date, data.startTime)
     const endsAt = zonedTimeToUtc(data.date, data.endTime)
-    if (data.status === 'PLANNED') {
-      const problem = await sessionProblem(
-        tx,
-        { courseId: course.id, roomId: data.roomId, startsAt, endsAt, capacity: data.capacity },
-        null
-      )
-      if (problem) return { ok: false, problem }
-    }
+    const problem = await sessionProblem(
+      tx,
+      {
+        courseId: course.id,
+        roomId: data.roomId,
+        startsAt,
+        endsAt,
+        capacity: data.capacity,
+        booked: 0,
+        planned: data.status === 'PLANNED',
+      },
+      null
+    )
+    if (problem) return { ok: false, problem }
     const ids = await tx.courseSession.findMany({
       // eslint-disable-next-line no-restricted-syntax -- archived ones count: an ID is never reused
       where: { externalId: { startsWith: APP_ID_PREFIX.session } },
@@ -184,11 +243,27 @@ export async function createSession(
   })
 }
 
+/** Why a room edit was refused: upcoming sessions there would stop fitting. */
+export type RoomWrite =
+  | { ok: true; id: string }
+  | {
+      ok: false
+      field: 'capacity' | 'capabilities' | 'kind'
+      reason: 'sessions_unfit'
+      count: number
+    }
+
+const UNFIT_FIELD = {
+  TOO_SMALL: 'capacity',
+  MISSING_CAPABILITIES: 'capabilities',
+  ONLINE_NOT_ALLOWED: 'kind',
+} as const
+
 async function writeRoom(
   options: RepoOptions | undefined,
   id: string | null,
   input: RoomEdit
-): Promise<{ id: string }> {
+): Promise<RoomWrite> {
   const data = roomSchema.parse(input)
   return dbOf(options).$transaction(async tx => {
     const fields = {
@@ -196,6 +271,30 @@ async function writeRoom(
       kind: data.kind,
       capacity: data.capacity,
       note: cleanFreeText(data.note),
+    }
+    if (id) {
+      await lockSessions(tx)
+      const current = await tx.room.findFirstOrThrow({
+        where: { id, ...ACTIVE },
+        select: roomFactsSelect,
+      })
+      const before = roomFactsOf(current)
+      const unfit = await newlyUnfit(tx, {
+        roomId: id,
+        room: {
+          ...before,
+          ...fields,
+          capabilities: data.capabilities ?? before.capabilities,
+        },
+      })
+      const first = unfit[0]
+      if (first)
+        return {
+          ok: false,
+          field: UNFIT_FIELD[first.kind],
+          reason: 'sessions_unfit',
+          count: unfit.length,
+        }
     }
     const room = id
       ? await tx.room.update({ where: { id, ...ACTIVE }, data: fields, select: { id: true } })
@@ -207,12 +306,17 @@ async function writeRoom(
         skipDuplicates: true,
       })
     }
-    return room
+    return { ok: true, id: room.id }
   })
 }
 
+/** A new room. Nothing is planned in it yet, so nothing can stop fitting: it is always saved. */
 export const createRoom = (input: RoomEdit, options?: RepoOptions) =>
-  writeRoom(options, null, input)
+  writeRoom(options, null, input) as Promise<Extract<RoomWrite, { ok: true }>>
 
+/**
+ * Saves a room. Refused when upcoming sessions that fit it would stop fitting (fewer seats,
+ * equipment taken away, or made online for a course that cannot be).
+ */
 export const updateRoom = (id: string, input: RoomEdit, options?: RepoOptions) =>
   writeRoom(options, id, input)

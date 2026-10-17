@@ -183,11 +183,14 @@ export const courseEditSchema = courseSchema.pick({ name: true, validityMonths: 
   requiredForAll: z.boolean(),
   departmentIds: entityIds,
   positionIds: entityIds,
-  /** What one session needs: the planner's input. */
-  /** At most 12 hours: from the usual 09:00 start, a session ends the same day. */
+  /**
+   * What one session needs, where the app overrides what the sessions import derives:
+   * null = take the derived value. At most 12 hours: from the usual 09:00 start, a session
+   * ends the same day.
+   */
   sessionMinutes: z.int().min(15).max(720).nullable(),
   groupSize: z.int().min(1).max(10_000).nullable(),
-  onlineAllowed: z.boolean(),
+  onlineAllowed: z.boolean().nullable(),
   capabilities,
 })
 export type CourseEdit = z.infer<typeof courseEditSchema>
@@ -195,24 +198,29 @@ export type CourseEdit = z.infer<typeof courseEditSchema>
 export const courseCreateSchema = courseEditSchema.extend({ code: courseCodeSchema })
 export type CourseCreate = z.infer<typeof courseCreateSchema>
 
-const roomId = z.string().trim().min(1).max(64)
-
 /**
- * Editing a session sets its anonymous seats; named bookings are assignment rows and are
- * managed separately, so the form never overwrites them.
+ * Editing a session sets its course, room, times and anonymous seats; named bookings are
+ * assignment rows and are managed separately, so the form never overwrites them. The server
+ * also checks the seats against the named bookings.
  */
 export const sessionEditSchema = z
-  .object({ ...sessionTimes, roomId, unnamedBookings: z.int().min(0).max(10_000) })
+  .object({
+    courseId: entityId,
+    ...sessionTimes,
+    roomId: entityId,
+    unnamedBookings: z.int().min(0).max(10_000),
+  })
   .refine(endAfterStart, endAfterStartIssue)
+  .refine(s => s.unnamedBookings <= s.capacity, { path: ['capacity'], error: 'over_capacity' })
 export type SessionEdit = z.infer<typeof sessionEditSchema>
 
 /** A new session (from the planner or the course page); it starts with no bookings. */
 export const sessionCreateSchema = z
   .object({
-    courseCode: courseCodeSchema,
+    courseId: entityId,
     ...sessionTimes,
     capacity: z.int().min(1).max(10_000),
-    roomId,
+    roomId: entityId,
   })
   .refine(endAfterStart, endAfterStartIssue)
 export type SessionCreate = z.infer<typeof sessionCreateSchema>
@@ -231,9 +239,12 @@ export const employeeEditSchema = z
       .regex(/^\d{6}\/?\d{3,4}$/)
       .nullable(),
     departmentId: entityId.nullable(),
+    /** One of the positions the department has. */
     positionId: entityId.nullable(),
-    /** The manager's ID; must be someone else. */
-    managerExternalId: externalIdSchema.nullable(),
+    /** Someone else, and not anyone the person manages (directly or further down). */
+    managerId: entityId.nullable(),
+    /** Leads their department (which then needs to be set). */
+    leadsDepartment: z.boolean(),
     hiredOn: isoDate,
     leftOn: isoDate.nullable(),
     status: z.enum(EMPLOYMENT_STATUSES),
@@ -243,14 +254,25 @@ export const employeeEditSchema = z
     path: ['leftOn'],
     error: 'before_hired',
   })
+  .refine(e => !e.leadsDepartment || e.departmentId !== null, {
+    path: ['leadsDepartment'],
+    error: 'no_department',
+  })
 export type EmployeeEdit = z.infer<typeof employeeEditSchema>
 
-export const completionCreateSchema = z
+/**
+ * A completion as the form records or corrects it. The provider is picked (`providerId`) or
+ * named as a new one (`newProviderName`), never both: a name is never matched to a provider
+ * silently. An empty validity is worked out from the course.
+ */
+export const completionEditSchema = z
   .object({
-    courseCode: courseCodeSchema,
+    employeeId: entityId,
+    courseId: entityId,
     completedOn: isoDate,
     validUntil: isoDate.nullable(),
-    provider: optionalText(200),
+    providerId: entityId.nullable(),
+    newProviderName: optionalText(200),
     price: money,
     note: optionalText(2000),
   })
@@ -258,11 +280,19 @@ export const completionCreateSchema = z
     path: ['validUntil'],
     error: 'before_completed',
   })
-export type CompletionCreate = z.infer<typeof completionCreateSchema>
+  .refine(c => c.providerId === null || c.newProviderName === null, {
+    path: ['newProviderName'],
+    error: 'provider_both',
+  })
+export type CompletionEdit = z.infer<typeof completionEditSchema>
 
-/** A department's or a position's name. */
-export const groupSchema = z.object({ name: trimmed(120) })
-export type GroupInput = z.infer<typeof groupSchema>
+/** A department: its name and who leads it (one of its members). */
+export const departmentSchema = z.object({ name: trimmed(120), headId: entityId.nullable() })
+export type DepartmentInput = z.infer<typeof departmentSchema>
+
+/** A position: its name and the departments it exists in. */
+export const positionSchema = z.object({ name: trimmed(120), departmentIds: entityIds })
+export type PositionInput = z.infer<typeof positionSchema>
 
 /** One named booking, added by hand. */
 export const bookingSchema = z.object({

@@ -1,4 +1,5 @@
 import { type ArchivedKeys, NO_ARCHIVED, type ReferenceSnapshot } from '@muni/importer'
+import { toZonedParts } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 
 import type { Db } from './client'
@@ -11,24 +12,58 @@ import { ACTIVE } from './repositories/archive'
  * batch's keys are archived is asked separately (findArchivedKeys).
  */
 export async function loadReferenceSnapshot(db: Db): Promise<ReferenceSnapshot> {
-  const [courses, employees, departments, positions, providers, rooms] = await Promise.all([
-    db.course.findMany({
-      where: ACTIVE,
-      select: { code: true, validityMonths: true },
-      orderBy: { code: 'asc' },
-    }),
-    db.employee.findMany({
-      where: ACTIVE,
-      select: { externalId: true, email: true, firstName: true, lastName: true },
-      orderBy: { externalId: 'asc' },
-    }),
-    db.department.findMany({ where: ACTIVE, select: { name: true }, orderBy: { name: 'asc' } }),
-    db.position.findMany({ where: ACTIVE, select: { name: true }, orderBy: { name: 'asc' } }),
-    db.provider.findMany({ where: ACTIVE, select: { name: true }, orderBy: { name: 'asc' } }),
-    db.room.findMany({ where: ACTIVE, select: { name: true }, orderBy: { name: 'asc' } }),
-  ])
+  const [courses, employees, departments, positions, providers, rooms, sessions] =
+    await Promise.all([
+      db.course.findMany({
+        where: ACTIVE,
+        select: {
+          code: true,
+          validityMonths: true,
+          onlineAllowedOverride: true,
+          capabilities: { select: { capability: true } },
+        },
+        orderBy: { code: 'asc' },
+      }),
+      db.employee.findMany({
+        where: ACTIVE,
+        select: { externalId: true, email: true, firstName: true, lastName: true },
+        orderBy: { externalId: 'asc' },
+      }),
+      db.department.findMany({ where: ACTIVE, select: { name: true }, orderBy: { name: 'asc' } }),
+      db.position.findMany({ where: ACTIVE, select: { name: true }, orderBy: { name: 'asc' } }),
+      db.provider.findMany({ where: ACTIVE, select: { name: true }, orderBy: { name: 'asc' } }),
+      db.room.findMany({
+        where: ACTIVE,
+        select: {
+          name: true,
+          kind: true,
+          capacity: true,
+          capabilities: { select: { capability: true } },
+        },
+        orderBy: { name: 'asc' },
+      }),
+      db.courseSession.findMany({
+        where: { ...ACTIVE, status: 'PLANNED', room: { ...ACTIVE, kind: { not: 'ONLINE' } } },
+        select: {
+          externalId: true,
+          startsAt: true,
+          endsAt: true,
+          room: { select: { name: true } },
+        },
+      }),
+    ])
   return {
-    courses,
+    courses: courses.map(c => ({
+      code: c.code,
+      validityMonths: c.validityMonths,
+      // Whether it may be online is derived from the very sessions an import brings, so only
+      // the app's own "no" counts here; equipment is only ever set in the app.
+      needs: {
+        groupSize: null,
+        onlineAllowed: c.onlineAllowedOverride ?? true,
+        capabilities: c.capabilities.map(x => x.capability),
+      },
+    })),
     employees: employees.map(e => ({
       externalId: e.externalId,
       email: e.email,
@@ -38,6 +73,17 @@ export async function loadReferenceSnapshot(db: Db): Promise<ReferenceSnapshot> 
     positions: positions.map(p => p.name),
     providers: providers.map(p => p.name),
     rooms: rooms.map(r => r.name),
+    roomFacts: rooms.map(r => ({ ...r, capabilities: r.capabilities.map(x => x.capability) })),
+    plannedSessions: sessions.map(s => {
+      const start = toZonedParts(s.startsAt)
+      return {
+        externalId: s.externalId,
+        room: s.room.name,
+        date: start.date,
+        startTime: start.time,
+        endTime: toZonedParts(s.endsAt).time,
+      }
+    }),
     archived: NO_ARCHIVED,
   }
 }

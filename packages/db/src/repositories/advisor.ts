@@ -2,6 +2,7 @@ import { type AdvisorInput, type AdvisorNeed, forecastEnd } from '@muni/domain/a
 
 import { ACTIVE } from './archive'
 import { dbOf, loadCompliance, type RepoOptions, toAmount } from './context'
+import { stillEmployed } from './employment'
 import { roomRefSelect, toRoomRef } from './sessions'
 
 /**
@@ -18,7 +19,7 @@ export async function getAdvisorInput(
   const [compliance, employees, courses, sessions] = await Promise.all([
     loadCompliance(options),
     db.employee.findMany({
-      where: { ...ACTIVE, status: { not: 'TERMINATED' } },
+      where: { ...ACTIVE, ...stillEmployed(options?.asOf) },
       select: {
         id: true,
         externalId: true,
@@ -58,7 +59,7 @@ export async function getAdvisorInput(
     if (cell.status === 'VALID' && (validUntil === null || validUntil >= end)) continue
     const employee = employeeById.get(cell.employeeId)
     const course = courseById.get(cell.courseId)
-    if (!employee || !course || employee.status === 'TERMINATED') continue
+    if (!employee || !course) continue
     needs.push({
       employee: {
         externalId: employee.externalId,

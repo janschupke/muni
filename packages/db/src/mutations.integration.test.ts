@@ -10,6 +10,7 @@ import { createDb, getDb } from './client'
 import {
   applyAssignments,
   createCompletion,
+  createCourse,
   createRoom,
   createSession,
   getAdvisorInput,
@@ -24,12 +25,13 @@ import {
   listEmployeeBookings,
   listEmployees,
   listPositions,
-  listProviderNames,
+  listProviderOptions,
   listRoomOptions,
   listRooms,
   listSessions,
   moveSeats,
   removeAssignment,
+  savePosition,
   updateCourse,
   updateEmployee,
   updateRoom,
@@ -67,12 +69,25 @@ const restore = async () => {
   await deleteCourses(db, { code: { startsWith: 'TEST-' } })
   await deleteRooms(db, CREATED_ROOMS)
   await unarchiveAll(db)
-  // Needs set by hand stay put through imports; clear them so the seed derives them afresh.
+  // Needs set by hand are overrides imports never touch; clear them, and the derived ones, so
+  // the seed derives them afresh.
   await db.courseCapability.deleteMany()
   await db.course.updateMany({
-    data: { sessionMinutes: null, groupSize: null, onlineAllowed: false, needsManual: false },
+    data: {
+      sessionMinutes: null,
+      groupSize: null,
+      onlineAllowed: false,
+      sessionMinutesOverride: null,
+      groupSizeOverride: null,
+      onlineAllowedOverride: null,
+    },
   })
   await seedFromDirectory(db, DATA_DIR, asOf)
+  await db.departmentPosition.deleteMany({
+    where: {
+      OR: [{ department: { name: CREATED.department } }, { position: { name: CREATED.position } }],
+    },
+  })
   await db.department.deleteMany({ where: { name: CREATED.department } })
   await db.provider.deleteMany({ where: { name: CREATED.provider } })
   await db.position.deleteMany({ where: { name: CREATED.position } })
@@ -93,7 +108,7 @@ describe('lookups and edit loaders', () => {
     for (const list of [
       await listDepartments(options),
       await listPositions(options),
-      await listProviderNames(options),
+      (await listProviderOptions(options)).map(p => p.name),
     ]) {
       expect(list.length).toBeGreaterThan(0)
       expect(list).toEqual(list.toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0)))
@@ -109,9 +124,11 @@ describe('lookups and edit loaders', () => {
       requiredForAll: true,
       departmentIds: [],
       positionIds: [],
-      sessionMinutes: 180,
-      groupSize: 30,
-      onlineAllowed: false,
+      // Nothing set in the app: the form's fields are empty, what the sessions say beside them.
+      sessionMinutes: null,
+      groupSize: null,
+      onlineAllowed: null,
+      derived: { sessionMinutes: 180, groupSize: 30, onlineAllowed: false },
       capabilities: [],
     })
     expect(await getCourseForEdit('NOPE', options)).toBeNull()
@@ -163,7 +180,7 @@ describe('edits', () => {
       },
       options
     )
-    expect(await getCourseForEdit('ANGL', options)).toEqual({
+    expect(await getCourseForEdit('ANGL', options)).toMatchObject({
       code: 'ANGL',
       name: 'Angličtina pro pokročilé',
       validityMonths: 12,
@@ -218,50 +235,64 @@ describe('edits', () => {
   it('sets a position and clears the leaving date', async () => {
     const before = await getEmployeeForEdit('E0153', options)
     if (!before) throw new Error('fixture: E0153 missing')
-    const position = await db.position.create({ data: { name: CREATED.position } })
-    await updateEmployee('E0153', { ...before, positionId: position.id, leftOn: null }, options)
+    // The position exists in the person's department (a pair), or they cannot hold it.
+    const position = await savePosition(
+      null,
+      { name: CREATED.position, departmentIds: [before.departmentId ?? ''] },
+      options
+    )
+    if (!position.ok) throw new Error('no position')
+    expect(
+      await updateEmployee('E0153', { ...before, positionId: position.id, leftOn: null }, options)
+    ).toEqual({ ok: true, externalId: 'E0153' })
     expect(await getEmployeeForEdit('E0153', options)).toMatchObject({
       positionId: position.id,
       leftOn: null,
     })
   })
 
-  it('records completions entered in the app, with and without a provider', async () => {
+  it('records completions entered in the app, with a new provider and without one', async () => {
+    const employeeId = (await db.employee.findFirstOrThrow({ where: { externalId: 'E0153' } })).id
+    const courseId = async (code: string) =>
+      (await db.course.findFirstOrThrow({ where: { code, archivedAt: null } })).id
     const withProvider = await createCompletion(
-      'E0153',
       {
-        courseCode: 'GDPR',
+        employeeId,
+        courseId: await courseId('GDPR'),
         completedOn: '2026-10-01',
         validUntil: '2028-10-01',
-        provider: CREATED.provider,
+        providerId: null,
+        newProviderName: CREATED.provider,
         price: 600,
         note: null,
       },
       options
     )
     const bare = await createCompletion(
-      'E0153',
       {
-        courseCode: 'LEAD',
+        employeeId,
+        courseId: await courseId('LEAD'),
         completedOn: '2026-10-02',
         validUntil: null,
-        provider: null,
+        providerId: null,
+        newProviderName: null,
         price: null,
         note: null,
       },
       options
     )
-    expect(withProvider.externalId).toMatch(/^A[0-9A-Z]+$/)
+    expect([withProvider, bare]).toEqual([
+      { ok: true, employeeExternalId: 'E0153' },
+      { ok: true, employeeExternalId: 'E0153' },
+    ])
     const completions = (await getEmployee('E0153', 'FULL', options))?.completions ?? []
-    expect(completions.find(c => c.externalId === withProvider.externalId)).toMatchObject({
-      provider: { name: CREATED.provider },
-      validUntil: '2028-10-01',
-    })
-    expect(completions.find(c => c.externalId === bare.externalId)).toMatchObject({
-      provider: null,
-      validUntil: null,
-    })
-    expect(await listProviderNames(options)).toContain(CREATED.provider)
+    const made = completions.find(c => c.courseCode === 'GDPR' && c.completedOn === '2026-10-01')
+    expect(made?.externalId).toMatch(/^A[0-9A-Z]+$/)
+    expect(made).toMatchObject({ provider: { name: CREATED.provider }, validUntil: '2028-10-01' })
+    expect(
+      completions.find(c => c.courseCode === 'LEAD' && c.completedOn === '2026-10-02')
+    ).toMatchObject({ provider: null, validUntil: null })
+    expect((await listProviderOptions(options)).map(p => p.name)).toContain(CREATED.provider)
   })
 })
 
@@ -274,7 +305,7 @@ describe('bookings the main suite does not reach', () => {
   })
 
   it('refuses unknown sessions and people, people who left, and full sessions', async () => {
-    const left = await db.employee.findFirstOrThrow({ where: { status: 'TERMINATED' } })
+    const left = await db.employee.findFirstOrThrow({ where: { leftOn: { lte: now } } })
     const outcomes = await applyAssignments(
       [
         manual('T999', 'E0153'),
@@ -299,7 +330,7 @@ describe('bookings the main suite does not reach', () => {
       select: { positionId: true },
     })
     const other = await db.employee.findFirstOrThrow({
-      where: { status: 'ACTIVE', NOT: { positionId: lead.positionId } },
+      where: { status: 'ACTIVE', leftOn: null, NOT: { positionId: lead.positionId } },
       orderBy: { externalId: 'asc' },
     })
     const [outcome] = await applyAssignments(
@@ -382,22 +413,45 @@ describe('rooms', () => {
 
   it('creates, edits and lists a room, and deletes it only while nothing is held there', async () => {
     const { id } = await createRoom(room, options)
-    // LAB-BEZ needs lab equipment and a projector; this room has the first only (for now).
-    await updateCourse(
-      'LAB-BEZ',
-      {
-        ...(await audienceOf('LAB-BEZ')),
-        name: 'Bezpečná práce v laboratoři',
-        validityMonths: 12,
-        sessionMinutes: 240,
-        groupSize: 16,
-        onlineAllowed: false,
-        capabilities: ['LAB_EQUIPMENT', 'PROJECTOR'],
-      },
-      options
-    )
+    const labBez = await db.course.findFirstOrThrow({
+      where: { code: 'LAB-BEZ', archivedAt: null },
+    })
+    // A course needing lab equipment and a projector; this room has the first only (for now).
+    // (LAB-BEZ itself cannot be made to need a projector: its planned rooms have none.)
     expect(
-      (await getRoom(id, { ...options, now }))?.courses.find(c => c.code === 'LAB-BEZ')?.fit
+      await createCourse(
+        {
+          code: 'TEST-ROOM',
+          name: 'Laboratorní kurz',
+          validityMonths: null,
+          requiredForAll: false,
+          departmentIds: [],
+          positionIds: [],
+          sessionMinutes: 240,
+          groupSize: 16,
+          onlineAllowed: false,
+          capabilities: ['LAB_EQUIPMENT', 'PROJECTOR'],
+        },
+        options
+      )
+    ).toEqual({ ok: true, code: 'TEST-ROOM' })
+    expect(
+      await updateCourse(
+        'LAB-BEZ',
+        {
+          ...(await audienceOf('LAB-BEZ')),
+          name: 'Bezpečná práce v laboratoři',
+          validityMonths: 12,
+          sessionMinutes: null,
+          groupSize: null,
+          onlineAllowed: null,
+          capabilities: ['LAB_EQUIPMENT', 'PROJECTOR', 'COMPUTERS'],
+        },
+        options
+      )
+    ).toMatchObject({ ok: false, reason: 'sessions_unfit' })
+    expect(
+      (await getRoom(id, { ...options, now }))?.courses.find(c => c.code === 'TEST-ROOM')?.fit
         .mismatch
     ).toEqual({ kind: 'MISSING_CAPABILITIES', missing: ['PROJECTOR'] })
     await updateRoom(
@@ -416,7 +470,7 @@ describe('rooms', () => {
       ['PROJECTOR', 'LAB_EQUIPMENT'],
     ])
     expect(
-      (await getRoom(id, { ...options, now }))?.courses.find(c => c.code === 'LAB-BEZ')?.fit
+      (await getRoom(id, { ...options, now }))?.courses.find(c => c.code === 'TEST-ROOM')?.fit
         .mismatch
     ).toBeNull()
     expect((await listRooms({ ...options, now })).find(r => r.id === id)?.capabilities).toEqual([
@@ -429,11 +483,12 @@ describe('rooms', () => {
       name: CREATED.room,
       kind: 'LAB',
       capacity: 18,
+      capabilities: ['PROJECTOR', 'LAB_EQUIPMENT'],
     })
     expect(rooms.map(r => r.name)).toEqual(rooms.map(r => r.name).toSorted())
 
     const create = {
-      courseCode: 'LAB-BEZ',
+      courseId: labBez.id,
       date: '2027-03-03',
       startTime: '09:00',
       endTime: '13:00',
@@ -538,7 +593,7 @@ describe('rooms', () => {
       })
     ).toEqual({ kind: 'OUTDOOR', capacity: 35 })
 
-    // Set by hand, they stay put through the next import.
+    // Set by hand, they are overrides the next import leaves alone (it derives its own).
     await updateCourse(
       'POZ-OCH',
       {
@@ -556,9 +611,13 @@ describe('rooms', () => {
     expect(
       await db.course.findUniqueOrThrow({
         where: { code: 'POZ-OCH' },
-        select: { sessionMinutes: true, groupSize: true, onlineAllowed: true, needsManual: true },
+        select: {
+          sessionMinutesOverride: true,
+          groupSizeOverride: true,
+          onlineAllowedOverride: true,
+        },
       })
-    ).toEqual({ sessionMinutes: 90, groupSize: 20, onlineAllowed: true, needsManual: true })
+    ).toEqual({ sessionMinutesOverride: 90, groupSizeOverride: 20, onlineAllowedOverride: true })
 
     // A rooms file without an equipment column leaves the equipment as it is.
     await commitChunk(db, 'rooms', [

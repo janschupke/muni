@@ -5,6 +5,8 @@ import { isoDateFromUtc } from '@muni/utils/dates'
 import type { Tx } from '../client'
 import { ACTIVE, toUserRef, userSelect } from './archive'
 import { dbOf, type RepoOptions } from './context'
+import { stateOf } from './employment'
+import { lockSessions } from './session-fit'
 
 // Archiving and unarchiving. Nothing in the app deletes a record: archiving hides it from every
 // list and count, keeps its history, and frees its unique keys for a new record. Each rule below
@@ -26,7 +28,13 @@ export type ArchiveRefusal =
 
 /** What archiving would do: refuse (and why), or go ahead and remove this many future bookings. */
 export type ArchiveImpact =
-  { ok: true; removesBookings: number } | { ok: false; reason: ArchiveRefusal; count: number }
+  | {
+      ok: true
+      removesBookings: number
+      /** The department a person leads, which is left without a head. */
+      leaves?: string | undefined
+    }
+  | { ok: false; reason: ArchiveRefusal; count: number }
 
 /** A unique key an active record now holds, so the archived one cannot come back. */
 export type UniqueField = 'name' | 'code' | 'externalId' | 'email' | 'companyId' | 'clerkId'
@@ -103,10 +111,6 @@ async function lockRow(tx: Tx, kind: Archivable, id: string) {
   return row ?? null
 }
 
-/** Session writes and archiving a room or course take turns (see mutations' lockSessions). */
-const lockSessionWrites = (tx: Tx) =>
-  tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('course_sessions'))`
-
 /** Upcoming means planned and not yet ended, as everywhere else. */
 const upcoming = (now: Date) => ({ ...ACTIVE, status: 'PLANNED' as const, endsAt: { gte: now } })
 
@@ -123,10 +127,20 @@ async function impactOf(
 ): Promise<ArchiveImpact> {
   switch (kind) {
     case 'employee': {
-      const removesBookings = await tx.sessionAssignment.count({
-        where: { employeeId: id, session: { startsAt: { gt: now } } },
-      })
-      return { ok: true, removesBookings }
+      const [removesBookings, person] = await Promise.all([
+        tx.sessionAssignment.count({
+          where: { employeeId: id, session: { startsAt: { gt: now } } },
+        }),
+        tx.employee.findUniqueOrThrow({
+          where: { id },
+          select: { leadsDepartment: true, department: { select: { name: true } } },
+        }),
+      ])
+      return {
+        ok: true,
+        removesBookings,
+        ...(person.leadsDepartment && person.department && { leaves: person.department.name }),
+      }
     }
     case 'course': {
       const count = await tx.courseSession.count({ where: { courseId: id, ...upcoming(now) } })
@@ -184,7 +198,8 @@ async function locked<T>(
   id: string,
   run: () => Promise<T>
 ): Promise<T | 'NOT_FOUND'> {
-  if (kind === 'room' || kind === 'course') await lockSessionWrites(tx)
+  // Session writes and archiving a room or course take turns.
+  if (kind === 'room' || kind === 'course') await lockSessions(tx)
   const row = await lockRow(tx, kind, id)
   if (row?.archived_at !== null) return 'NOT_FOUND'
   return run()
@@ -226,7 +241,12 @@ export async function archiveRecord(
       }
       await delegate(tx, kind).update({
         where: { id },
-        data: { archivedAt: now, archivedById: byUserId },
+        // An archived person leads nothing: their department gets a new head on its form.
+        data: {
+          archivedAt: now,
+          archivedById: byUserId,
+          ...(kind === 'employee' && { leadsDepartment: false }),
+        },
       })
       return impact
     })
@@ -511,7 +531,8 @@ export async function getArchivedRecord(
             text('email', e.email),
             text('department', e.department?.name ?? null),
             text('position', e.position?.name ?? null),
-            text('status', e.status),
+            // Where they stood when archived: LEFT once their leaving date had come.
+            text('status', stateOf(e, isoDateFromUtc(e.archivedAt ?? new Date()))),
             date('hiredOn', e.hiredOn),
             date('leftOn', e.leftOn),
           ],

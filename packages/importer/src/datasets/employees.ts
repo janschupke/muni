@@ -1,4 +1,4 @@
-import type { EmploymentStatus } from '@muni/domain/enums'
+import type { EmploymentState } from '@muni/domain/enums'
 import { type EmployeeInput, employeeSchema } from '@muni/domain/schemas'
 import type { IsoDate } from '@muni/utils/dates'
 import { collapseWhitespace, fold, titleCase } from '@muni/utils/text'
@@ -7,16 +7,18 @@ import * as z from 'zod'
 import { reservedId, type RowBuilder } from '../fields'
 import type { RowMapResult } from '../types'
 
-const STATUS_BY_FOLD: Record<string, EmploymentStatus> = {
+/** A source status. "Left" is no status in the register: the leaving date says it. */
+const STATUS_BY_FOLD: Record<string, EmploymentState> = {
   aktivni: 'ACTIVE',
   active: 'ACTIVE',
   rodicovska: 'PARENTAL_LEAVE',
   materska: 'PARENTAL_LEAVE',
   parental_leave: 'PARENTAL_LEAVE',
-  ukoncen: 'TERMINATED',
-  ukoncena: 'TERMINATED',
-  ukonceno: 'TERMINATED',
-  terminated: 'TERMINATED',
+  ukoncen: 'LEFT',
+  ukoncena: 'LEFT',
+  ukonceno: 'LEFT',
+  terminated: 'LEFT',
+  left: 'LEFT',
 }
 
 const emailSchema = z.email()
@@ -76,7 +78,7 @@ function nationalId(b: RowBuilder): string | null {
   return value
 }
 
-function status(b: RowBuilder): EmploymentStatus | null {
+function status(b: RowBuilder): EmploymentState | null {
   const raw = b.required('status')
   if (raw === null) return null
   return (
@@ -96,9 +98,9 @@ export function mapEmployee(b: RowBuilder, ctx: { today: IsoDate }): RowMapResul
   const leftOn = b.date('leftOn', { required: false })
   const employmentStatus = status(b)
 
-  if (employmentStatus === 'TERMINATED' && leftOn === null && !b.hasErrors) {
-    b.warn('leftOn', 'STATUS_DATE_MISMATCH', { status: employmentStatus })
-  }
+  // Someone who left needs the date they left: without it, they would count as at work.
+  if (employmentStatus === 'LEFT' && leftOn === null && !b.hasErrors)
+    b.error('leftOn', 'LEFT_WITHOUT_DATE')
   if (employmentStatus === 'ACTIVE' && leftOn !== null && leftOn < ctx.today) {
     b.warn('status', 'STATUS_DATE_MISMATCH', { status: employmentStatus, leftOn })
   }
@@ -117,7 +119,7 @@ export function mapEmployee(b: RowBuilder, ctx: { today: IsoDate }): RowMapResul
     managerEmail,
     hiredOn,
     leftOn,
-    status: employmentStatus,
+    status: employmentStatus === 'LEFT' ? 'ACTIVE' : employmentStatus,
     note: b.text('note'),
   })
 }

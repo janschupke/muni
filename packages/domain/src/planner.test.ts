@@ -14,6 +14,7 @@ import type { RoomFacts } from './rooms'
 const asOf = '2026-10-16'
 
 const course = (over: Partial<PlannerCourse> = {}): PlannerCourse => ({
+  id: 'course_bozp',
   code: 'BOZP-Z',
   name: 'BOZP – základní školení',
   sessionMinutes: 180,
@@ -172,6 +173,7 @@ describe('planSessions: demand', () => {
     expect(offers[0]?.slot).toMatchObject({ startTime: '09:00', endTime: '12:00' })
     expect(DEFAULT_SESSION_MINUTES).toBe(180)
     expect(offers[0]?.course).toEqual({
+      id: 'course_bozp',
       code: 'BOZP-Z',
       name: 'BOZP – základní školení',
       sessionMinutes: null,

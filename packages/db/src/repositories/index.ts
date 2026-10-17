@@ -35,6 +35,7 @@ export { getPolicy, type RepoOptions } from './context'
 export {
   type CourseDetail,
   type CourseListItem,
+  type CourseOption,
   getCourse,
   getCourseForEdit,
   listCourseOptions,
@@ -63,11 +64,17 @@ export {
   type TeamMember,
 } from './employees'
 export {
-  createGroup,
-  getGroupForEdit,
+  fillDepartmentHeads,
+  getDepartmentForEdit,
+  getPositionForEdit,
   type GroupKind,
+  type GroupProblem,
+  type GroupWrite,
+  listDepartmentHeads,
+  listDepartmentPositions,
   listGroupOptions,
-  renameGroup,
+  saveDepartment,
+  savePosition,
 } from './groups'
 export {
   getPersonName,
@@ -75,15 +82,17 @@ export {
   listDepartments,
   listEmployeeOptions,
   listPositions,
-  listProviderNames,
+  listProviderOptions,
   listRoomOptions,
   type PersonOption,
   type RoomOption,
   type SessionOption,
 } from './lookups'
 export {
+  checkSessionSlot,
   createRoom,
   createSession,
+  type RoomWrite,
   type SessionProblem,
   type SessionWrite,
   updateRoom,

@@ -336,7 +336,7 @@ describe('archived records leave every list and count', () => {
     expect(
       await createSession(
         {
-          courseCode: 'TEST-ARCH-R',
+          courseId: course.id,
           date: '2026-12-01',
           startTime: '08:00',
           endTime: '10:00',
@@ -720,5 +720,64 @@ describe('integrity', () => {
     await expect(db.room.delete({ where: { id: room.id } })).rejects.toMatchObject({
       code: 'P2003',
     })
+  })
+
+  it('keeps the single-row rules in the database, whatever writes', async () => {
+    const checks = await db.$queryRaw<{ name: string }[]>`
+      SELECT conname AS name FROM pg_constraint WHERE contype = 'c'`
+    expect(checks.map(c => c.name)).toEqual(
+      expect.arrayContaining([
+        'employees_head_member_check',
+        'employees_manager_check',
+        'employees_left_on_check',
+        'course_sessions_times_check',
+        'course_sessions_price_check',
+        'course_completions_valid_until_check',
+        'course_completions_price_check',
+        'courses_validity_months_check',
+        'courses_session_minutes_override_check',
+        'courses_group_size_override_check',
+      ])
+    )
+    const person = await db.employee.findFirstOrThrow({ where: { externalId: 'E0153' } })
+    const session = await db.courseSession.findFirstOrThrow({ where: { externalId: 'T018' } })
+    const completion = await db.courseCompletion.findFirstOrThrow({
+      where: { externalId: { startsWith: 'Z' } },
+    })
+    const course = await idOf('course', 'BOZP-Z')
+    for (const [write, constraint] of [
+      [
+        db.employee.update({ where: { id: person.id }, data: { leftOn: new Date('1990-01-01') } }),
+        'employees_left_on_check',
+      ],
+      [
+        db.courseSession.update({ where: { id: session.id }, data: { endsAt: session.startsAt } }),
+        'course_sessions_times_check',
+      ],
+      [
+        db.courseSession.update({ where: { id: session.id }, data: { pricePerPerson: -1 } }),
+        'course_sessions_price_check',
+      ],
+      [
+        db.courseCompletion.update({
+          where: { id: completion.id },
+          data: { validUntil: new Date('1990-01-01') },
+        }),
+        'course_completions_valid_until_check',
+      ],
+      [
+        db.courseCompletion.update({ where: { id: completion.id }, data: { price: -1 } }),
+        'course_completions_price_check',
+      ],
+      [
+        db.course.update({ where: { id: course }, data: { validityMonths: 0 } }),
+        'courses_validity_months_check',
+      ],
+      [
+        db.course.update({ where: { id: course }, data: { groupSizeOverride: 0 } }),
+        'courses_group_size_override_check',
+      ],
+    ] as const)
+      await expect(write, constraint).rejects.toThrow(constraint)
   })
 })

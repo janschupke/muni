@@ -1,7 +1,21 @@
 // Domain enums. Values match the Prisma enums one-to-one so the db layer can pass them through.
 
-export const EMPLOYMENT_STATUSES = ['ACTIVE', 'PARENTAL_LEAVE', 'TERMINATED'] as const
+/** What a person's record says: at work or on leave. Leaving is a date, not a status. */
+export const EMPLOYMENT_STATUSES = ['ACTIVE', 'PARENTAL_LEAVE'] as const
 export type EmploymentStatus = (typeof EMPLOYMENT_STATUSES)[number]
+
+/** Where a person stands on a given day: their status, or LEFT once their leaving date is reached. */
+export const EMPLOYMENT_STATES = [...EMPLOYMENT_STATUSES, 'LEFT'] as const
+export type EmploymentState = (typeof EMPLOYMENT_STATES)[number]
+
+/** LEFT from the leaving date on (`leftOn <= today`); before it, the status. ISO dates. */
+export function employmentState(
+  status: EmploymentStatus,
+  leftOn: string | null,
+  today: string
+): EmploymentState {
+  return leftOn !== null && leftOn <= today ? 'LEFT' : status
+}
 
 export const REQUIREMENT_SCOPES = ['ALL', 'DEPARTMENT', 'POSITION'] as const
 export type RequirementScope = (typeof REQUIREMENT_SCOPES)[number]

@@ -1,4 +1,4 @@
-import type { ComplianceStatus, EmploymentStatus } from '@muni/domain/enums'
+import type { ComplianceStatus, EmploymentState } from '@muni/domain/enums'
 
 import type { EmployeeListItem } from './employees'
 
@@ -29,10 +29,10 @@ const COMPLIANCE_ORDER: Record<ComplianceStatus, number> = {
   EXPIRING: 2,
   VALID: 3,
 }
-const STATUS_ORDER: Record<EmploymentStatus, number> = {
+const STATUS_ORDER: Record<EmploymentState, number> = {
   ACTIVE: 0,
   PARENTAL_LEAVE: 1,
-  TERMINATED: 2,
+  LEFT: 2,
 }
 
 type SortValue = string | number | null
@@ -47,9 +47,7 @@ function sortValue(e: EmployeeListItem, by: Exclude<EmployeeSortKey, 'name'>): S
       return STATUS_ORDER[e.status]
     case 'compliance':
       // The list shows no compliance for people who have left; sort them with the blanks.
-      return e.status === 'TERMINATED' || e.compliance === null
-        ? null
-        : COMPLIANCE_ORDER[e.compliance]
+      return e.status === 'LEFT' || e.compliance === null ? null : COMPLIANCE_ORDER[e.compliance]
     case 'required':
       return e.counts.total === 0 ? null : (e.counts.VALID + e.counts.EXPIRING) / e.counts.total
   }

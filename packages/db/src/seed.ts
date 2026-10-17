@@ -22,6 +22,7 @@ import { todayIn } from '@muni/utils/dates'
 
 import type { Db } from './client'
 import { findArchivedKeys, loadReferenceSnapshot } from './reference'
+import { fillDepartmentHeads } from './repositories/groups'
 import { chunk, commitChunk } from './writer'
 
 const log = (line: string) => process.stdout.write(`${line}\n`)
@@ -75,5 +76,8 @@ export async function seedFromDirectory(db: Db, dir: string, today = todayIn()) 
     }
     for (const [key, count] of [...codes].sort()) log(`  ${key}: ${count}`)
   }
+  // Heads are not in the exports: a department without one gets the person its reporting
+  // lines point to, once; after that they are set on the department's form.
+  log(`\ndepartment heads: ${String(await fillDepartmentHeads({ db }))} set`)
   return results
 }

@@ -6,6 +6,7 @@ import { dbOf, loadCompliance, type RepoOptions } from './context'
 import type { SessionListItem } from './courses'
 import { compareNames } from './employee-sort'
 import type { EmployeeListRequirement } from './employees'
+import { stillEmployed } from './employment'
 import { loadNextBookings, requirementOf } from './requirements'
 import { listSessions } from './sessions'
 
@@ -105,7 +106,8 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
       orderBy: { code: 'asc' },
     }),
     db.employee.findMany({
-      where: { ...ACTIVE, status: 'ACTIVE' },
+      // At work: active, and not past their leaving date (as compliance counts them).
+      where: { ...ACTIVE, status: 'ACTIVE', ...stillEmployed(options?.asOf) },
       select: {
         id: true,
         externalId: true,

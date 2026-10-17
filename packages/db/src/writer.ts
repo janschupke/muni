@@ -13,7 +13,7 @@ import {
 } from '@muni/domain/schemas'
 import type { DatasetKind, DatasetRecord } from '@muni/importer'
 import { isoDateToUtc, zonedTimeToUtc } from '@muni/utils/dates'
-import { cleanFreeText } from '@muni/utils/text'
+import { cleanFreeText, fold } from '@muni/utils/text'
 import type * as z from 'zod'
 
 import type { Db, Tx } from './client'
@@ -37,35 +37,43 @@ export interface CommitResult {
 type Keyed = 'department' | 'position' | 'provider' | 'room' | 'course' | 'employee'
 type KeyField = 'name' | 'code' | 'externalId' | 'email'
 
-/** The values that only archived records hold. */
+/**
+ * Which values only archived records hold. Names compare folded (case and accents), as the
+ * importer and `upsertNames` match them; codes, IDs and emails exactly.
+ */
 async function archivedOnly(
   tx: Tx,
   model: Keyed | 'courseSession' | 'courseCompletion',
   field: KeyField,
   values: Iterable<string | null>
-): Promise<Set<string>> {
+): Promise<(value: string) => boolean> {
   const wanted = [...new Set([...values].filter((v): v is string => v !== null))]
-  if (wanted.length === 0) return new Set()
+  if (wanted.length === 0) return () => false
   const delegate = tx[model] as unknown as {
     findMany(args: object): Promise<Record<string, unknown>[]>
   }
+  const key = field === 'name' ? (v: unknown) => fold(String(v)) : (v: unknown) => v
   const rows = await delegate.findMany({
-    where: { [field]: { in: wanted } },
+    ...(field !== 'name' && { where: { [field]: { in: wanted } } }),
     select: { [field]: true, archivedAt: true },
   })
-  const active = new Set(rows.filter(r => r['archivedAt'] === null).map(r => r[field]))
-  return new Set(
-    rows.filter(r => r['archivedAt'] !== null && !active.has(r[field])).map(r => r[field] as string)
+  const active = new Set(rows.filter(r => r['archivedAt'] === null).map(r => key(r[field])))
+  const archived = new Set(
+    rows
+      .filter(r => r['archivedAt'] !== null)
+      .map(r => key(r[field]))
+      .filter(k => !active.has(k))
   )
+  return value => archived.has(key(value))
 }
 
 /** Splits off the records that touch something archived. */
 function withoutArchived<T>(
   records: T[],
-  checks: [Set<string>, (r: T) => (string | null)[]][]
+  checks: [(value: string) => boolean, (r: T) => (string | null)[]][]
 ): { kept: T[]; skipped: number } {
   const kept = records.filter(
-    r => !checks.some(([set, keys]) => keys(r).some(k => k !== null && set.has(k)))
+    r => !checks.some(([isArchived, keys]) => keys(r).some(k => k !== null && isArchived(k)))
   )
   return { kept, skipped: records.length - kept.length }
 }
@@ -101,6 +109,12 @@ export function revalidate<K extends DatasetKind>(kind: K, records: unknown[]): 
   })
 }
 
+/**
+ * The id of each name's active record, created where there is none. Names match folded (case
+ * and accents: "Personalni oddeleni" is "Personální oddělení"), so a spelling variant never
+ * makes a twin; a new record keeps the first spelling met. Creating takes a lock per table,
+ * so two imports cannot both create the same name.
+ */
 async function upsertNames(
   tx: Tx,
   model: 'department' | 'position' | 'provider',
@@ -109,15 +123,25 @@ async function upsertNames(
   const unique = [...new Set(names)]
   if (unique.length === 0) return new Map()
   const delegate = tx[model] as unknown as {
-    createMany(args: { data: { name: string }[]; skipDuplicates: boolean }): Promise<unknown>
+    create(args: { data: { name: string }; select: { id: true } }): Promise<{ id: string }>
     findMany(args: {
-      where: { name: { in: string[] }; archivedAt: null }
+      where: { archivedAt: null }
+      select: { id: true; name: true }
     }): Promise<{ id: string; name: string }[]>
   }
-  // ON CONFLICT DO NOTHING (no target) respects the partial unique index on active names.
-  await delegate.createMany({ data: unique.map(name => ({ name })), skipDuplicates: true })
-  const rows = await delegate.findMany({ where: { name: { in: unique }, ...ACTIVE } })
-  return new Map(rows.map(r => [r.name, r.id]))
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`names:${model}`}))`
+  const rows = await delegate.findMany({ where: ACTIVE, select: { id: true, name: true } })
+  const byKey = new Map(rows.map(r => [fold(r.name), r.id]))
+  const ids = new Map<string, string>()
+  for (const name of unique) {
+    let id = byKey.get(fold(name))
+    if (id === undefined) {
+      id = (await delegate.create({ data: { name }, select: { id: true } })).id
+      byKey.set(fold(name), id)
+    }
+    ids.set(name, id)
+  }
+  return ids
 }
 
 /** Splits records into new and existing by external key, then writes each set. */
@@ -301,13 +325,25 @@ async function writeEmployees(tx: Tx, records: EmployeeInput[]): Promise<CommitR
     'position',
     records.flatMap(r => (r.position ? [r.position] : []))
   )
+  const departmentOf = (r: EmployeeInput) =>
+    r.department ? (departments.get(r.department) ?? null) : null
+  const positionOf = (r: EmployeeInput) => (r.position ? (positions.get(r.position) ?? null) : null)
+  // A pair the file holds is a pair the department has: the position exists in it.
+  await tx.departmentPosition.createMany({
+    data: records.flatMap(r => {
+      const departmentId = departmentOf(r)
+      const positionId = positionOf(r)
+      return departmentId && positionId ? [{ departmentId, positionId }] : []
+    }),
+    skipDuplicates: true,
+  })
   const toData = (r: EmployeeInput) => ({
     firstName: r.firstName,
     lastName: r.lastName,
     email: r.email,
     nationalId: r.nationalId,
-    departmentId: r.department ? (departments.get(r.department) ?? null) : null,
-    positionId: r.position ? (positions.get(r.position) ?? null) : null,
+    departmentId: departmentOf(r),
+    positionId: positionOf(r),
     hiredOn: isoDateToUtc(r.hiredOn),
     leftOn: r.leftOn ? isoDateToUtc(r.leftOn) : null,
     status: r.status,
@@ -328,22 +364,53 @@ async function writeEmployees(tx: Tx, records: EmployeeInput[]): Promise<CommitR
   await tx.employee.createMany({
     data: fresh.map(r => ({ externalId: r.externalId, ...toData(r) })),
   })
-  for (const { record, id } of existing)
-    await tx.employee.update({ where: { id }, data: toData(record) })
+  const departmentNow = new Map(
+    (
+      await tx.employee.findMany({
+        where: { id: { in: existing.map(e => e.id) } },
+        select: { id: true, departmentId: true },
+      })
+    ).map(e => [e.id, e.departmentId])
+  )
+  for (const { record, id } of existing) {
+    const data = toData(record)
+    // Moved to another department: they no longer lead the one they left.
+    const moved = departmentNow.get(id) !== data.departmentId
+    await tx.employee.update({
+      where: { id },
+      data: { ...data, ...(moved && { leadsDepartment: false }) },
+    })
+  }
   return { created: fresh.length, updated: existing.length, skipped: 0 }
 }
 
-/** Second pass: managers are referenced by email and may appear later in the file. */
+/**
+ * Second pass: managers are referenced by email and may appear later in the file. A link that
+ * would make someone their own manager, directly or round a loop through the register, is
+ * left out (the review warned: MANAGER_CYCLE).
+ */
 async function linkManagers(tx: Tx, records: EmployeeInput[]): Promise<void> {
-  const emails = [...new Set(records.flatMap(r => (r.managerEmail ? [r.managerEmail] : [])))]
-  const managers = await tx.employee.findMany({
-    where: { email: { in: emails }, ...ACTIVE },
-    select: { id: true, email: true },
+  const people = await tx.employee.findMany({
+    where: ACTIVE,
+    select: { id: true, externalId: true, email: true, managerId: true },
   })
-  const idByEmail = new Map(managers.map(m => [m.email, m.id]))
+  const idByEmail = new Map(people.flatMap(p => (p.email ? [[p.email, p.id] as const] : [])))
+  const idByExternal = new Map(people.map(p => [p.externalId, p.id]))
+  const links = new Map(people.map(p => [p.id, p.managerId]))
+  const loops = (self: string, managerId: string) => {
+    const seen = new Set<string>()
+    for (let up: string | null = managerId; up && !seen.has(up); up = links.get(up) ?? null) {
+      if (up === self) return true
+      seen.add(up)
+    }
+    return false
+  }
   const byManager = new Map<string | null, string[]>()
   for (const record of records) {
-    const managerId = record.managerEmail ? (idByEmail.get(record.managerEmail) ?? null) : null
+    const self = idByExternal.get(record.externalId)
+    let managerId = record.managerEmail ? (idByEmail.get(record.managerEmail) ?? null) : null
+    if (self && managerId && loops(self, managerId)) managerId = null
+    if (self) links.set(self, managerId)
     const list = byManager.get(managerId) ?? []
     list.push(record.externalId)
     byManager.set(managerId, list)
@@ -377,15 +444,18 @@ function lookup<T>(map: Map<string, T>, key: string, what: string): T {
  */
 async function resolveRooms(tx: Tx, records: SessionInput[]): Promise<Map<string, string>> {
   const names = [...new Set(records.map(r => r.location))]
-  const existing = await tx.room.findMany({
-    where: { name: { in: names }, ...ACTIVE },
-    select: { id: true, name: true },
-  })
-  const ids = new Map(existing.map(r => [r.name, r.id]))
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('names:room'))`
+  const existing = await tx.room.findMany({ where: ACTIVE, select: { id: true, name: true } })
+  const byKey = new Map(existing.map(r => [fold(r.name), r.id]))
+  const ids = new Map<string, string>()
   for (const name of names) {
-    if (ids.has(name)) continue
+    const known = byKey.get(fold(name))
+    if (known !== undefined) {
+      ids.set(name, known)
+      continue
+    }
     const kind = roomKindOfName(name)
-    const held = records.filter(r => r.location === name)
+    const held = records.filter(r => fold(r.location) === fold(name))
     const room = await tx.room.create({
       data: {
         name,
@@ -394,6 +464,7 @@ async function resolveRooms(tx: Tx, records: SessionInput[]): Promise<Map<string
       },
       select: { id: true },
     })
+    byKey.set(fold(name), room.id)
     ids.set(name, room.id)
   }
   return ids
@@ -402,12 +473,12 @@ async function resolveRooms(tx: Tx, records: SessionInput[]): Promise<Map<string
 /**
  * Derives what a session of each course needs from all its planned sessions so far: the
  * usual length, the median group size, online if ever held online. Every sessions import
- * derives them again, so they follow the history; a course whose needs were set in the
- * app (needsManual) is left alone.
+ * derives them again, so they follow the history; what the app set is kept apart as
+ * overrides (which win) and is never touched here.
  */
 async function deriveSessionNeeds(tx: Tx, courseIdList: string[]): Promise<void> {
   const courses = await tx.course.findMany({
-    where: { id: { in: courseIdList }, needsManual: false },
+    where: { id: { in: courseIdList } },
     select: {
       id: true,
       sessions: {

@@ -98,10 +98,11 @@ async function applyOne(
   if (!session) return 'SESSION_NOT_FOUND'
   const employee = await tx.employee.findFirst({
     where: { externalId: request.employeeExternalId, ...ACTIVE },
-    select: { id: true, status: true, departmentId: true, positionId: true },
+    select: { id: true, status: true, leftOn: true, departmentId: true, positionId: true },
   })
   if (!employee) return 'EMPLOYEE_NOT_FOUND'
-  if (employee.status === 'TERMINATED') return 'INACTIVE'
+  // Gone by the session's day: their leaving date is that day or earlier.
+  if (employee.leftOn && employee.leftOn <= session.starts_at) return 'INACTIVE'
   if (session.status !== 'PLANNED') return 'NOT_PLANNED'
   if (session.starts_at <= now) return 'PAST'
   // The person's row too (always after the session's): two concurrent applies for one person
@@ -122,6 +123,7 @@ async function applyOne(
     where: {
       employeeId: employee.id,
       session: {
+        ...ACTIVE,
         status: 'PLANNED',
         startsAt: { lt: session.ends_at },
         endsAt: { gt: session.starts_at },
@@ -138,7 +140,7 @@ async function applyOne(
     })
     if (!rulesOf(course).some(r => appliesTo(r, employee))) return 'NOT_REQUIRED'
     const completions = await tx.courseCompletion.findMany({
-      where: { employeeId: employee.id, courseId: session.course_id },
+      where: { ...ACTIVE, employeeId: employee.id, courseId: session.course_id },
       select: { employeeId: true, courseId: true, completedOn: true, validUntil: true },
     })
     const opts = complianceOptions(asOf)

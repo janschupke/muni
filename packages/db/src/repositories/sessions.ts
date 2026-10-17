@@ -34,7 +34,7 @@ export type SessionWindow = 'upcoming' | 'past'
 
 /** What every session read selects: the course and the named bookings. */
 export const sessionInclude = {
-  course: { select: { code: true, name: true, archivedAt: true } },
+  course: { select: { id: true, code: true, name: true, archivedAt: true } },
   room: { select: roomRefSelect },
   assignments: { select: { employee: { select: personSelect } }, orderBy: { createdAt: 'asc' } },
 } as const
@@ -49,7 +49,7 @@ interface SessionRow {
   unnamedBookings: number
   pricePerPerson: { toString(): string } | null
   status: SessionListItem['status']
-  course: { code: string; name: string; archivedAt: Date | null }
+  course: { id: string; code: string; name: string; archivedAt: Date | null }
   assignments: {
     employee: {
       id: string
@@ -66,6 +66,7 @@ export function toSessionItem(s: SessionRow): SessionListItem {
   return {
     id: s.id,
     externalId: s.externalId,
+    courseId: s.course.id,
     courseCode: s.course.code,
     courseName: s.course.name,
     courseArchived: isArchived(s.course),

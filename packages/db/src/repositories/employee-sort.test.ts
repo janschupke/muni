@@ -68,7 +68,7 @@ describe('sortEmployees', () => {
 
   it('sorts by position, and by employment status in a fixed order', () => {
     const items = [
-      employee('E1', 'A', 'a', { position: 'Referent', status: 'TERMINATED' }),
+      employee('E1', 'A', 'a', { position: 'Referent', status: 'LEFT' }),
       employee('E2', 'B', 'b', { position: 'Asistent', status: 'PARENTAL_LEAVE' }),
       employee('E3', 'C', 'c', { position: null, status: 'ACTIVE' }),
     ]
@@ -81,7 +81,7 @@ describe('sortEmployees', () => {
   it('sorts compliance by urgency and treats people who left as blank', () => {
     const items = [
       employee('E1', 'A', 'a', { compliance: 'VALID' }),
-      employee('E2', 'B', 'b', { compliance: 'EXPIRED', status: 'TERMINATED' }),
+      employee('E2', 'B', 'b', { compliance: 'EXPIRED', status: 'LEFT' }),
       employee('E3', 'C', 'c', { compliance: 'MISSING' }),
       employee('E4', 'D', 'd', { compliance: 'EXPIRED' }),
       employee('E5', 'E', 'e', { compliance: 'EXPIRING' }),

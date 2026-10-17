@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { type RoomFacts, roomFit, roomKindOfName, roomMismatch, type SessionNeeds } from './rooms'
+import {
+  effectiveNeeds,
+  type RoomFacts,
+  roomFit,
+  roomKindOfName,
+  roomMismatch,
+  type SessionNeeds,
+} from './rooms'
 
 const lab: RoomFacts = {
   id: 'r1',
@@ -79,5 +86,42 @@ describe('roomKindOfName', () => {
     expect(roomKindOfName('Seminární místnost')).toBe('CLASSROOM')
     // Not fooled by what every object has.
     expect(roomKindOfName('constructor')).toBe('CLASSROOM')
+  })
+})
+
+describe('effectiveNeeds', () => {
+  const stored = {
+    sessionMinutes: 180,
+    groupSize: 25,
+    onlineAllowed: true,
+    sessionMinutesOverride: null,
+    groupSizeOverride: null,
+    onlineAllowedOverride: null,
+    capabilities: ['PROJECTOR'] as const,
+  }
+
+  it('takes what the sessions import derived where the app set nothing', () => {
+    expect(effectiveNeeds(stored)).toEqual({
+      sessionMinutes: 180,
+      groupSize: 25,
+      onlineAllowed: true,
+      capabilities: ['PROJECTOR'],
+    })
+  })
+
+  it('takes each override the app set, including a "no"', () => {
+    expect(
+      effectiveNeeds({
+        ...stored,
+        sessionMinutesOverride: 90,
+        groupSizeOverride: 12,
+        onlineAllowedOverride: false,
+      })
+    ).toEqual({
+      sessionMinutes: 90,
+      groupSize: 12,
+      onlineAllowed: false,
+      capabilities: ['PROJECTOR'],
+    })
   })
 })

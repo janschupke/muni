@@ -1,3 +1,4 @@
+import type { RoomFacts, SessionNeeds } from '@muni/domain/rooms'
 import type {
   CompletionInput,
   CourseInput,
@@ -83,12 +84,27 @@ export type ImportBatch = {
  * can resolve references. Deliberately excludes personal data beyond what matching needs.
  */
 export interface ReferenceSnapshot {
-  courses: { code: string; validityMonths: number | null }[]
+  courses: {
+    code: string
+    validityMonths: number | null
+    /**
+     * What its sessions need from a room, as far as the app has said: equipment, and whether
+     * it may be online (true unless the app said no, since imports derive that from the very
+     * sessions being checked).
+     */
+    needs?: SessionNeeds | undefined
+  }[]
   employees: { externalId: string; email: string | null; fullName: string }[]
   departments: string[]
   positions: string[]
   providers: string[]
   rooms: string[]
+  /** What each room offers, by name, for the sessions' room checks. */
+  roomFacts?: Omit<RoomFacts, 'id'>[] | undefined
+  /** Planned sessions already in the register (Prague wall clock), for room clashes. */
+  plannedSessions?:
+    | { externalId: string; room: string; date: string; startTime: string; endTime: string }[]
+    | undefined
   /**
    * Keys of THIS batch that only archived records hold: a row with one of them, or naming one,
    * is skipped. The server answers for the keys the browser sends (see archivedCandidates), so

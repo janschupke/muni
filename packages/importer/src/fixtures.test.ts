@@ -267,7 +267,8 @@ describe('regression baseline', () => {
       valid: 170,
       invalid: 4,
       skipped: 0,
-      warnings: 31,
+      // 15 of them only announce the departments and positions the import creates.
+      warnings: 46,
       removed: 0,
     })
     expect(summarize(batch.sessions ?? [])).toEqual({
@@ -285,7 +286,8 @@ describe('regression baseline', () => {
       valid: 2822,
       invalid: 44,
       skipped: 0,
-      warnings: 109,
+      // Three more only announce providers the import creates (the fourth row has a warning).
+      warnings: 112,
       removed: 0,
     })
   })

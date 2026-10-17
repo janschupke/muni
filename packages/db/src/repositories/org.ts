@@ -16,6 +16,7 @@ import {
 import { dbOf, loadCompliance, type RepoOptions } from './context'
 import { compareNames, sortEmployees } from './employee-sort'
 import { type EmployeeListItem, employeeRecord } from './employees'
+import { stillEmployed } from './employment'
 import { loadNextBookings } from './requirements'
 import { upcomingSessionWhere } from './sessions'
 
@@ -50,12 +51,14 @@ interface GroupSummary {
 }
 
 export interface DepartmentSummary extends GroupSummary {
-  /** The person most members report to. */
+  /** Who leads it (set on the department's form). */
   head: PersonRef | null
+  /** The positions the department has, with how many members hold each; largest first. */
   positions: { id: string; name: string; count: number }[]
 }
 
 export interface PositionSummary extends GroupSummary {
+  /** The departments the position exists in, with how many members hold it in each. */
   departments: { id: string; name: string; count: number }[]
 }
 
@@ -75,6 +78,7 @@ interface Member {
   archivedAt: Date | null
   status: EmploymentStatus
   managerId: string | null
+  leadsDepartment: boolean
   departmentId: string | null
   positionId: string | null
   department: { id: string; name: string } | null
@@ -84,10 +88,10 @@ interface Member {
 async function loadOrg(options?: RepoOptions & { now?: Date }) {
   const db = dbOf(options)
   const now = options?.now ?? new Date()
-  const [compliance, people, bookings, courses, nextBookings] = await Promise.all([
+  const [compliance, people, bookings, courses, nextBookings, pairs] = await Promise.all([
     loadCompliance(options),
     db.employee.findMany({
-      where: { ...ACTIVE, status: { not: 'TERMINATED' } },
+      where: { ...ACTIVE, ...stillEmployed(options?.asOf) },
       select: {
         id: true,
         externalId: true,
@@ -96,6 +100,7 @@ async function loadOrg(options?: RepoOptions & { now?: Date }) {
         archivedAt: true,
         status: true,
         managerId: true,
+        leadsDepartment: true,
         departmentId: true,
         positionId: true,
         department: { select: { id: true, name: true } },
@@ -112,11 +117,17 @@ async function loadOrg(options?: RepoOptions & { now?: Date }) {
       orderBy: { code: 'asc' },
     }),
     loadNextBookings(db, now),
+    db.departmentPosition.findMany({
+      where: { department: ACTIVE, position: ACTIVE },
+      select: {
+        department: { select: { id: true, name: true } },
+        position: { select: { id: true, name: true } },
+      },
+    }),
   ])
-  const byId = new Map(people.map(p => [p.id, p]))
   return {
     people,
-    byId,
+    pairs,
     cells: compliance.cells,
     cellsByEmployee: Map.groupBy(compliance.cells, c => c.employeeId),
     bookings,
@@ -160,15 +171,17 @@ function summarise(org: Org, members: Member[]): Omit<GroupSummary, 'id' | 'name
   }
 }
 
-/** Members grouped by a key, with a count per group, largest first. */
-function tally(members: Member[], key: (m: Member) => { id: string; name: string } | null) {
-  const groups = new Map<string, { id: string; name: string; count: number }>()
+/** The groups a group is paired with, each with how many members hold that pair; largest first. */
+function tally(
+  members: Member[],
+  paired: readonly { id: string; name: string }[],
+  key: (m: Member) => string | null
+) {
+  const groups = new Map(paired.map(g => [g.id, { ...g, count: 0 }]))
   for (const m of members) {
-    const group = key(m)
-    if (!group) continue
-    const entry = groups.get(group.id) ?? { ...group, count: 0 }
-    entry.count++
-    groups.set(group.id, entry)
+    const id = key(m)
+    const entry = id === null ? undefined : groups.get(id)
+    if (entry) entry.count++
   }
   return [...groups.values()].sort(
     (a, b) => b.count - a.count || a.name.localeCompare(b.name, 'cs')
@@ -181,7 +194,8 @@ interface Reporting {
 }
 
 /**
- * Who leads a group: the member with the most other members anywhere beneath them in the
+ * Who most likely leads a group, from the reporting lines alone (the backfill of department
+ * heads uses it once; the head is set on the department's form after that): the member with the most other members anywhere beneath them in the
  * reporting chain, so a head over two team leads outranks either lead. Ties go by name.
  * When no member manages another, the person most members report to (from outside).
  */
@@ -205,11 +219,6 @@ export function headOf<P extends Reporting & { firstName: string; lastName: stri
     .filter((r): r is { person: P; count: number } => r.person !== undefined)
     .sort((a, b) => b.count - a.count || compareNames(a.person, b.person))
   return ranked[0]?.person ?? null
-}
-
-function headRef(org: Org, members: Member[]): PersonRef | null {
-  const head = headOf(members, org.byId)
-  return head ? toPersonRef(head) : null
 }
 
 /** Per mandatory course the group's active members hold, with why the group needs it. */
@@ -240,17 +249,24 @@ function coursesOf(org: Org, members: Member[]): CourseCompliance[] {
 
 function departmentSummary(org: Org, department: { id: string; name: string }): DepartmentSummary {
   const members = org.people.filter(p => p.departmentId === department.id)
+  const head = members.find(m => m.leadsDepartment)
+  const positions = org.pairs.filter(p => p.department.id === department.id).map(p => p.position)
   return {
     ...department,
     ...summarise(org, members),
-    head: headRef(org, members),
-    positions: tally(members, m => m.position),
+    head: head ? toPersonRef(head) : null,
+    positions: tally(members, positions, m => m.positionId),
   }
 }
 
 function positionSummary(org: Org, position: { id: string; name: string }): PositionSummary {
   const members = org.people.filter(p => p.positionId === position.id)
-  return { ...position, ...summarise(org, members), departments: tally(members, m => m.department) }
+  const departments = org.pairs.filter(p => p.position.id === position.id).map(p => p.department)
+  return {
+    ...position,
+    ...summarise(org, members),
+    departments: tally(members, departments, m => m.departmentId),
+  }
 }
 
 export async function listDepartmentSummaries(

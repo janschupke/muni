@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  completionCreateSchema,
+  completionEditSchema,
   completionSchema,
   courseEditSchema,
   courseSchema,
+  departmentSchema,
   employeeEditSchema,
   employeeSchema,
+  positionSchema,
   providerSchema,
   requirementScopeSchema,
   roomSchema,
@@ -104,7 +106,16 @@ describe('records', () => {
 
 describe('edit forms', () => {
   it('edit only what the form owns', () => {
-    const needs = { sessionMinutes: 180, groupSize: 30, onlineAllowed: false, capabilities: [] }
+    // The needs are overrides: null leaves what the sessions import derived.
+    const needs = {
+      requiredForAll: false,
+      departmentIds: [],
+      positionIds: [],
+      sessionMinutes: 180,
+      groupSize: null,
+      onlineAllowed: null,
+      capabilities: [],
+    }
     expect(
       courseEditSchema.parse({ name: 'BOZP', validityMonths: 24, code: 'X', ...needs })
     ).toEqual({ name: 'BOZP', validityMonths: 24, ...needs })
@@ -124,10 +135,18 @@ describe('edit forms', () => {
       bookedCount: _booked,
       location: _location,
       ...edit
-    } = { ...session, roomId: 'room_aula_a' }
+    } = { ...session, courseId: 'course_bozp', roomId: 'room_aula_a' }
     expect(sessionEditSchema.parse({ ...edit, unnamedBookings: 3 })).not.toHaveProperty(
       'bookedCount'
     )
+    // The course is a field like the room: picked by id, never left out.
+    expect(sessionEditSchema.safeParse({ ...edit, courseId: '', unnamedBookings: 3 }).success).toBe(
+      false
+    )
+    // Unnamed seats alone cannot outnumber the seats (named ones are counted on the server).
+    expect(issues(sessionEditSchema.safeParse({ ...edit, unnamedBookings: 31 }))).toEqual([
+      'capacity: over_capacity',
+    ])
     expect(sessionEditSchema.safeParse({ ...edit, roomId: '', unnamedBookings: 3 }).success).toBe(
       false
     )
@@ -138,17 +157,71 @@ describe('edit forms', () => {
   })
 
   it('apply the same date rules as the records', () => {
-    const { externalId: _id, nationalId: _nid, managerEmail: _mgr, ...edit } = employee
+    const {
+      externalId: _id,
+      nationalId: _nid,
+      managerEmail: _mgr,
+      department: _dept,
+      position: _pos,
+      ...rest
+    } = employee
+    const edit = {
+      ...rest,
+      nationalId: null,
+      departmentId: 'dep_lab',
+      positionId: null,
+      managerId: null,
+      leadsDepartment: false,
+    }
     expect(employeeEditSchema.safeParse(edit).success).toBe(true)
     expect(issues(employeeEditSchema.safeParse({ ...edit, leftOn: '2010-01-01' }))).toEqual([
       'leftOn: before_hired',
     ])
-    const { externalId: _cid, employeeExternalId: _eid, ...create } = completion
-    expect(completionCreateSchema.safeParse(create).success).toBe(true)
+    // Whoever leads a department is in one.
+    expect(employeeEditSchema.safeParse({ ...edit, leadsDepartment: true }).success).toBe(true)
     expect(
-      issues(completionCreateSchema.safeParse({ ...create, validUntil: '2020-01-01' }))
-    ).toEqual(['validUntil: before_completed'])
-    expect(completionCreateSchema.safeParse({ ...create, validUntil: null }).success).toBe(true)
+      issues(employeeEditSchema.safeParse({ ...edit, departmentId: null, leadsDepartment: true }))
+    ).toEqual(['leadsDepartment: no_department'])
+    // Leaving is a date, not a status.
+    expect(employeeEditSchema.safeParse({ ...edit, status: 'TERMINATED' }).success).toBe(false)
+
+    const create = {
+      employeeId: 'emp_1',
+      courseId: 'course_bozp',
+      completedOn: '2024-11-05',
+      validUntil: '2026-11-05',
+      providerId: 'prov_1',
+      newProviderName: null,
+      price: 450,
+      note: null,
+    }
+    expect(completionEditSchema.safeParse(create).success).toBe(true)
+    expect(issues(completionEditSchema.safeParse({ ...create, validUntil: '2020-01-01' }))).toEqual(
+      ['validUntil: before_completed']
+    )
+    expect(completionEditSchema.safeParse({ ...create, validUntil: null }).success).toBe(true)
+    // A provider is picked or named as new, never both.
+    expect(
+      completionEditSchema.safeParse({ ...create, providerId: null, newProviderName: 'Nová' })
+        .success
+    ).toBe(true)
+    expect(issues(completionEditSchema.safeParse({ ...create, newProviderName: 'Nová' }))).toEqual([
+      'newProviderName: provider_both',
+    ])
+  })
+
+  it('give a department its head and a position its departments', () => {
+    expect(departmentSchema.parse({ name: ' Knihovna ', headId: null })).toEqual({
+      name: 'Knihovna',
+      headId: null,
+    })
+    expect(positionSchema.parse({ name: 'Referent', departmentIds: ['a', 'b'] })).toEqual({
+      name: 'Referent',
+      departmentIds: ['a', 'b'],
+    })
+    expect(
+      issues(positionSchema.safeParse({ name: 'Referent', departmentIds: ['a', 'a'] }))
+    ).toEqual(['departmentIds: duplicate'])
   })
 })
 
@@ -179,7 +252,7 @@ describe('rooms and new sessions', () => {
 
   it('create a session for a course in a room, ending after it starts', () => {
     const create = {
-      courseCode: 'BOZP-Z',
+      courseId: 'course_bozp',
       date: '2026-11-18',
       startTime: '08:00',
       endTime: '11:00',

@@ -39,6 +39,8 @@ export const DEFAULT_SESSION_MINUTES = 180
 export const DEFAULT_START = '09:00'
 
 export interface PlannerCourse {
+  /** Internal id: a session is created for the course by it. */
+  id: string
   code: string
   name: string
   sessionMinutes: number | null
@@ -216,13 +218,14 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
     const suitable = input.rooms.filter(r => roomMismatch(r, needs, null) === null)
     const roomSeats = suitable.map(r => r.capacity ?? people.length)
     const groupSize = course.groupSize ?? Math.max(1, ...roomSeats)
-    const { code, name, sessionMinutes, onlineAllowed, capabilities } = course
+    const { id, code, name, sessionMinutes, onlineAllowed, capabilities } = course
     for (let i = 0; i * groupSize < people.length; i++) {
       const chunk = people.slice(i * groupSize, (i + 1) * groupSize)
       const size = chunk.length
       const base = {
         id: `${course.code}|${group.bucket}|${String(i + 1)}`,
         course: {
+          id,
           code,
           name,
           sessionMinutes,

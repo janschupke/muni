@@ -5,6 +5,7 @@ import { addDays } from '@muni/utils/dates'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { unarchiveAll } from '../test/archive'
+import { completionOf, courseIdOf } from '../test/records'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { createDb } from './client'
 import {
@@ -229,15 +230,13 @@ describe('compliance', () => {
     const missing = before?.requirements.find(r => r.status === 'MISSING' || r.status === 'EXPIRED')
     if (!missing) return
     await createCompletion(
-      'E0131',
-      {
-        courseCode: missing.courseCode,
+      await completionOf(db, {
+        employee: 'E0131',
+        course: missing.courseCode,
         completedOn: asOf,
-        validUntil: null,
         provider: 'Interní školitel',
         price: 0,
-        note: null,
-      },
+      }),
       options
     )
     const after = await getEmployee('E0131', 'FULL', options)
@@ -299,9 +298,9 @@ describe('employee list sorting', () => {
       options
     )
     expect(total).toBeGreaterThan(100)
-    expect(
-      last.items.at(-1)?.status === 'TERMINATED' || last.items.at(-1)?.compliance === null
-    ).toBe(true)
+    expect(last.items.at(-1)?.status === 'LEFT' || last.items.at(-1)?.compliance === null).toBe(
+      true
+    )
   })
 
   it('lists in Czech name order by default and breaks ties by name', async () => {
@@ -314,7 +313,7 @@ describe('employee list sorting', () => {
 
     const expired = (
       await listEmployees({ sort: { by: 'compliance', desc: false }, pageSize: 100 }, options)
-    ).items.filter(e => e.compliance === 'EXPIRED' && e.status !== 'TERMINATED')
+    ).items.filter(e => e.compliance === 'EXPIRED' && e.status !== 'LEFT')
     const keys = expired.map(e => [e.lastName, e.firstName] as const)
     expect(keys).toEqual(
       [...keys].sort((a, b) => collator.compare(a[0], b[0]) || collator.compare(a[1], b[1]))
@@ -341,6 +340,7 @@ describe('sessions', () => {
     await updateSession(
       'T002',
       {
+        courseId: await courseIdOf(db, 'KYBER'),
         date: '2026-10-28',
         startTime: '10:00',
         endTime: '12:00',
@@ -425,8 +425,13 @@ describe('departments and positions', () => {
       expect(department?.counts.total, row.department).toBe(total)
       expect(department?.requiredCourses).toBe(Object.values(row.cells).filter(Boolean).length)
     }
+    // Heads are set once from the reporting lines: the library's people report to E0066. The
+    // labs have two "Vedoucí" and nobody between them, so their head is left to the form.
+    expect(departments.find(d => d.name === 'Knihovna')?.head).toMatchObject({
+      externalId: 'E0066',
+    })
     const lab = departments.find(d => d.name === 'Laboratoře')
-    expect(lab?.head).not.toBeNull()
+    expect(lab?.head).toBeNull()
     expect(lab?.positions.reduce((n, p) => n + p.count, 0)).toBe(
       (lab?.active ?? 0) + (lab?.parentalLeave ?? 0)
     )
@@ -489,7 +494,10 @@ describe('departments and positions', () => {
       (
         await db.employee.findMany({
           // Reports who have left are not listed, as on the team card.
-          where: { manager: { externalId: 'E0001' }, status: { not: 'TERMINATED' } },
+          where: {
+            manager: { externalId: 'E0001' },
+            OR: [{ leftOn: null }, { leftOn: { gt: new Date() } }],
+          },
           select: { externalId: true },
         })
       )

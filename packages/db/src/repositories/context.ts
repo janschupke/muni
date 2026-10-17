@@ -10,6 +10,7 @@ import { isoDateFromUtc, todayIn } from '@muni/utils/dates'
 import { type Db, getDb } from '../client'
 import { ACTIVE } from './archive'
 import { audienceSelect, mandatoryCourse, rulesOf } from './audience'
+import { stillEmployed } from './employment'
 
 let policy: SanitizePolicy | undefined
 
@@ -49,13 +50,15 @@ export interface ComplianceSnapshot {
 /**
  * Loads everything compliance needs and evaluates it in memory. At this register's size
  * (~170 people × 10 courses) that is a few milliseconds; a SQL view is the scaling path.
- * Terminated and archived employees, archived courses and archived completions are excluded.
+ * People who have left (by `asOf`), archived people, courses and completions are excluded.
  */
 export async function loadCompliance(options?: RepoOptions): Promise<ComplianceSnapshot> {
   const db = dbOf(options)
+  const complianceOpts = complianceOptions(options?.asOf)
+  const employed = stillEmployed(complianceOpts.asOf)
   const [employees, requirements, completions] = await Promise.all([
     db.employee.findMany({
-      where: { ...ACTIVE, status: { not: 'TERMINATED' } },
+      where: { ...ACTIVE, ...employed },
       select: { id: true, departmentId: true, positionId: true, status: true },
     }),
     db.course.findMany({
@@ -63,11 +66,10 @@ export async function loadCompliance(options?: RepoOptions): Promise<ComplianceS
       select: { id: true, ...audienceSelect },
     }),
     db.courseCompletion.findMany({
-      where: { ...ACTIVE, employee: { ...ACTIVE, status: { not: 'TERMINATED' } }, course: ACTIVE },
+      where: { ...ACTIVE, employee: { ...ACTIVE, ...employed }, course: ACTIVE },
       select: { employeeId: true, courseId: true, completedOn: true, validUntil: true },
     }),
   ])
-  const complianceOpts = complianceOptions(options?.asOf)
   const cells = computeCompliance(
     employees,
     requirements.flatMap(rulesOf),

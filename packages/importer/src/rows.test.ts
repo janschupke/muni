@@ -196,7 +196,12 @@ describe('employees', () => {
 
   it('reads statuses and checks them against the dates', () => {
     expect(employee({ status: 'Rodičovská' }).data?.status).toBe('PARENTAL_LEAVE')
-    expect(codes(employee({ status: 'ukončen' }))).toEqual(['leftOn:STATUS_DATE_MISMATCH'])
+    // Leaving is a date: someone who left without one cannot be imported as left.
+    expect(codes(employee({ status: 'ukončen' }))).toEqual(['leftOn:LEFT_WITHOUT_DATE'])
+    expect(employee({ status: 'ukončen', leftOn: '2026-01-31' }).data).toMatchObject({
+      status: 'ACTIVE',
+      leftOn: '2026-01-31',
+    })
     expect(codes(employee({ status: 'aktivní', leftOn: '2026-01-31' }))).toEqual([
       'status:STATUS_DATE_MISMATCH',
     ])

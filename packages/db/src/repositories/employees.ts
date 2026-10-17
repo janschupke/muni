@@ -5,9 +5,9 @@ import {
   countStatuses,
   worstStatus,
 } from '@muni/domain/compliance'
-import type { ComplianceStatus, EmploymentStatus, Role } from '@muni/domain/enums'
+import type { ComplianceStatus, EmploymentState, Role } from '@muni/domain/enums'
 import { sanitizeRecord } from '@muni/domain/sanitize'
-import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
+import { type IsoDate, isoDateFromUtc, todayIn } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 
 import { ACTIVE, isArchived, type PersonRef, personSelect, toPersonRef } from './archive'
@@ -20,6 +20,7 @@ import {
   toAmount,
 } from './context'
 import { compareNames, type EmployeeSortKey, sortEmployees } from './employee-sort'
+import { stateOf, stateWhere, stillEmployed } from './employment'
 import { courseOf, loadNextBookings, type RequirementContext, requirementOf } from './requirements'
 
 export interface EmployeeListItem {
@@ -32,8 +33,8 @@ export interface EmployeeListItem {
   departmentId: string | null
   position: string | null
   positionId: string | null
-  status: EmploymentStatus
-  /** Worst requirement status; null when nothing is required (or terminated). */
+  status: EmploymentState
+  /** Worst requirement status; null when nothing is required (or the person has left). */
   compliance: ComplianceStatus | null
   counts: ComplianceCounts
   /** Every required course with its state, for the row's detail panel. */
@@ -58,7 +59,8 @@ export interface EmployeeSource {
   externalId: string
   firstName: string
   lastName: string
-  status: EmploymentStatus
+  /** Where they stand today (see `stateOf`). */
+  status: EmploymentState
   department: { id: string; name: string } | null
   position: { id: string; name: string } | null
 }
@@ -95,7 +97,7 @@ export interface EmployeeFilters {
   position?: string | undefined
   /** Direct reports of this person (external ID); people who left are not reports. */
   manager?: string | undefined
-  status?: EmploymentStatus | undefined
+  status?: EmploymentState | undefined
   /** People with at least one required training in this state. */
   compliance?: ComplianceStatus | undefined
   /** Defaults to name, ascending. */
@@ -117,17 +119,18 @@ export async function listEmployees(
   options?: RepoOptions
 ): Promise<Page<EmployeeListItem>> {
   const db = dbOf(options)
+  const asOf = options?.asOf ?? todayIn()
   const [employees, compliance, courses, bookings] = await Promise.all([
     db.employee.findMany({
       where: {
         ...ACTIVE,
         ...(filters.department && { department: { name: filters.department, ...ACTIVE } }),
         ...(filters.position && { position: { name: filters.position, ...ACTIVE } }),
-        ...(filters.manager && {
-          manager: { externalId: filters.manager, ...ACTIVE },
-          status: { not: 'TERMINATED' as const },
-        }),
-        ...(filters.status && { status: filters.status }),
+        ...(filters.manager && { manager: { externalId: filters.manager, ...ACTIVE } }),
+        AND: [
+          filters.manager ? stillEmployed(asOf) : {},
+          filters.status ? stateWhere(filters.status, asOf) : {},
+        ],
       },
       select: {
         id: true,
@@ -135,6 +138,7 @@ export async function listEmployees(
         firstName: true,
         lastName: true,
         status: true,
+        leftOn: true,
         department: { select: { id: true, name: true } },
         position: { select: { id: true, name: true } },
       },
@@ -153,7 +157,9 @@ export async function listEmployees(
   const cellsByEmployee = Map.groupBy(compliance.cells, c => c.employeeId)
   const q = filters.q ? fold(filters.q) : ''
   const items = employees
-    .map(e => employeeRecord(e, cellsByEmployee.get(e.id) ?? [], context))
+    .map(e =>
+      employeeRecord({ ...e, status: stateOf(e, asOf) }, cellsByEmployee.get(e.id) ?? [], context)
+    )
     .filter(e => !q || fold(`${e.firstName} ${e.lastName} ${e.externalId}`).includes(q))
     // "Has a training in this state", so the list matches the dashboard's counts of trainings:
     // someone with one expired and one missing course appears under both.
@@ -203,7 +209,7 @@ export interface TeamMember {
   externalId: string
   name: string
   position: string | null
-  status: EmploymentStatus
+  status: EmploymentState
   compliance: ComplianceStatus | null
   counts: ComplianceCounts
 }
@@ -229,7 +235,9 @@ export interface EmployeeDetail {
   teamCounts: ComplianceCounts
   hiredOn: IsoDate
   leftOn: IsoDate | null
-  status: EmploymentStatus
+  status: EmploymentState
+  /** Leads their department. */
+  leadsDepartment: boolean
   requirements: EmployeeRequirementRow[]
   completionRate: number
   completions: EmployeeCompletionRow[]
@@ -249,13 +257,14 @@ export async function getEmployee(
       position: { select: { id: true, name: true } },
       manager: { select: personSelect },
       reports: {
-        where: { ...ACTIVE, status: { not: 'TERMINATED' } },
+        where: { ...ACTIVE, ...stillEmployed(options?.asOf) },
         select: {
           id: true,
           externalId: true,
           firstName: true,
           lastName: true,
           status: true,
+          leftOn: true,
           position: { select: { name: true } },
         },
       },
@@ -280,7 +289,7 @@ export async function getEmployee(
       externalId: r.externalId,
       name: `${r.lastName} ${r.firstName}`,
       position: r.position?.name ?? null,
-      status: r.status,
+      status: stateOf(r, options?.asOf),
       compliance: worstStatus(own.map(c => c.status)),
       counts: countStatuses(own),
     }
@@ -317,7 +326,8 @@ export async function getEmployee(
     ),
     hiredOn: isoDateFromUtc(employee.hiredOn),
     leftOn: employee.leftOn ? isoDateFromUtc(employee.leftOn) : null,
-    status: employee.status,
+    status: stateOf(employee, options?.asOf),
+    leadsDepartment: employee.leadsDepartment,
     requirements: cells
       .map(c => ({
         courseCode: courseOf(courseById, c).code,
@@ -358,10 +368,16 @@ export async function getEmployee(
 export async function getEmployeeForEdit(externalId: string, options?: RepoOptions) {
   const employee = await dbOf(options).employee.findFirst({
     where: { externalId, ...ACTIVE },
-    include: { manager: { select: { externalId: true, archivedAt: true } } },
+    include: {
+      manager: { select: { id: true, firstName: true, lastName: true, archivedAt: true } },
+    },
   })
   if (!employee) return null
+  // An archived manager is not offered again; saving leaves the person without one. One who
+  // has left is still their manager until someone changes it, so the form offers them.
+  const manager = employee.manager?.archivedAt === null ? employee.manager : null
   return {
+    id: employee.id,
     externalId: employee.externalId,
     firstName: employee.firstName,
     lastName: employee.lastName,
@@ -369,8 +385,10 @@ export async function getEmployeeForEdit(externalId: string, options?: RepoOptio
     nationalId: employee.nationalId,
     departmentId: employee.departmentId,
     positionId: employee.positionId,
-    // An archived manager is not offered again; saving leaves the person without one.
-    managerExternalId: employee.manager?.archivedAt === null ? employee.manager.externalId : null,
+    managerId: manager?.id ?? null,
+    /** The current manager as an option, whether or not the pickers list them. */
+    manager: manager && { id: manager.id, name: `${manager.lastName} ${manager.firstName}` },
+    leadsDepartment: employee.leadsDepartment,
     hiredOn: isoDateFromUtc(employee.hiredOn),
     leftOn: employee.leftOn ? isoDateFromUtc(employee.leftOn) : null,
     status: employee.status,

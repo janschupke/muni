@@ -1,7 +1,9 @@
-import type { RoomKind } from '@muni/domain/enums'
+import type { RoomFacts } from '@muni/domain/rooms'
 
 import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions } from './context'
+import { stillEmployed } from './employment'
+import { roomFactsOf, roomFactsSelect } from './session-fit'
 
 export async function listDepartments(options?: RepoOptions): Promise<string[]> {
   const rows = await dbOf(options).department.findMany({
@@ -21,30 +23,28 @@ export async function listPositions(options?: RepoOptions): Promise<string[]> {
   return rows.map(r => r.name)
 }
 
-/** Every provider's name, for the completion form to suggest. */
-export async function listProviderNames(options?: RepoOptions): Promise<string[]> {
-  const rows = await dbOf(options).provider.findMany({
+/** Every active provider, for the completion form's picker. */
+export function listProviderOptions(
+  options?: RepoOptions
+): Promise<{ id: string; name: string }[]> {
+  return dbOf(options).provider.findMany({
     where: ACTIVE,
-    select: { name: true },
+    select: { id: true, name: true },
     orderBy: { name: 'asc' },
   })
-  return rows.map(r => r.name)
 }
 
-export interface RoomOption {
-  id: string
-  name: string
-  kind: RoomKind
-  capacity: number | null
-}
+/** A room as the session form offers it: what it holds, so the form can check the fit. */
+export type RoomOption = RoomFacts
 
 /** Every room, for pickers. */
 export async function listRoomOptions(options?: RepoOptions): Promise<RoomOption[]> {
-  return dbOf(options).room.findMany({
+  const rooms = await dbOf(options).room.findMany({
     where: ACTIVE,
-    select: { id: true, name: true, kind: true, capacity: true },
+    select: roomFactsSelect,
     orderBy: { name: 'asc' },
   })
+  return rooms.map(roomFactsOf)
 }
 
 /** A person's name as the lists show it ("Last First"), or null when there is no such person. */
@@ -57,19 +57,26 @@ export async function getPersonName(externalId: string, options?: RepoOptions) {
 }
 
 export interface PersonOption {
+  id: string
   externalId: string
   name: string
+  departmentId: string | null
 }
 
-/** Everyone active who has not left, by name, for pickers (a manager, an attendee). */
+/** Everyone active who has not left, by name, for pickers (a manager, an attendee, a head). */
 export async function listEmployeeOptions(options?: RepoOptions): Promise<PersonOption[]> {
   const people = await dbOf(options).employee.findMany({
-    where: { ...ACTIVE, status: { not: 'TERMINATED' } },
-    select: { externalId: true, firstName: true, lastName: true },
+    where: { ...ACTIVE, ...stillEmployed(options?.asOf) },
+    select: { id: true, externalId: true, firstName: true, lastName: true, departmentId: true },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
   })
   return people
-    .map(p => ({ externalId: p.externalId, name: `${p.lastName} ${p.firstName}` }))
+    .map(p => ({
+      id: p.id,
+      externalId: p.externalId,
+      name: `${p.lastName} ${p.firstName}`,
+      departmentId: p.departmentId,
+    }))
     .sort((a, b) => a.name.localeCompare(b.name, 'cs'))
 }
 

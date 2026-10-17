@@ -1,7 +1,8 @@
+import { effectiveNeeds } from '@muni/domain/rooms'
 import {
   APP_ID_PREFIX,
-  type CompletionCreate,
-  completionCreateSchema,
+  type CompletionEdit,
+  completionEditSchema,
   type CourseCreate,
   courseCreateSchema,
   type CourseEdit,
@@ -9,26 +10,41 @@ import {
   type EmployeeEdit,
   employeeEditSchema,
 } from '@muni/domain/schemas'
-import { isoDateFromUtc, isoDateToUtc } from '@muni/utils/dates'
+import { addMonths, isoDateFromUtc, isoDateToUtc } from '@muni/utils/dates'
+import { fold } from '@muni/utils/text'
 import { cleanFreeText } from '@muni/utils/text'
 
 import type { Tx } from '../client'
 import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions, toAmount } from './context'
+import { lockSessions, needsSelect, newlyUnfit } from './session-fit'
 
 // Creating and editing courses, people and completions. Callers (server actions) have
 // checked for an admin; the input is parsed again here whatever they checked. Everything a
 // record points to (a department, a manager, a course) must be active, and is read under a
-// share lock, so it cannot be archived while the write is in flight.
+// share lock, so it cannot be archived while the write is in flight. Records are picked by
+// their internal id, never matched by a name.
 
 /** Why a write was refused, by the field to change. */
 export type RecordProblem =
-  | { field: 'code' | 'email'; reason: 'taken' }
+  | { field: 'code' | 'email' | 'newProviderName'; reason: 'taken' }
   | {
-      field: 'departmentIds' | 'positionIds' | 'departmentId' | 'positionId' | 'managerExternalId'
+      field:
+        | 'departmentIds'
+        | 'positionIds'
+        | 'departmentId'
+        | 'positionId'
+        | 'managerId'
+        | 'employeeId'
+        | 'courseId'
+        | 'providerId'
       reason: 'not_found'
     }
-  | { field: 'managerExternalId'; reason: 'manager_cycle' }
+  /** The department does not have the position. */
+  | { field: 'positionId'; reason: 'pair_unknown' }
+  | { field: 'managerId'; reason: 'manager_cycle' }
+  /** Upcoming sessions of the course would no longer fit their rooms. */
+  | { field: 'onlineAllowed' | 'capabilities'; reason: 'sessions_unfit'; count: number }
 
 export type RecordWrite<T> = ({ ok: true } & T) | ({ ok: false } & RecordProblem)
 
@@ -68,15 +84,14 @@ async function writeAudience(
   return null
 }
 
+/** The needs the form sets are overrides: what the sessions import derives stays next to them. */
 const courseFields = (data: CourseEdit) => ({
   name: data.name,
   validityMonths: data.validityMonths,
   requiredForAll: data.requiredForAll,
-  sessionMinutes: data.sessionMinutes,
-  groupSize: data.groupSize,
-  onlineAllowed: data.onlineAllowed,
-  // Set by hand: imports stop deriving the needs from the sessions.
-  needsManual: true,
+  sessionMinutesOverride: data.sessionMinutes,
+  groupSizeOverride: data.groupSize,
+  onlineAllowedOverride: data.onlineAllowed,
 })
 
 async function writeCapabilities(tx: Tx, courseId: string, data: CourseEdit) {
@@ -130,7 +145,9 @@ export async function createCourse(
 
 /**
  * Saves a course: its name, validity, who must hold it and what a session needs. An unknown or
- * archived code throws P2025. (A courses import replaces who must hold it again.)
+ * archived code throws P2025. (A courses import replaces who must hold it again.) Refused when
+ * upcoming sessions that fit their rooms would stop fitting (online no longer allowed, or
+ * equipment their rooms lack).
  */
 export async function updateCourse(
   code: string,
@@ -140,8 +157,31 @@ export async function updateCourse(
   const data = courseEditSchema.parse(input)
   return refusable(() =>
     dbOf(options).$transaction(async tx => {
-      const course = await tx.course.update({
+      await lockSessions(tx)
+      const current = await tx.course.findFirstOrThrow({
         where: { code, ...ACTIVE },
+        select: { id: true, ...needsSelect },
+      })
+      const unfit = await newlyUnfit(tx, {
+        courseId: current.id,
+        needs: effectiveNeeds({
+          ...current,
+          sessionMinutesOverride: data.sessionMinutes,
+          groupSizeOverride: data.groupSize,
+          onlineAllowedOverride: data.onlineAllowed,
+          capabilities: data.capabilities,
+        }),
+      })
+      if (unfit.length > 0)
+        throw new Refused({
+          field: unfit.some(m => m.kind === 'ONLINE_NOT_ALLOWED')
+            ? 'onlineAllowed'
+            : 'capabilities',
+          reason: 'sessions_unfit',
+          count: unfit.length,
+        })
+      const course = await tx.course.update({
+        where: { id: current.id },
         data: courseFields(data),
         select: { id: true, code: true },
       })
@@ -153,38 +193,63 @@ export async function updateCourse(
   )
 }
 
+/** Whether the department has the position (locked, so the pair cannot be dropped meanwhile). */
+async function pairExists(tx: Tx, departmentId: string, positionId: string) {
+  const rows = await tx.$queryRaw<unknown[]>`
+    SELECT 1 FROM department_positions
+     WHERE department_id = ${departmentId} AND position_id = ${positionId}
+     FOR SHARE`
+  return rows.length > 0
+}
+
 /**
- * Checks what a person points to: the department and position are active, the manager is an
- * active person other than them and not someone who (indirectly) reports to them.
+ * Checks what a person points to: the department and position are active and the department
+ * has the position; the manager is an active person other than them and not someone who
+ * (indirectly) reports to them. Making them their department's head takes the role from
+ * whoever had it, under the department's lock.
  */
-async function personLinks(
-  tx: Tx,
-  data: EmployeeEdit,
-  self: string | null
-): Promise<{ departmentId: string | null; positionId: string | null; managerId: string | null }> {
+async function personLinks(tx: Tx, data: EmployeeEdit, self: string | null) {
   if (data.departmentId && !(await activeIds(tx, 'departments', [data.departmentId])).size)
     throw new Refused({ field: 'departmentId', reason: 'not_found' })
   if (data.positionId && !(await activeIds(tx, 'positions', [data.positionId])).size)
     throw new Refused({ field: 'positionId', reason: 'not_found' })
-  let managerId: string | null = null
-  if (data.managerExternalId) {
+  if (
+    data.departmentId &&
+    data.positionId &&
+    !(await pairExists(tx, data.departmentId, data.positionId))
+  )
+    throw new Refused({ field: 'positionId', reason: 'pair_unknown' })
+  if (data.managerId) {
     const [manager] = await tx.$queryRaw<{ id: string }[]>`
-      SELECT id FROM employees
-       WHERE external_id = ${data.managerExternalId} AND archived_at IS NULL
-       FOR SHARE`
-    if (!manager) throw new Refused({ field: 'managerExternalId', reason: 'not_found' })
+      SELECT id FROM employees WHERE id = ${data.managerId} AND archived_at IS NULL FOR SHARE`
+    if (!manager) throw new Refused({ field: 'managerId', reason: 'not_found' })
     // Up the manager's chain: reaching this person would make a loop.
     const seen = new Set<string>()
     for (let up: string | null = manager.id; up && !seen.has(up);) {
-      if (up === self) throw new Refused({ field: 'managerExternalId', reason: 'manager_cycle' })
+      if (up === self) throw new Refused({ field: 'managerId', reason: 'manager_cycle' })
       seen.add(up)
       up =
         (await tx.employee.findUnique({ where: { id: up }, select: { managerId: true } }))
           ?.managerId ?? null
     }
-    managerId = manager.id
   }
-  return { departmentId: data.departmentId, positionId: data.positionId, managerId }
+  if (data.leadsDepartment && data.departmentId) {
+    await tx.$queryRaw`SELECT id FROM departments WHERE id = ${data.departmentId} FOR UPDATE`
+    await tx.employee.updateMany({
+      where: {
+        departmentId: data.departmentId,
+        leadsDepartment: true,
+        ...(self && { id: { not: self } }),
+      },
+      data: { leadsDepartment: false },
+    })
+  }
+  return {
+    departmentId: data.departmentId,
+    positionId: data.positionId,
+    managerId: data.managerId,
+    leadsDepartment: data.leadsDepartment,
+  }
 }
 
 const personFields = (data: EmployeeEdit) => ({
@@ -258,68 +323,129 @@ export async function updateEmployee(
   }
 }
 
-/** An active provider's id by name, created when there is none. */
-async function providerId(tx: Tx, name: string): Promise<string> {
-  return (
-    (await tx.provider.findFirst({ where: { name, ...ACTIVE }, select: { id: true } })) ??
-    (await tx.provider.create({ data: { name }, select: { id: true } }))
-  ).id
+/**
+ * The provider a completion names: the one picked (active, or the one it already had), or a
+ * new one named on the form. A new name that an active provider already has, in any case or
+ * accents, is refused so the user picks that one; nothing is matched silently.
+ */
+async function completionProvider(
+  tx: Tx,
+  data: CompletionEdit,
+  current: string | null
+): Promise<string | null> {
+  if (data.providerId) {
+    if (data.providerId === current) return current
+    const [provider] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT id FROM providers WHERE id = ${data.providerId} AND archived_at IS NULL FOR SHARE`
+    if (!provider) throw new Refused({ field: 'providerId', reason: 'not_found' })
+    return provider.id
+  }
+  if (!data.newProviderName) return null
+  const wanted = fold(data.newProviderName)
+  const active = await tx.provider.findMany({ where: ACTIVE, select: { name: true } })
+  if (active.some(p => fold(p.name) === wanted))
+    throw new Refused({ field: 'newProviderName', reason: 'taken' })
+  return (await tx.provider.create({ data: { name: data.newProviderName }, select: { id: true } }))
+    .id
 }
 
-const completionFields = async (tx: Tx, data: CompletionCreate) => ({
-  courseId: (
-    await tx.course.findFirstOrThrow({
-      where: { code: data.courseCode, ...ACTIVE },
-      select: { id: true },
-    })
-  ).id,
-  completedOn: isoDateToUtc(data.completedOn),
-  validUntil: data.validUntil ? isoDateToUtc(data.validUntil) : null,
-  providerId: data.provider ? await providerId(tx, data.provider) : null,
-  price: data.price,
-  note: cleanFreeText(data.note),
-})
+/**
+ * What a completion stores. The person and course are active (or, for the course, the one it
+ * already had); an empty validity is worked out from the course, never taken from the client.
+ */
+async function completionFields(
+  tx: Tx,
+  data: CompletionEdit,
+  current: { courseId: string; providerId: string | null } | null
+) {
+  const [employee] = await tx.$queryRaw<{ id: string }[]>`
+    SELECT id FROM employees WHERE id = ${data.employeeId} AND archived_at IS NULL FOR SHARE`
+  if (!employee) throw new Refused({ field: 'employeeId', reason: 'not_found' })
+  const course = await tx.course.findFirst({
+    where: {
+      id: data.courseId,
+      ...(data.courseId === current?.courseId ? {} : ACTIVE),
+    },
+    select: { id: true, validityMonths: true },
+  })
+  if (!course) throw new Refused({ field: 'courseId', reason: 'not_found' })
+  const validUntil =
+    data.validUntil ??
+    (course.validityMonths === null ? null : addMonths(data.completedOn, course.validityMonths))
+  return {
+    employeeId: employee.id,
+    courseId: course.id,
+    completedOn: isoDateToUtc(data.completedOn),
+    validUntil: validUntil ? isoDateToUtc(validUntil) : null,
+    providerId: await completionProvider(tx, data, current?.providerId ?? null),
+    price: data.price,
+    note: cleanFreeText(data.note),
+  }
+}
+
+type CompletionWrite = RecordWrite<{ employeeExternalId: string }>
+
+async function writeCompletion(
+  options: RepoOptions | undefined,
+  run: (tx: Tx) => Promise<{ employeeId: string }>
+): Promise<CompletionWrite> {
+  try {
+    return await refusable(() =>
+      dbOf(options).$transaction(async tx => {
+        const { employeeId } = await run(tx)
+        const employee = await tx.employee.findUniqueOrThrow({
+          where: { id: employeeId },
+          select: { externalId: true },
+        })
+        return { ok: true as const, employeeExternalId: employee.externalId }
+      })
+    )
+  } catch (error) {
+    // Two forms adding the same new provider at once: the second one is told to pick it.
+    if (isUnique(error)) return { ok: false, field: 'newProviderName', reason: 'taken' }
+    throw error
+  }
+}
 
 /** Records a completion entered in the app. Its ID gets an `A` prefix to keep clear of imports. */
-export async function createCompletion(
-  employeeExternalId: string,
-  input: CompletionCreate,
-  options?: RepoOptions
-) {
-  const data = completionCreateSchema.parse(input)
-  return dbOf(options).$transaction(async tx => {
-    const employee = await tx.employee.findFirstOrThrow({
-      where: { externalId: employeeExternalId, ...ACTIVE },
-      select: { id: true },
-    })
-    return tx.courseCompletion.create({
+export function createCompletion(input: CompletionEdit, options?: RepoOptions) {
+  const data = completionEditSchema.parse(input)
+  return writeCompletion(options, async tx =>
+    tx.courseCompletion.create({
       data: {
         externalId:
           `${APP_ID_PREFIX.completion}${Date.now().toString(36)}${crypto.randomUUID().slice(0, 4)}`.toUpperCase(),
-        employeeId: employee.id,
-        ...(await completionFields(tx, data)),
+        ...(await completionFields(tx, data, null)),
       },
-      select: { externalId: true },
+      select: { employeeId: true },
+    })
+  )
+}
+
+/**
+ * Corrects a completion (its person, course, dates, provider, price, note). An unknown or
+ * archived one throws P2025. One that came from an import is overwritten by the next import.
+ */
+export function updateCompletion(id: string, input: CompletionEdit, options?: RepoOptions) {
+  const data = completionEditSchema.parse(input)
+  return writeCompletion(options, async tx => {
+    const current = await tx.courseCompletion.findFirstOrThrow({
+      where: { id, ...ACTIVE },
+      select: { id: true, courseId: true, providerId: true },
+    })
+    return tx.courseCompletion.update({
+      where: { id: current.id },
+      data: await completionFields(tx, data, current),
+      select: { employeeId: true },
     })
   })
 }
 
 /**
- * Corrects a completion (its course, dates, provider, price, note). An unknown or archived
- * one throws P2025. One that came from an import is overwritten by the next import of it.
+ * A completion's values for its edit form (admins only), or null. Its course and provider
+ * come along even when archived, so the form keeps them (shown, not offered to others). A
+ * validity that is just the course's is left empty: the form's empty means "from the course".
  */
-export async function updateCompletion(id: string, input: CompletionCreate, options?: RepoOptions) {
-  const data = completionCreateSchema.parse(input)
-  return dbOf(options).$transaction(async tx =>
-    tx.courseCompletion.update({
-      where: { id, ...ACTIVE },
-      data: await completionFields(tx, data),
-      select: { externalId: true, employee: { select: { externalId: true } } },
-    })
-  )
-}
-
-/** A completion's values for its edit form (admins only), or null. */
 export async function getCompletionForEdit(id: string, options?: RepoOptions) {
   const completion = await dbOf(options).courseCompletion.findFirst({
     where: { id, ...ACTIVE, employee: ACTIVE },
@@ -330,27 +456,46 @@ export async function getCompletionForEdit(id: string, options?: RepoOptions) {
       validUntil: true,
       price: true,
       note: true,
-      course: { select: { code: true } },
-      provider: { select: { name: true } },
-      employee: { select: { externalId: true, firstName: true, lastName: true } },
+      course: {
+        select: { id: true, code: true, name: true, validityMonths: true, archivedAt: true },
+      },
+      provider: { select: { id: true, name: true, archivedAt: true } },
+      employee: { select: { id: true, externalId: true, firstName: true, lastName: true } },
     },
   })
-  return (
-    completion && {
-      id: completion.id,
-      externalId: completion.externalId,
-      /** Imported (not `A…`): the next import of the same file overwrites the changes. */
-      imported: !completion.externalId.startsWith(APP_ID_PREFIX.completion),
-      courseCode: completion.course.code,
-      completedOn: isoDateFromUtc(completion.completedOn),
-      validUntil: completion.validUntil ? isoDateFromUtc(completion.validUntil) : null,
-      provider: completion.provider?.name ?? null,
-      price: toAmount(completion.price),
-      note: completion.note,
-      employee: {
-        externalId: completion.employee.externalId,
-        name: `${completion.employee.lastName} ${completion.employee.firstName}`,
-      },
-    }
-  )
+  if (!completion) return null
+  const completedOn = isoDateFromUtc(completion.completedOn)
+  const validUntil = completion.validUntil ? isoDateFromUtc(completion.validUntil) : null
+  const months = completion.course.validityMonths
+  const derived = months === null ? null : addMonths(completedOn, months)
+  return {
+    id: completion.id,
+    externalId: completion.externalId,
+    /** Imported (not `A…`): the next import of the same file overwrites the changes. */
+    imported: !completion.externalId.startsWith(APP_ID_PREFIX.completion),
+    employeeId: completion.employee.id,
+    courseId: completion.course.id,
+    course: {
+      id: completion.course.id,
+      code: completion.course.code,
+      name: completion.course.name,
+      validityMonths: completion.course.validityMonths,
+      archived: completion.course.archivedAt !== null,
+    },
+    completedOn,
+    validUntil: validUntil === derived ? null : validUntil,
+    providerId: completion.provider?.id ?? null,
+    provider: completion.provider && {
+      id: completion.provider.id,
+      name: completion.provider.name,
+      archived: completion.provider.archivedAt !== null,
+    },
+    price: toAmount(completion.price),
+    note: completion.note,
+    employee: {
+      id: completion.employee.id,
+      externalId: completion.employee.externalId,
+      name: `${completion.employee.lastName} ${completion.employee.firstName}`,
+    },
+  }
 }

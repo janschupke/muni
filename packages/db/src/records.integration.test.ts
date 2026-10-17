@@ -2,32 +2,45 @@ import path from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { deleteCourses, unarchiveAll } from '../test/archive'
+import { deleteCourses, deleteRooms, unarchiveAll } from '../test/archive'
+import { completionOf, courseIdOf } from '../test/records'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { createDb } from './client'
 import {
   applyAssignments,
+  archiveImpact,
   archiveRecord,
   canSetUserRole,
+  checkSessionSlot,
   createCompletion,
   createCourse,
   createEmployee,
-  createGroup,
+  createRoom,
+  createSession,
   getCompletionForEdit,
   getCourse,
   getCourseForEdit,
+  getDepartment,
+  getDepartmentForEdit,
   getEmployee,
   getEmployeeForEdit,
-  getGroupForEdit,
+  getPosition,
+  getPositionForEdit,
   getUser,
   listBookableSessions,
+  listDepartmentHeads,
+  listDepartmentPositions,
   listEmployeeOptions,
   listGroupOptions,
-  renameGroup,
+  saveDepartment,
+  savePosition,
   setUserRole,
+  unarchiveRecord,
   updateCompletion,
   updateCourse,
   updateEmployee,
+  updateRoom,
+  updateSession,
 } from './repositories'
 import { seedFromDirectory } from './seed'
 
@@ -57,10 +70,24 @@ const cleanUp = async () => {
   })
   await db.employee.deleteMany({ where: { externalId: { startsWith: 'N' } } })
   await deleteCourses(db, { code: { startsWith: 'TEST-REC' } })
+  await deleteRooms(db, { startsWith: NAME })
   await unarchiveAll(db)
   await db.employee.updateMany({
-    where: { department: { name: { startsWith: NAME } } },
-    data: { departmentId: null },
+    where: {
+      OR: [
+        { department: { name: { startsWith: NAME } } },
+        { position: { name: { startsWith: NAME } } },
+      ],
+    },
+    data: { departmentId: null, positionId: null, leadsDepartment: false },
+  })
+  await db.departmentPosition.deleteMany({
+    where: {
+      OR: [
+        { department: { name: { startsWith: NAME } } },
+        { position: { name: { startsWith: NAME } } },
+      ],
+    },
   })
   await db.department.deleteMany({ where: { name: { startsWith: NAME } } })
   await db.position.deleteMany({ where: { name: { startsWith: NAME } } })
@@ -87,9 +114,12 @@ const course = {
   positionIds: [] as string[],
   sessionMinutes: 60,
   groupSize: 10,
-  onlineAllowed: false,
+  onlineAllowed: null as boolean | null,
   capabilities: [] as ('PROJECTOR' | 'COMPUTERS')[],
 }
+
+const idOf = async (externalId: string) =>
+  (await db.employee.findFirstOrThrow({ where: { externalId, archivedAt: null } })).id
 
 const person = {
   firstName: 'Nová',
@@ -98,7 +128,8 @@ const person = {
   nationalId: null,
   departmentId: null as string | null,
   positionId: null,
-  managerExternalId: null as string | null,
+  managerId: null as string | null,
+  leadsDepartment: false,
   hiredOn: '2026-10-01',
   leftOn: null,
   status: 'ACTIVE' as const,
@@ -185,9 +216,15 @@ describe('people', () => {
     })
   })
 
-  it('links a department, position and manager, refusing loops and archived links', async () => {
+  it('links a department, a position it has and a manager, refusing loops and archived links', async () => {
     const department = await db.department.create({ data: { name: `${NAME} útvar` } })
-    const position = await db.position.create({ data: { name: `${NAME} pozice` } })
+    const position = await savePosition(
+      null,
+      { name: `${NAME} pozice`, departmentIds: [department.id] },
+      options
+    )
+    if (!position.ok) throw new Error('no position')
+    const e0001 = await idOf('E0001')
     expect(
       await updateEmployee(
         'N0001',
@@ -195,7 +232,7 @@ describe('people', () => {
           ...person,
           departmentId: department.id,
           positionId: position.id,
-          managerExternalId: 'E0001',
+          managerId: e0001,
           nationalId: '8551011234',
         },
         options
@@ -204,18 +241,48 @@ describe('people', () => {
     expect(await getEmployeeForEdit('N0001', options)).toMatchObject({
       departmentId: department.id,
       positionId: position.id,
-      managerExternalId: 'E0001',
+      managerId: e0001,
+      manager: { id: e0001 },
       nationalId: '8551011234',
     })
-    // N0003 reports to N0001: N0001 may not report to N0003, nor to themselves.
-    await updateEmployee('N0003', { ...person, managerExternalId: 'N0001' }, options)
-    for (const manager of ['N0003', 'N0001'])
-      expect(
-        await updateEmployee('N0001', { ...person, managerExternalId: manager }, options)
-      ).toEqual({ ok: false, field: 'managerExternalId', reason: 'manager_cycle' })
+    // A position the department does not have.
+    const other = await db.position.findFirstOrThrow({ where: { name: 'Knihovník' } })
     expect(
-      await updateEmployee('N0001', { ...person, managerExternalId: 'N0002' }, options)
-    ).toEqual({ ok: false, field: 'managerExternalId', reason: 'not_found' })
+      await updateEmployee(
+        'N0001',
+        { ...person, departmentId: department.id, positionId: other.id },
+        options
+      )
+    ).toEqual({ ok: false, field: 'positionId', reason: 'pair_unknown' })
+    // The database says so too: a person holds only a pair that exists.
+    await expect(
+      db.employee.update({
+        where: { id: await idOf('N0001') },
+        data: { positionId: other.id },
+      })
+    ).rejects.toMatchObject({ code: 'P2003' })
+    expect(await listDepartmentPositions(options)).toMatchObject({ [department.id]: [position.id] })
+
+    // N0003 reports to N0001: N0001 may not report to N0003, nor to themselves.
+    const n0001 = await idOf('N0001')
+    const n0003 = await idOf('N0003')
+    await updateEmployee('N0003', { ...person, managerId: n0001 }, options)
+    for (const manager of [n0003, n0001])
+      expect(await updateEmployee('N0001', { ...person, managerId: manager }, options)).toEqual({
+        ok: false,
+        field: 'managerId',
+        reason: 'manager_cycle',
+      })
+    // Nobody manages themselves, whatever writes it.
+    await expect(
+      db.employee.update({ where: { id: n0001 }, data: { managerId: n0001 } })
+    ).rejects.toThrow(/employees_manager_check/)
+    const archived = (await db.employee.findFirstOrThrow({ where: { externalId: 'N0002' } })).id
+    expect(await updateEmployee('N0001', { ...person, managerId: archived }, options)).toEqual({
+      ok: false,
+      field: 'managerId',
+      reason: 'not_found',
+    })
     expect(await updateEmployee('N0001', { ...person, departmentId: 'nope' }, options)).toEqual({
       ok: false,
       field: 'departmentId',
@@ -226,29 +293,101 @@ describe('people', () => {
       field: 'positionId',
       reason: 'not_found',
     })
-    expect(await createEmployee({ ...person, managerExternalId: 'E9999' }, options)).toMatchObject({
+    expect(await createEmployee({ ...person, managerId: 'nope' }, options)).toMatchObject({
       ok: false,
-      field: 'managerExternalId',
+      field: 'managerId',
     })
     await expect(updateEmployee('N9999', person, options)).rejects.toMatchObject({
       code: 'P2025',
     })
-    // The manager's former link is not offered once they are archived.
-    const manager = await db.employee.findFirstOrThrow({ where: { externalId: 'N0001' } })
-    await db.employee.update({
-      where: { id: manager.id },
-      data: { departmentId: null, positionId: null },
+    // A manager who has left is still offered to the people they managed.
+    await updateEmployee('N0001', { ...person, leftOn: '2026-10-02' }, options)
+    expect((await listEmployeeOptions(options)).some(p => p.id === n0001)).toBe(false)
+    expect((await getEmployeeForEdit('N0003', options))?.manager).toEqual({
+      id: n0001,
+      name: 'Osoba Nová',
     })
-    await archiveRecord('employee', manager.id, TEST_USER, options)
-    expect((await getEmployeeForEdit('N0003', options))?.managerExternalId).toBeNull()
+    // Once archived, they are not: saving then leaves the person without one.
+    await archiveRecord('employee', n0001, TEST_USER, options)
+    expect(await getEmployeeForEdit('N0003', options)).toMatchObject({
+      managerId: null,
+      manager: null,
+    })
+  })
+
+  it('makes one member the head of their department, and only a member', async () => {
+    const department = await db.department.create({ data: { name: `${NAME} vedení` } })
+    const n0003 = await idOf('N0003')
+    await updateEmployee('N0003', { ...person, departmentId: department.id }, options)
+    const fourth = await createEmployee(
+      { ...person, lastName: 'Čtvrtá', departmentId: department.id, leadsDepartment: true },
+      options
+    )
+    if (!fourth.ok) throw new Error('not created')
+    const n0004 = await idOf(fourth.externalId)
+    expect(await listDepartmentHeads(options)).toMatchObject({ [department.id]: 'Čtvrtá Nová' })
+    expect((await getDepartment(department.id, options))?.head).toMatchObject({
+      archived: false,
+      externalId: fourth.externalId,
+    })
+    // The department's form hands the role over; only to one of its people.
+    expect(
+      await saveDepartment(department.id, { name: `${NAME} vedení`, headId: n0003 }, options)
+    ).toEqual({ ok: true, id: department.id })
+    expect(await getDepartmentForEdit(department.id, options)).toMatchObject({
+      headId: n0003,
+      members: [
+        { id: n0004, name: 'Čtvrtá Nová' },
+        { id: n0003, name: 'Osoba Nová' },
+      ],
+    })
+    expect((await getEmployee(fourth.externalId, 'ADMIN', options))?.leadsDepartment).toBe(false)
+    expect(
+      await saveDepartment(
+        department.id,
+        { name: `${NAME} vedení`, headId: await idOf('E0001') },
+        options
+      )
+    ).toEqual({ ok: false, field: 'headId', reason: 'not_a_member' })
+    // So does the person's form: whoever led it before no longer does.
+    await updateEmployee(
+      fourth.externalId,
+      { ...person, lastName: 'Čtvrtá', departmentId: department.id, leadsDepartment: true },
+      options
+    )
+    expect(await listDepartmentHeads(options)).toMatchObject({ [department.id]: 'Čtvrtá Nová' })
+    expect((await getEmployee('N0003', 'ADMIN', options))?.leadsDepartment).toBe(false)
+    // The database keeps one head per department, and a head in their department.
+    await expect(
+      db.employee.update({ where: { id: n0003 }, data: { leadsDepartment: true } })
+    ).rejects.toMatchObject({ code: 'P2002' })
+    await expect(
+      db.employee.update({
+        where: { id: n0003 },
+        data: { departmentId: null, leadsDepartment: true },
+      })
+    ).rejects.toThrow(/employees_head_member_check/)
+    // Archiving the head leaves the department without one, and says so first.
+    expect(await archiveImpact('employee', n0004, options)).toEqual({
+      ok: true,
+      removesBookings: 0,
+      leaves: `${NAME} vedení`,
+    })
+    await archiveRecord('employee', n0004, TEST_USER, options)
+    expect((await getDepartment(department.id, options))?.head).toBeNull()
+    expect(await unarchiveRecord('employee', n0004, options)).toEqual({ ok: true })
+    expect((await getDepartment(department.id, options))?.head).toBeNull()
+    expect(
+      await saveDepartment(department.id, { name: `${NAME} vedení`, headId: null }, options)
+    ).toEqual({ ok: true, id: department.id })
   })
 
   it('lists active people who have not left, by name, for pickers', async () => {
     const people = await listEmployeeOptions(options)
     expect(people.some(p => p.externalId === 'N0003')).toBe(true)
     expect(people.some(p => p.externalId === 'N0001')).toBe(false)
-    const terminated = await db.employee.findFirstOrThrow({ where: { status: 'TERMINATED' } })
-    expect(people.some(p => p.externalId === terminated.externalId)).toBe(false)
+    const left = await db.employee.findFirstOrThrow({ where: { leftOn: { lte: now } } })
+    expect(people.some(p => p.externalId === left.externalId)).toBe(false)
     expect(people.map(p => p.name)).toEqual(
       people.map(p => p.name).toSorted((a, b) => a.localeCompare(b, 'cs'))
     )
@@ -258,97 +397,389 @@ describe('people', () => {
 describe('completions', () => {
   it('corrects a completion, and says when it came from an import', async () => {
     const created = await createCompletion(
-      'N0003',
-      {
-        courseCode: 'BOZP-Z',
-        completedOn: '2026-09-01',
-        validUntil: null,
-        provider: null,
-        price: null,
-        note: null,
-      },
+      await completionOf(db, { employee: 'N0003', course: 'BOZP-Z', completedOn: '2026-09-01' }),
       options
     )
+    expect(created).toEqual({ ok: true, employeeExternalId: 'N0003' })
     const { id } = await db.courseCompletion.findFirstOrThrow({
-      where: { externalId: created.externalId },
+      where: { employee: { externalId: 'N0003' }, completedOn: new Date('2026-09-01') },
     })
+    // An empty validity is the course's: BOZP-Z holds for 24 months, and the form shows it empty.
+    expect(await getCompletionForEdit(id, options)).toMatchObject({ validUntil: null })
+    expect(
+      (await db.courseCompletion.findUniqueOrThrow({ where: { id } })).validUntil?.toISOString()
+    ).toBe('2028-09-01T00:00:00.000Z')
     expect(
       await updateCompletion(
         id,
         {
-          courseCode: 'GDPR',
-          completedOn: '2026-09-02',
-          validUntil: '2028-09-02',
-          provider: `${NAME} dodavatel`,
-          price: 300,
+          ...(await completionOf(db, {
+            employee: 'N0003',
+            course: 'GDPR',
+            completedOn: '2026-09-02',
+            validUntil: '2028-09-01',
+            newProvider: `${NAME} dodavatel`,
+            price: 300,
+          })),
           note: '  opraveno ',
         },
         options
       )
-    ).toEqual({ externalId: created.externalId, employee: { externalId: 'N0003' } })
+    ).toEqual({ ok: true, employeeExternalId: 'N0003' })
     expect(await getCompletionForEdit(id, options)).toMatchObject({
       imported: false,
-      courseCode: 'GDPR',
+      course: { code: 'GDPR', archived: false },
       completedOn: '2026-09-02',
-      validUntil: '2028-09-02',
-      provider: `${NAME} dodavatel`,
+      validUntil: '2028-09-01',
+      provider: { name: `${NAME} dodavatel`, archived: false },
       price: 300,
       note: 'opraveno',
       employee: { externalId: 'N0003', name: 'Osoba Nová' },
     })
+    // A new provider is never a twin of one the register has, in any case or accents.
+    expect(
+      await updateCompletion(
+        id,
+        await completionOf(db, {
+          employee: 'N0003',
+          course: 'GDPR',
+          completedOn: '2026-09-02',
+          newProvider: `${NAME.toUpperCase()} DODAVATEL`,
+        }),
+        options
+      )
+    ).toEqual({ ok: false, field: 'newProviderName', reason: 'taken' })
+    // An archived provider stays the record's own; nobody else can pick it.
+    const provider = await db.provider.findFirstOrThrow({
+      where: { name: `${NAME} dodavatel` },
+    })
+    await archiveRecord('provider', provider.id, TEST_USER, options)
+    const kept = await completionOf(db, {
+      employee: 'N0003',
+      course: 'GDPR',
+      completedOn: '2026-09-02',
+    })
+    expect(await updateCompletion(id, { ...kept, providerId: provider.id }, options)).toMatchObject(
+      { ok: true }
+    )
+    expect(await getCompletionForEdit(id, options)).toMatchObject({
+      provider: { id: provider.id, archived: true },
+    })
+    expect(await createCompletion({ ...kept, providerId: provider.id }, options)).toEqual({
+      ok: false,
+      field: 'providerId',
+      reason: 'not_found',
+    })
+    // Moved to another person.
+    expect(
+      await updateCompletion(id, { ...kept, employeeId: await idOf('E0153') }, options)
+    ).toEqual({ ok: true, employeeExternalId: 'E0153' })
+    expect(await updateCompletion(id, { ...kept, employeeId: 'nope' }, options)).toEqual({
+      ok: false,
+      field: 'employeeId',
+      reason: 'not_found',
+    })
+    expect(await updateCompletion(id, { ...kept, courseId: 'nope' }, options)).toEqual({
+      ok: false,
+      field: 'courseId',
+      reason: 'not_found',
+    })
+
     const imported = await db.courseCompletion.findFirstOrThrow({
       where: { externalId: { startsWith: 'Z' } },
     })
     expect((await getCompletionForEdit(imported.id, options))?.imported).toBe(true)
     await archiveRecord('completion', id, TEST_USER, options)
     expect(await getCompletionForEdit(id, options)).toBeNull()
-    await expect(
-      updateCompletion(
-        id,
-        {
-          courseCode: 'GDPR',
-          completedOn: '2026-09-02',
-          validUntil: null,
-          provider: null,
-          price: null,
-          note: null,
-        },
-        options
-      )
-    ).rejects.toMatchObject({ code: 'P2025' })
+    await expect(updateCompletion(id, kept, options)).rejects.toMatchObject({ code: 'P2025' })
   })
 })
 
 describe('departments and positions', () => {
-  it('create and rename them, refusing a name an active one has', async () => {
-    const created = await createGroup('department', { name: ` ${NAME} nové ` }, options)
+  it('create and rename them, refusing a name an active one has in any case', async () => {
+    const created = await saveDepartment(null, { name: ` ${NAME} nové `, headId: null }, options)
     if (!created.ok) throw new Error('not created')
-    expect(await getGroupForEdit('department', created.id, options)).toEqual({
+    expect(await getDepartmentForEdit(created.id, options)).toEqual({
       id: created.id,
       name: `${NAME} nové`,
+      headId: null,
+      members: [],
     })
-    expect(await createGroup('department', { name: 'Laboratoře' }, options)).toEqual({
-      ok: false,
-      taken: 'name',
-    })
+    for (const name of ['Laboratoře', 'LABORATOŘE'])
+      expect(await saveDepartment(null, { name, headId: null }, options)).toEqual({
+        ok: false,
+        field: 'name',
+        reason: 'taken',
+      })
     expect(
-      await renameGroup('department', created.id, { name: `${NAME} přejmenované` }, options)
+      await saveDepartment(created.id, { name: `${NAME} přejmenované`, headId: null }, options)
     ).toEqual({ ok: true, id: created.id })
-    expect(await renameGroup('department', created.id, { name: 'Marketing' }, options)).toEqual({
+    expect(await saveDepartment(created.id, { name: 'Marketing', headId: null }, options)).toEqual({
       ok: false,
-      taken: 'name',
+      field: 'name',
+      reason: 'taken',
     })
-    const position = await createGroup('position', { name: `${NAME} pozice 2` }, options)
-    expect(position.ok).toBe(true)
+    const position = await savePosition(
+      null,
+      { name: `${NAME} pozice 2`, departmentIds: [created.id] },
+      options
+    )
+    if (!position.ok) throw new Error('not created')
     expect((await listGroupOptions('position', options)).map(p => p.name)).toContain(
       `${NAME} pozice 2`
     )
+    expect(await getPositionForEdit(position.id, options)).toEqual({
+      id: position.id,
+      name: `${NAME} pozice 2`,
+      departmentIds: [created.id],
+    })
+    expect(
+      await savePosition(
+        position.id,
+        { name: `${NAME} pozice 2`, departmentIds: ['nope'] },
+        options
+      )
+    ).toEqual({ ok: false, field: 'departmentIds', reason: 'not_found' })
     await archiveRecord('department', created.id, TEST_USER, options)
-    expect(await getGroupForEdit('department', created.id, options)).toBeNull()
+    expect(await getDepartmentForEdit(created.id, options)).toBeNull()
     expect((await listGroupOptions('department', options)).map(d => d.id)).not.toContain(created.id)
     await expect(
-      renameGroup('department', created.id, { name: `${NAME} znovu` }, options)
+      saveDepartment(created.id, { name: `${NAME} znovu`, headId: null }, options)
     ).rejects.toMatchObject({ code: 'P2025' })
+  })
+
+  it('keeps a position in the departments its people hold it in', async () => {
+    const referent = await db.position.findFirstOrThrow({ where: { name: 'Referent' } })
+    const before = (await getPositionForEdit(referent.id, options))?.departmentIds ?? []
+    expect(before.length).toBeGreaterThan(1)
+    const [kept, ...dropped] = before
+    const holders = await db.employee.count({
+      where: { archivedAt: null, positionId: referent.id, departmentId: { in: dropped } },
+    })
+    expect(
+      await savePosition(referent.id, { name: 'Referent', departmentIds: [kept ?? ''] }, options)
+    ).toEqual({ ok: false, field: 'departmentIds', reason: 'in_use', count: holders })
+    // Shown on both sides: the position's departments and the department's positions.
+    const detail = await getPosition(referent.id, options)
+    expect(detail?.departments.map(d => d.id).toSorted()).toEqual(before.toSorted())
+    const library = await db.department.findFirstOrThrow({ where: { name: 'Knihovna' } })
+    expect((await getDepartment(library.id, options))?.positions.map(p => p.name)).toContain(
+      'Referent'
+    )
+    // A department with nobody in the position can be added and taken away again.
+    const extra = await db.department.create({ data: { name: `${NAME} navíc` } })
+    expect(
+      await savePosition(
+        referent.id,
+        { name: 'Referent', departmentIds: [...before, extra.id] },
+        options
+      )
+    ).toEqual({ ok: true, id: referent.id })
+    expect(
+      (await getPosition(referent.id, options))?.departments.find(d => d.id === extra.id)
+    ).toMatchObject({ count: 0 })
+    expect(
+      await savePosition(referent.id, { name: 'Referent', departmentIds: before }, options)
+    ).toEqual({ ok: true, id: referent.id })
+  })
+})
+
+describe('sessions keep fitting their rooms', () => {
+  const room = (name: string, over: object = {}) =>
+    createRoom(
+      {
+        name: `${NAME} ${name}`,
+        kind: 'CLASSROOM',
+        capacity: 10,
+        capabilities: [],
+        note: null,
+        ...over,
+      },
+      options
+    )
+  const at = { date: '2027-05-03', startTime: '09:00', endTime: '10:00' }
+
+  it('re-checks a session whose course or seats change, and the room or course under it', async () => {
+    const withProjector = await room('A', { capabilities: ['PROJECTOR'] })
+    const bare = await room('B', { capacity: 30 })
+    await createCourse({ ...course, code: 'TEST-REC-S', groupSize: null }, options)
+    await createCourse({ ...course, code: 'TEST-REC-P', capabilities: ['PROJECTOR'] }, options)
+    const plain = await courseIdOf(db, 'TEST-REC-S')
+    const projected = await courseIdOf(db, 'TEST-REC-P')
+    const created = await createSession(
+      {
+        ...at,
+        courseId: plain,
+        roomId: withProjector.id,
+        capacity: 8,
+        pricePerPerson: null,
+        status: 'PLANNED',
+      },
+      options
+    )
+    if (!created.ok) throw new Error(created.problem)
+    await applyAssignments(
+      ['E0153', 'E0131'].map(employeeExternalId => ({
+        sessionExternalId: created.externalId,
+        employeeExternalId,
+        source: 'MANUAL' as const,
+      })),
+      TEST_USER,
+      options
+    )
+    const edit = {
+      ...at,
+      courseId: plain,
+      roomId: withProjector.id,
+      capacity: 8,
+      unnamedBookings: 0,
+      pricePerPerson: null,
+      status: 'PLANNED' as const,
+    }
+    // Seats never drop below the bookings, named and unnamed together.
+    expect(await updateSession(created.externalId, { ...edit, capacity: 1 }, options)).toEqual({
+      ok: false,
+      problem: 'OVER_CAPACITY',
+    })
+    expect(
+      await updateSession(created.externalId, { ...edit, capacity: 5, unnamedBookings: 4 }, options)
+    ).toEqual({ ok: false, problem: 'OVER_CAPACITY' })
+    // Another course: the room is checked against what that course needs.
+    expect(
+      await updateSession(
+        created.externalId,
+        { ...edit, courseId: projected, roomId: bare.id },
+        options
+      )
+    ).toEqual({ ok: false, problem: 'ROOM_MISSING_CAPABILITIES' })
+    expect(
+      await updateSession(created.externalId, { ...edit, courseId: projected }, options)
+    ).toEqual({ ok: true, externalId: created.externalId, courseCode: 'TEST-REC-P' })
+
+    // The room cannot shrink under it or lose its projector; the course cannot need more.
+    const roomEdit = {
+      name: `${NAME} A`,
+      kind: 'CLASSROOM' as const,
+      capacity: 10,
+      capabilities: ['PROJECTOR' as const],
+      note: null,
+    }
+    expect(await updateRoom(withProjector.id, { ...roomEdit, capacity: 5 }, options)).toEqual({
+      ok: false,
+      field: 'capacity',
+      reason: 'sessions_unfit',
+      count: 1,
+    })
+    expect(await updateRoom(withProjector.id, { ...roomEdit, capabilities: [] }, options)).toEqual({
+      ok: false,
+      field: 'capabilities',
+      reason: 'sessions_unfit',
+      count: 1,
+    })
+    expect(await updateRoom(withProjector.id, { ...roomEdit, capacity: 9 }, options)).toEqual({
+      ok: true,
+      id: withProjector.id,
+    })
+    expect(
+      await updateCourse(
+        'TEST-REC-P',
+        { ...course, capabilities: ['PROJECTOR', 'COMPUTERS'] },
+        options
+      )
+    ).toEqual({ ok: false, field: 'capabilities', reason: 'sessions_unfit', count: 1 })
+
+    // Nor can a course stop being held online while sessions of it are planned online.
+    const online = await db.room.findFirstOrThrow({ where: { kind: 'ONLINE', archivedAt: null } })
+    expect(
+      await createSession(
+        {
+          ...at,
+          courseId: plain,
+          roomId: online.id,
+          capacity: 50,
+          pricePerPerson: null,
+          status: 'PLANNED',
+        },
+        options
+      )
+    ).toEqual({ ok: false, problem: 'ROOM_ONLINE_NOT_ALLOWED' })
+    await updateCourse('TEST-REC-S', { ...course, groupSize: null, onlineAllowed: true }, options)
+    expect(
+      await createSession(
+        {
+          ...at,
+          courseId: plain,
+          roomId: online.id,
+          capacity: 50,
+          pricePerPerson: null,
+          status: 'PLANNED',
+        },
+        options
+      )
+    ).toMatchObject({ ok: true })
+    expect(
+      await updateCourse(
+        'TEST-REC-S',
+        { ...course, groupSize: null, onlineAllowed: false },
+        options
+      )
+    ).toEqual({ ok: false, field: 'onlineAllowed', reason: 'sessions_unfit', count: 1 })
+
+    // What the form asks while the user picks: the room is taken then, except by itself.
+    const slot = { roomId: withProjector.id, date: at.date, startTime: '09:30', endTime: '10:30' }
+    expect(await checkSessionSlot(slot, null, options)).toBe('ROOM_BUSY')
+    expect(await checkSessionSlot(slot, created.externalId, options)).toBeNull()
+    expect(await checkSessionSlot({ ...slot, roomId: online.id }, null, options)).toBeNull()
+    expect(await checkSessionSlot({ ...slot, endTime: '09:00' }, null, options)).toBeNull()
+  })
+
+  it('lets a seat cut and a booking race, and keeps the bookings within the seats', async () => {
+    const tight = await room('C')
+    const created = await createSession(
+      {
+        ...at,
+        date: '2027-05-04',
+        courseId: await courseIdOf(db, 'TEST-REC-S'),
+        roomId: tight.id,
+        capacity: 3,
+        pricePerPerson: null,
+        status: 'PLANNED',
+      },
+      options
+    )
+    if (!created.ok) throw new Error(created.problem)
+    const book = (employeeExternalId: string) =>
+      applyAssignments(
+        [{ sessionExternalId: created.externalId, employeeExternalId, source: 'MANUAL' }],
+        TEST_USER,
+        options
+      )
+    await book('E0153')
+    await book('E0131')
+    const [cut, booking] = await Promise.all([
+      updateSession(
+        created.externalId,
+        {
+          ...at,
+          date: '2027-05-04',
+          courseId: await courseIdOf(db, 'TEST-REC-S'),
+          roomId: tight.id,
+          capacity: 2,
+          unnamedBookings: 0,
+          pricePerPerson: null,
+          status: 'PLANNED',
+        },
+        options
+      ),
+      book('E0001'),
+    ])
+    // Exactly one of them wins, whichever goes first.
+    expect([cut.ok, booking[0]?.ok].filter(Boolean)).toHaveLength(1)
+    const session = await db.courseSession.findFirstOrThrow({
+      where: { externalId: created.externalId },
+      include: { _count: { select: { assignments: true } } },
+    })
+    expect(session._count.assignments).toBeLessThanOrEqual(session.capacity)
   })
 })
 
@@ -379,7 +810,9 @@ describe('users', () => {
     const viewer = await db.user.create({
       data: { clerkId: 'user_it_rec_viewer', role: 'VIEWER', name: 'Vilém', syncedAt: now },
     })
-    expect(await getUser(TEST_USER, options)).toMatchObject({ bookingsMade: 1 })
+    expect(await getUser(TEST_USER, options)).toMatchObject({
+      bookingsMade: await db.sessionAssignment.count({ where: { createdById: TEST_USER } }),
+    })
     expect(await getUser('nope', options)).toBeNull()
     expect(await canSetUserRole(viewer.id, 'FULL', admin.id, options)).toEqual({
       ok: true,

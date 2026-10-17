@@ -3,6 +3,7 @@ import { toZonedParts } from '@muni/utils/dates'
 
 import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions } from './context'
+import { needsOf, needsSelect } from './session-fit'
 
 /** The most frequent value; the smallest one on a tie; null for none. */
 function mostCommon(values: string[]): string | null {
@@ -24,12 +25,10 @@ export async function getPlannerInput(
     db.course.findMany({
       where: ACTIVE,
       select: {
+        id: true,
         code: true,
         name: true,
-        sessionMinutes: true,
-        groupSize: true,
-        onlineAllowed: true,
-        capabilities: { select: { capability: true } },
+        ...needsSelect,
         sessions: {
           where: { ...ACTIVE, status: 'PLANNED', room: ACTIVE },
           select: { startsAt: true, roomId: true },
@@ -55,12 +54,10 @@ export async function getPlannerInput(
   ])
   return {
     courses: courses.map(c => ({
+      id: c.id,
       code: c.code,
       name: c.name,
-      sessionMinutes: c.sessionMinutes,
-      groupSize: c.groupSize,
-      onlineAllowed: c.onlineAllowed,
-      capabilities: c.capabilities.map(x => x.capability),
+      ...needsOf(c),
       usualStart: mostCommon(c.sessions.map(s => toZonedParts(s.startsAt).time)),
       heldIn: [...new Set(c.sessions.map(s => s.roomId))],
     })),

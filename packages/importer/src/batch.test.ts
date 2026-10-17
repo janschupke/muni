@@ -161,7 +161,11 @@ describe('validateBatch', () => {
   })
 
   it('checks completions against people, courses and the validity rule', () => {
-    expect(codesOf(row('completions', 'Z000001'))).toEqual(['validUntil:VALIDITY_DERIVED'])
+    // The first row naming a provider the register lacks says the import creates it.
+    expect(codesOf(row('completions', 'Z000001'))).toEqual([
+      'validUntil:VALIDITY_DERIVED',
+      'provider:WILL_CREATE',
+    ])
     expect(row('completions', 'Z000001').data).toMatchObject({ validUntil: '2026-11-05' })
     // LEAD never expires: nothing to derive. The name does not match the person.
     expect(codesOf(row('completions', 'Z000003'))).toEqual(['employeeName:NAME_MISMATCH'])
@@ -187,6 +191,117 @@ describe('validateBatch', () => {
     )
     expect(codesOf(again.employees?.[0])).toEqual(['row:DUPLICATE_PERSON'])
     expect(again.employees?.[0]?.errors[0]?.params).toEqual({ otherId: 'E0500' })
+  })
+})
+
+describe('validateBatch: the rules the forms keep', () => {
+  const people = (rows: string[]) =>
+    file('zamestnanci.csv', [EMPLOYEES[0] ?? '', ...rows]).rows as NonNullable<
+      ImportBatch['employees']
+    >
+
+  it('drops a manager link that would make someone manage themselves', () => {
+    const out = validateBatch(
+      {
+        employees: people([
+          'E0010,Adam,Malý,adam@vzorova.example,Knihovna,Referent,adam@vzorova.example,2020-01-01,aktivní',
+          // A loop of two: the first of them (in file order) loses the link that closes it.
+          'E0011,Bára,Nová,bara@vzorova.example,Knihovna,Referent,cyril@vzorova.example,2020-01-01,aktivní',
+          'E0012,Cyril,Starý,cyril@vzorova.example,Knihovna,Referent,bara@vzorova.example,2020-01-01,aktivní',
+        ]),
+      },
+      { ...EMPTY_REFERENCE, departments: ['Knihovna'], positions: ['Referent'] }
+    )
+    const [self, first, second] = out.employees ?? []
+    expect(codesOf(self)).toEqual(['managerEmail:MANAGER_CYCLE'])
+    expect(self?.data?.managerEmail).toBeNull()
+    expect(codesOf(first)).toEqual(['managerEmail:MANAGER_CYCLE'])
+    expect(first?.data?.managerEmail).toBeNull()
+    expect(codesOf(second)).toEqual([])
+    expect(second?.data?.managerEmail).toBe('bara@vzorova.example')
+  })
+
+  it('announces each new department and position once, on a row that is imported', () => {
+    const out = validateBatch(
+      {
+        employees: people([
+          'E0010,Adam,Malý,adam@vzorova.example,Archiv,Archivář,,2020-01-01,aktivní',
+          'E0011,Bára,Nová,bara@vzorova.example,ARCHIV,Archivář,,2020-01-01,aktivní',
+        ]),
+      },
+      { ...EMPTY_REFERENCE, departments: ['Laboratoře'], positions: ['Laborantka'] }
+    )
+    expect(codesOf(out.employees?.[0])).toEqual(['department:WILL_CREATE', 'position:WILL_CREATE'])
+    expect(codesOf(out.employees?.[1])).toEqual(['department:VALUE_NORMALIZED'])
+  })
+
+  it('checks planned sessions against their rooms as the session form does', () => {
+    const sessions = (rows: string[]) =>
+      file('terminy.csv', [
+        'id_terminu;kod_skoleni;datum;cas;misto;kapacita;obsazeno;stav',
+        ...rows,
+      ]).rows as NonNullable<ImportBatch['sessions']>
+    const out = validateBatch(
+      {
+        sessions: sessions([
+          // Too many seats for the room.
+          'T010;BOZP-Z;2026-11-04;08:00-11:00;Aula A;30;0;plánováno',
+          // The room is taken then (by a session the register has).
+          'T011;BOZP-Z;2026-11-05;09:00-10:00;Aula A;10;0;plánováno',
+          // The course needs a projector the lab lacks.
+          'T012;BOZP-Z;2026-11-06;08:00-11:00;Lab 1;10;0;plánováno',
+          // Online: never taken, never too small.
+          'T013;BOZP-Z;2026-11-05;09:00-10:00;Online;500;0;plánováno',
+          // Cancelled: its room is not checked.
+          'T014;BOZP-Z;2026-11-05;09:30-10:30;Aula A;99;0;zrušeno',
+          // Two of the batch's own in one room at once.
+          'T015;BOZP-Z;2026-11-09;08:00-11:00;Aula B;10;0;plánováno',
+          'T016;BOZP-Z;2026-11-09;10:00-12:00;Aula B;10;0;plánováno',
+        ]),
+      },
+      {
+        ...EMPTY_REFERENCE,
+        courses: [
+          {
+            code: 'BOZP-Z',
+            validityMonths: 24,
+            needs: { groupSize: null, onlineAllowed: true, capabilities: ['PROJECTOR'] },
+          },
+        ],
+        rooms: ['Aula A', 'Lab 1', 'Online'],
+        roomFacts: [
+          { name: 'Aula A', kind: 'CLASSROOM', capacity: 20, capabilities: ['PROJECTOR'] },
+          { name: 'Lab 1', kind: 'LAB', capacity: 20, capabilities: [] },
+          { name: 'Online', kind: 'ONLINE', capacity: null, capabilities: ['PROJECTOR'] },
+        ],
+        plannedSessions: [
+          {
+            externalId: 'T900',
+            room: 'Aula A',
+            date: '2026-11-05',
+            startTime: '08:30',
+            endTime: '09:30',
+          },
+          // The batch's own T010 replaces this one, so it holds nothing.
+          {
+            externalId: 'T010',
+            room: 'Aula A',
+            date: '2026-11-06',
+            startTime: '08:00',
+            endTime: '11:00',
+          },
+        ],
+      }
+    )
+    const codes = (id: string) => codesOf(out.sessions?.find(r => r.base.data?.externalId === id))
+    expect(codes('T010')).toEqual(['capacity:ROOM_TOO_SMALL'])
+    expect(out.sessions?.[0]?.warnings[0]?.params).toEqual({ value: 30, capacity: 20 })
+    expect(codes('T011')).toEqual(['location:ROOM_BUSY'])
+    expect(codes('T012')).toEqual(['location:ROOM_UNSUITABLE'])
+    expect(codes('T013')).toEqual([])
+    expect(codes('T014')).toEqual([])
+    expect(codes('T015')).toEqual(['location:ROOM_DERIVED'])
+    expect(codes('T016')).toEqual(['location:ROOM_BUSY'])
   })
 })
 

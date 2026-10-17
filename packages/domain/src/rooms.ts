@@ -114,3 +114,26 @@ export function roomMismatch(
 ): RoomMismatch | null {
   return roomFit(room, needs, seats).mismatch
 }
+
+/** A course's needs as stored: what the sessions import derived, and what the app overrides. */
+export interface StoredNeeds {
+  sessionMinutes: number | null
+  groupSize: number | null
+  onlineAllowed: boolean
+  sessionMinutesOverride: number | null
+  groupSizeOverride: number | null
+  onlineAllowedOverride: boolean | null
+  capabilities: readonly Capability[]
+}
+
+/** What a session of the course needs: each override where the app set one, else the derived value. */
+export function effectiveNeeds(
+  course: StoredNeeds
+): SessionNeeds & { sessionMinutes: number | null } {
+  return {
+    sessionMinutes: course.sessionMinutesOverride ?? course.sessionMinutes,
+    groupSize: course.groupSizeOverride ?? course.groupSize,
+    onlineAllowed: course.onlineAllowedOverride ?? course.onlineAllowed,
+    capabilities: course.capabilities,
+  }
+}

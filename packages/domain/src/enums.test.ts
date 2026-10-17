@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { canWrite, parseRole, roleMetadata, ROLES } from './enums'
+import { canWrite, employmentState, parseRole, roleMetadata, ROLES } from './enums'
 
 describe('roles', () => {
   it.each([
@@ -22,5 +22,15 @@ describe('roles', () => {
 
   it('lets only admins write', () => {
     expect(ROLES.filter(canWrite)).toEqual(['ADMIN'])
+  })
+})
+
+describe('employment state', () => {
+  it('is the status until the leaving date, then LEFT', () => {
+    expect(employmentState('ACTIVE', null, '2026-10-17')).toBe('ACTIVE')
+    expect(employmentState('PARENTAL_LEAVE', '2026-12-31', '2026-10-17')).toBe('PARENTAL_LEAVE')
+    // On the leaving date itself they are gone.
+    expect(employmentState('ACTIVE', '2026-10-17', '2026-10-17')).toBe('LEFT')
+    expect(employmentState('PARENTAL_LEAVE', '2020-01-01', '2026-10-17')).toBe('LEFT')
   })
 })
