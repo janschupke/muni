@@ -3,17 +3,18 @@
 import type { DepartmentSummary, PositionSummary } from '@muni/db/repositories'
 import { Badge } from '@muni/ui/badge'
 import { BarRow } from '@muni/ui/bar-row'
-import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent, PLACEHOLDER } from '@muni/utils/format'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import { PersonLink, personText } from '@/components/archived'
+import { usePaginationLabels } from '@/components/pagination-labels'
 import { ReadView } from '@/components/read-view'
 import { RowActions } from '@/components/record-actions'
 import { TableSkeleton } from '@/components/skeletons'
@@ -35,11 +36,13 @@ export function GroupsTable(
     | { kind: 'departments'; groups: DepartmentSummary[] }
     | { kind: 'positions'; groups: PositionSummary[] }
   ) & {
+    paging: TablePaging
     /** Admins get a pencil (rename) and archive on each row. */
     canEdit?: boolean | undefined
   }
 ) {
-  const { kind, canEdit = false } = props
+  const { kind, paging, canEdit = false } = props
+  const paginationLabels = usePaginationLabels()
   const tcommon = useTranslations('common')
   const t = useTranslations(kind)
   const to = useTranslations('org')
@@ -159,6 +162,8 @@ export function GroupsTable(
       columns={columns}
       data={props.groups}
       getRowId={g => g.id}
+      paging={paging}
+      paginationLabels={paginationLabels}
       renderExpanded={g => (
         <GroupMembers kind={kind === 'departments' ? 'department' : 'position'} group={g} />
       )}
@@ -177,7 +182,11 @@ function GroupMembers({
   kind: 'department' | 'position'
   group: { id: string; name: string; memberCount: number }
 }) {
-  const read = useQuery(readQuery('group-members', { kind, id: group.id }))
+  const [page, setPage] = useState(1)
+  const read = useQuery({
+    ...readQuery('group-members', { kind, id: group.id, ...(page > 1 && { page }) }),
+    placeholderData: keepPreviousData,
+  })
   return (
     <ReadView
       titled
@@ -188,6 +197,7 @@ function GroupMembers({
         <MembersTable
           name={group.name}
           members={members}
+          onPageChange={setPage}
           other={kind === 'department' ? 'position' : 'department'}
         />
       )}

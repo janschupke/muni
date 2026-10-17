@@ -61,11 +61,11 @@ export function ConfirmArchiveButton({
   return (
     <>
       {compact ? (
-        <IconButton ref={trigger} tone="serious" label={label} onClick={show}>
+        <IconButton ref={trigger} tone="danger" label={label} onClick={show}>
           <Archive aria-hidden />
         </IconButton>
       ) : (
-        <Button ref={trigger} onClick={show}>
+        <Button ref={trigger} variant="destructive" onClick={show}>
           <Archive aria-hidden />
           {t('archive.action')}
         </Button>

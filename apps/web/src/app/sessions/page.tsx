@@ -4,8 +4,9 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { SessionsView } from '@/features/sessions/sessions-view'
+import { SESSION_SORT } from '@/lib/list-keys'
 import { type SessionListQuery, sessionsListInput } from '@/lib/read-inputs'
-import { param, type SearchParams } from '@/lib/search-params'
+import { param, parseList, type SearchParams } from '@/lib/search-params'
 import { requireReader } from '@/server/auth'
 import { prefetched } from '@/server/prefetch'
 
@@ -17,7 +18,6 @@ const queryOf = (params: Awaited<SearchParams>): SessionListQuery => ({
   when: param(params, 'when') === 'past' ? 'past' : 'upcoming',
   room: param(params, 'room'),
   course: param(params, 'course'),
-  page: Number(param(params, 'page') ?? 1) || 1,
 })
 
 /** "Sessions", or the room's or course's when the list is narrowed to one. */
@@ -34,10 +34,11 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
 export default async function SessionsPage({ searchParams }: Props) {
   const user = await requireReader()
-  const query = queryOf(await searchParams)
+  const params = await searchParams
+  const query = queryOf(params)
   return prefetched(
     user,
-    [{ name: 'sessions-list', input: sessionsListInput(query) }],
+    [{ name: 'sessions-list', input: sessionsListInput(query, parseList(params, SESSION_SORT)) }],
     <SessionsView query={query} canEdit={canWrite(user.role)} />
   )
 }

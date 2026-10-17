@@ -126,10 +126,7 @@ export function OfferEdit({
             />
           )}
         </Field>
-        <Field
-          label={tf('pricePerPerson', { currency: currencySymbol(locale) })}
-          error={errors.price}
-        >
+        <Field label={tf('pricePerPerson', { currency: currencySymbol() })} error={errors.price}>
           {control => (
             <Input
               {...control}
@@ -162,9 +159,7 @@ export function OfferEdit({
                     {' · '}
                     {[
                       p.department,
-                      p.lapses
-                        ? t('lapses', { date: formatDate(p.lapses, locale) })
-                        : t('neverHeld'),
+                      p.lapses ? t('lapses', { date: formatDate(p.lapses) }) : t('neverHeld'),
                     ]
                       .filter(Boolean)
                       .join(' · ')}

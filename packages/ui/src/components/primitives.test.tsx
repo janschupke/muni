@@ -67,9 +67,6 @@ describe('Badge, Button and TextLink', () => {
         <TextLink asChild arrow hitArea>
           <a href="/advisor">Poradce</a>
         </TextLink>
-        <TextLink href="/import" inText>
-          Import
-        </TextLink>
       </>
     )
     expect(screen.getByText('Prošlé').className).toContain('text-danger-fg')
@@ -80,10 +77,14 @@ describe('Badge, Button and TextLink', () => {
     expect(asLink.className).toContain('inline-flex')
     expect(screen.getByRole('link', { name: 'Kurzy' }).className).toContain('font-medium')
     expect(screen.getByRole('link', { name: 'Termíny' }).getAttribute('href')).toBe('/sessions')
-    // In the link colour before any hover; inside a sentence, underlined as well.
-    expect(screen.getByRole('link', { name: 'Kurzy' }).className).toContain('text-link')
-    expect(screen.getByRole('link', { name: 'Kurzy' }).className).not.toMatch(/(^| )underline( |$)/)
-    expect(screen.getByRole('link', { name: 'Import' }).className).toMatch(/(^| )underline( |$)/)
+    // Every link: the link colour, underlined on hover and never at rest, marked as a link.
+    for (const name of ['Kurzy', 'Termíny', 'Poradce']) {
+      const link = screen.getByRole('link', { name })
+      expect(link.className).toContain('text-link')
+      expect(link.className).toContain('hover:underline')
+      expect(link.className).not.toMatch(/(^| )underline( |$)/)
+      expect(link.hasAttribute('data-link')).toBe(true)
+    }
     // A link that leads on ends with an arrow inside it; listed links are 24px tall.
     const onward = screen.getByRole('link', { name: 'Poradce' })
     expect(onward.querySelector('svg')).toBeTruthy()
@@ -220,7 +221,7 @@ describe('surfaces and layout', () => {
 describe('Table', () => {
   it('aligns, pins and stacks cells', () => {
     render(
-      <TableContainer>
+      <TableContainer paging="the rows a test gives">
         <Table density="compact">
           <THead>
             <tr>

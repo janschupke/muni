@@ -1,7 +1,7 @@
 'use client'
 
 import { Alert } from '@muni/ui/alert'
-import { Button } from '@muni/ui/button'
+import { Button, CancelButton } from '@muni/ui/button'
 import { Card, CardBody } from '@muni/ui/card'
 import { Checkbox } from '@muni/ui/checkbox'
 import { DatePicker } from '@muni/ui/date-picker'
@@ -309,12 +309,12 @@ export function FormShell({
         description={heading.description}
         actions={
           <>
-            <Button asChild variant="ghost">
+            <CancelButton asChild>
               <Link href={origin ?? cancelHref}>
                 <X aria-hidden />
                 {t('common.cancel')}
               </Link>
-            </Button>
+            </CancelButton>
             <Button
               ref={submitRef}
               type="submit"

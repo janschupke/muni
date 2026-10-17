@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
+import type { TablePaging } from '@muni/ui/data-table'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
@@ -8,10 +9,11 @@ import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatDate, formatOptional } from '@muni/utils/format'
-import { useQuery } from '@tanstack/react-query'
-import { useLocale, useTranslations } from 'next-intl'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 
 import { BackLink } from '@/components/back-link'
+import { EmailLink } from '@/components/email-link'
 import { ReadView } from '@/components/read-view'
 import { RecordActions } from '@/components/record-actions'
 import { DetailSkeleton } from '@/components/skeletons'
@@ -19,24 +21,45 @@ import {
   ProviderCompletionsTable,
   ProviderCoursesTable,
 } from '@/features/providers/provider-tables'
+import { COMPLETION_SORT, PROVIDER_COURSE_SORT } from '@/lib/list-keys'
 import { readQuery } from '@/lib/query/queries'
 import { useDocumentTitle } from '@/lib/query/use-document-title'
+import { type PageInfo, useListUrl } from '@/lib/use-list-url'
 import type { ReadOutput } from '@/server/reads/registry'
 
+/** A provider's page: its details and totals, and a page each of its courses and completions. */
 export function ProviderView({ id, canEdit }: { id: string; canEdit: boolean }) {
-  const read = useQuery(readQuery('provider', { id }))
+  const courses = useListUrl(PROVIDER_COURSE_SORT, undefined, 'courses')
+  const completions = useListUrl(COMPLETION_SORT, { id: 'completedOn', desc: true }, 'completions')
+  const read = useQuery({
+    ...readQuery('provider', { id, ...courses.input, ...completions.input }),
+    placeholderData: keepPreviousData,
+  })
   useDocumentTitle(read.data?.name)
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="providers">
-      {data => <ProviderDetail data={data} canEdit={canEdit} />}
+      {data => (
+        <ProviderDetail
+          data={data}
+          canEdit={canEdit}
+          paging={{ courses: courses.paging, completions: completions.paging }}
+        />
+      )}
     </ReadView>
   )
 }
 
-function ProviderDetail({ data, canEdit }: { data: ReadOutput<'provider'>; canEdit: boolean }) {
+function ProviderDetail({
+  data,
+  canEdit,
+  paging,
+}: {
+  data: ReadOutput<'provider'>
+  canEdit: boolean
+  paging: Record<'courses' | 'completions', (page: PageInfo) => TablePaging>
+}) {
   const provider = data
   const t = useTranslations('providers')
-  const locale = useLocale()
   const { companyId, email, phone, website, note } = provider
   const hasDetails = [companyId, email, phone, website, note].some(v => v !== null)
 
@@ -69,7 +92,7 @@ function ProviderDetail({ data, canEdit }: { data: ReadOutput<'provider'>; canEd
                   )}
                   {email && (
                     <DescriptionItem label={t('detail.email')}>
-                      <TextLink href={`mailto:${email}`}>{email}</TextLink>
+                      <EmailLink email={email} />
                     </DescriptionItem>
                   )}
                   {phone && (
@@ -101,11 +124,11 @@ function ProviderDetail({ data, canEdit }: { data: ReadOutput<'provider'>; canEd
                 </DescriptionItem>
                 {provider.prices && (
                   <DescriptionItem label={t('detail.spend')}>
-                    {formatCurrency(provider.spend, locale)}
+                    {formatCurrency(provider.spend)}
                   </DescriptionItem>
                 )}
                 <DescriptionItem label={t('detail.last')}>
-                  {formatOptional(provider.lastCompletedOn, v => formatDate(v, locale))}
+                  {formatOptional(provider.lastCompletedOn, v => formatDate(v))}
                 </DescriptionItem>
               </DescriptionList>
             </CardBody>
@@ -116,27 +139,32 @@ function ProviderDetail({ data, canEdit }: { data: ReadOutput<'provider'>; canEd
             <SectionHeading className="mt-0" description={t('detail.byCourseDescription')}>
               {t('detail.byCourse')}
             </SectionHeading>
-            {provider.byCourse.length === 0 ? (
+            {provider.byCourse.total === 0 ? (
               <EmptyState title={t('detail.noCompletions')} />
             ) : (
-              <ProviderCoursesTable rows={provider.byCourse} prices={provider.prices} />
+              <ProviderCoursesTable
+                rows={provider.byCourse.items}
+                paging={paging.courses(provider.byCourse)}
+                prices={provider.prices}
+              />
             )}
           </>
         }
       />
       <SectionHeading
         description={
-          provider.recentCompletions.length > 0 &&
-          t('detail.recentDescription', { count: provider.recentCompletions.length })
+          provider.completionList.total > 0 &&
+          t('detail.recentDescription', { count: provider.completionList.total })
         }
       >
         {t('detail.recent')}
       </SectionHeading>
-      {provider.recentCompletions.length === 0 ? (
+      {provider.completionList.total === 0 ? (
         <EmptyState title={t('detail.noRecent')} />
       ) : (
         <ProviderCompletionsTable
-          rows={provider.recentCompletions}
+          rows={provider.completionList.items}
+          paging={paging.completions(provider.completionList)}
           prices={provider.prices}
           canEdit={canEdit}
         />

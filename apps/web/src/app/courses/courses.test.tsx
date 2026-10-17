@@ -88,7 +88,7 @@ describe('course list', () => {
   it('lists courses with validity, audience and compliance, sortable in the browser', async () => {
     const user = userEvent.setup()
     expect(await listMetadata()).toEqual({ title: 'Courses' })
-    await renderServer(CoursesPage())
+    await renderServer(CoursesPage({ searchParams: params({}) }))
     const bozp = screen.getByRole('row', { name: /BOZP – základní školení/ })
     expect(within(bozp).getByText('24 months')).toBeTruthy()
     expect(within(bozp).getByText('Everyone')).toBeTruthy()
@@ -118,7 +118,7 @@ describe('course list', () => {
         sessionNeeds: { minutes: null, groupSize: null, onlineAllowed: true, capabilities: [] },
       }),
     ])
-    await renderServer(CoursesPage())
+    await renderServer(CoursesPage({ searchParams: params({}) }))
     await user.click(screen.getByRole('button', { name: 'Details for BOZP – základní školení' }))
     // Each part of the opened row is a panel with its own heading (the latest row opened).
     const panel = (name: RegExp) => {
@@ -157,13 +157,13 @@ describe('course list', () => {
 
   it('points to the import when the catalogue is empty', async () => {
     vi.mocked(listCourses).mockResolvedValue([])
-    await renderServer(CoursesPage())
+    await renderServer(CoursesPage({ searchParams: params({}) }))
     expect(screen.getByText('No courses yet. Import the course catalogue to start.')).toBeTruthy()
   })
 })
 
 describe('course detail', () => {
-  const props = { params: params({ code: 'BOZP-Z' }) }
+  const props = { params: params({ code: 'BOZP-Z' }), searchParams: params({}) }
 
   it('is titled by the course once its data is there; an unknown code is not found', async () => {
     // The tab names the course from the server on, from the same read the page shows.
@@ -171,9 +171,9 @@ describe('course detail', () => {
     await renderServer(CoursePage(props))
     expect(document.title).toBe('BOZP – základní školení · Training register')
     vi.mocked(getCourse).mockResolvedValueOnce(null)
-    await expect(renderServer(CoursePage({ params: params({ code: 'NOPE' }) }))).rejects.toThrow(
-      NotFoundError
-    )
+    await expect(
+      renderServer(CoursePage({ params: params({ code: 'NOPE' }), searchParams: params({}) }))
+    ).rejects.toThrow(NotFoundError)
   })
 
   it('shows who must hold it, how many do, its sessions and recent completions', async () => {
@@ -188,10 +188,9 @@ describe('course detail', () => {
     expect(screen.getByRole('link', { name: 'Vedoucí oddělení' }).getAttribute('href')).toBe(
       '/positions/pos_head'
     )
+    // Each kind under its label, the records on their own line: no link inside a sentence.
     expect(
-      screen.getByText(
-        (_, el) => el?.tagName === 'LI' && el.textContent === 'Department: Laboratoře'
-      )
+      screen.getByText((_, el) => el?.tagName === 'LI' && el.textContent === 'DepartmentLaboratoře')
     ).toBeTruthy()
     // The course's rate, and Laboratoře's in the breakdown by department.
     expect(screen.getAllByText('70%')).toHaveLength(2)
@@ -207,7 +206,7 @@ describe('course detail', () => {
   it('shows the latest past sessions, and the way to the rest in the sessions list', async () => {
     await renderServer(CoursePage(props))
     expect(screen.queryByRole('link', { name: /past sessions/ })).toBeNull()
-    vi.mocked(getCourse).mockResolvedValueOnce(courseDetail({ pastShown: 10, pastTotal: 14 }))
+    vi.mocked(getCourse).mockResolvedValueOnce(courseDetail({ pastTotal: 14 }))
     await renderServer(CoursePage(props))
     expect(screen.getByRole('link', { name: 'All 14 past sessions' }).getAttribute('href')).toBe(
       '/sessions?when=past&course=BOZP-Z'
@@ -242,12 +241,12 @@ describe('course detail', () => {
         validityMonths: null,
         counts: counts({ VALID: 0, EXPIRING: 0, EXPIRED: 0, MISSING: 0 }),
         sessions: [],
-        recentCompletions: [],
+        completionList: [],
       })
     )
     await renderServer(CoursePage(props))
     expect(screen.getByText('BOZP-Z · No expiry')).toBeTruthy()
-    expect(screen.getByText('No sessions for this course.')).toBeTruthy()
+    expect(screen.getByText('No upcoming sessions for this course.')).toBeTruthy()
     expect(screen.getByText('No completions yet.')).toBeTruthy()
   })
 
@@ -278,7 +277,7 @@ describe('course detail', () => {
   it('adds a course: admins open an empty form from the list', async () => {
     signInAs('ADMIN')
     vi.mocked(listCourses).mockResolvedValue([courseRow()])
-    await renderServer(CoursesPage())
+    await renderServer(CoursesPage({ searchParams: params({}) }))
     expect(screen.getByRole('link', { name: 'New course' }).getAttribute('href')).toBe(
       '/courses/new'
     )
@@ -294,7 +293,7 @@ describe('course detail', () => {
 })
 
 describe('new session', () => {
-  const props = { params: params({ code: 'BOZP-Z' }) }
+  const props = { params: params({ code: 'BOZP-Z' }), searchParams: params({}) }
 
   const bozp = {
     id: 'course_bozp',
@@ -351,7 +350,7 @@ describe('compliance matrix', () => {
     const user = userEvent.setup()
     expect(await complianceMetadata()).toEqual({ title: 'Compliance matrix' })
     await renderServer(CompliancePage())
-    expect(screen.getByText(/Share of required trainings held.*Oct 16, 2026/)).toBeTruthy()
+    expect(screen.getByText(/Share of required trainings held.*16.10.2026/)).toBeTruthy()
     const lab = screen.getByRole('row', { name: /^Laboratoře/ })
     expect(within(lab).getByText('67%')).toBeTruthy()
     // A cell says what it counts on hover.

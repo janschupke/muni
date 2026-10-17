@@ -228,6 +228,9 @@ export function ReviewTable({
       columns={tableColumns}
       data={rows}
       getRowId={r => String(r.index)}
+      paging={{
+        local: 'rows of the uploaded files, which exist only in this browser until imported',
+      }}
       pagination={pagination}
       onPaginationChange={onPaginationChange}
       paginationLabels={paginationLabels}
@@ -239,7 +242,7 @@ export function ReviewTable({
           return row.errors.length > 0
             ? 'border-l-danger-fill text-danger-fg'
             : row.warnings.length > 0
-              ? 'border-l-warning-fill text-warning-fg'
+              ? 'border-l-warning-edge text-warning-fg'
               : 'border-l-transparent'
         }
         if (columnId === ACTIONS) return undefined

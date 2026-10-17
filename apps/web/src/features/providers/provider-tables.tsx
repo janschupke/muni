@@ -1,7 +1,7 @@
 'use client'
 
 import type { ProviderDetail } from '@muni/db/repositories'
-import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatDate, formatInteger, PLACEHOLDER } from '@muni/utils/format'
@@ -11,17 +11,30 @@ import { useMemo } from 'react'
 
 import { PersonLink, personText, RecordLink } from '@/components/archived'
 import { CompletionActions } from '@/components/completion-tables'
+import { usePaginationLabels } from '@/components/pagination-labels'
 
 type CourseRow = ProviderDetail['byCourse'][number]
-type CompletionRow = ProviderDetail['recentCompletions'][number]
+type CompletionRow = ProviderDetail['completionList'][number]
 
-const optionalDate = (value: string | undefined, locale: string) =>
-  value === undefined ? PLACEHOLDER : formatDate(value, locale)
+const optionalDate = (value: string | undefined) =>
+  value === undefined ? PLACEHOLDER : formatDate(value)
 
 const byCourse = createDataColumns<CourseRow>()
 
-/** What was completed with a provider, per course; spend only for viewers who see prices. */
-export function ProviderCoursesTable({ rows, prices }: { rows: CourseRow[]; prices: boolean }) {
+/**
+ * What was completed with a provider, per course, a page at a time; spend only for viewers who
+ * see prices.
+ */
+export function ProviderCoursesTable({
+  rows,
+  paging,
+  prices,
+}: {
+  rows: CourseRow[]
+  paging: TablePaging
+  prices: boolean
+}) {
+  const paginationLabels = usePaginationLabels()
   const t = useTranslations('providers.detail.columns')
   const td = useTranslations('providers.detail')
   const locale = useLocale()
@@ -62,7 +75,7 @@ export function ProviderCoursesTable({ rows, prices }: { rows: CourseRow[]; pric
                 header: t('spend'),
                 sortFn: 'basic',
                 meta: { align: 'right', nowrap: true },
-                cell: ({ getValue }) => formatCurrency(getValue(), locale),
+                cell: ({ getValue }) => formatCurrency(getValue()),
               }),
             ]
           : []),
@@ -71,33 +84,47 @@ export function ProviderCoursesTable({ rows, prices }: { rows: CourseRow[]; pric
           header: t('last'),
           sortFn: 'basic',
           meta: { nowrap: true },
-          cell: ({ getValue }) => optionalDate(getValue(), locale),
+          cell: ({ getValue }) => optionalDate(getValue()),
         }),
       ]),
     [locale, prices, t]
   )
-  return <DataTable caption={td('byCourse')} columns={columns} data={rows} getRowId={c => c.code} />
+  return (
+    <DataTable
+      caption={td('byCourse')}
+      columns={columns}
+      data={rows}
+      getRowId={c => c.code}
+      paging={paging}
+      paginationLabels={paginationLabels}
+    />
+  )
 }
 
-const recent = createDataColumns<CompletionRow>()
+const completed = createDataColumns<CompletionRow>()
 
-/** A provider's newest completions: who, which course, when, until when and for how much. */
+/**
+ * A provider's completions, a page at a time, newest first unless sorted: who, which course,
+ * when, until when and for how much.
+ */
 export function ProviderCompletionsTable({
   rows,
+  paging,
   prices,
   canEdit,
 }: {
   rows: CompletionRow[]
+  paging: TablePaging
   prices: boolean
   canEdit: boolean
 }) {
+  const paginationLabels = usePaginationLabels()
   const t = useTranslations()
   const tc = useTranslations('providers.detail.columns')
-  const locale = useLocale()
   const columns = useMemo(
     () =>
-      recent.columns([
-        recent.accessor(c => personText(c.employee), {
+      completed.columns([
+        completed.accessor(c => personText(c.employee), {
           id: 'employee',
           header: tc('employee'),
           sortFn: 'text',
@@ -110,7 +137,7 @@ export function ProviderCompletionsTable({
             )
           },
         }),
-        recent.accessor('courseName', {
+        completed.accessor('courseName', {
           id: 'course',
           header: tc('course'),
           sortFn: 'text',
@@ -123,36 +150,36 @@ export function ProviderCompletionsTable({
             </RecordLink>
           ),
         }),
-        recent.accessor('completedOn', {
+        completed.accessor('completedOn', {
           header: tc('completedOn'),
           sortFn: 'basic',
           meta: { nowrap: true },
-          cell: ({ getValue }) => formatDate(getValue(), locale),
+          cell: ({ getValue }) => formatDate(getValue()),
         }),
-        recent.accessor(c => c.validUntil ?? undefined, {
+        completed.accessor(c => c.validUntil ?? undefined, {
           id: 'validUntil',
           header: tc('validUntil'),
           sortFn: 'basic',
           meta: { nowrap: true },
           cell: ({ getValue }) => {
             const value = getValue()
-            return value === undefined ? t('common.noExpiry') : formatDate(value, locale)
+            return value === undefined ? t('common.noExpiry') : formatDate(value)
           },
         }),
         ...(prices
           ? [
-              recent.accessor(c => c.price ?? undefined, {
+              completed.accessor(c => c.price ?? undefined, {
                 id: 'price',
                 header: tc('price'),
                 sortFn: 'basic',
                 meta: { align: 'right', nowrap: true },
-                cell: ({ getValue }) => formatCurrency(getValue(), locale),
+                cell: ({ getValue }) => formatCurrency(getValue()),
               }),
             ]
           : []),
         ...(canEdit
           ? [
-              recent.display({
+              completed.display({
                 id: 'actions',
                 header: () => <span className="sr-only">{t('common.actions')}</span>,
                 meta: { headerClassName: 'w-0', align: 'right' },
@@ -169,7 +196,7 @@ export function ProviderCompletionsTable({
             ]
           : []),
       ]),
-    [canEdit, locale, prices, t, tc]
+    [canEdit, prices, t, tc]
   )
   return (
     <DataTable
@@ -177,6 +204,8 @@ export function ProviderCompletionsTable({
       columns={columns}
       data={rows}
       getRowId={c => c.externalId}
+      paging={paging}
+      paginationLabels={paginationLabels}
     />
   )
 }

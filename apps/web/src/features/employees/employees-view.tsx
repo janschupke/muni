@@ -1,11 +1,10 @@
 'use client'
 
+import { EMPLOYEE_SORT_KEYS } from '@muni/domain/enums'
 import { cn } from '@muni/ui/cn'
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
-import { Pagination } from '@muni/ui/pagination'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
 import { EmployeeFilters } from '@/components/employee-filters'
@@ -14,13 +13,8 @@ import { ListActions } from '@/components/list-actions'
 import { ReadView } from '@/components/read-view'
 import { ListSkeleton } from '@/components/skeletons'
 import { readQuery } from '@/lib/query/queries'
-import {
-  type EmployeeListFilters,
-  type EmployeeListSort,
-  employeesListInput,
-  employeesQuery,
-} from '@/lib/read-inputs'
-import { withParams } from '@/lib/search-params'
+import { type EmployeeListFilters, employeesListInput } from '@/lib/read-inputs'
+import { useListUrl } from '@/lib/use-list-url'
 
 /**
  * The employee list as the address asks for it (filters, sort, page). Changing them keeps the
@@ -28,21 +22,17 @@ import { withParams } from '@/lib/search-params'
  */
 export function EmployeesView({
   filters,
-  sort,
-  page,
   canEdit,
 }: {
   filters: EmployeeListFilters
-  sort: EmployeeListSort | undefined
-  page: number
   canEdit: boolean
 }) {
   const t = useTranslations('employees')
-  const tc = useTranslations('common')
-  // Everything that shapes the list; page links and filter changes carry it along.
-  const query = employeesQuery(filters, sort)
+  const list = useListUrl(EMPLOYEE_SORT_KEYS, { id: 'name', desc: false })
+  // Everything that shapes the list but the page; filter changes carry it along.
+  const query = { ...filters, sort: list.input.sort, dir: list.input.dir }
   const read = useQuery({
-    ...readQuery('employees-list', employeesListInput(filters, sort, page)),
+    ...readQuery('employees-list', employeesListInput(filters, list.input)),
     placeholderData: keepPreviousData,
   })
   return (
@@ -73,23 +63,11 @@ export function EmployeesView({
                   : { label: t('filters.manager', { name: managerName ?? filters.manager }) }
               }
             />
-            {result.items.length === 0 ? (
+            {result.total === 0 ? (
               <EmptyState title={t('empty')} />
             ) : (
-              <EmployeesTable items={result.items} query={query} sort={sort} canEdit={canEdit} />
+              <EmployeesTable items={result.items} paging={list.paging(result)} canEdit={canEdit} />
             )}
-            <Pagination
-              page={result.page}
-              pageCount={result.pageCount}
-              hrefFor={p => withParams('/employees', query, { page: p })}
-              linkAs={Link}
-              labels={{
-                nav: tc('pagination'),
-                previous: tc('previous'),
-                next: tc('next'),
-                status: tc('page', { page: result.page, pageCount: result.pageCount }),
-              }}
-            />
           </div>
         )}
       </ReadView>

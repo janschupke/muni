@@ -2,7 +2,7 @@
 
 import type { RoomOption } from '@muni/db/repositories'
 import type { SessionOffer } from '@muni/domain/planner'
-import { Button } from '@muni/ui/button'
+import { Button, CancelButton } from '@muni/ui/button'
 import { Dialog } from '@muni/ui/dialog'
 import { useTranslations } from 'next-intl'
 import { useState, useTransition } from 'react'
@@ -88,15 +88,14 @@ export function OfferReview({
       footer={
         stage === 'edit' ? (
           <>
-            <Button
-              variant="ghost"
+            <CancelButton
               disabled={pending}
               onClick={() => {
                 onOpenChange(false)
               }}
             >
               {tc('keepAsIs')}
-            </Button>
+            </CancelButton>
             <Button
               variant="primary"
               disabled={!draft.valid || pending}
@@ -109,8 +108,15 @@ export function OfferReview({
           </>
         ) : (
           <>
+            <CancelButton
+              disabled={pending}
+              onClick={() => {
+                onOpenChange(false)
+              }}
+            >
+              {tc('keepAsIs')}
+            </CancelButton>
             <Button
-              variant="ghost"
               disabled={pending}
               onClick={() => {
                 setStage('edit')

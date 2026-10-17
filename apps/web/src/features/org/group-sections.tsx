@@ -1,4 +1,4 @@
-import type { DepartmentDetail, PositionDetail } from '@muni/db/repositories'
+import type { TablePaging } from '@muni/ui/data-table'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
@@ -6,11 +6,13 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
 import { EmployeesTable } from '@/components/employees-table'
+import type { PageInfo } from '@/lib/use-list-url'
+import type { ReadOutput } from '@/server/reads/registry'
 
 import { CourseComplianceTable } from './course-compliance-table'
 
 type Kind = 'departments' | 'positions'
-type Group = DepartmentDetail | PositionDetail
+type Group = ReadOutput<'department'> | ReadOutput<'position'>
 
 /** A department's or position's mandatory courses, with why and how much they are held. */
 export function GroupCourses({ kind, group }: { kind: Kind; group: Group }) {
@@ -31,10 +33,18 @@ export function GroupCourses({ kind, group }: { kind: Kind; group: Group }) {
 }
 
 /**
- * A department's or position's people, full width below the facts and courses, with the way
- * to the same people in the full list.
+ * A department's or position's people, a page at a time, full width below the facts and
+ * courses, with the way to the same people in the full list.
  */
-export function GroupPeople({ kind, group }: { kind: Kind; group: Group }) {
+export function GroupPeople({
+  kind,
+  group,
+  paging,
+}: {
+  kind: Kind
+  group: Group
+  paging: (page: PageInfo) => TablePaging
+}) {
   const t = useTranslations('org.detail')
   const tk = useTranslations(`${kind}.detail`)
   const filter = kind === 'departments' ? 'department' : 'position'
@@ -42,17 +52,18 @@ export function GroupPeople({ kind, group }: { kind: Kind; group: Group }) {
     <>
       <SectionHeading
         description={
-          group.members.length > 0 && t('peopleDescription', { count: group.members.length })
+          group.members.total > 0 && t('peopleDescription', { count: group.members.total })
         }
       >
         {t('people')}
       </SectionHeading>
-      {group.members.length === 0 ? (
+      {group.members.total === 0 ? (
         <EmptyState title={t('noPeople')} />
       ) : (
         <>
           <EmployeesTable
-            items={group.members}
+            items={group.members.items}
+            paging={paging(group.members)}
             omit={filter}
             caption={t('people')}
             panelLevel={3}

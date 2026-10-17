@@ -7,7 +7,7 @@ const toneBar = {
   neutral: 'before:bg-border-emphasis',
   accent: 'before:bg-accent',
   success: 'before:bg-success-fill',
-  warning: 'before:bg-warning-fill',
+  warning: 'before:bg-warning-fill before:inset-ring before:inset-ring-warning-edge',
   serious: 'before:bg-serious-fill',
   danger: 'before:bg-danger-fill',
 } as const

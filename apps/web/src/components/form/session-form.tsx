@@ -4,9 +4,9 @@ import type { CourseOption, RoomOption } from '@muni/db/repositories'
 import { SESSION_STATUSES } from '@muni/domain/enums'
 import { type SessionIssue, sessionIssues } from '@muni/domain/sessions'
 import { FieldRow } from '@muni/ui/field'
-import { currencySymbol } from '@muni/utils/format'
+import { currencySymbol, formatAmount } from '@muni/utils/format'
 import { parseCount } from '@muni/utils/money'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 import type { FormState } from '@/lib/form'
@@ -74,7 +74,6 @@ export function SessionForm({
   const tsave = useTranslations('forms.save')
   const ts = useTranslations('status')
   const tp = useTranslations('forms.placeholders')
-  const locale = useLocale()
 
   const [courseId, setCourseId] = useState(defaults.courseId)
   const [roomId, setRoomId] = useState(defaults.roomId)
@@ -253,8 +252,8 @@ export function SessionForm({
         <TextField
           name="pricePerPerson"
           inputMode="decimal"
-          label={t('pricePerPerson', { currency: currencySymbol(locale) })}
-          defaultValue={defaults.pricePerPerson ?? ''}
+          label={t('pricePerPerson', { currency: currencySymbol() })}
+          defaultValue={formatAmount(defaults.pricePerPerson)}
           placeholder={tp('price')}
         />
       </FieldRow>

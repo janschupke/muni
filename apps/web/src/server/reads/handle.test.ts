@@ -1,4 +1,5 @@
-import { getRoom, listRooms } from '@muni/db/repositories'
+import { getAdvisorInput, getRoom, listRooms } from '@muni/db/repositories'
+import { planAssignments, unpackPlan } from '@muni/domain/advisor'
 import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -6,11 +7,13 @@ import { GET } from '@/app/api/read/[name]/route'
 import { getSessionUser, isAccountArchived } from '@/server/auth'
 import { RateLimitedError, spendRequest } from '@/server/rate-limit'
 import { signInAs, signOut } from '@/test/auth'
+import { advisorInput, roomRow } from '@/test/fixtures'
 
 import { handleRead } from './handle'
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
+  getAdvisorInput: vi.fn(),
   getRoom: vi.fn(),
   listRooms: vi.fn(),
 }))
@@ -32,7 +35,63 @@ describe('reads', () => {
     const response = await handleRead('rooms-list', search())
     expect(response.status).toBe(200)
     expect(response.headers.get('cache-control')).toBe('private, no-store')
-    expect(await body(response)).toEqual([])
+    expect(await body(response)).toEqual({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 25,
+      pageCount: 1,
+    })
+  })
+
+  it('sort and page a list on the server: the column asked for, the page asked for', async () => {
+    // 30 rooms, 1 to 30 seats; online ones (no capacity) sort last either way.
+    vi.mocked(listRooms).mockResolvedValue([
+      roomRow({ id: 'online', name: 'Online', capacity: null }),
+      ...Array.from({ length: 30 }, (_, i) =>
+        roomRow({ id: `r${String(i + 1)}`, name: `Room ${String(i + 1)}`, capacity: i + 1 })
+      ),
+    ])
+    interface Rooms {
+      items: { capacity: number | null }[]
+      total: number
+      pageCount: number
+    }
+    const first = (await body(
+      await handleRead('rooms-list', search({ sort: 'capacity', dir: 'desc' }))
+    )) as Rooms
+    expect(first).toMatchObject({ total: 31, pageCount: 2 })
+    expect(first.items.slice(0, 3).map(r => r.capacity)).toEqual([30, 29, 28])
+    const second = (await body(
+      await handleRead('rooms-list', search({ sort: 'capacity', dir: 'desc', page: '2' }))
+    )) as Rooms
+    expect(second.items.map(r => r.capacity)).toEqual([5, 4, 3, 2, 1, null])
+    // A column the list does not have is refused, not ignored.
+    const unknown = await handleRead('rooms-list', search({ sort: 'password' }))
+    expect(unknown.status).toBe(400)
+  })
+
+  it('send the advisor one table a page at a time, with the counts for the rest', async () => {
+    vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
+    const plan = planAssignments(advisorInput())
+    interface Advisor {
+      plan: Parameters<typeof unpackPlan>[0]
+      page: { total: number }
+      counts: { action: number; planned: number }
+    }
+    const action = (await body(
+      await handleRead('advisor', search({ view: 'action', sort: 'person', dir: 'desc' }))
+    )) as Advisor
+    const needed = plan.items.filter(i => i.remediation === 'ACTION_REQUIRED')
+    expect(action.counts.action).toBe(needed.length)
+    expect(action.page.total).toBe(needed.length)
+    const names = unpackPlan(action.plan).items.map(i => i.need.employee.name)
+    expect(names).toEqual(
+      needed
+        .map(i => i.need.employee.name)
+        .toSorted((a, b) => b.localeCompare(a, 'cs'))
+        .slice(0, 25)
+    )
   })
 
   it('tell the browser why not: unknown, signed out, archived, not an admin', async () => {

@@ -1,7 +1,8 @@
 import { archivedListMetadata, ArchivedListPage } from '@/features/archive/archived-pages'
+import type { SearchParams } from '@/lib/search-params'
 
 export const generateMetadata = () => archivedListMetadata('room')
 
-export default function ArchivedRoomsPage() {
-  return <ArchivedListPage kind="room" />
+export default function ArchivedRoomsPage({ searchParams }: { searchParams: SearchParams }) {
+  return <ArchivedListPage kind="room" searchParams={searchParams} />
 }

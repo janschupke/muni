@@ -1,11 +1,15 @@
-import { EMPLOYEE_SORT_KEYS } from '@muni/db/repositories'
-import { canWrite, COMPLIANCE_STATUSES, EMPLOYMENT_STATES } from '@muni/domain/enums'
+import {
+  canWrite,
+  COMPLIANCE_STATUSES,
+  EMPLOYEE_SORT_KEYS,
+  EMPLOYMENT_STATES,
+} from '@muni/domain/enums'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { EmployeesView } from '@/features/employees/employees-view'
 import { employeesListInput } from '@/lib/read-inputs'
-import { oneOf, param, parseSort, type SearchParams } from '@/lib/search-params'
+import { oneOf, param, parseList, type SearchParams } from '@/lib/search-params'
 import { requireReader } from '@/server/auth'
 import { prefetched } from '@/server/prefetch'
 
@@ -24,11 +28,14 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Se
     compliance: oneOf(param(params, 'compliance'), COMPLIANCE_STATUSES),
     manager: param(params, 'manager'),
   }
-  const sort = parseSort(params, EMPLOYEE_SORT_KEYS)
-  const page = Number(param(params, 'page') ?? 1) || 1
   return prefetched(
     user,
-    [{ name: 'employees-list', input: employeesListInput(filters, sort, page) }],
-    <EmployeesView filters={filters} sort={sort} page={page} canEdit={canWrite(user.role)} />
+    [
+      {
+        name: 'employees-list',
+        input: employeesListInput(filters, parseList(params, EMPLOYEE_SORT_KEYS)),
+      },
+    ],
+    <EmployeesView filters={filters} canEdit={canWrite(user.role)} />
   )
 }

@@ -9,7 +9,7 @@ const SIZE = { sm: 'h-1.5', md: 'h-2', lg: 'h-3' } as const
 const TONE = {
   accent: 'bg-accent',
   success: 'bg-success-fill',
-  warning: 'bg-warning-fill',
+  warning: 'bg-warning-fill inset-ring inset-ring-warning-edge',
   serious: 'bg-serious-fill',
   danger: 'bg-danger-fill',
 } as const

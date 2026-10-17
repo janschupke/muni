@@ -61,7 +61,7 @@ export function DatePicker({
   today = isoOf(new Date()),
   locale,
   labels,
-  placeholder = formatPattern(locale, labels.format),
+  placeholder = formatPattern(labels.format),
   disabled,
   required,
   id,
@@ -101,7 +101,7 @@ export function DatePicker({
     if (value === undefined) setUncontrolled(next)
     onValueChange?.(next)
   }
-  const typed = editing === null ? null : editing.trim() === '' ? '' : parseTyped(editing, locale)
+  const typed = editing === null ? null : editing.trim() === '' ? '' : parseTyped(editing)
   const unreadable = editing !== null && typed === null
   const posted = editing === null ? current : (typed ?? editing)
 
@@ -113,7 +113,7 @@ export function DatePicker({
         inputMode="numeric"
         autoComplete="off"
         placeholder={placeholder}
-        value={editing ?? (current ? formatTyped(current, locale) : '')}
+        value={editing ?? (current ? formatTyped(current) : '')}
         onChange={event => {
           setEditing(event.target.value)
         }}

@@ -24,16 +24,16 @@ export async function Landing() {
         </h1>
         <p className="max-w-2xl text-lg text-pretty text-fg-muted">{t('lead')}</p>
         <div className="flex flex-wrap gap-3">
-          <Button asChild variant="primary">
-            <Link href="/sign-in">
-              <LogIn aria-hidden />
-              {t('signIn')}
-            </Link>
-          </Button>
           <Button asChild>
             <Link href="/sign-up">
               <UserPlus aria-hidden />
               {t('signUp')}
+            </Link>
+          </Button>
+          <Button asChild variant="primary">
+            <Link href="/sign-in">
+              <LogIn aria-hidden />
+              {t('signIn')}
             </Link>
           </Button>
         </div>

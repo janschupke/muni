@@ -4,6 +4,7 @@ import { displayName } from '@muni/domain/names'
 import { BarRow } from '@muni/ui/bar-row'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
+import type { TablePaging } from '@muni/ui/data-table'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
@@ -20,7 +21,7 @@ import {
   formatTimeRange,
   PLACEHOLDER,
 } from '@muni/utils/format'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -28,6 +29,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { PersonLink } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
 import { CompletionHistoryTable } from '@/components/completion-tables'
+import { EmailLink } from '@/components/email-link'
 import { OrgLink } from '@/components/org-links'
 import { ReadView } from '@/components/read-view'
 import { RecordActions } from '@/components/record-actions'
@@ -38,19 +40,25 @@ import { DetailSkeleton } from '@/components/skeletons'
 import { EmploymentBadge, rateTone } from '@/components/status-badges'
 import { TeamCard } from '@/components/team-card'
 import { AddBookingForm } from '@/features/bookings/add-booking'
+import { HISTORY_SORT } from '@/lib/list-keys'
 import { readQuery } from '@/lib/query/queries'
 import { useDocumentTitle } from '@/lib/query/use-document-title'
+import { type PageInfo, useListUrl } from '@/lib/use-list-url'
 import { useOfTotal } from '@/lib/use-of-total'
 import type { ReadOutput } from '@/server/reads/registry'
 
 /** A person's page: profile, bookings, requirements and history, read for the signed-in role. */
 export function EmployeeView({ externalId, canEdit }: { externalId: string; canEdit: boolean }) {
-  const read = useQuery(readQuery('employee', { externalId }))
+  const completions = useListUrl(HISTORY_SORT, { id: 'completedOn', desc: true }, 'completions')
+  const read = useQuery({
+    ...readQuery('employee', { externalId, ...completions.input }),
+    placeholderData: keepPreviousData,
+  })
   const data = read.data
   useDocumentTitle(data && displayName(data.employee))
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="employees">
-      {data => <EmployeeDetail {...data} canEdit={canEdit} />}
+      {data => <EmployeeDetail {...data} canEdit={canEdit} paging={completions.paging} />}
     </ReadView>
   )
 }
@@ -61,14 +69,15 @@ function EmployeeDetail({
   bookable,
   showNotes,
   canEdit,
-}: ReadOutput<'employee'> & { canEdit: boolean }) {
+  paging,
+}: ReadOutput<'employee'> & { canEdit: boolean; paging: (page: PageInfo) => TablePaging }) {
   const t = useTranslations('employees.detail')
   const te = useTranslations('employees')
   const tb = useTranslations('bookings')
   const locale = useLocale()
   const ofTotal = useOfTotal()
   const name = displayName(employee)
-  const date = (value: string | null) => formatOptional(value, v => formatDate(v, locale))
+  const date = (value: string | null) => formatOptional(value, v => formatDate(v))
   const held = employee.requirements.filter(
     r => r.status === 'VALID' || r.status === 'EXPIRING'
   ).length
@@ -112,7 +121,7 @@ function EmployeeDetail({
                   </DescriptionItem>
                   {'email' in employee && (
                     <DescriptionItem label={t('email')}>
-                      {employee.email ?? PLACEHOLDER}
+                      <EmailLink email={employee.email} />
                     </DescriptionItem>
                   )}
                   {'nationalId' in employee && (
@@ -157,7 +166,7 @@ function EmployeeDetail({
                     options={bookable.map(s => ({
                       value: s.externalId,
                       label: tb('sessionOption', {
-                        when: formatTimeRange(s.startsAt, s.endsAt, locale),
+                        when: formatTimeRange(s.startsAt, s.endsAt),
                         course: s.courseName,
                         free: s.free,
                       }),
@@ -179,7 +188,6 @@ function EmployeeDetail({
                           meta={
                             <>
                               <SessionDateLink
-                                inText
                                 session={{
                                   externalId: b.sessionExternalId,
                                   startsAt: b.startsAt,
@@ -187,7 +195,7 @@ function EmployeeDetail({
                                 }}
                               />
                               {' · '}
-                              <RoomLink room={b.room} inText />
+                              <RoomLink room={b.room} />
                             </>
                           }
                         />
@@ -254,11 +262,12 @@ function EmployeeDetail({
       />
 
       <SectionHeading>{t('history')}</SectionHeading>
-      {employee.completions.length === 0 ? (
+      {employee.completions.total === 0 ? (
         <EmptyState title={t('noHistory')} />
       ) : (
         <CompletionHistoryTable
-          completions={employee.completions}
+          completions={employee.completions.items}
+          paging={paging(employee.completions)}
           showNotes={showNotes}
           editFor={canEdit ? employee.externalId : undefined}
         />

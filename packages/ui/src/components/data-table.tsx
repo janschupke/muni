@@ -76,6 +76,29 @@ export type { PaginationState, SortingState }
 
 const ARIA_SORT = { asc: 'ascending', desc: 'descending' } as const
 
+/**
+ * How a table's rows are paged and sorted. `server`: the rows are one page the server sorted
+ * and cut; the table neither sorts nor pages them, its pager steps are links and a sort header
+ * hands the new order to `onSortingChange` (which changes the address). `local`: every row is
+ * here, sorted (and paged, with `pageSize`) in the browser, for the reason given — rows that
+ * exist only in the browser, or a list bounded by something small. The rendered table carries
+ * which (`data-paging`), and the e2e checks hold every table to it.
+ */
+export type TablePaging =
+  | {
+      server: {
+        page: number
+        pageCount: number
+        sorting: SortingState
+        onSortingChange: (sorting: SortingState) => void
+      } & (
+        | { hrefFor: (page: number) => string; linkAs: ComponentProps<typeof Pagination>['linkAs'] }
+        /** A list whose page is not in the address (one in an opened row). */
+        | { onPageChange: (page: number) => void }
+      )
+    }
+  | { local: string }
+
 /** Rows the reader picks for an action (a checkbox column before the data). */
 export interface RowSelection<TData> {
   selected: ReadonlySet<string>
@@ -92,6 +115,7 @@ export function DataTable<TData extends RowData>({
   columns,
   data,
   getRowId,
+  paging,
   initialSorting = [],
   sorting: controlledSorting,
   onSortingChange,
@@ -100,7 +124,6 @@ export function DataTable<TData extends RowData>({
   pageSize,
   pagination: controlledPagination,
   onPaginationChange,
-  pageLinks,
   paginationLabels,
   rowClassName,
   cellClassName,
@@ -117,6 +140,7 @@ export function DataTable<TData extends RowData>({
   columns: Columns<TData>
   data: TData[]
   getRowId: (row: TData) => string
+  paging: TablePaging
   initialSorting?: SortingState | undefined
   /** Controlled sorting; with `manualSorting` the caller sorts `data` (e.g. on the server). */
   sorting?: SortingState | undefined
@@ -127,13 +151,6 @@ export function DataTable<TData extends RowData>({
   pageSize?: number | undefined
   pagination?: PaginationState | undefined
   onPaginationChange?: ((pagination: PaginationState) => void) | undefined
-  /**
-   * The page lives in the address (`?page=`): the pager's steps are links, rendered with
-   * `linkAs`, and `pagination` comes from the address too.
-   */
-  pageLinks?:
-    | { hrefFor: (page: number) => string; linkAs: ComponentProps<typeof Pagination>['linkAs'] }
-    | undefined
   paginationLabels?: {
     nav: string
     previous: string
@@ -157,14 +174,15 @@ export function DataTable<TData extends RowData>({
   expandHeader?: string | undefined
   selection?: RowSelection<TData> | undefined
 }) {
+  const server = 'server' in paging ? paging.server : undefined
   const [innerSorting, setInnerSorting] = useState<SortingState>(initialSorting)
   const [innerPagination, setInnerPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: pageSize ?? 50,
   })
-  const sorting = controlledSorting ?? innerSorting
+  const sorting = server?.sorting ?? controlledSorting ?? innerSorting
   const asked = controlledPagination ?? innerPagination
-  const paginated = pageSize !== undefined || controlledPagination !== undefined
+  const paginated = !server && (pageSize !== undefined || controlledPagination !== undefined)
   // A page past the end (fewer rows than before, an old address) shows the last page, never
   // an empty table under "Page 3 of 2".
   const lastIndex = Math.max(0, Math.ceil(data.length / asked.pageSize) - 1)
@@ -183,6 +201,11 @@ export function DataTable<TData extends RowData>({
     state: { sorting, pagination },
     onSortingChange: updater => {
       const next = typeof updater === 'function' ? updater(sorting) : updater
+      // The server sorts, from the first page: the new order goes to the address.
+      if (server) {
+        server.onSortingChange(next)
+        return
+      }
       if (controlledSorting === undefined) setInnerSorting(next)
       onSortingChange?.(next)
       // A new order starts from the first page.
@@ -191,9 +214,11 @@ export function DataTable<TData extends RowData>({
     onPaginationChange: updater => {
       setPagination(typeof updater === 'function' ? updater(pagination) : updater)
     },
-    manualSorting,
+    manualSorting: manualSorting || server !== undefined,
     enableSorting,
     enableMultiSort: false,
+    // A server list always has an order: a header flips between its two directions.
+    enableSortingRemoval: server === undefined,
     sortDescFirst: false,
     // Editing a row must not throw the reader back to page 1.
     autoResetPageIndex: false,
@@ -235,7 +260,10 @@ export function DataTable<TData extends RowData>({
 
   return (
     <>
-      <TableContainer className={cn('@container', containerClassName)}>
+      <TableContainer
+        className={cn('@container', containerClassName)}
+        paging={'server' in paging ? 'server' : paging.local}
+      >
         <Table density={density} className={className}>
           {caption && <caption className="sr-only">{caption}</caption>}
           <THead className="sticky top-0 z-10">
@@ -369,17 +397,28 @@ export function DataTable<TData extends RowData>({
           </TBody>
         </Table>
       </TableContainer>
+      {server && paginationLabels && (
+        <Pagination
+          page={server.page}
+          pageCount={server.pageCount}
+          {...('hrefFor' in server
+            ? { hrefFor: server.hrefFor, linkAs: server.linkAs }
+            : { onPageChange: server.onPageChange })}
+          labels={{
+            nav: paginationLabels.nav,
+            previous: paginationLabels.previous,
+            next: paginationLabels.next,
+            status: paginationLabels.status(server.page, server.pageCount),
+          }}
+        />
+      )}
       {paginated && paginationLabels && (
         <Pagination
           page={pagination.pageIndex + 1}
           pageCount={pageCount}
-          {...(pageLinks
-            ? { hrefFor: pageLinks.hrefFor, linkAs: pageLinks.linkAs }
-            : {
-                onPageChange: (page: number) => {
-                  setPagination({ ...pagination, pageIndex: page - 1 })
-                },
-              })}
+          onPageChange={(page: number) => {
+            setPagination({ ...pagination, pageIndex: page - 1 })
+          }}
           labels={{
             nav: paginationLabels.nav,
             previous: paginationLabels.previous,

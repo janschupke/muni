@@ -10,7 +10,7 @@ import { archivedListPath } from './paths'
 export function ArchivedListLink({ kind }: { kind: Archivable }) {
   const t = useTranslations('archive.list')
   return (
-    <Button asChild variant="ghost">
+    <Button asChild>
       <Link href={archivedListPath(kind)}>
         <Archive aria-hidden />
         {t('show')}

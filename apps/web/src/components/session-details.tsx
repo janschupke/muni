@@ -11,7 +11,7 @@ import { TextLink } from '@muni/ui/text-link'
 import { toZonedParts } from '@muni/utils/dates'
 import { formatCurrency, formatDate, formatTimeRange } from '@muni/utils/format'
 import Link from 'next/link'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 
 import { useOfTotal } from '@/lib/use-of-total'
@@ -38,7 +38,6 @@ export function SessionFacts({
   const t = useTranslations('sessions.expanded')
   const tu = useTranslations('forms.session.unfit')
   const tcap = useTranslations('status.capability')
-  const locale = useLocale()
   const ofTotal = useOfTotal()
   const free = Math.max(0, s.capacity - s.bookedCount)
   const over = Math.max(0, s.bookedCount - s.capacity)
@@ -61,14 +60,13 @@ export function SessionFacts({
           </TextLink>
         </DescriptionItem>
       )}
-      <DescriptionItem label={t('when')}>
-        {formatTimeRange(s.startsAt, s.endsAt, locale)}
-      </DescriptionItem>
+      <DescriptionItem label={t('when')}>{formatTimeRange(s.startsAt, s.endsAt)}</DescriptionItem>
       <DescriptionItem label={t('room')}>
         <span className="flex flex-col gap-0.5">
           <span>
-            <RoomLink room={s.room} inText />
-            {' · '}
+            <RoomLink room={s.room} />
+          </span>
+          <span>
             {s.roomSeats === null ? t('roomOnline') : t('roomSeats', { seats: s.roomSeats })}
           </span>
           <span className={unfit ? 'text-danger-fg' : 'text-fg-muted'}>
@@ -101,8 +99,8 @@ export function SessionFacts({
         {s.pricePerPerson === null
           ? t('noPrice')
           : t('priceText', {
-              price: formatCurrency(s.pricePerPerson, locale),
-              total: formatCurrency(s.pricePerPerson * s.bookedCount, locale),
+              price: formatCurrency(s.pricePerPerson),
+              total: formatCurrency(s.pricePerPerson * s.bookedCount),
               booked: s.bookedCount,
             })}
       </DescriptionItem>
@@ -127,9 +125,12 @@ export function SessionAttendees({
 }) {
   const t = useTranslations('sessions.expanded')
   const tc = useTranslations('common')
-  const locale = useLocale()
   return (
-    <Table density="compact" aria-label={t('people')}>
+    <Table
+      density="compact"
+      paging="the people booked on one session: bounded by its seats"
+      aria-label={t('people')}
+    >
       <THead>
         <tr>
           <Th>{t('person')}</Th>
@@ -161,7 +162,7 @@ export function SessionAttendees({
                 {b.source === 'ADVISOR' ? t('viaAdvisor') : t('viaManual')}
               </Badge>
             </Td>
-            <Td nowrap>{formatDate(toZonedParts(b.bookedAt).date, locale)}</Td>
+            <Td nowrap>{formatDate(toZonedParts(b.bookedAt).date)}</Td>
             {action && <Td align="right">{action(b)}</Td>}
           </Tr>
         ))}

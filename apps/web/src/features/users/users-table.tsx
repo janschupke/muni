@@ -2,13 +2,15 @@
 
 import type { UserListItem } from '@muni/db/repositories'
 import { type Role, ROLES } from '@muni/domain/enums'
-import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { EmailLink } from '@/components/email-link'
+import { usePaginationLabels } from '@/components/pagination-labels'
 import { RowActions } from '@/components/record-actions'
 import { RoleBadge } from '@/components/status-badges'
 
@@ -21,11 +23,11 @@ const rank = (role: Role) => ROLES.length - ROLES.indexOf(role)
  * Everyone with access and their role. The name opens the user, where the role changes; the
  * row's only action is archiving, since editing is that same page.
  */
-export function UsersTable({ users }: { users: UserListItem[] }) {
+export function UsersTable({ users, paging }: { users: UserListItem[]; paging: TablePaging }) {
   const tcommon = useTranslations('common')
+  const paginationLabels = usePaginationLabels()
   const t = useTranslations('users.columns')
   const tu = useTranslations('users')
-  const locale = useLocale()
   const columns = useMemo(
     () =>
       col.columns([
@@ -47,7 +49,7 @@ export function UsersTable({ users }: { users: UserListItem[] }) {
           id: 'email',
           header: t('email'),
           sortFn: 'text',
-          cell: ({ getValue }) => getValue() ?? PLACEHOLDER,
+          cell: ({ getValue }) => <EmailLink email={getValue()} />,
         }),
         col.accessor(u => rank(u.role), {
           id: 'role',
@@ -62,7 +64,7 @@ export function UsersTable({ users }: { users: UserListItem[] }) {
           meta: { nowrap: true },
           cell: ({ getValue }) => {
             const value = getValue()
-            return value === undefined ? PLACEHOLDER : formatDateTime(value, locale)
+            return value === undefined ? PLACEHOLDER : formatDateTime(value)
           },
         }),
         col.display({
@@ -78,7 +80,16 @@ export function UsersTable({ users }: { users: UserListItem[] }) {
           ),
         }),
       ]),
-    [locale, t, tcommon]
+    [t, tcommon]
   )
-  return <DataTable caption={tu('title')} columns={columns} data={users} getRowId={u => u.id} />
+  return (
+    <DataTable
+      caption={tu('title')}
+      columns={columns}
+      data={users}
+      getRowId={u => u.id}
+      paging={paging}
+      paginationLabels={paginationLabels}
+    />
+  )
 }

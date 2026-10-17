@@ -10,7 +10,7 @@ import { checkSessionSlotAction, createPlannedSessionAction } from '@/server/act
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { advisorInput, plannerInput } from '@/test/fixtures'
-import { renderClient, renderServer } from '@/test/render'
+import { params, renderClient, renderServer } from '@/test/render'
 
 import PlannerPage, { generateMetadata } from './page'
 
@@ -40,7 +40,7 @@ describe('session planner', () => {
   it('proposes a session per course that needs one, with its slot, room and people', async () => {
     const user = userEvent.setup()
     expect(await generateMetadata()).toEqual({ title: 'Session planner' })
-    await renderServer(PlannerPage())
+    await renderServer(PlannerPage({ searchParams: params({}) }))
     expect(screen.getByText('Only admins can create sessions.')).toBeTruthy()
     const section = screen.getByRole('region', { name: 'Požární ochrana' })
     expect(
@@ -48,9 +48,9 @@ describe('session planner', () => {
     ).toBe('/courses/POZ-OCH')
     expect(within(section).getByText('120 min · groups of 40 · needs Projector')).toBeTruthy()
     const row = within(section).getAllByRole('row')[1] as HTMLElement
-    expect(within(row).getByText('Oct 30, 2026')).toBeTruthy()
+    expect(within(row).getByText('30.10.2026')).toBeTruthy()
     expect(within(row).getByText('Lapsed now')).toBeTruthy()
-    expect(within(row).getByText(/Oct 19, 2026, 10:00/)).toBeTruthy()
+    expect(within(row).getByText(/19.10.2026 10:00/)).toBeTruthy()
     expect(within(row).getByRole('link', { name: 'Aula A' }).getAttribute('href')).toBe(
       '/rooms/room_aula_a'
     )
@@ -76,20 +76,20 @@ describe('session planner', () => {
         ],
       })
     )
-    await renderServer(PlannerPage())
+    await renderServer(PlannerPage({ searchParams: params({}) }))
     expect(screen.getByText('Even the best-equipped room lacks Projector.')).toBeTruthy()
   })
 
   it('says when nothing needs a new session', async () => {
     vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput({ needs: [] }))
-    await renderServer(PlannerPage())
+    await renderServer(PlannerPage({ searchParams: params({}) }))
     expect(screen.getByText('Every training that needs a session has one.')).toBeTruthy()
   })
 
   it('lets admins change the offer, checks it, shows what will happen, then creates it', async () => {
     const user = userEvent.setup()
     signInAs('ADMIN')
-    await renderServer(PlannerPage())
+    await renderServer(PlannerPage({ searchParams: params({}) }))
     await user.click(screen.getByRole('button', { name: 'Review session 1 of Požární ochrana' }))
     const dialog = await screen.findByRole('dialog', { name: 'New session: Požární ochrana' })
     // The offer, ready to change: its seats, and its people ticked.
@@ -142,7 +142,7 @@ describe('session planner', () => {
     await user.click(check)
     expect(await within(dialog).findByText('What will be created')).toBeTruthy()
     // Price per person, and the cost of the one booking.
-    expect(within(dialog).getAllByText('CZK 380')).toHaveLength(2)
+    expect(within(dialog).getAllByText('380,00 Kč')).toHaveLength(2)
     vi.mocked(createPlannedSessionAction).mockResolvedValueOnce({
       ok: true,
       externalId: 'S001',
@@ -166,7 +166,7 @@ describe('session planner', () => {
     const user = userEvent.setup()
     signInAs('ADMIN')
     vi.mocked(checkSessionSlotAction).mockResolvedValue('ROOM_BUSY')
-    await renderServer(PlannerPage())
+    await renderServer(PlannerPage({ searchParams: params({}) }))
     await user.click(screen.getByRole('button', { name: 'Review session 1 of Požární ochrana' }))
     const dialog = await screen.findByRole('dialog', { name: 'New session: Požární ochrana' })
     expect(
@@ -208,6 +208,7 @@ describe('planner offers', () => {
   it('mark a late slot, name the other rooms, and explain every kind of failure', () => {
     renderClient(
       <PlannerView
+        paging={{ local: 'the offers a test gives' }}
         canCreate
         rooms={[]}
         groups={[

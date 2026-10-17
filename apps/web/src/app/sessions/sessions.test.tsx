@@ -6,7 +6,6 @@ import {
   listEmployeeOptions,
   listRoomOptions,
   listSessions,
-  pageSessions,
 } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -17,7 +16,7 @@ import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { advisorInput, AULA_A, ONLINE, session } from '@/test/fixtures'
-import { NotFoundError, router } from '@/test/next'
+import { NotFoundError, route, router } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
 import AdvisorPage, { generateMetadata as advisorMetadata } from '../advisor/page'
@@ -34,7 +33,6 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   getAdvisorInput: vi.fn(),
   getSession: vi.fn(),
   listSessions: vi.fn(),
-  pageSessions: vi.fn(),
   recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 vi.mock('@/server/auth')
@@ -76,10 +74,6 @@ beforeEach(() => {
       capacity: 30,
     }),
   ])
-  vi.mocked(pageSessions).mockImplementation(async () => {
-    const items = await vi.mocked(listSessions)()
-    return { items, total: items.length, page: 1, pageSize: 25, pageCount: 1 }
-  })
   vi.mocked(getSession).mockResolvedValue(session())
   vi.mocked(getAdvisorInput).mockResolvedValue(advisorInput())
   vi.mocked(listRoomOptions).mockResolvedValue([
@@ -98,7 +92,12 @@ beforeEach(() => {
 })
 
 describe('session list', () => {
-  const search = (query: Record<string, string>) => ({ searchParams: params(query) })
+  // The address the page is read from, and the one its view reads in the browser.
+  const search = (query: Record<string, string>) => {
+    route.pathname = '/sessions'
+    route.search = new URLSearchParams(query).toString()
+    return { searchParams: params(query) }
+  }
 
   it('lists upcoming sessions, linking the date to the session and the place to its room', async () => {
     expect(await listMetadata(search({}))).toEqual({ title: 'Sessions' })
@@ -116,7 +115,7 @@ describe('session list', () => {
     expect(within(row).getByText('Online', { selector: '.sr-only' })).toBeTruthy()
     expect(
       within(row)
-        .getByRole('link', { name: /Nov 4, 2026/ })
+        .getByRole('link', { name: /04.11.2026/ })
         .getAttribute('href')
     ).toBe('/sessions/T020')
     expect(within(row).getByText('—')).toBeTruthy()
@@ -129,13 +128,10 @@ describe('session list', () => {
       title: 'Sessions in Aula A',
     })
     await renderServer(SessionsPage(search({ when: 'past', room: 'room_aula_a' })))
-    // The past comes a page at a time.
-    expect(pageSessions).toHaveBeenCalledWith({
+    expect(listSessions).toHaveBeenCalledWith({
       window: 'past',
       room: 'room_aula_a',
       course: undefined,
-      page: undefined,
-      pageSize: 25,
     })
     expect(screen.getByRole('heading', { level: 1, name: 'Sessions in Aula A' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Upcoming' }).getAttribute('href')).toBe(
@@ -178,31 +174,36 @@ describe('session list', () => {
     expect(screen.getByText('No sessions to show.')).toBeTruthy()
   })
 
-  it('pages the past, and narrows it to one course with a chip that removes it', async () => {
-    vi.mocked(pageSessions).mockResolvedValueOnce({
-      items: [session()],
-      total: 60,
-      page: 2,
-      pageSize: 25,
-      pageCount: 3,
-    })
+  it('pages and sorts on the server, and narrows to one course with a chip that removes it', async () => {
+    // Sixty past sessions, the latest first: T060 … T001.
+    vi.mocked(listSessions).mockResolvedValue(
+      Array.from({ length: 60 }, (_, i) =>
+        session({ externalId: `T${String(60 - i).padStart(3, '0')}` })
+      )
+    )
     const query = { when: 'past', course: 'BOZP-Z', page: '2' }
     expect(await listMetadata(search(query))).toEqual({
       title: 'Sessions of BOZP – základní školení',
     })
     await renderServer(SessionsPage(search(query)))
-    expect(pageSessions).toHaveBeenCalledWith({
-      window: 'past',
-      room: undefined,
-      course: 'BOZP-Z',
-      page: 2,
-      pageSize: 25,
-    })
+    expect(listSessions).toHaveBeenCalledWith({ window: 'past', room: undefined, course: 'BOZP-Z' })
+    // The second page of 25 comes from the server: T035 … T011.
+    const ids = () =>
+      screen
+        .getAllByRole('button', { name: /^Who is booked on/ })
+        .map(b => b.getAttribute('aria-label')?.slice(-4))
+    expect(ids()).toHaveLength(25)
+    expect(ids()[0]).toBe('T035')
     expect(
       screen.getByRole('heading', { level: 1, name: 'Sessions of BOZP – základní školení' })
     ).toBeTruthy()
     const pages = screen.getByRole('navigation', { name: 'Pages' })
     expect(within(pages).getByText('Page 2 of 3')).toBeTruthy()
+    // A header asks the server for its order, from the first page, the filters kept.
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Date' }))
+    expect(router.push).toHaveBeenLastCalledWith('/sessions?when=past&course=BOZP-Z&sort=date', {
+      scroll: false,
+    })
     // Page 1 is the list without a page; the filters stay on every page.
     expect(
       within(pages)
@@ -235,15 +236,17 @@ describe('session list', () => {
 })
 
 describe('session detail', () => {
-  const props = { params: params({ externalId: 'T016' }) }
+  const props = { params: params({ externalId: 'T016' }), searchParams: params({}) }
 
   it('is titled by course and date once its data is there; an unknown ID is not found', async () => {
-    expect(await sessionMetadata(props)).toEqual({ title: 'BOZP – základní školení · Nov 4, 2026' })
+    expect(await sessionMetadata(props)).toEqual({ title: 'BOZP – základní školení · 04.11.2026' })
     await renderServer(SessionPage(props))
-    expect(document.title).toBe('BOZP – základní školení · Nov 4, 2026 · Training register')
+    expect(document.title).toBe('BOZP – základní školení · 04.11.2026 · Training register')
     vi.mocked(getSession).mockResolvedValueOnce(null)
     await expect(
-      renderServer(SessionPage({ params: params({ externalId: 'T999' }) }))
+      renderServer(
+        SessionPage({ params: params({ externalId: 'T999' }), searchParams: params({}) })
+      )
     ).rejects.toThrow(NotFoundError)
   })
 
@@ -301,6 +304,24 @@ describe('session detail', () => {
       employeeExternalId: 'E0153',
     })
     expect(await screen.findByText('Booking cancelled')).toBeTruthy()
+  })
+
+  it('starts the booking with the person a link names, when they are on offer', async () => {
+    signInAs('ADMIN')
+    vi.mocked(listEmployeeOptions).mockResolvedValue([
+      { id: 'emp_E0001', externalId: 'E0001', name: 'Urbanová Tereza', departmentId: null },
+      { id: 'emp_E0153', externalId: 'E0153', name: 'Černá Marie', departmentId: 'dep_lab' },
+    ])
+    const page = (employee: string) =>
+      SessionPage({ params: params({ externalId: 'T016' }), searchParams: params({ employee }) })
+    const { unmount } = await renderServer(page('E0001'))
+    expect(screen.getByRole('combobox', { name: 'Person to book' }).textContent).toBe(
+      'Urbanová Tereza'
+    )
+    unmount()
+    // Černá Marie is booked already: not on offer, so the form starts empty.
+    await renderServer(page('E0153'))
+    expect(screen.getByRole('combobox', { name: 'Person to book' }).textContent).toBe('Choose…')
   })
 
   it('says when nobody is booked by name', async () => {

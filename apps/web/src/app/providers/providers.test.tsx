@@ -61,7 +61,7 @@ describe('provider list', () => {
   it('shows each provider with what was completed with it, and sorts', async () => {
     const user = userEvent.setup()
     expect(await listMetadata()).toEqual({ title: 'Providers' })
-    await renderServer(ProvidersPage())
+    await renderServer(ProvidersPage({ searchParams: params({}) }))
     const vzor = screen.getByRole('row', { name: /Vzorový/ })
     expect(
       within(vzor).getByRole('link', { name: 'Vzorový školicí ústav' }).getAttribute('href')
@@ -76,8 +76,8 @@ describe('provider list', () => {
       '718',
       '161',
       '10',
-      'CZK 390,840',
-      'Sep 30, 2026',
+      '390 840,00 Kč',
+      '30.09.2026',
     ])
     expect(within(screen.getByRole('row', { name: /Interní/ })).getAllByText('—')).toHaveLength(3)
     expect(screen.queryByRole('link', { name: 'New provider' })).toBeNull()
@@ -95,11 +95,11 @@ describe('provider list', () => {
 
   it('hides the spend from viewers who may not see prices; says when there are none', async () => {
     vi.mocked(listProviders).mockResolvedValueOnce({ providers: [providerRow()], prices: false })
-    await renderServer(ProvidersPage())
+    await renderServer(ProvidersPage({ searchParams: params({}) }))
     expect(screen.queryByRole('columnheader', { name: /Spent/ })).toBeNull()
     signInAs('ADMIN')
     vi.mocked(listProviders).mockResolvedValueOnce({ providers: [], prices: true })
-    await renderServer(ProvidersPage())
+    await renderServer(ProvidersPage({ searchParams: params({}) }))
     // The empty list offers the first one where the table would be, as the header does.
     const empty = screen.getByText(/No providers yet/).parentElement as HTMLElement
     expect(within(empty).getByRole('link', { name: 'New provider' }).getAttribute('href')).toBe(
@@ -109,7 +109,7 @@ describe('provider list', () => {
 })
 
 describe('provider detail', () => {
-  const props = { params: params({ id: 'prov_vzor' }) }
+  const props = { params: params({ id: 'prov_vzor' }), searchParams: params({}) }
 
   it('shows its details, its totals, per course and its latest completions', async () => {
     expect(await providerMetadata(props)).toEqual({ title: 'Vzorový školicí ústav' })
@@ -125,15 +125,15 @@ describe('provider detail', () => {
       'https://www.vzor.example'
     )
     expect(screen.getByText('718 completions · 161 people · 10 courses')).toBeTruthy()
-    expect(screen.getByText('CZK 390,840')).toBeTruthy()
+    expect(screen.getByText('390 840,00 Kč')).toBeTruthy()
     const lead = screen.getByRole('row', { name: /Vedení lidí\s*LEAD/ })
     expect(within(lead).getAllByText('—')).toHaveLength(2)
     const marie = screen.getByRole('row', { name: /Černá Marie/ })
     expect(within(marie).getByRole('link', { name: 'Černá Marie' }).getAttribute('href')).toBe(
       '/employees/E0153'
     )
-    expect(within(marie).getByText('CZK 450.50')).toBeTruthy()
-    expect(screen.getByText('The newest 2 completions with this provider.')).toBeTruthy()
+    expect(within(marie).getByText('450,50 Kč')).toBeTruthy()
+    expect(screen.getByText('Every completion with this provider, 2 in all.')).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
     await expectNoAxeViolations()
   })
@@ -149,15 +149,17 @@ describe('provider detail', () => {
         note: null,
         prices: false,
         byCourse: [],
-        recentCompletions: [],
+        completionList: [],
       })
     )
-    await renderServer(ProviderPage({ params: params({ id: 'prov_int' }) }))
+    await renderServer(
+      ProviderPage({ params: params({ id: 'prov_int' }), searchParams: params({}) })
+    )
     expect(screen.getByText('No contact details yet.')).toBeTruthy()
     expect(screen.getByText('No completion names this provider yet.')).toBeTruthy()
     expect(screen.queryByText('Spent')).toBeNull()
     // The section stays, saying there is nothing in it yet.
-    expect(screen.getByRole('heading', { level: 2, name: 'Latest completions' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 2, name: 'Completions' })).toBeTruthy()
     expect(
       screen.getByText('Completions recorded with this provider are listed here.')
     ).toBeTruthy()
@@ -165,9 +167,9 @@ describe('provider detail', () => {
       '/providers/prov_int/edit'
     )
     vi.mocked(getProvider).mockResolvedValueOnce(null)
-    await expect(renderServer(ProviderPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
-      NotFoundError
-    )
+    await expect(
+      renderServer(ProviderPage({ params: params({ id: 'gone' }), searchParams: params({}) }))
+    ).rejects.toThrow(NotFoundError)
   })
 })
 
@@ -206,7 +208,9 @@ describe('archiving a provider', () => {
   it('archives from the provider page and says when it is gone already', async () => {
     const user = userEvent.setup()
     signInAs('ADMIN')
-    await renderServer(ProviderPage({ params: params({ id: 'prov_vzor' }) }))
+    await renderServer(
+      ProviderPage({ params: params({ id: 'prov_vzor' }), searchParams: params({}) })
+    )
     await user.click(screen.getByRole('button', { name: 'Archive' }))
     const confirm = await screen.findByRole('dialog', { name: 'Archive Vzorový školicí ústav?' })
     expect(previewArchive).toHaveBeenCalledWith('provider', 'prov_vzor')

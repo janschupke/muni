@@ -13,7 +13,7 @@ import { formatTimeRange } from '@muni/utils/format'
 import { ArrowRightLeft } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 import { RoomLink, SessionDateLink } from '@/components/session-links'
@@ -34,7 +34,6 @@ export function OverbookedList({
   canResolve: boolean
 }) {
   const t = useTranslations('advisor.overbooked')
-  const locale = useLocale()
   const [resolving, setResolving] = useState<{ item: OverbookedSession; from: HTMLElement } | null>(
     null
   )
@@ -51,9 +50,9 @@ export function OverbookedList({
             }
             description={
               <>
-                <SessionDateLink session={o.session} inText />
+                <SessionDateLink session={o.session} />
                 {' · '}
-                <RoomLink room={o.session.room} inText />
+                <RoomLink room={o.session.room} />
               </>
             }
           />
@@ -73,11 +72,14 @@ export function OverbookedList({
               <ItemList>
                 {o.moves.map(m => (
                   <ItemListRow key={m.to.externalId}>
-                    <span>
-                      {t('moveTo', { count: m.count })} <SessionDateLink session={m.to} inText />
-                      {' · '}
-                      <RoomLink room={m.to.room} inText />
-                    </span>
+                    <div className="flex flex-col">
+                      <span>{t('moveTo', { count: m.count })}</span>
+                      <span>
+                        <SessionDateLink session={m.to} />
+                        {' · '}
+                        <RoomLink room={m.to.room} />
+                      </span>
+                    </div>
                   </ItemListRow>
                 ))}
               </ItemList>
@@ -93,7 +95,7 @@ export function OverbookedList({
                   size="sm"
                   aria-label={t('resolveLabel', {
                     course: o.session.courseName,
-                    date: formatTimeRange(o.session.startsAt, o.session.endsAt, locale),
+                    date: formatTimeRange(o.session.startsAt, o.session.endsAt),
                   })}
                   onClick={event => {
                     setResolving({ item: o, from: event.currentTarget })

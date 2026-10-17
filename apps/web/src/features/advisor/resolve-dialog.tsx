@@ -7,7 +7,7 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { Field, Input } from '@muni/ui/field'
 import { formatTimeRange } from '@muni/utils/format'
 import { parseCount } from '@muni/utils/money'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 import { ConfirmDialog, type ConfirmOutcome } from '@/components/confirm-dialog'
@@ -39,10 +39,9 @@ export function ResolveDialog({
   const t = useTranslations('advisor.overbooked.dialog')
   const te = useTranslations('forms.errors')
   const tr = useTranslations('advisor.overbooked.refused')
-  const locale = useLocale()
   const afterWrite = useAfterWrite('session')
   const { session } = o
-  const when = (s: AdvisorSession) => formatTimeRange(s.startsAt, s.endsAt, locale)
+  const when = (s: AdvisorSession) => formatTimeRange(s.startsAt, s.endsAt)
   const named = session.assigned.length
   const movable = session.unnamedBookings
   const canMove = movable > 0 && o.targets.length > 0

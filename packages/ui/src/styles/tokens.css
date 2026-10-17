@@ -95,6 +95,8 @@
   --ramp-red-200: #fec9c3;
   --ramp-red-300: #fea199;
   --ramp-red-400: #fe6c65;
+  /* A full-strength red for the dark theme's danger fill: red-400 at this lightness reads pink. */
+  --ramp-red-450: #ff3b3b;
   --ramp-red-500: #d03b3b;
   --ramp-red-600: #c2272c;
   --ramp-red-700: #9b0d1a;
@@ -186,7 +188,12 @@
   --p-success-border: light-dark(var(--ramp-green-200), var(--ramp-green-800));
 
   --p-warning-fg: light-dark(var(--ramp-ink-warning-light), var(--ramp-ink-warning-dark));
-  --p-warning-fill: light-dark(var(--ramp-yellow-550), var(--ramp-yellow-300));
+  /*
+   * A yellow fill; in the light theme no yellow reaches 3:1 on white, so every warning fill
+   * carries an edge in the amber ink, which does (WCAG 1.4.11). The dark theme's needs none.
+   */
+  --p-warning-fill: var(--ramp-yellow-300);
+  --p-warning-edge: light-dark(var(--ramp-ink-warning-light), var(--ramp-yellow-300));
   --p-warning-soft: light-dark(var(--ramp-yellow-100), var(--ramp-yellow-900));
   --p-warning-border: light-dark(var(--ramp-yellow-200), var(--ramp-yellow-800));
 
@@ -196,7 +203,7 @@
   --p-serious-border: light-dark(var(--ramp-orange-200), var(--ramp-orange-800));
 
   --p-danger-fg: light-dark(var(--ramp-ink-danger-light), var(--ramp-ink-danger-dark));
-  --p-danger-fill: light-dark(var(--ramp-red-700), var(--ramp-red-400));
+  --p-danger-fill: light-dark(var(--ramp-red-700), var(--ramp-red-450));
   --p-danger-soft: light-dark(var(--ramp-red-100), var(--ramp-red-900));
   --p-danger-border: light-dark(var(--ramp-red-200), var(--ramp-red-800));
   --p-danger-ink: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-1000));
@@ -263,6 +270,7 @@
   --color-success-border: var(--p-success-border);
   --color-warning-fg: var(--p-warning-fg);
   --color-warning-fill: var(--p-warning-fill);
+  --color-warning-edge: var(--p-warning-edge);
   --color-warning-soft: var(--p-warning-soft);
   --color-warning-border: var(--p-warning-border);
   --color-serious-fg: var(--p-serious-fg);

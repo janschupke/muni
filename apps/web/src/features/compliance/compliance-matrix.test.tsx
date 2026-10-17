@@ -55,7 +55,7 @@ describe('compliance matrix', () => {
     // One cell per course, in the course order, with the state in words.
     const cells = within(marie).getAllByRole('cell').slice(1)
     expect(cells.map(c => c.textContent)).toEqual([
-      'BOZP – základní školení: Expired · valid until Sep 1, 2026 · booked for Nov 4, 2026, 8:00 AM',
+      'BOZP – základní školení: Expired · valid until 01.09.2026 · booked for 04.11.2026 8:00',
       'Bezpečná práce v laboratoři: Missing',
     ])
     const tomas = screen.getByRole('row', { name: /Dvořák Tomáš/ })
@@ -152,7 +152,7 @@ describe('compliance matrix', () => {
     expect(within(rows[0] as HTMLElement).getByText('(45 days ago)')).toBeTruthy()
     expect(
       within(rows[0] as HTMLElement)
-        .getByRole('link', { name: /Nov 4, 2026/ })
+        .getByRole('link', { name: /04.11.2026/ })
         .getAttribute('href')
     ).toBe('/sessions/T016')
     expect(within(dialog).getByRole('link', { name: 'Course detail' }).getAttribute('href')).toBe(

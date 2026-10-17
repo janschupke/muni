@@ -2,15 +2,16 @@
 
 import type { ArchivedItem } from '@muni/db/repositories'
 import type { Archivable } from '@muni/domain/archive'
-import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { UserName } from '@/components/archived'
+import { usePaginationLabels } from '@/components/pagination-labels'
 import { UnarchiveButton } from '@/components/unarchive-button'
 
 import { ArchivedValue } from './archived-value'
@@ -22,10 +23,18 @@ const col = createDataColumns<ArchivedItem>()
  * A kind's archived records, most recently archived first. People are listed by tag only; an
  * admin opens one to see who it was. Each row can be brought back.
  */
-export function ArchivedTable({ kind, items }: { kind: Archivable; items: ArchivedItem[] }) {
+export function ArchivedTable({
+  kind,
+  items,
+  paging,
+}: {
+  kind: Archivable
+  items: ArchivedItem[]
+  paging: TablePaging
+}) {
   const t = useTranslations('archive')
+  const paginationLabels = usePaginationLabels()
   const tc = useTranslations('common')
-  const locale = useLocale()
   const columns = useMemo(() => {
     const nameOf = (item: ArchivedItem) =>
       item.label ?? t(kind === 'user' ? 'user' : 'person', { tag: item.tag })
@@ -59,7 +68,7 @@ export function ArchivedTable({ kind, items }: { kind: Archivable; items: Archiv
         header: t('list.columns.archivedAt'),
         sortFn: 'basic',
         meta: { nowrap: true },
-        cell: ({ getValue }) => formatDateTime(getValue(), locale),
+        cell: ({ getValue }) => formatDateTime(getValue()),
       }),
       col.display({
         id: 'archivedBy',
@@ -76,13 +85,15 @@ export function ArchivedTable({ kind, items }: { kind: Archivable; items: Archiv
         ),
       }),
     ])
-  }, [t, tc, kind, locale])
+  }, [t, tc, kind])
   return (
     <DataTable
       caption={t(`kinds.${kind}.title`)}
       columns={columns}
       data={items}
       getRowId={i => i.id}
+      paging={paging}
+      paginationLabels={paginationLabels}
     />
   )
 }

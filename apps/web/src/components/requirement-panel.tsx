@@ -44,7 +44,11 @@ export function RequirementTable({ requirements }: { requirements: EmployeeListR
   const tc = useTranslations('common')
   const locale = useLocale()
   return (
-    <Table density="compact" aria-label={t('title')}>
+    <Table
+      density="compact"
+      paging="the trainings one person must hold: bounded by the catalogue"
+      aria-label={t('title')}
+    >
       <THead>
         <tr>
           <Th>{t('course')}</Th>
@@ -74,7 +78,7 @@ export function RequirementTable({ requirements }: { requirements: EmployeeListR
                 )
               ) : (
                 <>
-                  {formatDate(r.validUntil, locale)}
+                  {formatDate(r.validUntil)}
                   {r.daysLeft !== null && (
                     <span className="ml-1.5 text-xs text-fg-muted">
                       ({formatRelativeDays(r.daysLeft, locale)})
@@ -83,14 +87,12 @@ export function RequirementTable({ requirements }: { requirements: EmployeeListR
                 </>
               )}
             </Td>
-            <Td nowrap>
-              {r.completedOn === null ? PLACEHOLDER : formatDate(r.completedOn, locale)}
-            </Td>
+            <Td nowrap>{r.completedOn === null ? PLACEHOLDER : formatDate(r.completedOn)}</Td>
             <Td nowrap>
               {r.booked ? (
                 <TextLink asChild hitArea>
                   <Link href={`/sessions/${r.booked.sessionExternalId}`}>
-                    {formatDateTime(r.booked.startsAt, locale)}
+                    {formatDateTime(r.booked.startsAt)}
                   </Link>
                 </TextLink>
               ) : (

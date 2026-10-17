@@ -258,6 +258,21 @@ for (const theme of ['light', 'dark'] as const) {
       await shot(page, 'sessions-past-course')
     })
 
+    test('a list sorted and paged by the server, and a proposed session with its person', async ({
+      page,
+    }) => {
+      await page.goto('/employees?sort=name&dir=desc&page=2')
+      await loaded(page)
+      await shot(page, 'employees-page-2')
+      // The breakdown's proposed session opens with the person chosen in its booking form.
+      await page.goto('/advisor')
+      await loaded(page)
+      await page.locator('tbody a[href*="?employee="]').first().click()
+      await expect(page).toHaveURL(/\/sessions\/T\d+\?employee=E\d+$/)
+      await loaded(page)
+      await shot(page, 'session-person-chosen')
+    })
+
     test('the import, step by step, nothing imported', async ({ page }) => {
       await page.goto('/import')
       await loaded(page)

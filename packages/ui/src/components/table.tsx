@@ -7,18 +7,44 @@ import { surfaceClass } from './card'
  * The scroll box around a table. `relative` makes it the containing block of absolutely
  * positioned descendants (the `sr-only` labels in cells), so its overflow clips them too;
  * without it they sit outside the box and stretch the page sideways on phones.
+ *
+ * `paging` says how the table's rows are paged: `server` (one page the server sorted and cut),
+ * or why every row is here (rows that exist only in the browser, a list bounded by something
+ * small). The rendered table carries it (`data-paging`), and the e2e checks hold every table
+ * to saying it.
  */
-export function TableContainer({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('relative overflow-x-auto', surfaceClass, className)} {...props} />
+export function TableContainer({
+  className,
+  paging,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & { paging: string }) {
+  return (
+    <div
+      data-paging={paging === 'server' ? 'server' : `local: ${paging}`}
+      className={cn('relative overflow-x-auto', surfaceClass, className)}
+      {...props}
+    />
+  )
 }
 
+/**
+ * A table. Outside a TableContainer (in a panel, a dialog) it says how its rows are paged
+ * itself, the way TableContainer does (`paging`).
+ */
 export function Table({
   className,
   density = 'default',
+  paging,
   ...props
-}: HTMLAttributes<HTMLTableElement> & { density?: 'default' | 'compact' | undefined }) {
+}: HTMLAttributes<HTMLTableElement> & {
+  density?: 'default' | 'compact' | undefined
+  paging?: string | undefined
+}) {
   return (
     <table
+      data-paging={
+        paging === undefined ? undefined : paging === 'server' ? 'server' : `local: ${paging}`
+      }
       className={cn(
         'w-full border-collapse text-sm',
         // Overrides the cells' own padding (descendant selectors outrank their utilities).

@@ -4,9 +4,11 @@ import {
   type AdvisorNeed,
   type AdvisorSession,
   planAssignments,
+  tableItems,
 } from '@muni/domain/advisor'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import Link from 'next/link'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { expectNoAxeViolations } from '@/test/axe'
@@ -80,26 +82,40 @@ const INPUT: AdvisorInput = {
 }
 const PLAN = planAssignments(INPUT)
 
+/** A sort header's click: the order the server is asked for. */
+const sortAsked = vi.fn()
+
+/** The workbench as the advisor read hands it over: the view's trainings, one page of them. */
 function renderWorkbench({
   view = 'breakdown',
   bucket = 'now',
-  page = 1,
   canApply = false,
   plan = PLAN,
 }: {
   view?: 'breakdown' | 'action' | 'planned' | 'overbooked'
   bucket?: string
-  page?: number
   canApply?: boolean
   plan?: ReturnType<typeof planAssignments>
 } = {}) {
+  const table = tableItems(plan, view, bucket)
   return renderClient(
     <AdvisorWorkbench
-      plan={plan}
+      plan={{ ...plan, items: table.items }}
       asOf={INPUT.asOf}
       view={view}
-      bucket={bucket}
-      page={page}
+      bucket={table.bucket}
+      total={table.items.length}
+      counts={table.counts}
+      paging={{
+        server: {
+          page: 1,
+          pageCount: 1,
+          sorting: [],
+          onSortingChange: sortAsked,
+          hrefFor: page => `/advisor?page=${String(page)}`,
+          linkAs: Link,
+        },
+      }}
       canApply={canApply}
     />
   )
@@ -121,7 +137,7 @@ describe('AdvisorWorkbench', () => {
     expect(nowLinks.map(a => a.getAttribute('href'))).toEqual(['/advisor', '/advisor'])
     expect(hrefOf(/^December 2026/)).toBe('/advisor?bucket=2026-12')
     // The current month holds only what lapses after today, and says so.
-    expect(hrefOf(/^Oct 17, 2026 – Oct 31, 2026/)).toBe('/advisor?bucket=2026-10')
+    expect(hrefOf(/^17.10.2026 – 31.10.2026/)).toBe('/advisor?bucket=2026-10')
     expect(
       screen.getByRole('img', {
         name: /^Non-compliant now: Planned in time 0, Planned, with a gap 0, Action required 2/,
@@ -133,9 +149,32 @@ describe('AdvisorWorkbench', () => {
     expect(screen.getByText(/is non-compliant today/)).toBeTruthy()
     const adamek = rowOf('Adámek Petr')
     expect(within(adamek).getByText('Action required')).toBeTruthy()
-    expect(within(adamek).getByText('Sep 2, 2026 – open')).toBeTruthy()
-    expect(hrefOf(/Nov 20, 2026/, adamek)).toBe('/sessions/T018')
+    expect(within(adamek).getByText('From 02.09.2026')).toBeTruthy()
+    // The proposed session's page offers Adámek for booking.
+    expect(hrefOf(/20.11.2026/, adamek)).toBe('/sessions/T018?employee=E0001')
     expect(within(rowOf('Bílá Jana')).getByText('Every session is full')).toBeTruthy()
+    // Visitors see what to do, not the buttons that do it.
+    expect(screen.queryByRole('button', { name: /^Book/ })).toBeNull()
+  })
+
+  it('books the proposed session from a breakdown row, or schedules one when none can take it', async () => {
+    const user = userEvent.setup()
+    renderWorkbench({ canApply: true })
+    const bila = rowOf('Bílá Jana')
+    expect(
+      within(bila)
+        .getByRole('link', { name: 'Schedule a session of BOZP – základní školení for Bílá Jana' })
+        .getAttribute('href')
+    ).toBe('/courses/BOZP-Z/sessions/new')
+    await user.click(
+      within(rowOf('Adámek Petr')).getByRole('button', { name: 'Book Adámek Petr…' })
+    )
+    const dialog = await screen.findByRole('dialog', { name: 'Book 1 person?' })
+    expect(applyAssignmentsAction).not.toHaveBeenCalled()
+    await user.click(within(dialog).getByRole('button', { name: 'Book 1 person' }))
+    expect(applyAssignmentsAction).toHaveBeenCalledWith([
+      { sessionExternalId: 'T018', employeeExternalId: 'E0001', source: 'ADVISOR' },
+    ])
   })
 
   it('shows a booking after the lapse as planned with a gap, and the gap in days', () => {
@@ -143,7 +182,7 @@ describe('AdvisorWorkbench', () => {
     expect(screen.getByText(/lapses in December 2026/)).toBeTruthy()
     const row = rowOf('Cibulka Ota')
     expect(within(row).getByText('Planned, with a gap')).toBeTruthy()
-    expect(within(row).getByText('Dec 1, 2026 – Dec 10, 2026')).toBeTruthy()
+    expect(within(row).getByText('01.12.2026 – 10.12.2026')).toBeTruthy()
     expect(within(row).getByText('9 days')).toBeTruthy()
   })
 
@@ -152,13 +191,13 @@ describe('AdvisorWorkbench', () => {
     const adamek = rowOf('Adámek Petr')
     expect(hrefOf('Adámek Petr', adamek)).toBe('/employees/E0001')
     expect(hrefOf('BOZP – základní školení', adamek)).toBe('/courses/BOZP-Z')
-    expect(hrefOf(/Nov 20, 2026/, adamek)).toBe('/sessions/T018')
+    expect(hrefOf(/20.11.2026/, adamek)).toBe('/sessions/T018?employee=E0001')
     expect(hrefOf('Aula A', adamek)).toBe('/rooms/room_aula_a')
-    expect(within(adamek).getByText('Without it until Nov 20, 2026')).toBeTruthy()
+    expect(within(adamek).getByText('Without it until 20.11.2026')).toBeTruthy()
 
     const bila = rowOf('Bílá Jana')
     expect(within(bila).getByText('Every session is full')).toBeTruthy()
-    expect(hrefOf('Schedule a session', bila)).toBe('/courses/BOZP-Z')
+    expect(hrefOf('Schedule a session', bila)).toBe('/courses/BOZP-Z/sessions/new')
   })
 
   it('lets visitors look but not book', () => {
@@ -182,15 +221,15 @@ describe('AdvisorWorkbench', () => {
     await expectNoAxeViolations()
     // The proposal, with the other session that could take them to choose instead.
     const choice = screen.getByRole('combobox', { name: 'Session for Adámek Petr' })
-    expect(choice.textContent).toMatch(/Nov 20, 2026.*Aula A.*2 free/)
+    expect(choice.textContent).toMatch(/20.11.2026.*Aula A.*2 free/)
     await user.click(choice)
-    await user.click(screen.getByRole('option', { name: /Dec 1, 2026/ }))
+    await user.click(screen.getByRole('option', { name: /01.12.2026/ }))
     await user.click(screen.getByRole('button', { name: 'Book Adámek Petr…' }))
     // Nothing is booked before the admin confirms what the dialog shows.
     const dialog = await screen.findByRole('dialog', { name: 'Book 1 person?' })
     expect(applyAssignmentsAction).not.toHaveBeenCalled()
-    expect(within(dialog).getByText(/Dec 1, 2026/)).toBeTruthy()
-    expect(within(dialog).getByText('Total: CZK 600')).toBeTruthy()
+    expect(within(dialog).getByText(/01.12.2026/)).toBeTruthy()
+    expect(within(dialog).getByText('Total: 600,00 Kč')).toBeTruthy()
     await user.click(within(dialog).getByRole('button', { name: 'Book 1 person' }))
     expect(applyAssignmentsAction).toHaveBeenCalledWith([
       { sessionExternalId: 'T021', employeeExternalId: 'E0001', source: 'ADVISOR' },
@@ -214,8 +253,10 @@ describe('AdvisorWorkbench', () => {
     renderWorkbench({ plan, view: 'action', canApply: true })
     // The first moved onto the one-seat session the second is proposed.
     await user.click(screen.getByRole('combobox', { name: 'Session for Adámek Petr' }))
-    await user.click(screen.getByRole('option', { name: /Dec 1, 2026/ }))
-    await user.click(screen.getByRole('button', { name: 'Select all 2 proposed' }))
+    await user.click(screen.getByRole('option', { name: /01.12.2026/ }))
+    await user.click(
+      screen.getByRole('checkbox', { name: 'Select every proposed row on this page' })
+    )
     await user.click(screen.getByRole('button', { name: /^Book 2 selected/ }))
     const dialog = await screen.findByRole('dialog', { name: 'Book 2 people?' })
     expect(within(dialog).getByText(/2 chosen, 1 seat free/)).toBeTruthy()
@@ -231,7 +272,7 @@ describe('AdvisorWorkbench', () => {
     expect(hrefOf(/^Action required/, tabs)).toBe('/advisor?view=action')
     expect(hrefOf(/^Remediation planned/, tabs)).toBe('/advisor?view=planned')
     // The forecast's card and its row in the breakdown open the same list.
-    const forecast = screen.getAllByRole('link', { name: /^Lapsing by Mar 31, 2027/ })
+    const forecast = screen.getAllByRole('link', { name: /^Lapsing by 31.03.2027/ })
     expect(forecast.map(a => a.getAttribute('href'))).toEqual([
       '/advisor?bucket=upcoming',
       '/advisor?bucket=upcoming',
@@ -242,18 +283,18 @@ describe('AdvisorWorkbench', () => {
     renderWorkbench({ bucket: 'upcoming' })
     const upcoming = PLAN.items.filter(i => i.bucket !== 'now').length
     expect(upcoming).toBe(PLAN.totals.upcoming)
-    const card = screen.getAllByRole('link', { name: /^Lapsing by Mar 31, 2027/ })[0]
+    const card = screen.getAllByRole('link', { name: /^Lapsing by 31.03.2027/ })[0]
     expect(card?.textContent).toContain(String(upcoming))
     expect(
       screen.getByRole('table', {
-        name: `Lapsing by Mar 31, 2027: ${String(upcoming)} ${upcoming === 1 ? 'training' : 'trainings'}`,
+        name: `Lapsing by 31.03.2027: ${String(upcoming)} ${upcoming === 1 ? 'training' : 'trainings'}`,
       })
     ).toBeTruthy()
-    expect(screen.getByText(/lapses by Mar 31, 2027/)).toBeTruthy()
+    expect(screen.getByText(/lapses by 31.03.2027/)).toBeTruthy()
     // The selected row is the forecast's.
     expect(
       screen
-        .getAllByRole('link', { name: /^Lapsing by Mar 31, 2027/ })
+        .getAllByRole('link', { name: /^Lapsing by 31.03.2027/ })
         .some(a => a.getAttribute('aria-current') === 'true')
     ).toBe(true)
   })
@@ -261,8 +302,9 @@ describe('AdvisorWorkbench', () => {
   it('shows overbooked sessions and where the advisor suggests their seats go', () => {
     renderWorkbench({ view: 'overbooked' })
     expect(screen.getByText('3 of 2 · 1 over')).toBeTruthy()
-    const move = screen.getByText(/Suggested: move 1 seat to/)
-    expect(hrefOf(/Nov 20, 2026/, move)).toBe('/sessions/T018')
+    // The suggestion on its own line, the session it names on the next: no link in a sentence.
+    const move = screen.getByText(/Suggested: move 1 seat to/).parentElement ?? document.body
+    expect(hrefOf(/20.11.2026/, move)).toBe('/sessions/T018')
     expect(screen.queryByRole('button', { name: /^Resolve/ })).toBeNull()
   })
 
@@ -270,7 +312,7 @@ describe('AdvisorWorkbench', () => {
     const user = userEvent.setup()
     renderWorkbench({ view: 'planned' })
     const row = rowOf('Cibulka Ota')
-    expect(hrefOf(/Dec 10, 2026/, row)).toBe('/sessions/T019')
+    expect(hrefOf(/10.12.2026/, row)).toBe('/sessions/T019')
     expect(within(row).getByText('Planned, with a gap')).toBeTruthy()
     expect(within(row).queryByRole('button')).toBeNull()
 
@@ -299,7 +341,7 @@ describe('AdvisorWorkbench', () => {
     const dialog = await screen.findByRole('dialog', { name: /^Resolve overbooking:/ })
     // What is wrong, what can move, and the suggestion filled in.
     expect(within(dialog).getByText(/3 booked for 2 seats, 1 over/)).toBeTruthy()
-    const target = within(dialog).getByRole('textbox', { name: /Nov 20, 2026/ })
+    const target = within(dialog).getByRole('textbox', { name: /20.11.2026/ })
     expect(target).toHaveProperty('value', '1')
     expect(within(dialog).getByText('After this: 2 booked for 2 seats.')).toBeTruthy()
     // More than the session can take is refused before anything is sent.
@@ -396,7 +438,9 @@ describe('AdvisorWorkbench', () => {
       failed: [{ sessionExternalId: 'T018', employeeExternalId: 'E0002', reason: 'CONFLICT' }],
     })
     renderWorkbench({ plan, view: 'action', canApply: true })
-    await user.click(screen.getByRole('button', { name: 'Select all 2 proposed' }))
+    await user.click(
+      screen.getByRole('checkbox', { name: 'Select every proposed row on this page' })
+    )
     await user.click(screen.getByRole('button', { name: /^Book 2 selected/ }))
     const dialog = await screen.findByRole('dialog', { name: 'Book 2 people?' })
     await user.click(within(dialog).getByRole('button', { name: 'Book 2 people' }))
@@ -406,7 +450,7 @@ describe('AdvisorWorkbench', () => {
     expect(within(dialog).queryByRole('button', { name: 'Book 2 people' })).toBeNull()
   })
 
-  it('sorts the action list by any column', async () => {
+  it('asks the server for the order a header names, keeping the rows as they came', async () => {
     const user = userEvent.setup()
     renderWorkbench({ view: 'action' })
     const names = () =>
@@ -415,12 +459,18 @@ describe('AdvisorWorkbench', () => {
         .slice(1)
         .map(r => within(r).getAllByRole('link')[0]?.textContent)
     expect(names()).toEqual(['Adámek Petr', 'Bílá Jana'])
-    for (const header of ['Person', 'Course', 'Lapses', 'Proposed session', 'Order']) {
+    for (const [header, id] of [
+      ['Person', 'person'],
+      ['Course', 'training'],
+      ['Lapses', 'lapses'],
+      ['Proposed session', 'proposal'],
+      ['Order', 'rank'],
+    ] as const) {
       await user.click(screen.getByRole('button', { name: header }))
+      expect(sortAsked).toHaveBeenLastCalledWith([{ id, desc: false }])
     }
-    await user.click(screen.getByRole('button', { name: 'Person' }))
-    await user.click(screen.getByRole('button', { name: 'Person' }))
-    expect(names()).toEqual(['Bílá Jana', 'Adámek Petr'])
+    // The order is the server's to change: the rows stay until the next page arrives.
+    expect(names()).toEqual(['Adámek Petr', 'Bílá Jana'])
   })
 
   it('says when there is nothing in a view', () => {
@@ -454,7 +504,7 @@ describe('AdvisorWorkbench', () => {
     })
     renderWorkbench({ plan })
     expect(within(rowOf('Bílá Jana')).getByText('Never held')).toBeTruthy()
-    expect(within(rowOf('Dvořák Jan')).getByText('Never held, until Nov 20, 2026')).toBeTruthy()
+    expect(within(rowOf('Dvořák Jan')).getByText('Never held, until 20.11.2026')).toBeTruthy()
   })
 
   it('offers what to do when no session can take a training', () => {
@@ -471,7 +521,7 @@ describe('AdvisorWorkbench', () => {
     renderWorkbench({ plan, view: 'action' })
     const row = rowOf('Eliáš Karel')
     expect(within(row).getByText('No session scheduled')).toBeTruthy()
-    expect(hrefOf('Schedule a session', row)).toBe('/courses/ANGL')
+    expect(hrefOf('Schedule a session', row)).toBe('/courses/ANGL/sessions/new')
     expect(screen.getByRole('link', { name: /Anglický jazyk – kurz: 1 person/ })).toBeTruthy()
   })
 })

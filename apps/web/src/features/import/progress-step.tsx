@@ -51,8 +51,8 @@ export function ProgressStep({ job, onReset }: { job: ImportJob; onReset: () => 
             {job.written > 0 && (
               <p className="text-fg-muted">{t('progress.partial', { count: job.written })}</p>
             )}
-            <div>
-              <Button onClick={onReset}>
+            <div className="flex justify-end">
+              <Button variant="primary" onClick={onReset}>
                 <RotateCcw aria-hidden />
                 {t('progress.again')}
               </Button>
@@ -83,7 +83,7 @@ export function ProgressStep({ job, onReset }: { job: ImportJob; onReset: () => 
                 </li>
               ))}
             </ul>
-            <div>
+            <div className="flex justify-end">
               <Button variant="primary" onClick={onReset}>
                 <RotateCcw aria-hidden />
                 {t('progress.again')}

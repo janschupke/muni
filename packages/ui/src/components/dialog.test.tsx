@@ -126,7 +126,7 @@ describe('IconButton', () => {
   it('takes the colour of what it does at rest, and a soft fill of it on hover', () => {
     render(
       <>
-        <IconButton label="Archivovat" tone="serious">
+        <IconButton label="Archivovat" tone="danger">
           <svg aria-hidden />
         </IconButton>
         <IconButton label="Zavřít">
@@ -135,8 +135,8 @@ describe('IconButton', () => {
       </>
     )
     const archive = screen.getByRole('button', { name: 'Archivovat' }).className
-    expect(archive).toContain('text-serious-fg')
-    expect(archive).toContain('hover:bg-serious-soft')
+    expect(archive).toContain('text-danger-fg')
+    expect(archive).toContain('hover:bg-danger-soft')
     expect(archive).not.toContain('text-fg-muted')
     expect(screen.getByRole('button', { name: 'Zavřít' }).className).toContain('text-fg-muted')
   })

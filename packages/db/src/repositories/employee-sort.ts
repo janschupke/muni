@@ -1,16 +1,7 @@
-import type { ComplianceStatus, EmploymentState } from '@muni/domain/enums'
+import type { ComplianceStatus, EmployeeSortKey, EmploymentState } from '@muni/domain/enums'
 
 import type { EmployeeListItem } from './employees'
-
-export const EMPLOYEE_SORT_KEYS = [
-  'name',
-  'department',
-  'position',
-  'status',
-  'compliance',
-  'required',
-] as const
-export type EmployeeSortKey = (typeof EMPLOYEE_SORT_KEYS)[number]
+import { type ListQuery, type Page, pageBounds } from './paging'
 
 const collator = new Intl.Collator('cs', { numeric: true, sensitivity: 'base' })
 
@@ -73,4 +64,25 @@ export function sortEmployees(items: EmployeeListItem[], by: EmployeeSortKey, de
         : Number(va) - Number(vb)
     return desc ? -order : order
   })
+}
+
+/**
+ * One page of people sorted by the column asked for, without a sort in the order they come in
+ * (a department's people come most urgent first); the employee list and a department's or
+ * position's people page this way.
+ */
+export function pageEmployees(
+  items: readonly EmployeeListItem[],
+  query: ListQuery<EmployeeSortKey>
+): Page<EmployeeListItem> {
+  const sorted = [...items]
+  if (query.sort) sortEmployees(sorted, query.sort.by, query.sort.desc)
+  const { page, pageSize, pageCount, skip } = pageBounds(sorted.length, query)
+  return {
+    items: sorted.slice(skip, skip + pageSize),
+    total: sorted.length,
+    page,
+    pageSize,
+    pageCount,
+  }
 }

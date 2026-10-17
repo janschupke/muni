@@ -115,7 +115,7 @@ export function UploadStep({
 
       <Hint>{t('upload.replaced', { mb: Math.round(MAX_FILE_BYTES / 1024 / 1024) })}</Hint>
 
-      <div>
+      <div className="flex justify-end">
         <Button variant="primary" disabled={accepted.length === 0} onClick={onNext}>
           {t('upload.next')}
           <ArrowRight aria-hidden />

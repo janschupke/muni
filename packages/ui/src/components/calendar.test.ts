@@ -5,6 +5,7 @@ import {
   addMonths,
   clamp,
   endOfWeek,
+  formatPattern,
   formatTyped,
   monthGrid,
   parseTime,
@@ -49,23 +50,23 @@ describe('calendar arithmetic', () => {
 })
 
 describe('typed dates', () => {
-  it('reads Czech and English numeric dates, and ISO', () => {
-    expect(parseTyped('1. 3. 2026', 'cs')).toBe('2026-03-01')
-    expect(parseTyped('1.3.26', 'cs')).toBe('2026-03-01')
-    expect(parseTyped('3/1/2026', 'en')).toBe('2026-03-01')
-    expect(parseTyped(' 2026-03-01 ', 'en')).toBe('2026-03-01')
+  it('reads day, month and year with any separators, and ISO', () => {
+    expect(parseTyped('01.03.2026')).toBe('2026-03-01')
+    expect(parseTyped('1. 3. 2026')).toBe('2026-03-01')
+    expect(parseTyped('1.3.26')).toBe('2026-03-01')
+    expect(parseTyped('1/3/2026')).toBe('2026-03-01')
+    expect(parseTyped(' 2026-03-01 ')).toBe('2026-03-01')
   })
 
   it('refuses what is not a date', () => {
     for (const text of ['', '31. 2. 2026', '1. 3.', 'tomorrow', '1. 3. 99999', '1/2/3/4'])
-      expect(parseTyped(text, 'cs'), text).toBeNull()
+      expect(parseTyped(text), text).toBeNull()
   })
 
-  it('writes dates the way they are read', () => {
-    expect(formatTyped('2026-03-01', 'cs')).toBe('1. 3. 2026')
-    expect(formatTyped('2026-03-01', 'en')).toBe('3/1/2026')
-    for (const locale of ['cs', 'en'])
-      expect(parseTyped(formatTyped('2019-12-31', locale), locale)).toBe('2019-12-31')
+  it('writes dates the way the app shows them, and reads them back', () => {
+    expect(formatTyped('2026-03-01')).toBe('01.03.2026')
+    expect(formatPattern({ day: 'dd', month: 'mm', year: 'rrrr' })).toBe('dd.mm.rrrr')
+    expect(parseTyped(formatTyped('2019-12-31'))).toBe('2019-12-31')
   })
 })
 

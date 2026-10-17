@@ -270,24 +270,43 @@ Pages are built from `@muni/ui` primitives, one subpath export each (`@muni/ui/s
 `@muni/ui/data-table`, …). Primitives that wrap a link take `asChild`
 (`<Button asChild><Link href="…">…</Link></Button>`), so the package never imports Next.
 
-Tables use `DataTable` (TanStack Table 9) and sort by clicking a header. Text sorts with
-Czech collation, and missing values sort last in both directions. Small lists (courses,
-sessions, completion history, the import review) are sorted in the browser; the review sorts
-every row of the current filter before paging. The employee list is paginated on the server,
-so it is also sorted there: the order lives in the URL (`?sort=department&dir=desc`) and is
-applied in `listEmployees` before the page is cut. Past sessions grow without end, so
-`/sessions?when=past` comes 25 at a time (`?page=`, `pageSessions`), newest first, and its
-header sorting orders the page in view; upcoming sessions come whole. A course's page shows
-its sessions ahead and its 10 latest past ones, and links to the rest
+Tables use `DataTable` (TanStack Table 9). Every list is sorted and paged on the server: the
+browser gets one page, 25 rows, in the order asked for. The order and the page live in the
+address (`?sort=department&dir=desc&page=2`); a page with two lists names the second's
+(`?completionsSort=price&completionsPage=3`). A header click asks for its order from the first
+page, every other parameter kept; a server list always has an order, so the header flips
+between its two directions.
+
+- **One function per list:** `parseList` reads the address for both the page's prefetch and
+  the view (`useListUrl`), so they name the same cache entry. Each read takes the columns its
+  table sorts by (`lib/list-keys.ts`) and nothing else (`listInput`); `pageOf` sorts by the
+  value the column shows (`server/reads/sorters.ts`), Czech collation, missing values last
+  both ways, and cuts the page.
+- **Which lists:** every list page, the archived ones, the advisor's tables (the plan is
+  computed whole, the table's trainings sent a page at a time), the planner (ten courses a
+  page, offers sorted within each), and every list on a record's page: a person's completions,
+  a department's people (and an opened row's members), a room's and a course's sessions ahead,
+  a course's and a provider's completions, a provider's courses.
+- **Which tables hold every row,** and say why (`DataTable paging={{ local }}`,
+  `data-paging` on the page): the import review (its rows exist only in the browser until
+  imported), a session's attendees and an offer's people (bounded by seats), the trainings one
+  person must hold and the per-course breakdowns of a room and a department (bounded by the
+  catalogue), the overview's preview of the next six sessions, and the compliance grid.
+
+A course's page lists its sessions ahead and links to the past ones
 (`/sessions?when=past&course=CODE`).
 
-Dates and times are formatted with luxon in Europe/Prague time (`@muni/utils/format`);
-date-only values are formatted as UTC so the day never shifts. Amounts use `Intl.NumberFormat`.
+Dates and times are written one way in both languages, `17.10.2026 9:00`, by pattern (luxon,
+Europe/Prague time, `@muni/utils/format`), so the server and the browser agree; date-only
+values are formatted as UTC so the day never shifts. A typed date reads `dd.mm.yyyy`, with
+any separators. Month names follow the language.
 
-Every amount is in Czech crowns (`CURRENCY` in `@muni/utils/format`):
+Every amount is in Czech crowns (`CURRENCY` in `@muni/utils/format`), written the Czech way in
+both languages:
 
-- `formatCurrency` shows one, or the placeholder when there is none. Whole amounts drop the decimals.
-- Price fields name the currency with `currencySymbol` ("Kč", "CZK") rather than a literal in the messages.
+- `formatCurrency` shows one with its two decimals (`1 200,00 Kč`), or the placeholder when
+  there is none; price fields show theirs to edit as `450,50` (`formatAmount`).
+- Price fields name the currency with `currencySymbol` ("Kč") rather than a literal in the messages.
 - The forms read an amount with the import's parser (`money()` → `parseCzk`), so `1 200,50 Kč` and `zdarma` work in both.
 - The database stores decimals, and the repositories convert them with `toAmount`.
 
@@ -359,7 +378,11 @@ One palette, defined once in `packages/ui/src/styles/tokens.css`:
   track and on every surface 3:1 (WCAG 1.4.11); text 4.5:1; any two signal fills ΔE ≥ 0.09,
   since they meet in stacked bars. Coloured text reads as a colour: the link, accent,
   success, warning, serious and danger inks each stand ΔE ≥ 0.10 from every text grey and
-  0.09 from each other (warning would otherwise read as one more brown-grey). It also scans the app for colour classes: a role used
+  0.09 from each other (warning would otherwise read as one more brown-grey). Fills read as
+  their sentiment: the warning fill is a clear yellow (OKLab lightness ≥ 0.75) and the danger
+  fill a full red (chroma ≥ 0.17, not pink), in both themes. No yellow reaches 3:1 on white, so
+  every warning fill carries a 1px edge in the amber ink (`inset-ring-warning-edge`), and the
+  edge is what meets 3:1. It also scans the app for colour classes: a role used
   anywhere but in no pairing fails, so a new use cannot skip the contract. The rendered pages
   are checked too (next section).
 - **Compliance rates** are coloured by band (`complianceBand` in `@muni/domain`): 100 %,
@@ -370,12 +393,20 @@ One palette, defined once in `packages/ui/src/styles/tokens.css`:
   4.8:1 contrast. Rate meters and the overview card use the same bands in the four signal
   colours (100 % and 90–99 % are both green).
 
-- **Links** are in the link colour (`text-link`, blue-500 / blue-250) before they are hovered,
-  and underline on hover; a link inside a sentence (`TextLink inText`: a course's
-  "Department: Laboratoře", a proposal's "session · room") is always underlined. Icon buttons
-  take the colour of what they do (`IconButton tone`): edit and undo accent, archive serious,
-  bring back success, remove danger, with a soft fill of it on hover; close, clear-a-filter
-  and the sidebar toggle stay grey.
+- **Links** are drawn one way, by `TextLink`: the link colour (`text-link`, blue-500 /
+  blue-250), underlined only on hover. No link sits inside a sentence: in the dark theme no
+  blue has both 3:1 against the body text and 4.5:1 on the dialog surface, so colour alone
+  could not tell it from the words around it (WCAG 1.4.1). A label goes on its own line
+  ("Department" over "Laboratoře") or a link stands in its own cell. Full email addresses are
+  `mailto:` links (`EmailLink`).
+- **Icon buttons** take the colour of what they do (`IconButton tone`): edit and undo accent,
+  bring back success, archive and remove danger (one red for every destructive act; serious
+  marks status only), with a soft fill of it on hover; close, clear-a-filter and the sidebar
+  toggle stay grey.
+- **Buttons:** in a group, one is primary (or danger, confirming a destructive act) and it
+  comes last, on the right; the others, navigation included, are secondary, with a
+  background; only a way back out is ghost (`CancelButton`). Starting a destructive act
+  (Archive in a record's header) is `destructive`: secondary with the danger ink.
 
 ### Layout
 
@@ -412,7 +443,7 @@ and every location links to the sessions held there (`/sessions?location=Aula A`
 Providers (`/providers`) list who delivered the completions on record:
 
 - **Each provider shows:** its IČO, its completions, people and courses, what was spent and the last completion.
-- **Its page adds:** contact details, a breakdown by course and the latest 20 completions; the employee's completion history links to it.
+- **Its page adds:** contact details, its courses and its completions, each a page at a time; the employee's completion history links to it.
 - **Records:** imports create a provider by name (matched ignoring case and accents); the completion form picks one, or names a new one on purpose and is refused if that name is taken. Its details (IČO with its check digit, email, phone, website, note) are entered in the app, and imports leave them alone.
 - **Rename and archive:** renaming changes the name on every completion. An archived provider stays on its completions, shown muted.
 - **Prices:** the spend follows the `completion.price` policy. A viewer who may not see prices sees no sums of them either.
@@ -598,10 +629,15 @@ axe could not settle (under a pinned cell, over an overlap): it is measured from
 layers instead. The same states go through `e2e/support/contrast.ts`, which measures what
 axe does not, on the rendered page: a filled element either matches what it sits on or
 stands ΔE 0.02 apart from it; each enabled control's outline and each meter's fill have
-3:1; every link is underlined or its colour stands ΔE 0.09 from the page's text and its
-block's, and in running text is underlined or 3:1 against it (axe's own rule passes a link
-the colour of its text and skips links alone in a cell); and hovering a table's first row
-changes every cell, pinned ones included. Clerk's footer is left out only on a development
+3:1; every link's colour stands ΔE 0.09 from the page's text and its block's, and a link in
+running text needs 3:1 against it (axe's own rule passes a link the colour of its text and
+skips links alone in a cell); and hovering a table's first row
+changes every cell, pinned ones included. Every text link is a `TextLink`, underlined when
+hovered and never before, and words drawn on its line within 1em make it running text (where
+they sit in the markup does not matter). Button groups hold to the rule above
+(`e2e/support/buttons.ts`), and every table says how its rows are paged
+(`e2e/support/paging.ts`). `e2e/lists.spec.ts` sorts each list by a header and pages the long
+ones, checking the address and that the rows the server sends change. Clerk's footer is left out only on a development
 instance, which stripes it in orange; the app's appearance sets its text colour.
 `e2e/layout.spec.ts` checks geometry at 1920px: an opened row's panel spans its table, a
 toolbar's controls share a line, the import's steps span the page. Every e2e test fails on an

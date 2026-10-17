@@ -54,7 +54,7 @@ export {
   getComplianceMatrix,
   getDashboard,
 } from './dashboard'
-export { EMPLOYEE_SORT_KEYS, type EmployeeSortKey } from './employee-sort'
+export { pageEmployees } from './employee-sort'
 export {
   type EmployeeDetail,
   type EmployeeFilters,
@@ -117,7 +117,7 @@ export {
   type PositionDetail,
   type PositionSummary,
 } from './org'
-export { type Page } from './paging'
+export { type ListQuery, type Page, pageOf, type SortValue } from './paging'
 export { getPlannerInput } from './planner'
 export {
   createProvider,
@@ -144,7 +144,7 @@ export {
   updateEmployee,
 } from './records'
 export { getRoom, getRoomForEdit, listRooms, type RoomDetail, type RoomListItem } from './rooms'
-export { getSession, listSessions, pageSessions, type SessionWindow } from './sessions'
+export { countSessions, getSession, listSessions, type SessionWindow } from './sessions'
 export {
   type ClerkUserSync,
   findUserByClerkId,

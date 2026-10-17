@@ -72,7 +72,7 @@ describe('archived lists', () => {
       person({ id: 'emp_2', tag: 'ffee00', archivedBy: { archived: true, tag: '00aa11' } }),
     ])
     expect(await employeesMetadata()).toEqual({ title: 'Archived employees' })
-    await renderServer(ArchivedEmployees())
+    await renderServer(ArchivedEmployees({ searchParams: params({}) }))
     expect(requireAdminPage).toHaveBeenCalled()
     expect(listArchived).toHaveBeenCalledWith('employee', 'ADMIN')
     expect(
@@ -98,12 +98,12 @@ describe('archived lists', () => {
         archivedBy: null,
       }),
     ])
-    const { unmount } = await renderServer(ArchivedSessions())
+    const { unmount } = await renderServer(ArchivedSessions({ searchParams: params({}) }))
     expect(screen.getByRole('link', { name: 'S001' })).toBeTruthy()
     expect(screen.getByText('BOZP-Z BOZP – základní školení')).toBeTruthy()
-    expect(screen.getByText(/1\. 9\. 2026|9\/1\/2026|Sep/)).toBeTruthy()
+    expect(screen.getByText(/01\.09\.2026/)).toBeTruthy()
     unmount()
-    await renderServer(ArchivedRooms())
+    await renderServer(ArchivedRooms({ searchParams: params({}) }))
     expect(screen.getByText('Nothing is archived here.')).toBeTruthy()
   })
 
@@ -119,7 +119,10 @@ describe('archived lists', () => {
       [ArchivedProviders, 'provider'],
       [ArchivedUsers, 'user'],
     ] as const
-    for (const [Page, kind] of pages) expect(Page().props).toEqual({ kind })
+    for (const [Page, kind] of pages) {
+      const searchParams = params({})
+      expect(Page({ searchParams }).props).toEqual({ kind, searchParams })
+    }
   })
 })
 

@@ -2,7 +2,9 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, type Page } from '@playwright/test'
 import type { Result } from 'axe-core'
 
+import { expectButtonGroups } from './buttons'
 import { expectLinksDistinct, expectRenderedContrast, textContrastFailures } from './contrast'
+import { expectTablesPaged } from './paging'
 
 // WCAG 2.2 A/AA plus axe's best practices; any violation fails. Each state is also checked
 // for what axe does not judge: fills that blend into what they sit on, control outlines and
@@ -49,7 +51,11 @@ export async function expectNoViolations(
   await expectUnsettledJudged(page, label, incomplete)
   await expectRenderedContrast(page, label, within)
   await expectLinksDistinct(page, label, within)
-  if (!within) await expectStructure(page, label)
+  await expectButtonGroups(page, label, within)
+  if (!within) {
+    await expectStructure(page, label)
+    await expectTablesPaged(page, label)
+  }
 }
 
 /**

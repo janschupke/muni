@@ -42,8 +42,8 @@ export interface ProviderDetail extends ProviderListItem {
   prices: boolean
   /** Per course, most completions first. */
   byCourse: (ProviderTotals & { code: string; name: string })[]
-  /** The newest completions, newest first. */
-  recentCompletions: {
+  /** Every completion with it, newest first (its page pages them). */
+  completionList: {
     /** Internal id (editing and archiving act on it). */
     id: string
     externalId: string
@@ -56,8 +56,6 @@ export interface ProviderDetail extends ProviderListItem {
     price: number | null
   }[]
 }
-
-const RECENT_COMPLETIONS = 20
 
 const pricesVisible = (role: Role) => getPolicy()['completion.price'][role].mode === 'show'
 
@@ -159,7 +157,6 @@ export async function getProvider(
     db.courseCompletion.findMany({
       where: { providerId: id, ...ACTIVE },
       orderBy: [{ completedOn: 'desc' }, { externalId: 'desc' }],
-      take: RECENT_COMPLETIONS,
       select: {
         id: true,
         externalId: true,
@@ -178,7 +175,7 @@ export async function getProvider(
     courses: total.courses,
     prices,
     byCourse: perCourse.map(row => ({ code: row.code, name: row.name, ...totalsOf(row, prices) })),
-    recentCompletions: recent.map(c => ({
+    completionList: recent.map(c => ({
       id: c.id,
       externalId: c.externalId,
       employee: toPersonRef(c.employee),

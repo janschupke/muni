@@ -4,13 +4,13 @@ import { type AdvisorSession, seatsFree } from '@muni/domain/advisor'
 import { Alert } from '@muni/ui/alert'
 import { Table, TableContainer, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { formatCurrency, formatTimeRange, PLACEHOLDER } from '@muni/utils/format'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 import { ConfirmDialog, type ConfirmOutcome } from '@/components/confirm-dialog'
 import { useAfterWrite } from '@/lib/query/use-after-write'
 import { applyAssignmentsAction } from '@/server/actions/assignments'
 
-import type { ProposedItem } from './action-table'
+import type { ProposedItem } from './booking'
 
 /** One person to book, on the session the admin chose for them. */
 export interface Booking {
@@ -39,9 +39,8 @@ export function BookDialog({
 }) {
   const t = useTranslations('advisor.action.dialog')
   const tr = useTranslations('advisor.outcome')
-  const locale = useLocale()
   const afterWrite = useAfterWrite('booking')
-  const when = (s: AdvisorSession) => formatTimeRange(s.startsAt, s.endsAt, locale)
+  const when = (s: AdvisorSession) => formatTimeRange(s.startsAt, s.endsAt)
   const cost = bookings.reduce((sum, b) => sum + (b.session.pricePerPerson ?? 0), 0)
 
   const bySession = new Map<string, { session: AdvisorSession; count: number }>()
@@ -123,7 +122,7 @@ export function BookDialog({
       className="max-w-3xl"
     >
       <p className="text-sm text-fg-muted">{t('body')}</p>
-      <TableContainer>
+      <TableContainer paging="the bookings being confirmed, picked by hand">
         <Table density="compact" aria-label={t('table')}>
           <THead>
             <tr>
@@ -144,7 +143,7 @@ export function BookDialog({
                 <Td align="right" nowrap>
                   {session.pricePerPerson === null
                     ? PLACEHOLDER
-                    : formatCurrency(session.pricePerPerson, locale)}
+                    : formatCurrency(session.pricePerPerson)}
                 </Td>
               </Tr>
             ))}
@@ -152,7 +151,7 @@ export function BookDialog({
         </Table>
       </TableContainer>
       <p className="text-right text-sm font-medium tabular-nums">
-        {t('total', { cost: formatCurrency(cost, locale) })}
+        {t('total', { cost: formatCurrency(cost) })}
       </p>
       {over.map(({ session, count }) => (
         <Alert key={session.externalId} tone="danger">

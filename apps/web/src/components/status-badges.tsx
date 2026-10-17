@@ -31,7 +31,7 @@ export const COMPLIANCE: Record<ComplianceStatus, { tone: BadgeTone; Icon: Lucid
 
 export const COMPLIANCE_FILL: Record<ComplianceStatus, string> = {
   VALID: 'bg-status-valid',
-  EXPIRING: 'bg-status-expiring',
+  EXPIRING: 'bg-status-expiring inset-ring inset-ring-warning-edge',
   EXPIRED: 'bg-status-expired',
   MISSING: 'bg-status-missing',
 }

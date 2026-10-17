@@ -130,10 +130,10 @@ describe('OfferReview', () => {
     const date = within(dialog).getByRole('textbox', { name: /Date/ })
     await user.clear(date)
     // 31 Oct 2026 is a Saturday, after the due date of 30 Oct.
-    await user.type(date, '10/31/2026')
+    await user.type(date, '31.10.2026')
     await user.tab()
-    expect(within(dialog).getByText('Oct 31, 2026 is a weekend or public holiday.')).toBeTruthy()
-    expect(within(dialog).getByText('This is after the due date, Oct 30, 2026.')).toBeTruthy()
+    expect(within(dialog).getByText('31.10.2026 is a weekend or public holiday.')).toBeTruthy()
+    expect(within(dialog).getByText('This is after the due date, 30.10.2026.')).toBeTruthy()
 
     vi.mocked(createPlannedSessionAction).mockResolvedValueOnce({
       ok: false,

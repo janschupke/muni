@@ -6,19 +6,20 @@ import {
   listEmployeeOptions,
   listRoomOptions,
   listSessions,
-  pageSessions,
+  pageOf,
 } from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
 import * as z from 'zod'
 
-import { byExternalId, read } from './define'
+import { SESSION_SORT } from '@/lib/list-keys'
+import { listQuery } from '@/lib/search-params'
 
-/** Past sessions per page of the list. */
-const PAST_PAGE_SIZE = 25
+import { byExternalId, listInput, read } from './define'
+import { sessionKeys } from './sorters'
 
 /**
- * Upcoming or past sessions, everywhere or in one room or of one course. The past grows
- * without end, so it comes a page at a time; what is ahead comes whole.
+ * Upcoming or past sessions, everywhere or in one room or of one course: a page at a time,
+ * sorted on the server by the column asked for (soonest first ahead, latest first past).
  */
 export const sessionsList = read({
   guard: 'reader',
@@ -26,18 +27,15 @@ export const sessionsList = read({
     when: z.literal('past').optional(),
     room: z.string().min(1).max(64).optional(),
     course: z.string().min(1).max(64).optional(),
-    page: z.coerce.number().int().min(1).optional(),
+    ...listInput(SESSION_SORT),
   }),
-  load: async ({ when, room: roomId, course: code, page }) => {
+  load: async ({ when, room: roomId, course: code, ...list }) => {
     const filter = { room: roomId, course: code }
     // Every room, for the filter; the course, for its chip; then the sessions asked for.
-    const [rooms, courses, past, upcoming] = await Promise.all([
+    const [rooms, courses, sessions] = await Promise.all([
       listRoomOptions(),
       code ? listCourseOptions() : [],
-      when === 'past'
-        ? pageSessions({ ...filter, window: 'past', page, pageSize: PAST_PAGE_SIZE })
-        : null,
-      when === 'past' ? null : listSessions({ ...filter, window: 'upcoming' }),
+      listSessions({ ...filter, window: when === 'past' ? 'past' : 'upcoming' }),
     ])
     const room = roomId ? (rooms.find(r => r.id === roomId) ?? null) : null
     const course = code ? (courses.find(c => c.code === code) ?? null) : null
@@ -45,8 +43,7 @@ export const sessionsList = read({
     const unknown =
       (roomId !== undefined && room === null) || (code !== undefined && course === null)
     return {
-      sessions: unknown ? [] : (past?.items ?? upcoming ?? []),
-      paging: past && { page: past.page, pageCount: past.pageCount, total: past.total },
+      sessions: pageOf(unknown ? [] : sessions, listQuery(list, SESSION_SORT), sessionKeys),
       room,
       course: course && { code: course.code, name: course.name },
       rooms: rooms.map(r => ({ id: r.id, name: r.name })),

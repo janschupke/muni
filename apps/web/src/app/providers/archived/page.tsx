@@ -1,7 +1,8 @@
 import { archivedListMetadata, ArchivedListPage } from '@/features/archive/archived-pages'
+import type { SearchParams } from '@/lib/search-params'
 
 export const generateMetadata = () => archivedListMetadata('provider')
 
-export default function ArchivedProvidersPage() {
-  return <ArchivedListPage kind="provider" />
+export default function ArchivedProvidersPage({ searchParams }: { searchParams: SearchParams }) {
+  return <ArchivedListPage kind="provider" searchParams={searchParams} />
 }

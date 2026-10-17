@@ -17,8 +17,9 @@ interface Target {
 }
 
 /**
- * A record page's header actions for admins: anything the page adds first (`children`), then
- * Edit and Archive. Archiving leaves for `then`, the list the record was in.
+ * A record page's header actions for admins, left to right: Archive, Edit, then the page's own
+ * primary action (`children`) last; with none, Edit is the primary. Archiving leaves for
+ * `then`, the list the record was in.
  */
 export function RecordActions({
   kind,
@@ -31,14 +32,14 @@ export function RecordActions({
   const t = useTranslations('common')
   return (
     <>
-      {children}
-      <Button asChild>
+      <ConfirmArchiveButton kind={kind} id={id} name={name} then={then} />
+      <Button asChild variant={children ? 'secondary' : 'primary'}>
         <Link href={editHref}>
           <Pencil aria-hidden />
           {t('edit')}
         </Link>
       </Button>
-      <ConfirmArchiveButton kind={kind} id={id} name={name} then={then} />
+      {children}
     </>
   )
 }

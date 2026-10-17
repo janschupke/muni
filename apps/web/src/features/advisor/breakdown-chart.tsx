@@ -71,13 +71,16 @@ export function BreakdownChart({
                   data-slot="choice"
                   aria-current={active ? 'true' : undefined}
                   className={cn(
-                    'block rounded-md px-2 py-2 transition-colors hover:bg-state-hover focus-visible:outline-2 focus-visible:outline-focus-ring',
+                    'group block rounded-md px-2 py-2 transition-colors hover:bg-state-hover focus-visible:outline-2 focus-visible:outline-focus-ring',
                     active && 'bg-state-selected'
                   )}
                 >
                   <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
                     <span
-                      className={cn('min-w-0', active ? 'font-semibold' : 'font-medium text-link')}
+                      className={cn(
+                        'min-w-0 underline-offset-2 group-hover:underline',
+                        active ? 'font-semibold' : 'font-medium text-link'
+                      )}
                     >
                       {name}
                     </span>

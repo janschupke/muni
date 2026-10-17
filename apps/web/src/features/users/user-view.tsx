@@ -10,6 +10,7 @@ import { useLocale, useTranslations } from 'next-intl'
 
 import { BackLink } from '@/components/back-link'
 import { ConfirmArchiveButton } from '@/components/confirm-archive-button'
+import { EmailLink } from '@/components/email-link'
 import { ReadView } from '@/components/read-view'
 import { DetailSkeleton } from '@/components/skeletons'
 import { RoleBadge } from '@/components/status-badges'
@@ -53,13 +54,13 @@ function UserDetail({ data }: { data: ReadOutput<'user'> }) {
             <CardBody>
               <DescriptionList>
                 <DescriptionItem label={t('detail.email')}>
-                  {user.email ?? PLACEHOLDER}
+                  <EmailLink email={user.email} />
                 </DescriptionItem>
                 <DescriptionItem label={t('detail.lastSignIn')}>
-                  {user.lastSignInAt ? formatDateTime(user.lastSignInAt, locale) : PLACEHOLDER}
+                  {user.lastSignInAt ? formatDateTime(user.lastSignInAt) : PLACEHOLDER}
                 </DescriptionItem>
                 <DescriptionItem label={t('detail.since')}>
-                  {formatDateTime(user.createdAt, locale)}
+                  {formatDateTime(user.createdAt)}
                 </DescriptionItem>
                 <DescriptionItem label={t('detail.bookingsMade')}>
                   {formatInteger(user.bookingsMade, locale)}

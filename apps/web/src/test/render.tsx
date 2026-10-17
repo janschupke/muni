@@ -8,6 +8,8 @@ import { ToastsProvider } from '@/components/toasts'
 import en from '@/i18n/messages/en.json'
 import { STALE_MS } from '@/lib/query/query-client'
 
+import { route } from './next'
+
 type Props = Record<string, unknown>
 
 const isAsync = (type: unknown): type is (props: Props) => Promise<ReactNode> =>
@@ -95,3 +97,13 @@ export function renderClient(ui: ReactNode, client: QueryClient = testQueryClien
 
 /** A page's `params` / `searchParams` prop. */
 export const params = <T,>(value: T) => Promise.resolve(value)
+
+/**
+ * A page's `searchParams` with the browser at the same address: the page's prefetch and its
+ * view (which reads the address) ask for the same list.
+ */
+export function at(pathname: string, query: Record<string, string> = {}) {
+  route.pathname = pathname
+  route.search = new URLSearchParams(query).toString()
+  return params(query)
+}

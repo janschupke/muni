@@ -223,9 +223,8 @@ export const courseDetail = (over: Partial<CourseDetail> = {}): CourseDetail => 
     { scope: 'POSITION', target: 'Vedoucí oddělení', targetId: 'pos_head', archived: false },
   ],
   sessions: [session(), session({ externalId: 'T017', status: 'CANCELLED', bookings: [] })],
-  pastShown: 0,
   pastTotal: 0,
-  recentCompletions: [
+  completionList: [
     {
       id: 'cmp_Z000101',
       externalId: 'Z000101',
@@ -479,7 +478,7 @@ export const providerDetail = (over: Partial<ProviderDetail> = {}): ProviderDeta
       lastCompletedOn: null,
     },
   ],
-  recentCompletions: [
+  completionList: [
     {
       id: 'cmp_2801',
       externalId: 'Z002801',

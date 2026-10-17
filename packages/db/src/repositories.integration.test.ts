@@ -11,6 +11,7 @@ import { createDb } from './connect'
 import {
   applyAssignments,
   type AssignmentRequest,
+  countSessions,
   createCompletion,
   getAdvisorInput,
   getComplianceMatrix,
@@ -32,7 +33,6 @@ import {
   listRooms,
   listSessions,
   moveSeatsMany,
-  pageSessions,
   removeAssignment,
   updateSession,
 } from './repositories'
@@ -369,38 +369,20 @@ describe('sessions', () => {
     expect(sessions.every(s => s.room.id === room.id && s.room.name === 'Učebna 2')).toBe(true)
   })
 
-  it('pages the past, newest first, the pages adding up to the whole list', async () => {
-    const all = await listSessions({ window: 'past' }, options)
-    expect(all.length).toBeGreaterThan(3)
-    const first = await pageSessions({ window: 'past', pageSize: 3 }, options)
-    expect(first).toMatchObject({ total: all.length, page: 1, pageSize: 3 })
-    expect(first.pageCount).toBe(Math.ceil(all.length / 3))
-    const pages = [first]
-    for (let page = 2; page <= first.pageCount; page++)
-      pages.push(await pageSessions({ window: 'past', pageSize: 3, page }, options))
-    expect(pages.flatMap(p => p.items.map(s => s.externalId))).toEqual(all.map(s => s.externalId))
-    // A page past the end is the last one; nothing is a page of nothing.
-    const beyond = await pageSessions({ window: 'past', pageSize: 3, page: 999 }, options)
-    expect(beyond.page).toBe(first.pageCount)
-    const none = await pageSessions({ window: 'past', course: 'NO-SUCH-COURSE' }, options)
-    expect(none).toMatchObject({ items: [], total: 0, page: 1, pageCount: 1 })
-  })
-
-  it('gives a course page its sessions ahead and its latest past ones, counting the rest', async () => {
+  it('gives a course page its sessions ahead, soonest first, and counts the past ones', async () => {
     const past = await listSessions({ window: 'past', course: 'BOZP-Z' }, options)
     const ahead = await listSessions({ window: 'upcoming', course: 'BOZP-Z' }, options)
-    const filtered = await pageSessions({ window: 'past', course: 'BOZP-Z' }, options)
-    expect(filtered.items.every(s => s.courseCode === 'BOZP-Z')).toBe(true)
+    expect(await countSessions({ window: 'past', course: 'BOZP-Z' }, options)).toBe(past.length)
     const course = await getCourse('BOZP-Z', options)
     expect(course?.pastTotal).toBe(past.length)
-    expect(course?.pastShown).toBe(Math.min(past.length, 10))
-    expect(course?.sessions.map(s => s.externalId)).toEqual([
-      ...past
-        .slice(0, 10)
-        .map(s => s.externalId)
-        .toReversed(),
-      ...ahead.map(s => s.externalId),
-    ])
+    expect(course?.sessions.map(s => s.externalId)).toEqual(ahead.map(s => s.externalId))
+    // Every completion of the course, newest first.
+    const count = await db.courseCompletion.count({
+      where: { course: { code: 'BOZP-Z' }, archivedAt: null },
+    })
+    expect(course?.completionList).toHaveLength(count)
+    const dates = course?.completionList.map(c => c.completedOn) ?? []
+    expect(dates).toEqual(dates.toSorted((x, y) => y.localeCompare(x)))
   })
 })
 

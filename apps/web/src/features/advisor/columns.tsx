@@ -77,12 +77,15 @@ export function usePlanColumns(asOf: string) {
 /** A session as "date (link) / room (link)". */
 export function SessionCell({
   session,
+  employee,
 }: {
   session: { externalId: string; startsAt: string; endsAt: string; room: RoomRef }
+  /** The person the session is proposed for: its page offers them for booking. */
+  employee?: string | undefined
 }) {
   return (
     <CellStack
-      title={<SessionDateLink session={session} emphasis />}
+      title={<SessionDateLink session={session} employee={employee} emphasis />}
       meta={<RoomLink room={session.room} />}
     />
   )

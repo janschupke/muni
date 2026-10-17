@@ -1,13 +1,14 @@
 'use client'
 
 import type { ProviderListItem } from '@muni/db/repositories'
-import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatDate, formatInteger, PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { usePaginationLabels } from '@/components/pagination-labels'
 import { RowActions } from '@/components/record-actions'
 
 const col = createDataColumns<ProviderListItem>()
@@ -15,10 +16,12 @@ const col = createDataColumns<ProviderListItem>()
 /** Every provider with what was completed with it; spend only for viewers who see prices. */
 export function ProvidersTable({
   providers,
+  paging,
   prices,
   canEdit = false,
 }: {
   providers: ProviderListItem[]
+  paging: TablePaging
   prices: boolean
   /** Admins get a pencil and archive on each row. */
   canEdit?: boolean | undefined
@@ -27,6 +30,7 @@ export function ProvidersTable({
   const tp = useTranslations('providers')
   const tcommon = useTranslations('common')
   const locale = useLocale()
+  const paginationLabels = usePaginationLabels()
   const columns = useMemo(
     () =>
       col.columns([
@@ -73,7 +77,7 @@ export function ProvidersTable({
                 header: t('spend'),
                 sortFn: 'basic',
                 meta: { align: 'right', nowrap: true },
-                cell: ({ getValue }) => formatCurrency(getValue(), locale),
+                cell: ({ getValue }) => formatCurrency(getValue()),
               }),
             ]
           : []),
@@ -84,7 +88,7 @@ export function ProvidersTable({
           meta: { nowrap: true },
           cell: ({ getValue }) => {
             const value = getValue()
-            return value === undefined ? PLACEHOLDER : formatDate(value, locale)
+            return value === undefined ? PLACEHOLDER : formatDate(value)
           },
         }),
         ...(canEdit
@@ -107,5 +111,14 @@ export function ProvidersTable({
       ]),
     [canEdit, locale, prices, t, tcommon]
   )
-  return <DataTable caption={tp('title')} columns={columns} data={providers} getRowId={p => p.id} />
+  return (
+    <DataTable
+      caption={tp('title')}
+      columns={columns}
+      data={providers}
+      getRowId={p => p.id}
+      paging={paging}
+      paginationLabels={paginationLabels}
+    />
+  )
 }

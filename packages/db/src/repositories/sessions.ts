@@ -6,7 +6,6 @@ import { ACTIVE, isArchived, personSelect, toPersonRef } from './archive'
 import { dbOf, type RepoOptions, toAmount } from './context'
 import type { SessionListItem } from './courses'
 import { needsOf, needsSelect } from './fit-selects'
-import { type Page, pageBounds } from './paging'
 
 /**
  * What "upcoming" means wherever sessions are shown or counted: planned and not yet ended,
@@ -216,33 +215,14 @@ export async function listSessions(
   return sessions.map(toSessionItem)
 }
 
-/**
- * One page of sessions (the past grows without end), in the list's order, with how many
- * there are in all.
- */
-export async function pageSessions(
-  {
-    page: askedPage,
-    pageSize: askedSize,
-    ...filter
-  }: SessionFilter & { page?: number | undefined; pageSize?: number | undefined },
+/** How many sessions the filter matches (a course page counts its past ones). */
+export function countSessions(
+  filter: SessionFilter,
   options?: RepoOptions & { now?: Date }
-): Promise<Page<SessionListItem>> {
-  const db = dbOf(options)
-  const where = sessionWhere(filter, options?.now ?? new Date())
-  const total = await db.courseSession.count({ where })
-  const { page, pageSize, pageCount, skip } = pageBounds(total, {
-    page: askedPage,
-    pageSize: askedSize,
+): Promise<number> {
+  return dbOf(options).courseSession.count({
+    where: sessionWhere(filter, options?.now ?? new Date()),
   })
-  const sessions = await db.courseSession.findMany({
-    where,
-    include: sessionInclude,
-    orderBy: sessionOrder(filter.window),
-    skip,
-    take: pageSize,
-  })
-  return { items: sessions.map(toSessionItem), total, page, pageSize, pageCount }
 }
 
 export async function getSession(

@@ -11,6 +11,8 @@ interface Painted {
   /** [background-color, first colour of a background-image gradient or null] per element. */
   chain: [Rgba, Rgba | null][]
   border: Rgba | null
+  /** An inset ring drawn round the fill (the yellow warning fill's amber edge). */
+  edge: Rgba | null
 }
 
 // Runs in the page, as a string so no build step can wrap it. Colours are normalised through
@@ -47,10 +49,14 @@ const COLLECT = `(({ selector, root }) => {
       const style = getComputedStyle(el)
       const text = (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 40)
       const label = el.tagName.toLowerCase() + '.' + String(el.className).split(/\\s+/).slice(0, 4).join('.') + ' "' + text + '"'
+      const ring = [...style.boxShadow.matchAll(/((?:rgba?|oklab|oklch|color)\\([^)]*\\))\\s+0px\\s+0px\\s+0px\\s+([\\d.]+)px\\s+inset/g)]
+        .map(m => ({ color: rgba(m[1]), width: parseFloat(m[2]) }))
+        .find(r => r.width > 0 && r.color[3] > 0)
       return {
         label,
         chain,
         border: parseFloat(style.borderTopWidth) > 0 ? rgba(style.borderTopColor) : null,
+        edge: ring ? ring.color : null,
       }
     })
 })`
@@ -101,10 +107,14 @@ export async function expectRenderedContrast(page: Page, label: string, root?: s
   )
 
   const meters = (await collect(page, '[role=meter] > :first-child', root)).flatMap(
-    ({ label: what, chain }) => {
+    ({ label: what, chain, edge }) => {
       const track = paint(chain, chain.length - 1)
       const fill = paint(chain)
-      const ratio = contrast(fill, track)
+      // A fill too light for 3:1 (yellow) shows its length by its edge.
+      const ratio = Math.max(
+        contrast(fill, track),
+        edge ? contrast(composite(edge, fill), track) : 0
+      )
       // An empty meter has no fill to judge.
       return ratio > 1.01 && ratio < MIN.nonText
         ? [`${what}: fill ${ratio.toFixed(2)}:1 on its track`]
@@ -160,12 +170,17 @@ interface LinkPaint {
   block: Rgba
   body: Rgba
   underlined: boolean
-  /** The block has words of its own besides the link: the link sits in running text. */
+  /** Drawn by TextLink (`data-link`), the one way the app draws a link. */
+  marked: boolean
+  /** Under the pointer: the one state that underlines it. */
+  hovered: boolean
+  /** Words drawn on the link's line next to it (within 1em): the link sits in running text. */
   inText: boolean
 }
 
 // Each link that reads as words (icon links are judged as icon buttons, links drawn as
-// buttons or tabs by their fill and border), with its colour and its surroundings'.
+// buttons or tabs by their fill and border, Clerk's own by Clerk), with its colour and what
+// is drawn around it.
 const COLLECT_LINKS = `(({ root }) => {
   const canvas = document.createElement('canvas')
   canvas.width = 1
@@ -181,8 +196,28 @@ const COLLECT_LINKS = `(({ root }) => {
   }
   const scope = root ? document.querySelector(root) : document
   if (!scope) return []
+  // Every word drawn on the page outside links, buttons and badges, as the boxes of its lines.
+  // Where it sits in the markup does not matter: a label in a flex item beside a link reads as
+  // the same sentence.
+  const words = []
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!/\\p{L}{2,}/u.test(node.textContent || '')) continue
+    const host = node.parentElement
+    if (!host || host.closest('a, button, [aria-hidden=true], [inert], [data-slot]')) continue
+    if (!host.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue
+    // Text for screen readers only lays out in full but is clipped to a pixel: not seen.
+    const hostBox = host.getBoundingClientRect()
+    if (hostBox.width <= 1 || hostBox.height <= 1) continue
+    const range = document.createRange()
+    range.selectNodeContents(node)
+    for (const box of range.getClientRects())
+      if (box.width > 1 && box.height > 1) words.push({ box, text: (node.textContent || '').trim() })
+  }
   return [...scope.querySelectorAll('a[href]')]
     .filter(el => el.checkVisibility({ opacityProperty: true, visibilityProperty: true }))
+    // Behind an open dialog or drawer: hidden from everyone until it closes.
+    .filter(el => !el.closest('[aria-hidden=true], [inert]'))
     .filter(el => {
       const box = el.getBoundingClientRect()
       return box.width > 1 && box.height > 1
@@ -190,6 +225,7 @@ const COLLECT_LINKS = `(({ root }) => {
     // Navigation and tabs mark the current page their own way; a link drawn as a button
     // or the app's mark (data-slot) is judged by its shape.
     .filter(el => !el.closest('nav, [role=tablist], [role=tab]') && !el.hasAttribute('data-slot'))
+    .filter(el => !el.closest('[class*="cl-"]'))
     .filter(el => (el.textContent || '').trim() !== '')
     .filter(el => {
       const style = getComputedStyle(el)
@@ -198,56 +234,58 @@ const COLLECT_LINKS = `(({ root }) => {
       return !filled && !bordered
     })
     .map(el => {
-      // The block a node's words flow in: its nearest ancestor that is not laid out inline.
-      const blockOf = node => {
-        let at = node.parentElement
-        while (at && getComputedStyle(at).display.startsWith('inline')) at = at.parentElement
-        return at || document.body
-      }
-      const block = blockOf(el)
-      // Words on the link's own lines: text flowing in the same block, not a line of its own.
-      let outside = ''
-      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT)
-      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-        if (el.contains(node) || blockOf(node) !== block) continue
-        const host = node.parentElement
-        if (host && (host.closest('a, button, [aria-hidden=true]') || !host.checkVisibility())) continue
-        outside += node.textContent
-      }
+      let block = el.parentElement
+      while (block && getComputedStyle(block).display.startsWith('inline')) block = block.parentElement
+      block = block || document.body
       const style = getComputedStyle(el)
+      const em = parseFloat(style.fontSize)
+      const lines = [...el.getClientRects()]
+      const beside = words.find(({ box: word }) =>
+        lines.some(line => {
+          const overlap = Math.min(word.bottom, line.bottom) - Math.max(word.top, line.top)
+          const gap = Math.max(word.left - line.right, line.left - word.right)
+          return overlap > Math.min(word.height, line.height) / 2 && gap < em
+        })
+      )
       return {
-        label: '"' + (el.textContent || '').trim().slice(0, 40) + '" → ' + el.getAttribute('href'),
+        label: '"' + (el.textContent || '').trim().slice(0, 40) + '" → ' + el.getAttribute('href') +
+          (beside ? ' (beside "' + beside.text.slice(0, 30) + '")' : ''),
         color: rgba(style.color),
         block: rgba(getComputedStyle(block).color),
         body: rgba(getComputedStyle(document.body).color),
         underlined: style.textDecorationLine.includes('underline'),
-        inText: /\\p{L}{2,}/u.test(outside),
+        marked: el.hasAttribute('data-link'),
+        hovered: el.matches(':hover'),
+        inText: beside !== undefined,
       }
     })
 })`
 
 /**
- * A link has to look like one before it is hovered (WCAG 1.4.1): underlined, or a colour
- * plainly apart from the page's text and from the text around it; in running text, an
- * underline or 3:1 against the words around it. axe's own rule passes a link the colour of
- * its text, and skips links alone in a table cell or laid out as flex.
+ * Every link reads as a link and looks like every other: drawn by TextLink, not underlined
+ * until hovered, in a colour plainly apart from the text (ΔE), and never in running text, where
+ * colour alone would have to reach 3:1 against the words beside it (WCAG 1.4.1) — which no link
+ * blue can in the dark theme while keeping 4.5:1 on every surface.
  */
 export async function expectLinksDistinct(page: Page, label: string, root?: string) {
   const links: LinkPaint[] = await page.evaluate(`${COLLECT_LINKS}(${JSON.stringify({ root })})`)
   const problems = links.flatMap(link => {
-    if (link.underlined) return []
-    const fromBody = deltaE(link.color, link.body)
-    const fromBlock = deltaE(link.color, link.block)
-    if (fromBody < MIN.categorical || fromBlock < MIN.categorical)
-      return [
-        `${link.label}: not underlined, ΔE ${Math.min(fromBody, fromBlock).toFixed(3)} from the text`,
-      ]
+    const found: string[] = []
+    if (!link.marked) found.push(`${link.label}: not a TextLink`)
+    if (link.underlined !== link.hovered)
+      found.push(
+        link.hovered
+          ? `${link.label}: hovered, not underlined`
+          : `${link.label}: underlined before it is hovered`
+      )
+    const apart = Math.min(deltaE(link.color, link.body), deltaE(link.color, link.block))
+    if (apart < MIN.categorical) found.push(`${link.label}: ΔE ${apart.toFixed(3)} from the text`)
     const ratio = contrast(link.color, link.block)
-    return link.inText && ratio < MIN.nonText
-      ? [`${link.label}: in running text, not underlined, ${ratio.toFixed(2)}:1 against it`]
-      : []
+    if (link.inText && ratio < MIN.nonText)
+      found.push(`${link.label}: in running text, ${ratio.toFixed(2)}:1 against it`)
+    return found
   })
-  expect(problems, `${label}: links that look like text`).toEqual([])
+  expect(problems, `${label}: links that look like text, or unlike the other links`).toEqual([])
 }
 
 /** Text whose contrast axe could not settle, measured here: its painted layers composited. */

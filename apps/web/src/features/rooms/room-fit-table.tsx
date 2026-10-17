@@ -20,7 +20,7 @@ export function RoomFitTable({ room }: { room: Pick<RoomDetail, 'name' | 'kind' 
   const t = useTranslations('rooms.detail.fit')
   const online = room.kind === 'ONLINE'
   return (
-    <TableContainer>
+    <TableContainer paging="one row per course: bounded by the catalogue">
       <Table aria-label={t('label', { name: room.name })}>
         <THead>
           <tr>

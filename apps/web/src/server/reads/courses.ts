@@ -1,22 +1,51 @@
 import 'server-only'
 
-import { getCourse, getCourseForEdit, listCourses, listGroupOptions } from '@muni/db/repositories'
+import {
+  getCourse,
+  getCourseForEdit,
+  listCourses,
+  listGroupOptions,
+  pageOf,
+} from '@muni/db/repositories'
 import * as z from 'zod'
 
-import { byCode, read } from './define'
+import { COMPLETION_SORT, COURSE_SORT, SESSION_SORT } from '@/lib/list-keys'
+import { listQuery } from '@/lib/search-params'
 
-/** The course catalogue. */
+import { byCode, listInput, read } from './define'
+import { completionKeys, courseKeys, sessionKeys } from './sorters'
+
+/** The course catalogue: one page, sorted by the column asked for (by code without one). */
 export const coursesList = read({
   guard: 'reader',
-  input: z.object({}),
-  load: () => listCourses(),
+  input: z.object(listInput(COURSE_SORT)),
+  load: async input => pageOf(await listCourses(), listQuery(input, COURSE_SORT), courseKeys),
 })
 
-/** A course's page: requirements, compliance, sessions and recent completions. */
+/**
+ * A course's page: requirements, compliance, and a page each of its sessions ahead
+ * (`sessionsSort`…) and its completions (`completionsSort`…), sorted on the server.
+ */
 export const course = read({
   guard: 'reader',
-  input: byCode,
-  load: ({ code }) => getCourse(code),
+  input: byCode.extend({
+    ...listInput(SESSION_SORT, 'sessions'),
+    ...listInput(COMPLETION_SORT, 'completions'),
+  }),
+  load: async ({ code, ...lists }) => {
+    const found = await getCourse(code)
+    return (
+      found && {
+        ...found,
+        sessions: pageOf(found.sessions, listQuery(lists, SESSION_SORT, 'sessions'), sessionKeys),
+        completionList: pageOf(
+          found.completionList,
+          listQuery(lists, COMPLETION_SORT, 'completions'),
+          completionKeys
+        ),
+      }
+    )
+  },
 })
 
 /** The course form: the course (none for a new one) and the departments and positions. */

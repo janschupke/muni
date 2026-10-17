@@ -30,5 +30,6 @@ export function Badge({
   className,
   ...props
 }: HTMLAttributes<HTMLSpanElement> & VariantProps<typeof badgeClass>) {
-  return <span className={cn(badgeClass({ tone }), className)} {...props} />
+  // Marked: a framed label beside a link is not a sentence the link sits in.
+  return <span data-slot="badge" className={cn(badgeClass({ tone }), className)} {...props} />
 }

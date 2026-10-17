@@ -46,10 +46,10 @@ function renderDate(props: Partial<Parameters<typeof DatePicker>[0]> = {}) {
 describe('DatePicker', () => {
   it('shows the date the way it is written here, and posts it as ISO', () => {
     const { input, posted } = renderDate({ defaultValue: '2026-03-01' })
-    expect(input.value).toBe('1. 3. 2026')
+    expect(input.value).toBe('01.03.2026')
     expect(posted()).toBe('2026-03-01')
     // Empty, it shows the format, never a date that could pass for a value.
-    expect(input.getAttribute('placeholder')).toBe('dd. mm. rrrr')
+    expect(input.getAttribute('placeholder')).toBe('dd.mm.rrrr')
   })
 
   it('reads a typed date on leaving the field, and posts what it cannot read as typed', async () => {
@@ -59,7 +59,7 @@ describe('DatePicker', () => {
     await user.type(input, '5.11.26')
     expect(posted()).toBe('2026-11-05')
     await user.tab()
-    expect(input.value).toBe('5. 11. 2026')
+    expect(input.value).toBe('05.11.2026')
     expect(onValueChange).toHaveBeenCalledWith('2026-11-05')
 
     await user.clear(input)
@@ -71,7 +71,7 @@ describe('DatePicker', () => {
 
     await user.clear(input)
     await user.type(input, '2026-12-24{Enter}')
-    expect(input.value).toBe('24. 12. 2026')
+    expect(input.value).toBe('24.12.2026')
     await user.clear(input)
     await user.tab()
     expect(posted()).toBe('')
@@ -95,7 +95,7 @@ describe('DatePicker', () => {
     await user.click(screen.getByRole('button', { name: 'Previous month' }))
     await user.click(within(screen.getByRole('grid')).getByRole('button', { name: /^úterý 17\./ }))
     expect(screen.queryByRole('grid')).toBeNull()
-    expect(input.value).toBe('17. 3. 2026')
+    expect(input.value).toBe('17.03.2026')
     expect(posted()).toBe('2026-03-17')
   })
 
@@ -163,9 +163,9 @@ describe('DatePicker', () => {
     const { rerender } = render(
       <DatePicker value="2026-01-02" locale="en" labels={DATE_LABELS} required />
     )
-    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('1/2/2026')
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('02.01.2026')
     rerender(<DatePicker value="2026-01-03" locale="en" labels={DATE_LABELS} required />)
-    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('1/3/2026')
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('03.01.2026')
     await user.click(screen.getByRole('button', { name: 'Choose date' }))
     expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull()
   })

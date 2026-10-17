@@ -53,7 +53,7 @@ export function UnarchiveButton({
           <ArchiveRestore aria-hidden />
         </IconButton>
       ) : (
-        <Button ref={trigger} onClick={show}>
+        <Button ref={trigger} variant="primary" onClick={show}>
           <ArchiveRestore aria-hidden />
           {t('unarchive')}
         </Button>

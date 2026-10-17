@@ -111,8 +111,9 @@ describe('provider figures', () => {
     )
     const spend = byCourse.reduce((n, c) => n + (c.spend ?? 0), 0)
     expect(spend).toBeCloseTo(provider?.spend ?? 0)
-    const recent = provider?.recentCompletions ?? []
-    expect(recent).toHaveLength(20)
+    // Every completion with it, newest first.
+    const recent = provider?.completionList ?? []
+    expect(recent).toHaveLength(provider?.completions ?? -1)
     expect(recent.map(c => c.completedOn)).toEqual(
       recent.map(c => c.completedOn).sort((a, b) => b.localeCompare(a))
     )
@@ -151,7 +152,7 @@ describe('provider figures', () => {
       expect(provider?.prices).toBe(false)
       expect(provider?.spend).toBeNull()
       expect(provider?.byCourse.every(c => c.spend === null)).toBe(true)
-      expect(provider?.recentCompletions.every(c => c.price === null)).toBe(true)
+      expect(provider?.completionList.every(c => c.price === null)).toBe(true)
       // The full role still sees them.
       expect((await listProviders('FULL', options)).prices).toBe(true)
     } finally {
@@ -170,7 +171,7 @@ describe('a new provider', () => {
       completions: 0,
       lastCompletedOn: null,
       byCourse: [],
-      recentCompletions: [],
+      completionList: [],
     })
     // A completion recorded in the app names it; no price and no expiry stay empty.
     await createCompletion(
@@ -189,7 +190,7 @@ describe('a new provider', () => {
       spend: null,
       lastCompletedOn: asOf,
       byCourse: [{ code: 'LEAD', completions: 1, spend: null }],
-      recentCompletions: [{ courseCode: 'LEAD', validUntil: null, price: null }],
+      completionList: [{ courseCode: 'LEAD', validUntil: null, price: null }],
     })
   })
 })

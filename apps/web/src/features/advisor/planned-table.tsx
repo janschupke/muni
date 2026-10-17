@@ -1,33 +1,35 @@
 'use client'
 
 import type { PlanItem } from '@muni/domain/advisor'
-import { DataTable } from '@muni/ui/data-table'
+import { DataTable, type TablePaging } from '@muni/ui/data-table'
 import { EmptyState } from '@muni/ui/empty-state'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { usePaginationLabels } from '@/components/pagination-labels'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 
 import { col, itemId, SessionCell, usePlanColumns } from './columns'
 import { RemediationBadge } from './labels'
-import { useAdvisorPages } from './paging'
 
 /** Trainings that already have a named booking, and the gap each booking still leaves. */
 export function PlannedTable({
   items,
+  total,
+  paging,
   asOf,
-  page,
   canEdit,
 }: {
+  /** The page the server sorted and cut. */
   items: PlanItem[]
+  total: number
+  paging: TablePaging
   asOf: string
-  /** The page in the address (`?page=`). */
-  page: number
   canEdit: boolean
 }) {
   const t = useTranslations('advisor')
   const shared = usePlanColumns(asOf)
-  const pages = useAdvisorPages('planned', undefined, page)
+  const paginationLabels = usePaginationLabels()
 
   const columns = useMemo(
     () =>
@@ -79,7 +81,7 @@ export function PlannedTable({
     [canEdit, shared, t]
   )
 
-  if (items.length === 0) return <EmptyState title={t('planned.empty')} />
+  if (total === 0) return <EmptyState title={t('planned.empty')} />
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-fg-muted">{t('planned.rows')}</p>
@@ -88,7 +90,8 @@ export function PlannedTable({
         columns={columns}
         data={items}
         getRowId={itemId}
-        {...pages}
+        paging={paging}
+        paginationLabels={paginationLabels}
       />
     </div>
   )

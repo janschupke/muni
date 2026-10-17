@@ -24,12 +24,18 @@ export function AddBookingForm({
   field,
   label,
   options,
+  initial,
 }: {
   fixed: { sessionExternalId: string } | { employeeExternalId: string }
   /** What the form chooses. */
   field: 'employeeExternalId' | 'sessionExternalId'
   label: string
   options: { value: string; label: string }[]
+  /**
+   * The choice to start with, when a link named one; ignored when it is not on offer (already
+   * booked, left) and after the first booking.
+   */
+  initial?: string | undefined
 }) {
   const t = useTranslations()
   // A booked choice leaves the list; the select starts over.
@@ -74,6 +80,9 @@ export function AddBookingForm({
               {...control}
               name={field}
               options={options}
+              defaultValue={
+                round === 0 && options.some(o => o.value === initial) ? initial : undefined
+              }
               placeholder={t('common.choose')}
             />
           )}

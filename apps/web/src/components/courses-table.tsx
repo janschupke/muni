@@ -2,7 +2,7 @@
 
 import type { CourseListItem } from '@muni/db/repositories'
 import { BarRow } from '@muni/ui/bar-row'
-import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent, PLACEHOLDER } from '@muni/utils/format'
@@ -12,6 +12,7 @@ import { useMemo } from 'react'
 
 import { ComplianceBar } from './compliance-breakdown'
 import { CoursePanel } from './course-panel'
+import { usePaginationLabels } from './pagination-labels'
 import { RowActions } from './record-actions'
 import { RequirementList } from './requirement-list'
 
@@ -19,14 +20,17 @@ const col = createDataColumns<CourseListItem>()
 
 export function CoursesTable({
   courses,
+  paging,
   canEdit = false,
 }: {
   courses: CourseListItem[]
+  paging: TablePaging
   /** Admins get a pencil and archive on each row. */
   canEdit?: boolean | undefined
 }) {
   const t = useTranslations('courses')
   const tc = useTranslations('common')
+  const paginationLabels = usePaginationLabels()
   const locale = useLocale()
 
   const columns = useMemo(
@@ -121,6 +125,8 @@ export function CoursesTable({
       columns={columns}
       data={courses}
       getRowId={c => c.code}
+      paging={paging}
+      paginationLabels={paginationLabels}
       renderExpanded={c => <CoursePanel course={c} />}
       expandLabel={c => t('panel.toggle', { name: c.name })}
       expandHeader={t('panel.header')}

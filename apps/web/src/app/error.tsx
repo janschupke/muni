@@ -34,6 +34,12 @@ export default function ErrorPage({
       description={t('errorBody')}
       actions={
         <>
+          <Button asChild>
+            <Link href="/">
+              <House aria-hidden />
+              {t('home')}
+            </Link>
+          </Button>
           <Button
             variant="primary"
             disabled={pending}
@@ -46,12 +52,6 @@ export default function ErrorPage({
           >
             <RotateCw aria-hidden />
             {t('retry')}
-          </Button>
-          <Button asChild>
-            <Link href="/">
-              <House aria-hidden />
-              {t('home')}
-            </Link>
           </Button>
         </>
       }

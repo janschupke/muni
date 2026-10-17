@@ -21,8 +21,8 @@ import {
 import { activeDepartments } from './lookups'
 import { needsOf, needsSelect } from './session-fit'
 import {
+  countSessions,
   isUpcoming,
-  pageSessions,
   sessionInclude,
   type SessionSummary,
   sessionSummarySelect,
@@ -167,18 +167,13 @@ export interface SessionListItem {
   status: SessionStatus
 }
 
-/** How many of a course's past sessions its page shows; the rest are in the sessions list. */
-const COURSE_PAST_SESSIONS = 10
-
 export interface CourseDetail extends Omit<CourseListItem, 'upcoming'> {
-  /**
-   * The sessions still ahead and the `COURSE_PAST_SESSIONS` latest past ones, oldest first.
-   */
+  /** The sessions still ahead, soonest first (its page pages them). */
   sessions: SessionListItem[]
-  /** Past sessions among `sessions`, and in all (the rest are in the sessions list). */
-  pastShown: number
+  /** How many sessions are behind it (they are in the sessions list). */
   pastTotal: number
-  recentCompletions: {
+  /** Every completion, newest first (its page pages them). */
+  completionList: {
     /** Internal id (editing and archiving act on it). */
     id: string
     externalId: string
@@ -203,21 +198,17 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
       },
       completions: {
         where: ACTIVE,
-        orderBy: { completedOn: 'desc' },
-        take: 20,
+        orderBy: [{ completedOn: 'desc' }, { externalId: 'desc' }],
         include: { employee: { select: personSelect } },
       },
       _count: { select: { completions: { where: ACTIVE } } },
     },
   })
   if (!course) return null
-  const [compliance, departments, past] = await Promise.all([
+  const [compliance, departments, pastTotal] = await Promise.all([
     loadCompliance({ ...options, scope: { courseIds: [course.id] } }),
     activeDepartments(options),
-    pageSessions(
-      { window: 'past', course: code, pageSize: COURSE_PAST_SESSIONS },
-      { ...options, now }
-    ),
+    countSessions({ window: 'past', course: code }, { ...options, now }),
   ])
   const cells = countedCells(compliance).filter(c => c.courseId === course.id)
   const counts = countStatuses(cells)
@@ -234,10 +225,9 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     rate: complianceRate(counts),
     sessionNeeds: sessionNeedsOf(course),
     byDepartment: byDepartment(cells, compliance, departments),
-    sessions: [...past.items.toReversed(), ...course.sessions.map(toSessionItem)],
-    pastShown: past.items.length,
-    pastTotal: past.total,
-    recentCompletions: course.completions.map(c => ({
+    sessions: course.sessions.map(toSessionItem),
+    pastTotal,
+    completionList: course.completions.map(c => ({
       id: c.id,
       externalId: c.externalId,
       employee: toPersonRef(c.employee),

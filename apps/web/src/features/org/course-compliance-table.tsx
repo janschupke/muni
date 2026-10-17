@@ -22,7 +22,7 @@ export function CourseComplianceTable({
   const t = useTranslations('org.courseColumns')
   const locale = useLocale()
   return (
-    <TableContainer>
+    <TableContainer paging="one row per course the group must hold: bounded by the catalogue">
       <Table aria-label={label}>
         <THead>
           <tr>

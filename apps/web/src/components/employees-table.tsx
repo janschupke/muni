@@ -3,20 +3,19 @@
 import type { EmployeeListItem } from '@muni/db/repositories'
 import { sortName } from '@muni/domain/names'
 import { BarRow } from '@muni/ui/bar-row'
-import { createDataColumns, DataTable, type SortingState } from '@muni/ui/data-table'
+import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useMemo, useTransition } from 'react'
+import { useMemo } from 'react'
 
-import { withParams } from '@/lib/search-params'
 import { useOfTotal } from '@/lib/use-of-total'
 
 import { OrgLink } from './org-links'
+import { usePaginationLabels } from './pagination-labels'
 import { RowActions } from './record-actions'
 import { RequirementPanel } from './requirement-panel'
 import { ComplianceBadge, EmploymentBadge, rateTone } from './status-badges'
@@ -24,20 +23,19 @@ import { ComplianceBadge, EmploymentBadge, rateTone } from './status-badges'
 const col = createDataColumns<EmployeeListItem>()
 
 /**
- * One server page of employees. The list is paginated on the server, so sorting is too:
- * a header click rewrites `?sort=&dir=` and the server returns the page in that order.
- * Column ids are the repository's sort keys.
+ * Employees, a page the server sorted and cut (the list, a department's or position's people).
+ * A header click asks the server for the new order; column ids are the repository's sort keys.
  */
 export function EmployeesTable({
   items,
-  query,
-  sort,
+  paging,
   omit,
   canEdit = false,
   caption,
   panelLevel = 2,
 }: {
   items: EmployeeListItem[]
+  paging: TablePaging
   /** The table's accessible name: "Employees" unless the section names them otherwise. */
   caption?: string | undefined
   /** An opened row's panel heads with an `h2`, or an `h3` under a section's `h2`. */
@@ -46,20 +44,11 @@ export function EmployeesTable({
   canEdit?: boolean | undefined
   /** A column every row shares, left out: the department on a department's page. */
   omit?: 'department' | 'position' | undefined
-  /** The list page's filters: sorting rewrites the URL. Without them the table sorts itself. */
-  query?: Record<string, string | undefined>
-  sort?: { by: string; desc: boolean } | undefined
 }) {
   const t = useTranslations('employees')
   const tcommon = useTranslations('common')
   const ofTotal = useOfTotal()
-  const router = useRouter()
-  const [pending, startTransition] = useTransition()
-
-  // Without a sort parameter the server returns name order; show it as such.
-  const sorting: SortingState = [
-    sort ? { id: sort.by, desc: sort.desc } : { id: 'name', desc: false },
-  ]
+  const paginationLabels = usePaginationLabels()
 
   const columns = useMemo(
     () =>
@@ -171,34 +160,17 @@ export function EmployeesTable({
   )
 
   return (
-    <div aria-busy={pending}>
-      <DataTable
-        caption={caption ?? t('title')}
-        columns={columns}
-        data={items}
-        getRowId={e => e.externalId}
-        {...(query
-          ? { manualSorting: true, sorting }
-          : { initialSorting: [{ id: 'name', desc: false }] })}
-        renderExpanded={e => <RequirementPanel requirements={e.requirements} level={panelLevel} />}
-        getRowCanExpand={e => e.requirements.length > 0}
-        expandLabel={e => t('panel.toggle', { name: sortName(e) })}
-        expandHeader={t('panel.header')}
-        onSortingChange={next => {
-          if (!query) return
-          const [first] = next
-          startTransition(() => {
-            router.push(
-              withParams('/employees', query, {
-                sort: first?.id,
-                dir: first?.desc ? 'desc' : undefined,
-                page: undefined,
-              }),
-              { scroll: false }
-            )
-          })
-        }}
-      />
-    </div>
+    <DataTable
+      caption={caption ?? t('title')}
+      columns={columns}
+      data={items}
+      getRowId={e => e.externalId}
+      paging={paging}
+      paginationLabels={paginationLabels}
+      renderExpanded={e => <RequirementPanel requirements={e.requirements} level={panelLevel} />}
+      getRowCanExpand={e => e.requirements.length > 0}
+      expandLabel={e => t('panel.toggle', { name: sortName(e) })}
+      expandHeader={t('panel.header')}
+    />
   )
 }

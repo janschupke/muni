@@ -44,13 +44,13 @@ function Dashboard({ data, advisor, canEdit }: ReadOutput<'dashboard'> & { canEd
     <>
       <PageHeader
         title={t('title')}
-        description={t('description', { date: formatDate(data.asOf, locale) })}
+        description={t('description', { date: formatDate(data.asOf) })}
       />
 
       {(now > 0 || overbooked > 0) && (
         <Alert tone={action > 0 || overbooked > 0 ? 'warning' : 'info'} className="mb-4">
-          {t('advisor.summary', { now, action, overbooked })}{' '}
-          <TextLink asChild emphasis tone="inherit" arrow>
+          <p>{t('advisor.summary', { now, action, overbooked })}</p>
+          <TextLink asChild emphasis arrow hitArea>
             <Link href="/advisor">{t('advisor.open')}</Link>
           </TextLink>
         </Alert>
@@ -137,6 +137,7 @@ function Dashboard({ data, advisor, canEdit }: ReadOutput<'dashboard'> & { canEd
           ) : (
             <SessionTable
               sessions={data.upcomingSessions}
+              paging={{ local: 'a preview of the next six; the sessions list has them all' }}
               canEdit={canEdit}
               compact
               caption={t('upcoming.title')}

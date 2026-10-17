@@ -3,6 +3,7 @@
 import { UTILISATION_DAYS } from '@muni/domain/rooms'
 import { BarRow } from '@muni/ui/bar-row'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
+import type { TablePaging } from '@muni/ui/data-table'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
@@ -11,7 +12,7 @@ import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent } from '@muni/utils/format'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { History } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -23,21 +24,36 @@ import { CapabilityList, RoomKindBadge } from '@/components/room-badges'
 import { SessionTable } from '@/components/session-table'
 import { DetailSkeleton } from '@/components/skeletons'
 import { RoomFitTable } from '@/features/rooms/room-fit-table'
+import { SESSION_SORT } from '@/lib/list-keys'
 import { readQuery } from '@/lib/query/queries'
 import { useDocumentTitle } from '@/lib/query/use-document-title'
+import { type PageInfo, useListUrl } from '@/lib/use-list-url'
 import type { ReadOutput } from '@/server/reads/registry'
 
+/** A room's page: what it holds and has, a page of its sessions ahead, the courses it fits. */
 export function RoomView({ id, canEdit }: { id: string; canEdit: boolean }) {
-  const read = useQuery(readQuery('room', { id }))
+  const sessions = useListUrl(SESSION_SORT, { id: 'date', desc: false }, 'sessions')
+  const read = useQuery({
+    ...readQuery('room', { id, ...sessions.input }),
+    placeholderData: keepPreviousData,
+  })
   useDocumentTitle(read.data?.name)
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="rooms">
-      {data => <RoomDetail data={data} canEdit={canEdit} />}
+      {data => <RoomDetail data={data} canEdit={canEdit} paging={sessions.paging} />}
     </ReadView>
   )
 }
 
-function RoomDetail({ data, canEdit }: { data: ReadOutput<'room'>; canEdit: boolean }) {
+function RoomDetail({
+  data,
+  canEdit,
+  paging,
+}: {
+  data: ReadOutput<'room'>
+  canEdit: boolean
+  paging: (page: PageInfo) => TablePaging
+}) {
   const room = data
   const t = useTranslations('rooms')
   const locale = useLocale()
@@ -95,11 +111,12 @@ function RoomDetail({ data, canEdit }: { data: ReadOutput<'room'>; canEdit: bool
         main={
           <>
             <SectionHeading className="mt-0">{t('detail.upcoming')}</SectionHeading>
-            {room.upcoming.length === 0 ? (
+            {room.upcoming.total === 0 ? (
               <EmptyState variant="inline" title={t('detail.noUpcoming')} />
             ) : (
               <SessionTable
-                sessions={room.upcoming}
+                sessions={room.upcoming.items}
+                paging={paging(room.upcoming)}
                 canEdit={canEdit}
                 caption={t('detail.upcoming')}
                 panelLevel={3}

@@ -77,9 +77,9 @@ test('adds a person with typed and picked dates, then archives them', async ({ p
   await page.getByRole('combobox', { name: 'Department' }).click()
   await page.getByRole('option', { name: 'Laboratoře' }).click()
   const hired = page.getByRole('textbox', { name: /Hired/ })
-  await hired.fill('3/2/2026')
+  await hired.fill('2.3.2026')
   await hired.blur()
-  await expect(hired).toHaveValue('3/2/2026')
+  await expect(hired).toHaveValue('02.03.2026')
   // Left: from the calendar, by keyboard, a week after the 1st of the month it opens on.
   await page.getByRole('button', { name: 'Choose Left from a calendar' }).click()
   const grid = page.getByRole('grid')
@@ -97,7 +97,7 @@ test('adds a person with typed and picked dates, then archives them', async ({ p
   await save(page).click()
   await expect(page).toHaveURL(/\/employees\/N\d{4}$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Eva E2E Testová' })).toBeVisible()
-  await expect(page.getByText('Mar 2, 2026')).toBeVisible()
+  await expect(page.getByText('02.03.2026')).toBeVisible()
 
   await page.getByRole('main').getByRole('button', { name: 'Archive' }).click()
   await page
@@ -122,7 +122,7 @@ test('plans a session with the time picker, books a person by hand, and cancels 
   await page.getByRole('combobox', { name: /Course/ }).click()
   await page.getByRole('option', { name: /^GDPR/ }).click()
   const date = page.getByRole('textbox', { name: /Date/ })
-  await date.fill('3/15/2027')
+  await date.fill('15.03.2027')
   await date.blur()
   // Start from the lists: hour, then minute.
   await page.getByRole('button', { name: 'Choose Start from a list' }).click()
@@ -243,7 +243,7 @@ test('checks a session’s room and seats as they are typed, and changes its cou
   await page.getByRole('combobox', { name: /Course/ }).click()
   await page.getByRole('option', { name: /^BOZP-Z/ }).click()
   const date = page.getByRole('textbox', { name: /Date/ })
-  await date.fill('4/12/2027')
+  await date.fill('12.04.2027')
   await date.blur()
   // A room never changes the seats: they are the user's to type.
   await page.getByRole('combobox', { name: /Room/ }).click()
@@ -301,7 +301,7 @@ test('reviews a planner offer, checks it, then creates the session with its peop
   await expect(toast).toBeVisible()
   await page.getByRole('link', { name: 'Open session' }).click()
   await expect(page).toHaveURL(/\/sessions\/S\d{3}$/)
-  await expect(page.getByText('CZK 450').first()).toBeVisible()
+  await expect(page.getByText('450,00 Kč').first()).toBeVisible()
 })
 
 test('books a person from the advisor after confirming who goes where', async ({ page }) => {

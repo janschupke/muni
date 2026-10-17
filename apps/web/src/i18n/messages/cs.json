@@ -86,8 +86,8 @@
     },
     "scope": {
       "ALL": "Všichni",
-      "DEPARTMENT": "Oddělení: <link>{target}</link>",
-      "POSITION": "Pozice: <link>{target}</link>"
+      "DEPARTMENT": "{count, plural, one {Oddělení} other {Oddělení}}",
+      "POSITION": "{count, plural, one {Pozice} other {Pozice}}"
     },
     "optional": "Nepovinné",
     "nothingRequired": "Nic povinného",
@@ -224,9 +224,9 @@
     },
     "detail": {
       "requirements": "Povinné pro",
-      "sessions": "Termíny",
-      "noSessions": "Kurz nemá žádné termíny.",
-      "recentCompletions": "Poslední absolvování",
+      "sessions": "Nadcházející termíny",
+      "noSessions": "Kurz nemá žádné nadcházející termíny.",
+      "completions": "Absolvování",
       "noCompletions": "Zatím nikdo neabsolvoval.",
       "compliance": "Plnění",
       "complianceDescription": "Napříč všemi, pro které je kurz povinný.",
@@ -875,6 +875,7 @@
       "rowsUpcoming": "Každý řádek je jedno školení jedné osoby, které propadne do {date}, a co se s ním děje."
     },
     "columns": {
+      "remedy": "Co udělat",
       "rank": "Pořadí",
       "person": "Osoba",
       "training": "Školení",
@@ -889,10 +890,9 @@
     },
     "window": {
       "none": "Bez mezery",
-      "open": "{from} – dosud",
+      "open": "Od {from}",
       "never": "Nikdy neabsolvováno",
       "nothingBooked": "nic zarezervováno",
-      "range": "{from} – {until}",
       "neverUntil": "Nikdy neabsolvováno, do {until}",
       "days": "{count, plural, =0 {tentýž den} one {# den} few {# dny} other {# dní}}"
     },
@@ -917,8 +917,8 @@
       "readOnly": "Přihlašovat lidi mohou jen správci.",
       "book": "Rezervovat…",
       "bookOne": "Rezervovat {name}…",
+      "scheduleFor": "Naplánovat termín školení {course} pro: {name}",
       "bookSelected": "Rezervovat {count, plural, one {# vybraného} few {# vybrané} other {# vybraných}} · {cost}",
-      "selectAll": "Vybrat všech {count} navržených",
       "clearSelection": "Zrušit výběr",
       "selectRow": "Vybrat {name}, {course}",
       "selectPage": "Vybrat všechny navržené řádky na této stránce",
@@ -961,7 +961,7 @@
       "none": "Žádný termín není přeplněný.",
       "booked": "Obsazeno",
       "over": "{booked} z {capacity} · o {excess} víc",
-      "moveTo": "Návrh: přesunout {count, plural, one {# místo} few {# místa} other {# míst}} na",
+      "moveTo": "Návrh: přesunout {count, plural, one {# místo} few {# místa} other {# míst}} na:",
       "remaining": "{count, plural, one {# místo zůstává} few {# místa zůstávají} other {# míst zůstává}} nad kapacitou: v jiných termínech není místo, nebo jde o rezervace jménem. Vypište další termín, nebo rezervace zrušte.",
       "resolve": "Vyřešit…",
       "resolveLabel": "Vyřešit přeplnění: {course}, {date}",
@@ -1123,8 +1123,8 @@
       "byCourse": "Podle kurzů",
       "byCourseDescription": "Co se u tohoto poskytovatele absolvovalo, nejčastější první.",
       "noCompletions": "Tohoto poskytovatele zatím neuvádí žádné absolvování.",
-      "recent": "Poslední absolvování",
-      "recentDescription": "Nejnovějších {count} absolvování u tohoto poskytovatele.",
+      "recent": "Absolvování",
+      "recentDescription": "Všechna absolvování u tohoto poskytovatele, celkem {count}.",
       "columns": {
         "course": "Kurz",
         "completions": "Absolvování",

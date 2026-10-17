@@ -11,7 +11,7 @@ import {
 import { Alert } from '@muni/ui/alert'
 import { Badge } from '@muni/ui/badge'
 import { Button } from '@muni/ui/button'
-import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { DetailGrid, DetailPanel } from '@muni/ui/detail-panel'
 import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
@@ -40,10 +40,13 @@ const col = createDataColumns<SessionOffer>()
 
 export function PlannerView({
   groups,
+  paging,
   rooms,
   canCreate,
 }: {
   groups: PlannerGroup[]
+  /** Every course's table: sorted on the server, the courses paged below them. */
+  paging: TablePaging
   rooms: readonly RoomOption[]
   canCreate: boolean
 }) {
@@ -63,6 +66,7 @@ export function PlannerView({
           <CourseHeading course={group.course} id={`course-${group.course.code}`} />
           <OfferTable
             group={group}
+            paging={paging}
             canCreate={canCreate}
             onReview={(offer, from) => {
               setReviewing({ offer, from })
@@ -110,10 +114,12 @@ function CourseHeading({ course, id }: { course: OfferCourse; id: string }) {
 
 function OfferTable({
   group,
+  paging,
   canCreate,
   onReview,
 }: {
   group: PlannerGroup
+  paging: TablePaging
   canCreate: boolean
   onReview: (offer: SessionOffer, from: HTMLElement) => void
 }) {
@@ -129,7 +135,7 @@ function OfferTable({
           meta: { nowrap: true },
           cell: ({ row }) => (
             <CellStack
-              title={formatDate(row.original.deadline, locale)}
+              title={formatDate(row.original.deadline)}
               meta={
                 row.original.bucket === 'now'
                   ? t('bucket.now')
@@ -148,9 +154,7 @@ function OfferTable({
             if (!slot || problem) return <ProblemText offer={row.original} />
             return (
               <div className="flex flex-col items-start gap-1">
-                <span className="font-medium">
-                  {formatTimeRange(slot.startsAt, slot.endsAt, locale)}
-                </span>
+                <span className="font-medium">{formatTimeRange(slot.startsAt, slot.endsAt)}</span>
                 {late && (
                   <Badge tone="warning">
                     <Clock aria-hidden />
@@ -200,7 +204,6 @@ function OfferTable({
                   return (
                     <Button
                       size="sm"
-                      variant="primary"
                       aria-label={t('review.openLabel', {
                         course: offer.course.name,
                         n: group.offers.indexOf(offer) + 1,
@@ -226,6 +229,7 @@ function OfferTable({
       columns={columns}
       data={group.offers}
       getRowId={o => o.id}
+      paging={paging}
       renderExpanded={o => <OfferDetails offer={o} />}
       expandLabel={o => t('toggle', { course: o.course.name, n: group.offers.indexOf(o) + 1 })}
       expandHeader={t('panelHeader')}
@@ -263,11 +267,14 @@ function ProblemText({ offer }: { offer: SessionOffer }) {
 function OfferDetails({ offer }: { offer: SessionOffer }) {
   const t = useTranslations('planner.expanded')
   const tr = useTranslations('planner.review')
-  const locale = useLocale()
   return (
     <DetailGrid layout="wide-narrow">
       <DetailPanel title={t('people')} count={offer.people.length} level={3} flush>
-        <Table density="compact" aria-label={t('people')}>
+        <Table
+          density="compact"
+          paging="the people one session takes: bounded by its seats"
+          aria-label={t('people')}
+        >
           <THead>
             <tr>
               <Th>{t('person')}</Th>
@@ -284,7 +291,7 @@ function OfferDetails({ offer }: { offer: SessionOffer }) {
                   </TextLink>
                 </Td>
                 <Td>{p.department ?? PLACEHOLDER}</Td>
-                <Td nowrap>{p.lapses ? formatDate(p.lapses, locale) : tr('neverHeld')}</Td>
+                <Td nowrap>{p.lapses ? formatDate(p.lapses) : tr('neverHeld')}</Td>
               </Tr>
             ))}
           </TBody>

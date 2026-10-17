@@ -7,7 +7,7 @@ import { sessionIssues } from '@muni/domain/sessions'
 import { isWorkingDay, todayIn, zonedTimeToUtc } from '@muni/utils/dates'
 import { formatDate, formatTimeRange, PLACEHOLDER } from '@muni/utils/format'
 import { parseAmount, parseCount } from '@muni/utils/money'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 import { useRoomBusy, useRoomMismatchError } from '@/components/form/session-checks'
@@ -26,7 +26,6 @@ export function useOfferDraft(
 ) {
   const t = useTranslations('planner.review')
   const te = useTranslations('forms.errors')
-  const locale = useLocale()
   const needs: SessionNeeds = {
     groupSize: offer.course.groupSize,
     onlineAllowed: offer.course.onlineAllowed,
@@ -83,10 +82,8 @@ export function useOfferDraft(
   const valid = date !== '' && room !== undefined && Object.values(errors).every(e => !e)
 
   const warnings = [
-    ...(date !== '' && !isWorkingDay(date)
-      ? [t('notWorking', { date: formatDate(date, locale) })]
-      : []),
-    ...(date > offer.deadline ? [t('late', { deadline: formatDate(offer.deadline, locale) })] : []),
+    ...(date !== '' && !isWorkingDay(date) ? [t('notWorking', { date: formatDate(date) })] : []),
+    ...(date > offer.deadline ? [t('late', { deadline: formatDate(offer.deadline) })] : []),
   ]
 
   const changing =
@@ -126,8 +123,7 @@ export function useOfferDraft(
       date && startTime && endTime
         ? formatTimeRange(
             zonedTimeToUtc(date, startTime).toISOString(),
-            zonedTimeToUtc(date, endTime).toISOString(),
-            locale
+            zonedTimeToUtc(date, endTime).toISOString()
           )
         : PLACEHOLDER,
     /** What the server is asked: to check (`dryRun`) or to create and book. */

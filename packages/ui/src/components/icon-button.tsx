@@ -8,14 +8,13 @@ import { Tooltip } from './tooltip'
 
 /**
  * What the action does, in its colour at rest and a soft fill of it on hover: open or edit
- * (accent), bring back (success), set aside (serious), remove (danger). Neutral controls
- * (close, clear a filter, fold the sidebar) stay grey.
+ * (accent), bring back (success), archive or remove (danger, the one colour of every
+ * destructive act). Neutral controls (close, clear a filter, fold the sidebar) stay grey.
  */
 const TONE = {
   neutral: '',
   accent: 'text-accent-text hover:bg-accent-soft hover:text-accent-text',
   success: 'text-success-fg hover:bg-success-soft hover:text-success-fg',
-  serious: 'text-serious-fg hover:bg-serious-soft hover:text-serious-fg',
   danger: 'text-danger-fg hover:bg-danger-soft hover:text-danger-fg',
 } as const
 

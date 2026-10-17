@@ -1,7 +1,7 @@
 'use client'
 
 import { Alert } from '@muni/ui/alert'
-import { Button } from '@muni/ui/button'
+import { Button, CancelButton } from '@muni/ui/button'
 import { Dialog } from '@muni/ui/dialog'
 import { useTranslations } from 'next-intl'
 import { type ReactNode, useState, useTransition } from 'react'
@@ -119,15 +119,14 @@ export function ConfirmDialog({
           </Button>
         ) : (
           <>
-            <Button
-              variant="ghost"
+            <CancelButton
               disabled={pending}
               onClick={() => {
                 change(false)
               }}
             >
               {cancelLabel ?? t('keepAsIs')}
-            </Button>
+            </CancelButton>
             <Button
               variant={tone === 'danger' ? 'danger' : 'primary'}
               disabled={disabled || pending}

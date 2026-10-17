@@ -248,10 +248,11 @@ test.describe('register (viewer)', () => {
     await expect(rooms.first()).toBeVisible()
     for (const link of await rooms.all()) await expect(link).toHaveText(name)
 
-    // A date opens the session, whose back link returns to the advisor view.
+    // A date opens the session, ready to book the person it is proposed for; its back link
+    // returns to the advisor view.
     await page.goBack()
     await table.locator('a[href^="/sessions/T"]').first().click()
-    await expect(page).toHaveURL(/\/sessions\/T\d+$/)
+    await expect(page).toHaveURL(/\/sessions\/T\d+\?employee=E\d+$/)
     await expect(page.getByRole('link', { name: 'Back to Advisor' })).toHaveAttribute(
       'href',
       '/advisor?view=action'
@@ -317,7 +318,7 @@ test.describe('register (viewer)', () => {
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
     await expect(page.getByText(/\d+ completions · \d+ people · \d+ courses/)).toBeVisible()
     await expect(page.getByRole('heading', { name: 'By course' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Latest completions' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Completions', exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Edit' })).toHaveCount(0)
     await page.getByRole('link', { name: 'Providers' }).first().click()
     await expect(page.getByRole('heading', { level: 1, name: 'Providers' })).toBeVisible()

@@ -23,7 +23,7 @@ import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { booking, counts, employeeDetail, employeePage, employeeRow } from '@/test/fixtures'
 import { NotFoundError, router } from '@/test/next'
-import { params, renderServer } from '@/test/render'
+import { at, params, renderServer } from '@/test/render'
 
 import EditCompletionPage, {
   generateMetadata as editCompletionMetadata,
@@ -135,17 +135,22 @@ describe('employee list', () => {
     // Filters, a sort and a page from the address: the server's read is the view's.
     await renderServer(
       EmployeesPage({
-        searchParams: params({ department: 'Laboratoře', sort: 'name', dir: 'desc', page: '2' }),
+        searchParams: at('/employees', {
+          department: 'Laboratoře',
+          sort: 'name',
+          dir: 'desc',
+          page: '2',
+        }),
       })
     )
-    const person = { params: params({ externalId: 'E0153' }) }
+    const person = { params: params({ externalId: 'E0153' }), searchParams: at('/employees/E0153') }
     await renderServer(EmployeePage(person))
     signInAs('ADMIN')
     await renderServer(EditEmployeePage(person))
     expect(fetches).not.toHaveBeenCalled()
   })
 
-  const search = (query: Record<string, string>) => ({ searchParams: params(query) })
+  const search = (query: Record<string, string>) => ({ searchParams: at('/employees', query) })
 
   it('reads filters, sort and page from the URL', async () => {
     expect(await listMetadata()).toEqual({ title: 'Employees' })
@@ -259,7 +264,7 @@ describe('employee list', () => {
     )
     expect(screen.getByText('(45 days ago)')).toBeTruthy()
     expect(screen.getByText('No expiry')).toBeTruthy()
-    expect(screen.getByRole('link', { name: /Nov 4, 2026/ }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: /04.11.2026/ }).getAttribute('href')).toBe(
       '/sessions/T016'
     )
     expect(screen.getByText('2 of 3')).toBeTruthy()
@@ -270,7 +275,7 @@ describe('employee list', () => {
 })
 
 describe('employee detail', () => {
-  const props = { params: params({ externalId: 'E0153' }) }
+  const props = { params: params({ externalId: 'E0153' }), searchParams: params({}) }
 
   it('is titled by the person once their data is there; an unknown ID is not found', async () => {
     expect(await employeeMetadata(props)).toEqual({ title: 'Marie Černá' })
@@ -278,7 +283,9 @@ describe('employee detail', () => {
     expect(document.title).toBe('Marie Černá · Training register')
     vi.mocked(getEmployee).mockResolvedValueOnce(null)
     await expect(
-      renderServer(EmployeePage({ params: params({ externalId: 'E9999' }) }))
+      renderServer(
+        EmployeePage({ params: params({ externalId: 'E9999' }), searchParams: params({}) })
+      )
     ).rejects.toThrow(NotFoundError)
     expect(getEmployee).toHaveBeenLastCalledWith('E9999', 'VIEWER')
   })
@@ -302,7 +309,7 @@ describe('employee detail', () => {
     ])
     expect(held.firstElementChild?.className).toContain('bg-serious-fill')
     expect(screen.getByText('1 of 2')).toBeTruthy()
-    expect(screen.getByRole('link', { name: /Feb 3, 2027/ }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: /03.02.2027/ }).getAttribute('href')).toBe(
       '/sessions/T018'
     )
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
@@ -410,7 +417,9 @@ describe('managers', () => {
         teamCounts: counts({ VALID: 2, EXPIRING: 0, EXPIRED: 0, MISSING: 1 }),
       })
     )
-    await renderServer(EmployeePage({ params: params({ externalId: 'E0001' }) }))
+    await renderServer(
+      EmployeePage({ params: params({ externalId: 'E0001' }), searchParams: params({}) })
+    )
     expect(screen.getByRole('heading', { name: 'Team' })).toBeTruthy()
     expect(screen.getByText('2 direct reports who have not left')).toBeTruthy()
     expect(screen.getByText('2 of 3 held')).toBeTruthy()
@@ -428,7 +437,9 @@ describe('managers', () => {
   })
 
   it('see no team card without reports', async () => {
-    await renderServer(EmployeePage({ params: params({ externalId: 'E0153' }) }))
+    await renderServer(
+      EmployeePage({ params: params({ externalId: 'E0153' }), searchParams: params({}) })
+    )
     expect(screen.queryByRole('heading', { name: 'Team' })).toBeNull()
   })
 
@@ -436,13 +447,15 @@ describe('managers', () => {
     vi.mocked(getEmployee).mockResolvedValueOnce(
       employeeDetail({ status: 'LEFT', leftOn: '2026-06-30', requirements: [] })
     )
-    await renderServer(EmployeePage({ params: params({ externalId: 'E0153' }) }))
-    expect(screen.getByText('Left on Jun 30, 2026; nothing is required any more.')).toBeTruthy()
+    await renderServer(
+      EmployeePage({ params: params({ externalId: 'E0153' }), searchParams: params({}) })
+    )
+    expect(screen.getByText('Left on 30.06.2026; nothing is required any more.')).toBeTruthy()
   })
 
   it('narrow the list to their reports, with a way back to everyone', async () => {
     vi.mocked(getPersonName).mockResolvedValue('Urbanová Tereza')
-    await renderServer(EmployeesPage({ searchParams: params({ manager: 'E0001' }) }))
+    await renderServer(EmployeesPage({ searchParams: at('/employees', { manager: 'E0001' }) }))
     expect(listEmployees).toHaveBeenCalledWith(expect.objectContaining({ manager: 'E0001' }))
     expect(getPersonName).toHaveBeenCalledWith('E0001')
     // A filter like the others, in the toolbar, that its own button removes.
@@ -455,13 +468,13 @@ describe('managers', () => {
     cleanup()
     // Nobody by that ID: the ID stands in.
     vi.mocked(getPersonName).mockResolvedValue(null)
-    await renderServer(EmployeesPage({ searchParams: params({ manager: 'E9999' }) }))
+    await renderServer(EmployeesPage({ searchParams: at('/employees', { manager: 'E9999' }) }))
     expect(screen.getByText(/Direct reports of E9999/)).toBeTruthy()
   })
 })
 
 describe('employee forms', () => {
-  const props = { params: params({ externalId: 'E0153' }) }
+  const props = { params: params({ externalId: 'E0153' }), searchParams: params({}) }
   beforeEach(() => {
     signInAs('ADMIN')
   })
@@ -541,7 +554,7 @@ describe('employee forms', () => {
       await editCompletionMetadata({ params: params({ externalId: 'E0153', id: 'cmp_1' }) })
     ).toEqual({ title: 'Edit completion Z000101 of Černá Marie' })
     expect(screen.getByText(/came from an import/)).toBeTruthy()
-    expect(screen.getByRole('textbox', { name: 'Price (CZK)' })).toHaveProperty('value', '450')
+    expect(screen.getByRole('textbox', { name: 'Price (Kč)' })).toHaveProperty('value', '450,00')
     expect(screen.getByRole('combobox', { name: /Course/ }).textContent).toContain('Starý kurz')
     expect(screen.getByRole('combobox', { name: /Provider/ }).textContent).toBe('Zaniklá firma')
     expect(screen.getByRole('combobox', { name: /Employee/ }).textContent).toBe('Černá Marie')

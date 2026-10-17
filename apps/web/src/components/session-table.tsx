@@ -2,18 +2,19 @@
 
 import type { SessionListItem } from '@muni/db/repositories'
 import { BarRow } from '@muni/ui/bar-row'
-import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { DetailGrid, DetailPanel } from '@muni/ui/detail-panel'
 import { EmptyState } from '@muni/ui/empty-state'
 import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { formatCurrency } from '@muni/utils/format'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { useOfTotal } from '@/lib/use-of-total'
 
 import { RecordLink } from './archived'
+import { usePaginationLabels } from './pagination-labels'
 import { RowActions } from './record-actions'
 import { SessionAttendees, SessionFacts } from './session-details'
 import { RoomLink, SessionDateLink } from './session-links'
@@ -28,8 +29,11 @@ export function SessionTable({
   compact = false,
   caption,
   panelLevel = 2,
+  paging,
 }: {
   sessions: SessionListItem[]
+  /** Server pages, or why every row is here (the dashboard's preview). */
+  paging: TablePaging
   canEdit: boolean
   showCourse?: boolean | undefined
   /** Course, time and occupancy only, not sortable (dashboard). */
@@ -41,8 +45,8 @@ export function SessionTable({
 }) {
   const t = useTranslations('sessions')
   const tc = useTranslations('common')
-  const locale = useLocale()
   const ofTotal = useOfTotal()
+  const paginationLabels = usePaginationLabels()
 
   const columns = useMemo(
     () =>
@@ -135,7 +139,7 @@ export function SessionTable({
                 header: t('columns.price'),
                 sortFn: 'basic',
                 meta: { align: 'right', nowrap: true },
-                cell: ({ getValue }) => formatCurrency(getValue(), locale),
+                cell: ({ getValue }) => formatCurrency(getValue()),
               }),
               col.accessor('status', {
                 header: t('columns.status'),
@@ -161,7 +165,7 @@ export function SessionTable({
             ]
           : []),
       ]),
-    [canEdit, compact, locale, ofTotal, showCourse, t, tc]
+    [canEdit, compact, ofTotal, showCourse, t, tc]
   )
 
   return (
@@ -170,6 +174,8 @@ export function SessionTable({
       columns={columns}
       data={sessions}
       getRowId={s => s.externalId}
+      paging={paging}
+      paginationLabels={paginationLabels}
       enableSorting={!compact}
       rowClassName={s => (s.status === 'CANCELLED' ? 'text-fg-subtle' : undefined)}
       {...(!compact && {

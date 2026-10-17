@@ -67,58 +67,35 @@ export function clamp(iso: string, min?: string, max?: string): string {
   return iso
 }
 
-/** The order day, month and year are written in for `locale`, e.g. ['day', 'month', 'year']. */
-function partOrder(locale: string): ('day' | 'month' | 'year')[] {
-  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'numeric', year: 'numeric' })
-    .formatToParts(new Date(Date.UTC(2001, 1, 3)))
-    .flatMap(p => (p.type === 'day' || p.type === 'month' || p.type === 'year' ? [p.type] : []))
+/**
+ * How a date is typed, spelled with the given letters: `dd.mm.rrrr`, `dd.mm.yyyy`. Day, month,
+ * year in both languages, as every date in the app is written. The field's placeholder: a hint
+ * at the format, never a date that could pass for a value.
+ */
+export function formatPattern(letters: Record<'day' | 'month' | 'year', string>): string {
+  return `${letters.day}.${letters.month}.${letters.year}`
+}
+
+/** A date as typed in the field and shown everywhere else: `01.03.2026`. */
+export function formatTyped(iso: string): string {
+  const [year = '', month = '', day = ''] = iso.split('-')
+  return `${day}.${month}.${year}`
 }
 
 /**
- * How a date is typed in `locale`, spelled with the given letters: `dd. mm. rrrr`,
- * `mm/dd/yyyy`. The field's placeholder: a hint at the format, never a date that could pass
- * for a value.
+ * Reads a typed date: ISO (`2026-03-01`) or day, month and year with any separators
+ * (`1.3.2026`, `01. 03. 2026`, `1/3/26`). Two-digit years are this century. Null when it is
+ * not a real date.
  */
-export function formatPattern(
-  locale: string,
-  letters: Record<'day' | 'month' | 'year', string>
-): string {
-  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'numeric', year: 'numeric' })
-    .formatToParts(new Date(Date.UTC(2001, 1, 3)))
-    .map(p =>
-      p.type === 'day' || p.type === 'month' || p.type === 'year' ? letters[p.type] : p.value
-    )
-    .join('')
-}
-
-/** A date as typed in the field: digits only, in the locale's order (`1. 3. 2026`, `3/1/2026`). */
-export function formatTyped(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(toDate(iso))
-}
-
-/**
- * Reads a typed date: ISO (`2026-03-01`) or the locale's numeric order with any separators
- * (`1. 3. 2026`, `1.3.26`, `3/1/2026`). Two-digit years are this century. Null when it is not
- * a real date.
- */
-export function parseTyped(text: string, locale: string): string | null {
+export function parseTyped(text: string): string | null {
   const trimmed = text.trim()
   if (trimmed === '') return null
   const iso = validIso(trimmed)
   if (iso) return iso
-  const numbers = trimmed.split(/\D+/).filter(Boolean)
+  const numbers = trimmed.split(/\D+/).filter(Boolean).map(Number)
   if (numbers.length !== 3) return null
-  const parts: Record<string, number> = {}
-  partOrder(locale).forEach((part, i) => {
-    parts[part] = Number(numbers[i])
-  })
-  const { day = 0, month = 0 } = parts
-  let year = parts['year'] ?? 0
+  const [day = 0, month = 0] = numbers
+  let year = numbers[2] ?? 0
   if (year < 100) year += 2000
   if (year < 1000 || year > 9999) return null
   return validIso(

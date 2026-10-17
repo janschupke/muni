@@ -3,35 +3,27 @@
 import {
   type AdvisorPlan,
   type PlanItem,
-  type Proposal,
   seatsFree,
   type SessionChoice,
 } from '@muni/domain/advisor'
 import { Alert } from '@muni/ui/alert'
 import { Badge } from '@muni/ui/badge'
 import { Button } from '@muni/ui/button'
-import { DataTable } from '@muni/ui/data-table'
+import { DataTable, type TablePaging } from '@muni/ui/data-table'
 import { EmptyState } from '@muni/ui/empty-state'
 import { Select } from '@muni/ui/select'
 import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatDate, formatTimeRange } from '@muni/utils/format'
-import { CalendarCheck, CalendarPlus } from 'lucide-react'
-import dynamic from 'next/dynamic'
+import { CalendarCheck } from 'lucide-react'
 import Link from 'next/link'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useCallback, useMemo, useState } from 'react'
 
+import { usePaginationLabels } from '@/components/pagination-labels'
+
 import type { Booking } from './book-dialog'
+import { isProposed, type ProposedItem, RowRemedy, scheduleHref, useBookDialog } from './booking'
 import { col, itemId, SessionCell, usePlanColumns } from './columns'
-import { useAdvisorPages } from './paging'
-
-// Loaded when needed: the dialog opens when rows are booked.
-const BookDialog = dynamic(() => import('./book-dialog').then(m => m.BookDialog))
-
-type SessionProposal = Extract<Proposal, { kind: 'SESSION' }>
-export type ProposedItem = PlanItem & { proposal: SessionProposal }
-
-const isProposed = (i: PlanItem): i is ProposedItem => i.proposal?.kind === 'SESSION'
 
 /** The sessions a proposed item can take: the advisor's pick, then the alternatives. */
 const choicesOf = (item: ProposedItem): SessionChoice[] => [
@@ -47,28 +39,31 @@ const choicesOf = (item: ProposedItem): SessionChoice[] => [
  */
 export function ActionTable({
   items,
+  total,
+  paging,
   shortfall,
   asOf,
-  page,
   canBook,
 }: {
+  /** The page the server sorted and cut. */
   items: PlanItem[]
+  total: number
+  paging: TablePaging
   shortfall: AdvisorPlan['shortfall']
   asOf: string
-  /** The page in the address (`?page=`). */
-  page: number
   /** Admins only: choose sessions and book. */
   canBook: boolean
 }) {
   const t = useTranslations('advisor')
-  const locale = useLocale()
   const shared = usePlanColumns(asOf)
-  const pages = useAdvisorPages('action', undefined, page)
+  const paginationLabels = usePaginationLabels()
   const proposed = useMemo(() => items.filter(isProposed), [items])
   // The session each row books (its id); the proposal unless the admin chose another.
   const [chosen, setChosen] = useState<ReadonlyMap<string, string>>(new Map())
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
-  const [asking, setAsking] = useState<{ bookings: Booking[]; from: HTMLElement } | null>(null)
+  const { ask, dialog } = useBookDialog(() => {
+    setSelected(new Set())
+  })
 
   const sessionOf = useCallback(
     (item: ProposedItem): SessionChoice => {
@@ -121,7 +116,7 @@ export function ActionTable({
                   }}
                   options={choicesOf(item).map(c => {
                     const label = t('action.choice', {
-                      date: formatTimeRange(c.session.startsAt, c.session.endsAt, locale),
+                      date: formatTimeRange(c.session.startsAt, c.session.endsAt),
                       room: c.session.room.name,
                       free: Math.max(0, seatsFree(c.session)),
                     })
@@ -143,62 +138,30 @@ export function ActionTable({
                 header: () => <span className="sr-only">{t('action.book')}</span>,
                 // Pinned: the session column can be wide, and booking must stay in reach.
                 meta: { nowrap: true, sticky: 'right', headerClassName: 'w-0' },
-                cell: ({ row }) => {
-                  const item = row.original
-                  if (!isProposed(item)) return null
-                  return (
-                    <Button
-                      size="sm"
-                      onClick={event => {
-                        setAsking({ bookings: bookingsOf([item]), from: event.currentTarget })
-                      }}
-                      aria-label={t('action.bookOne', { name: item.need.employee.name })}
-                    >
-                      <CalendarPlus aria-hidden />
-                      {t('action.book')}
-                    </Button>
-                  )
-                },
+                cell: ({ row }) => (
+                  <RowRemedy
+                    item={row.original}
+                    onBook={(item, from) => {
+                      ask(bookingsOf([item]), from)
+                    }}
+                  />
+                ),
               }),
             ]
           : []),
       ]),
-    [asOf, locale, canBook, shared, t, sessionOf, bookingsOf]
+    [asOf, canBook, shared, t, sessionOf, bookingsOf, ask]
   )
 
-  if (items.length === 0) return <EmptyState title={t('action.empty')} />
+  if (total === 0) return <EmptyState title={t('action.empty')} />
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-fg-muted">{t('action.rows')}</p>
       {canBook ? (
         proposed.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="primary"
-              disabled={picked.length === 0}
-              onClick={event => {
-                setAsking({ bookings: bookingsOf(picked), from: event.currentTarget })
-              }}
-            >
-              <CalendarCheck aria-hidden />
-              {t('action.bookSelected', {
-                count: picked.length,
-                cost: formatCurrency(pickedCost, locale),
-              })}
-            </Button>
-            {picked.length < proposed.length && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setSelected(new Set(proposed.map(itemId)))
-                }}
-              >
-                {t('action.selectAll', { count: proposed.length })}
-              </Button>
-            )}
             {picked.length > 0 && (
               <Button
-                variant="ghost"
                 onClick={() => {
                   setSelected(new Set())
                 }}
@@ -206,6 +169,19 @@ export function ActionTable({
                 {t('action.clearSelection')}
               </Button>
             )}
+            <Button
+              variant="primary"
+              disabled={picked.length === 0}
+              onClick={event => {
+                ask(bookingsOf(picked), event.currentTarget)
+              }}
+            >
+              <CalendarCheck aria-hidden />
+              {t('action.bookSelected', {
+                count: picked.length,
+                cost: formatCurrency(pickedCost),
+              })}
+            </Button>
           </div>
         )
       ) : (
@@ -218,7 +194,7 @@ export function ActionTable({
           <ul className="mt-1 flex flex-col gap-0.5">
             {shortfall.map(s => (
               <li key={s.courseCode}>
-                <TextLink asChild tone="inherit" arrow>
+                <TextLink asChild arrow hitArea>
                   <Link href={`/courses/${s.courseCode}`}>
                     {t('action.shortfall', { course: s.courseName, people: s.people })}
                   </Link>
@@ -233,8 +209,8 @@ export function ActionTable({
         columns={columns}
         data={items}
         getRowId={itemId}
-        initialSorting={[{ id: 'rank', desc: false }]}
-        {...pages}
+        paging={paging}
+        paginationLabels={paginationLabels}
         selection={
           canBook
             ? {
@@ -248,19 +224,7 @@ export function ActionTable({
             : undefined
         }
       />
-      {asking && (
-        <BookDialog
-          open
-          bookings={asking.bookings}
-          onOpenChange={open => {
-            if (!open) setAsking(null)
-          }}
-          returnFocusTo={() => asking.from}
-          onBooked={() => {
-            setSelected(new Set())
-          }}
-        />
-      )}
+      {dialog}
     </div>
   )
 }
@@ -268,7 +232,6 @@ export function ActionTable({
 /** Under a chosen session: how full it is, and whether it ends before the training lapses. */
 function ChoiceFacts({ choice, asOf }: { choice: SessionChoice; asOf: string }) {
   const t = useTranslations('advisor.action')
-  const locale = useLocale()
   const { session, window } = choice
   return (
     <>
@@ -284,7 +247,7 @@ function ChoiceFacts({ choice, asOf }: { choice: SessionChoice; asOf: string }) 
         <span className="text-xs text-warning-fg">
           {window.from !== null && window.from > asOf && window.days !== null
             ? t('gap', { days: window.days })
-            : window.until !== null && t('coveredOn', { until: formatDate(window.until, locale) })}
+            : window.until !== null && t('coveredOn', { until: formatDate(window.until) })}
         </span>
       )}
     </>
@@ -300,7 +263,7 @@ function ProposalCell({ item, asOf }: { item: PlanItem; asOf: string }) {
     const todo =
       proposal.reason === 'CONFLICT'
         ? { href: `/employees/${item.need.employee.externalId}`, label: t('todo.bookings') }
-        : { href: `/courses/${item.need.course.code}`, label: t('todo.schedule') }
+        : { href: scheduleHref(item), label: t('todo.schedule') }
     return (
       <div className="flex flex-col items-start gap-1">
         <Badge tone="neutral">{t(`reasons.${proposal.reason}`)}</Badge>
@@ -312,7 +275,7 @@ function ProposalCell({ item, asOf }: { item: PlanItem; asOf: string }) {
   }
   return (
     <div className="flex flex-col gap-0.5">
-      <SessionCell session={proposal.session} />
+      <SessionCell session={proposal.session} employee={item.need.employee.externalId} />
       <ChoiceFacts choice={proposal} asOf={asOf} />
     </div>
   )

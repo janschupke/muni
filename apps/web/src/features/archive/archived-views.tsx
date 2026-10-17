@@ -8,10 +8,10 @@ import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
 import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Archive } from 'lucide-react'
 import Link from 'next/link'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 import { ArchivedBadge, UserName } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
@@ -19,8 +19,10 @@ import { ReadView } from '@/components/read-view'
 import { ArchivedRecordSkeleton, TableSkeleton } from '@/components/skeletons'
 import { UnarchiveButton } from '@/components/unarchive-button'
 import type en from '@/i18n/messages/en.json'
+import { ARCHIVED_SORT } from '@/lib/list-keys'
 import { readQuery } from '@/lib/query/queries'
 import { useDocumentTitle } from '@/lib/query/use-document-title'
+import { useListUrl } from '@/lib/use-list-url'
 import type { ReadOutput } from '@/server/reads/registry'
 
 import { ArchivedTable } from './archived-table'
@@ -37,7 +39,11 @@ type ArchivedFieldKey = keyof (typeof en)['archive']['fields']
 export function ArchivedListView({ kind }: { kind: Archivable }) {
   const t = useTranslations('archive')
   const tk = useTranslations('archive.kinds')
-  const read = useQuery(readQuery('archived-list', { kind }))
+  const list = useListUrl(ARCHIVED_SORT, { id: 'archivedAt', desc: true })
+  const read = useQuery({
+    ...readQuery('archived-list', { kind, ...list.input }),
+    placeholderData: keepPreviousData,
+  })
   return (
     <>
       <PageHeader
@@ -47,7 +53,7 @@ export function ArchivedListView({ kind }: { kind: Archivable }) {
         actions={
           // Completions belong to people; theirs are reached from the archived people.
           kind === 'employee' && (
-            <Button asChild variant="ghost">
+            <Button asChild>
               <Link href={archivedListPath('completion')}>
                 <Archive aria-hidden />
                 {tk('completion.title')}
@@ -58,10 +64,10 @@ export function ArchivedListView({ kind }: { kind: Archivable }) {
       />
       <ReadView titled query={read} skeleton={<TableSkeleton columns={4} />}>
         {items =>
-          items.length === 0 ? (
+          items.total === 0 ? (
             <EmptyState title={t('list.empty')} />
           ) : (
-            <ArchivedTable kind={kind} items={items} />
+            <ArchivedTable kind={kind} items={items.items} paging={list.paging(items)} />
           )
         }
       </ReadView>
@@ -97,7 +103,6 @@ function ArchivedRecordDetail({
 }) {
   const t = useTranslations('archive')
   const tAll = useTranslations()
-  const locale = useLocale()
   const value = (field: ArchivedField) => {
     const family = ENUM_FIELDS[kind]?.[field.key]
     if (family && typeof field.value === 'string')
@@ -126,7 +131,7 @@ function ArchivedRecordDetail({
               </DescriptionItem>
             ))}
             <DescriptionItem label={t('record.archivedAt')}>
-              {formatDateTime(record.archivedAt, locale)}
+              {formatDateTime(record.archivedAt)}
             </DescriptionItem>
             <DescriptionItem label={t('record.archivedBy')}>
               {record.archivedBy ? <UserName user={record.archivedBy} /> : PLACEHOLDER}

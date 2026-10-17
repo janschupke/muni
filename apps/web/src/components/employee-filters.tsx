@@ -176,15 +176,15 @@ export function EmployeeFilters({
           </ToolbarChip>
         )}
         {/* The selects apply as they change; this sends the search box. */}
-        <Button type="submit" variant="primary">
-          <Search aria-hidden />
-          {t('filters.apply')}
-        </Button>
-        <Button asChild variant="ghost">
+        <Button asChild>
           <Link href="/employees">
             <FilterX aria-hidden />
             {t('filters.reset')}
           </Link>
+        </Button>
+        <Button type="submit" variant="primary">
+          <Search aria-hidden />
+          {t('filters.apply')}
         </Button>
         <ToolbarSummary>{t('total', { count: total })}</ToolbarSummary>
       </form>

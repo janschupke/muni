@@ -44,7 +44,7 @@ export function ConfirmStep({
             {t('confirm.skipped', { count: skipped })}
           </Alert>
         )}
-        <div className="flex gap-2 pt-2">
+        <div className="flex justify-end gap-2 pt-2">
           <Button onClick={onBack}>
             <ArrowLeft aria-hidden />
             {t('confirm.back')}

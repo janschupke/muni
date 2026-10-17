@@ -5,7 +5,7 @@ import {
   countStatuses,
   worstStatus,
 } from '@muni/domain/compliance'
-import type { ComplianceStatus, EmploymentState, Role } from '@muni/domain/enums'
+import type { ComplianceStatus, EmployeeSortKey, EmploymentState, Role } from '@muni/domain/enums'
 import { sortName } from '@muni/domain/names'
 import { sanitizeRecord } from '@muni/domain/sanitize'
 import { type IsoDate, isoDateFromUtc, todayIn } from '@muni/utils/dates'
@@ -20,9 +20,9 @@ import {
   type RepoOptions,
   toAmount,
 } from './context'
-import { compareNames, type EmployeeSortKey, sortEmployees } from './employee-sort'
+import { compareNames, pageEmployees, sortEmployees } from './employee-sort'
 import { stateOf, stateWhere, stillEmployed } from './employment'
-import { type Page, pageBounds } from './paging'
+import type { Page } from './paging'
 import { loadNextBookings, type RequirementContext, requirementOf } from './requirements'
 
 export interface EmployeeListItem {
@@ -162,16 +162,7 @@ export async function listEmployees(
   // Postgres orders names by its own collation (Č after Z); re-sort by Czech rules, then by
   // the requested column. The sort is stable, so ties stay in name order.
   sortEmployees(items, 'name', false)
-  if (filters.sort) sortEmployees(items, filters.sort.by, filters.sort.desc)
-
-  const { page, pageSize, pageCount, skip } = pageBounds(items.length, filters)
-  return {
-    items: items.slice(skip, skip + pageSize),
-    total: items.length,
-    page,
-    pageSize,
-    pageCount,
-  }
+  return pageEmployees(items, filters)
 }
 
 interface EmployeeCompletionRow {

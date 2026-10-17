@@ -43,6 +43,9 @@ import {
   SessionStatusBadge,
 } from './status-badges'
 
+/** Tables rendered on their own here sort and page their rows in the browser. */
+const LOCAL = { local: 'the rows a test gives' }
+
 vi.mock('@/server/actions/sessions', () => ({ checkSessionSlotAction: vi.fn() }))
 
 const HISTORY = 'muni.history'
@@ -242,7 +245,7 @@ describe('forms', () => {
     expect(screen.getByRole('combobox', { name: 'Manager' }).textContent).toContain('Urbanová')
     expect(posted('managerId')).toBe('emp_E0001')
     expect(screen.getByRole('textbox', { name: 'Left' })).toHaveProperty('value', '')
-    expect(screen.getByRole('textbox', { name: /Hired/ })).toHaveProperty('value', '3/1/2019')
+    expect(screen.getByRole('textbox', { name: /Hired/ })).toHaveProperty('value', '01.03.2019')
     expect(posted('hiredOn')).toBe('2019-03-01')
     expect(screen.getByRole('button', { name: 'Choose Hired from a calendar' })).toBeTruthy()
     expect(screen.getByRole('combobox', { name: /Room/ }).textContent).toContain('Online')
@@ -253,7 +256,7 @@ describe('forms', () => {
     expect(screen.getByRole('button', { name: 'Choose Start from a list' })).toBeTruthy()
     expect(posted('date')).toBe('2026-11-04')
     expect(screen.getByText('Plus 1 person booked by name.')).toBeTruthy()
-    expect(screen.getByRole('textbox', { name: 'Price per person (CZK)' })).toHaveProperty(
+    expect(screen.getByRole('textbox', { name: 'Price per person (Kč)' })).toHaveProperty(
       'value',
       ''
     )
@@ -930,7 +933,7 @@ describe('badges and small panels', () => {
     )
     const missing = screen.getByRole('row', { name: /Ochrana/ })
     expect(within(missing).getAllByText('—')).toHaveLength(3)
-    expect(screen.getByText('Nov 1, 2026')).toBeTruthy()
+    expect(screen.getByText('01.11.2026')).toBeTruthy()
   })
 })
 
@@ -944,6 +947,7 @@ describe('seat occupancy', () => {
     (booked, capacity, label, ink, fill) => {
       renderClient(
         <SessionTable
+          paging={LOCAL}
           sessions={[session({ bookedCount: booked, unnamedBookings: booked - 1, capacity })]}
           canEdit={false}
         />
@@ -956,6 +960,7 @@ describe('seat occupancy', () => {
   it('stays brand blue and unlabelled while there is room', () => {
     renderClient(
       <SessionTable
+        paging={LOCAL}
         sessions={[session({ bookedCount: 23, unnamedBookings: 22, capacity: 30 })]}
         canEdit={false}
       />
@@ -1004,7 +1009,7 @@ describe('tables', () => {
         price: null,
       },
     ]
-    renderClient(<CompletionHistoryTable completions={completions} showNotes />)
+    renderClient(<CompletionHistoryTable completions={completions} paging={LOCAL} showNotes />)
     expect(screen.getByText('online')).toBeTruthy()
     expect(screen.getAllByText('No expiry')).toHaveLength(2)
     expect(screen.getByRole('link', { name: 'Bezpečná firma s.r.o.' }).getAttribute('href')).toBe(
@@ -1023,6 +1028,7 @@ describe('tables', () => {
     const user = userEvent.setup()
     renderClient(
       <SessionTable
+        paging={LOCAL}
         sessions={[
           session(),
           session({ externalId: 'T020', room: ONLINE, capacity: 0, bookedCount: 0 }),
@@ -1035,7 +1041,9 @@ describe('tables', () => {
     await user.click(screen.getByRole('button', { name: 'Booked' }))
     expect(screen.getAllByRole('row')).toHaveLength(3)
 
-    renderClient(<SessionTable sessions={[session({ status: 'CANCELLED' })]} canEdit compact />)
+    renderClient(
+      <SessionTable paging={LOCAL} sessions={[session({ status: 'CANCELLED' })]} canEdit compact />
+    )
     const compact = screen.getAllByRole('table').at(-1) as HTMLElement
     expect(within(compact).queryByText('Aula A')).toBeNull()
     expect(within(compact).queryByRole('link', { name: /Edit session/ })).toBeNull()

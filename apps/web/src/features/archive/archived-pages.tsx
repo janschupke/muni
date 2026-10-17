@@ -1,6 +1,8 @@
 import type { Archivable } from '@muni/domain/archive'
 import { getTranslations } from 'next-intl/server'
 
+import { ARCHIVED_SORT } from '@/lib/list-keys'
+import { parseList, type SearchParams } from '@/lib/search-params'
 import { requireAdminPage } from '@/server/auth'
 import { prefetched } from '@/server/prefetch'
 
@@ -13,11 +15,17 @@ export async function archivedListMetadata(kind: Archivable) {
   return { title: (await getTranslations('archive.kinds'))(`${kind}.title`) }
 }
 
-export async function ArchivedListPage({ kind }: { kind: Archivable }) {
+export async function ArchivedListPage({
+  kind,
+  searchParams,
+}: {
+  kind: Archivable
+  searchParams: SearchParams
+}) {
   const user = await requireAdminPage()
   return prefetched(
     user,
-    [{ name: 'archived-list', input: { kind } }],
+    [{ name: 'archived-list', input: { kind, ...parseList(await searchParams, ARCHIVED_SORT) } }],
     <ArchivedListView kind={kind} />
   )
 }

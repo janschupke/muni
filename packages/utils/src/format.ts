@@ -23,19 +23,19 @@ function numberFormatter(locale: string, options: Intl.NumberFormatOptions): Int
   return formatter
 }
 
-const DATE = { dateStyle: 'medium' } as const
-const DATE_TIME = { dateStyle: 'medium', timeStyle: 'short' } as const
-const TIME = { timeStyle: 'short' } as const
+// Dates and times are written one way in both languages, as the register is kept in Czech:
+// 17.10.2026, 9:00. Written by pattern, not by Intl, so the server and the browser agree.
+const DATE = 'dd.LL.yyyy'
+const TIME = 'H:mm'
+const DATE_TIME = `${DATE} ${TIME}`
 
-function instantIn(instant: Date | string, locale: string, timeZone: string): DateTime {
-  return DateTime.fromJSDate(new Date(instant), { zone: timeZone }).setLocale(locale)
+function instantIn(instant: Date | string, timeZone: string): DateTime {
+  return DateTime.fromJSDate(new Date(instant), { zone: timeZone })
 }
 
-/** Formats a date-only value. Always reads it as UTC so the day never shifts. */
-export function formatDate(date: IsoDate, locale: string): string {
-  return DateTime.fromJSDate(isoDateToUtc(date), { zone: 'utc' })
-    .setLocale(locale)
-    .toLocaleString(DATE)
+/** A date-only value: `17.10.2026`. Always read as UTC so the day never shifts. */
+export function formatDate(date: IsoDate): string {
+  return DateTime.fromJSDate(isoDateToUtc(date), { zone: 'utc' }).toFormat(DATE)
 }
 
 /** A calendar month, `2026-11` → "November 2026" / "listopad 2026". */
@@ -45,70 +45,69 @@ export function formatMonth(month: string, locale: string): string {
     .toLocaleString({ month: 'long', year: 'numeric' })
 }
 
-/**
- * Two days as one range, each written in full: "Oct 18, 2026 – Oct 31, 2026". Not
- * `Intl.formatRange`, whose spacing differs between Node's ICU and the browser's: a page
- * rendered on the server must read the same in the browser.
- */
-export function formatDateRange(from: IsoDate, to: IsoDate, locale: string): string {
-  return `${formatDate(from, locale)} – ${formatDate(to, locale)}`
+/** Two days as one range: `18.10.2026 – 31.10.2026`. */
+export function formatDateRange(from: IsoDate, to: IsoDate): string {
+  return `${formatDate(from)} – ${formatDate(to)}`
 }
 
-export function formatDateTime(
-  instant: Date | string,
-  locale: string,
-  timeZone: string = APP_TIME_ZONE
-): string {
-  return instantIn(instant, locale, timeZone).toLocaleString(DATE_TIME)
+/** An instant in the app's time zone: `17.10.2026 9:00`. */
+export function formatDateTime(instant: Date | string, timeZone: string = APP_TIME_ZONE): string {
+  return instantIn(instant, timeZone).toFormat(DATE_TIME)
 }
 
-export function formatTime(
-  instant: Date | string,
-  locale: string,
-  timeZone: string = APP_TIME_ZONE
-): string {
-  return instantIn(instant, locale, timeZone).toLocaleString(TIME)
+/** A time of day: `9:00`. */
+export function formatTime(instant: Date | string, timeZone: string = APP_TIME_ZONE): string {
+  return instantIn(instant, timeZone).toFormat(TIME)
 }
 
 /**
- * `16. 10. 2026 9:00–12:00` when both ends fall on the same local day,
- * otherwise the full date and time on both sides.
+ * `16.10.2026 9:00–12:00` when both ends fall on the same local day, otherwise the full date
+ * and time on both sides.
  */
 export function formatTimeRange(
   start: Date | string,
   end: Date | string,
-  locale: string,
   timeZone: string = APP_TIME_ZONE
 ): string {
-  const from = instantIn(start, locale, timeZone)
-  const to = instantIn(end, locale, timeZone)
+  const from = instantIn(start, timeZone)
+  const to = instantIn(end, timeZone)
   return from.hasSame(to, 'day')
-    ? `${from.toLocaleString(DATE_TIME)}–${to.toLocaleString(TIME)}`
-    : `${from.toLocaleString(DATE_TIME)} – ${to.toLocaleString(DATE_TIME)}`
+    ? `${from.toFormat(DATE_TIME)}–${to.toFormat(TIME)}`
+    : `${from.toFormat(DATE_TIME)} – ${to.toFormat(DATE_TIME)}`
 }
 
 /** Every amount the app stores and shows is in this currency. */
 export const CURRENCY = 'CZK'
 
-/**
- * Whole amounts drop the decimals (`450 Kč`); anything else keeps two (`450,50 Kč`).
- * No amount is the placeholder.
- */
-export function formatCurrency(amount: number | null | undefined, locale: string): string {
+// Money is written the Czech way in both languages, always with its two decimals, so a column
+// of amounts lines up: 1 200,00 Kč.
+const MONEY_LOCALE = 'cs-CZ'
+
+/** An amount in the currency: `1 200,00 Kč`; no amount is the placeholder. */
+export function formatCurrency(amount: number | null | undefined): string {
   if (amount === null || amount === undefined) return PLACEHOLDER
-  const whole = Number.isInteger(amount)
-  return numberFormatter(locale, {
+  return numberFormatter(MONEY_LOCALE, {
     style: 'currency',
     currency: CURRENCY,
-    minimumFractionDigits: whole ? 0 : 2,
-    maximumFractionDigits: whole ? 0 : 2,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount)
 }
 
-/** How the locale writes the currency on its own (`Kč`, `CZK`), for a field's label. */
-export function currencySymbol(locale: string): string {
+/** An amount as a price field shows it, for editing: `450,50`, no symbol, no grouping. */
+export function formatAmount(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined) return ''
+  return numberFormatter(MONEY_LOCALE, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: false,
+  }).format(amount)
+}
+
+/** The currency's symbol, for a price field's label: `Kč`. */
+export function currencySymbol(): string {
   return (
-    numberFormatter(locale, { style: 'currency', currency: CURRENCY })
+    numberFormatter(MONEY_LOCALE, { style: 'currency', currency: CURRENCY })
       .formatToParts(0)
       .find(p => p.type === 'currency')?.value ?? CURRENCY
   )

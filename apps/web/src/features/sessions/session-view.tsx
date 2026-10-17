@@ -6,7 +6,7 @@ import { SplitLayout } from '@muni/ui/layout'
 import { PageHeader } from '@muni/ui/page-header'
 import { formatTimeRange } from '@muni/utils/format'
 import { useQuery } from '@tanstack/react-query'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 import { BackLink } from '@/components/back-link'
 import { ReadView } from '@/components/read-view'
@@ -24,22 +24,34 @@ import type { ReadOutput } from '@/server/reads/registry'
  * A session's page: everything its opened row shows (when, the room against what the course
  * needs, seats, price, who is booked and how), with the course, its ID and booking by hand.
  */
-export function SessionView({ externalId, canEdit }: { externalId: string; canEdit: boolean }) {
-  const locale = useLocale()
+export function SessionView({
+  externalId,
+  canEdit,
+  employee,
+}: {
+  externalId: string
+  canEdit: boolean
+  /** The person the booking form starts with (from the advisor's link). */
+  employee?: string | undefined
+}) {
   const read = useQuery(readQuery('session', { externalId }))
   const found = read.data?.session
-  useDocumentTitle(found && sessionTitle(found, locale))
+  useDocumentTitle(found && sessionTitle(found))
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="sessions">
-      {data => <SessionDetail {...data} canEdit={canEdit} />}
+      {data => <SessionDetail {...data} canEdit={canEdit} employee={employee} />}
     </ReadView>
   )
 }
 
-function SessionDetail({ session, people, canEdit }: ReadOutput<'session'> & { canEdit: boolean }) {
+function SessionDetail({
+  session,
+  people,
+  canEdit,
+  employee,
+}: ReadOutput<'session'> & { canEdit: boolean; employee?: string | undefined }) {
   const t = useTranslations('sessions')
   const tb = useTranslations('bookings')
-  const locale = useLocale()
   const attendees = session.bookings.map(b => b.person)
   const booked = new Set(attendees.flatMap(a => (a.archived ? [] : [a.externalId])))
   // Booking by hand is for planned sessions that have not started.
@@ -51,7 +63,7 @@ function SessionDetail({ session, people, canEdit }: ReadOutput<'session'> & { c
       <PageHeader
         eyebrow={<BackLink fallback={{ href: '/sessions', label: t('title') }} />}
         title={session.courseName}
-        description={formatTimeRange(session.startsAt, session.endsAt, locale)}
+        description={formatTimeRange(session.startsAt, session.endsAt)}
         actions={
           canEdit && (
             <RecordActions
@@ -88,6 +100,7 @@ function SessionDetail({ session, people, canEdit }: ReadOutput<'session'> & { c
                   fixed={{ sessionExternalId: session.externalId }}
                   field="employeeExternalId"
                   label={tb('person')}
+                  initial={employee}
                   options={people
                     .filter(p => !booked.has(p.externalId))
                     .map(p => ({ value: p.externalId, label: p.name }))}

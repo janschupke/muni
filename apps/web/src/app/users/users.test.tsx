@@ -52,7 +52,7 @@ beforeEach(() => {
 describe('users', () => {
   it('lists everyone with access and their role, for admins', async () => {
     expect(await generateMetadata()).toEqual({ title: 'Users' })
-    await renderServer(UsersPage())
+    await renderServer(UsersPage({ searchParams: params({}) }))
     expect(requireAdminPage).toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 1, name: 'Users' })).toBeTruthy()
     expect(screen.getByText(/Open a user to change their role/)).toBeTruthy()
@@ -68,7 +68,7 @@ describe('users', () => {
     ])
     expect(within(rows[0] as HTMLElement).getByText('Admin')).toBeTruthy()
     expect(within(rows[1] as HTMLElement).getByText('Viewer')).toBeTruthy()
-    expect(rows[1]?.textContent).toContain('Oct 16, 2026')
+    expect(rows[1]?.textContent).toContain('16.10.2026')
     // The name opens the user; the row has no second way there.
     expect(screen.queryByRole('link', { name: /^Edit / })).toBeNull()
     await expectNoAxeViolations()
@@ -76,7 +76,7 @@ describe('users', () => {
 
   it('says when nobody has signed in yet', async () => {
     vi.mocked(listUsers).mockResolvedValueOnce([])
-    await renderServer(UsersPage())
+    await renderServer(UsersPage({ searchParams: params({}) }))
     expect(screen.getByText('Nobody has signed in yet.')).toBeTruthy()
   })
 })

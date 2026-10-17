@@ -94,7 +94,7 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
         />
         {expanded.size > 0 && <PersonLegend />}
       </div>
-      <TableContainer className="mt-3">
+      <TableContainer paging="a grid of every department by every required course" className="mt-3">
         {/* A real table: the colours reinforce the printed values, they never replace them. */}
         <Table className="border-separate border-spacing-0.5 p-2" aria-label={t('title')}>
           <THead className="bg-transparent">
@@ -234,14 +234,11 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
 function useRequirementText() {
   const t = useTranslations('compliance.person')
   const ts = useTranslations('status.compliance')
-  const locale = useLocale()
   return (requirement: EmployeeListRequirement, courseName: string) =>
     [
       t('cell', { course: courseName, status: ts(requirement.status) }),
-      requirement.validUntil &&
-        t('validUntil', { date: formatDate(requirement.validUntil, locale) }),
-      requirement.booked &&
-        t('booked', { date: formatDateTime(requirement.booked.startsAt, locale) }),
+      requirement.validUntil && t('validUntil', { date: formatDate(requirement.validUntil) }),
+      requirement.booked && t('booked', { date: formatDateTime(requirement.booked.startsAt) }),
     ]
       .filter(Boolean)
       .join(' · ')
@@ -396,10 +393,10 @@ function CellDialog({
 }) {
   const t = useTranslations('compliance.detail')
   const tc = useTranslations('common')
+  const locale = useLocale()
   const row = selected ? matrix.rows.find(r => r.department === selected.department) : undefined
   const course = selected ? matrix.courses.find(c => c.code === selected.code) : undefined
   const cell = row && course ? row.cells[course.code] : null
-  const locale = useLocale()
   return (
     <Dialog
       open={Boolean(row && course && cell)}
@@ -465,7 +462,7 @@ function CellPeople({ row, code }: { row: ComplianceMatrixRow; code: string }) {
         (a.requirement.daysLeft ?? Infinity) - (b.requirement.daysLeft ?? Infinity)
     )
   return (
-    <Table density="compact" aria-label={t('table')}>
+    <Table density="compact" paging="the people one department cell counts" aria-label={t('table')}>
       <THead className="bg-transparent">
         <tr>
           <Th>{t('name')}</Th>
@@ -494,7 +491,7 @@ function CellPeople({ row, code }: { row: ComplianceMatrixRow; code: string }) {
                 )
               ) : (
                 <>
-                  {formatDate(r.validUntil, locale)}
+                  {formatDate(r.validUntil)}
                   {r.daysLeft !== null && (
                     <span className="ml-1.5 text-xs text-fg-muted">
                       ({formatRelativeDays(r.daysLeft, locale)})
@@ -507,7 +504,7 @@ function CellPeople({ row, code }: { row: ComplianceMatrixRow; code: string }) {
               {r.booked ? (
                 <TextLink asChild>
                   <Link href={`/sessions/${r.booked.sessionExternalId}`}>
-                    {formatDateTime(r.booked.startsAt, locale)}
+                    {formatDateTime(r.booked.startsAt)}
                   </Link>
                 </TextLink>
               ) : (

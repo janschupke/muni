@@ -4,18 +4,14 @@ import { TextLink } from '@muni/ui/text-link'
 import { todayIn } from '@muni/utils/dates'
 import { formatDate } from '@muni/utils/format'
 import Link from 'next/link'
-import { getLocale, getTranslations } from 'next-intl/server'
+import { getTranslations } from 'next-intl/server'
 
 import type { SessionUser } from '@/server/auth'
 
 import { LogoMark } from './logo-mark'
 
 export async function AppFooter({ user }: { user: SessionUser | null }) {
-  const [t, tn, locale] = await Promise.all([
-    getTranslations('footer'),
-    getTranslations('nav'),
-    getLocale(),
-  ])
+  const [t, tn] = await Promise.all([getTranslations('footer'), getTranslations('nav')])
   const links = user
     ? [
         { href: '/compliance', label: tn('compliance') },
@@ -31,7 +27,7 @@ export async function AppFooter({ user }: { user: SessionUser | null }) {
             <LogoMark className="size-5" />
             {t('appName')}
           </span>
-          <span>{t('asOf', { date: formatDate(todayIn(), locale) })}</span>
+          <span>{t('asOf', { date: formatDate(todayIn()) })}</span>
           <span>{t(`access.${user?.role ?? 'VISITOR'}`)}</span>
         </div>
         {links.length > 0 && (

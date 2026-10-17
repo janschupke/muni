@@ -3,7 +3,7 @@
 import type { RoomListItem } from '@muni/db/repositories'
 import { UTILISATION_DAYS } from '@muni/domain/rooms'
 import { BarRow } from '@muni/ui/bar-row'
-import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { Meter } from '@muni/ui/meter'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent, PLACEHOLDER } from '@muni/utils/format'
@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { usePaginationLabels } from '@/components/pagination-labels'
 import { RowActions } from '@/components/record-actions'
 import { CapabilityList, RoomKindBadge } from '@/components/room-badges'
 
@@ -18,9 +19,11 @@ const col = createDataColumns<RoomListItem>()
 
 export function RoomsTable({
   rooms,
+  paging,
   canEdit = false,
 }: {
   rooms: RoomListItem[]
+  paging: TablePaging
   /** Admins get a pencil and archive on each row. */
   canEdit?: boolean | undefined
 }) {
@@ -28,6 +31,7 @@ export function RoomsTable({
   const tcommon = useTranslations('common')
   const tk = useTranslations('status.roomKind')
   const locale = useLocale()
+  const paginationLabels = usePaginationLabels()
   const columns = useMemo(
     () =>
       col.columns([
@@ -116,5 +120,14 @@ export function RoomsTable({
       ]),
     [canEdit, locale, t, tk, tcommon]
   )
-  return <DataTable caption={t('title')} columns={columns} data={rooms} getRowId={r => r.id} />
+  return (
+    <DataTable
+      caption={t('title')}
+      columns={columns}
+      data={rooms}
+      getRowId={r => r.id}
+      paging={paging}
+      paginationLabels={paginationLabels}
+    />
+  )
 }

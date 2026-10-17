@@ -5,6 +5,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from '../test/render'
 import { createDataColumns, DataTable, type SortingState } from './data-table'
 
+/** Tables here sort and page their own rows. */
+const LOCAL = { local: 'the rows a test gives' }
+
 interface Person {
   id: string
   name: string
@@ -45,10 +48,25 @@ const priceColumn = () =>
 
 const header = (name: string) => screen.getByRole('columnheader', { name: new RegExp(name) })
 
+const LABELS = {
+  nav: 'Pages',
+  previous: 'Previous',
+  next: 'Next',
+  status: (page: number, count: number) => `Page ${String(page)} of ${String(count)}`,
+}
+
 describe('DataTable sorting', () => {
   it('cycles a header from ascending to descending to unsorted', async () => {
     const user = userEvent.setup()
-    render(<DataTable caption="People" columns={columns} data={PEOPLE} getRowId={p => p.id} />)
+    render(
+      <DataTable
+        paging={LOCAL}
+        caption="People"
+        columns={columns}
+        data={PEOPLE}
+        getRowId={p => p.id}
+      />
+    )
     const button = within(header('Name')).getByRole('button')
 
     expect(header('Name').getAttribute('aria-sort')).toBeNull()
@@ -63,14 +81,30 @@ describe('DataTable sorting', () => {
 
   it('collates Czech names: č after c, ch after h', async () => {
     const user = userEvent.setup()
-    render(<DataTable caption="People" columns={columns} data={PEOPLE} getRowId={p => p.id} />)
+    render(
+      <DataTable
+        paging={LOCAL}
+        caption="People"
+        columns={columns}
+        data={PEOPLE}
+        getRowId={p => p.id}
+      />
+    )
     await user.click(within(header('Name')).getByRole('button'))
     expect(firstColumn()).toEqual(['Adámek', 'Čermák', 'Hora', 'Chalupa', 'Zelený'])
   })
 
   it('keeps missing values last in both directions', async () => {
     const user = userEvent.setup()
-    render(<DataTable caption="People" columns={columns} data={PEOPLE} getRowId={p => p.id} />)
+    render(
+      <DataTable
+        paging={LOCAL}
+        caption="People"
+        columns={columns}
+        data={PEOPLE}
+        getRowId={p => p.id}
+      />
+    )
     const button = within(header('Price')).getByRole('button')
     await user.click(button)
     expect(priceColumn()).toEqual(['0', '120', '450', '2100', '—'])
@@ -87,6 +121,7 @@ describe('DataTable sorting', () => {
     }))
     render(
       <DataTable
+        paging={LOCAL}
         caption="People"
         columns={columns}
         data={many}
@@ -112,47 +147,76 @@ describe('DataTable sorting', () => {
     expect(priceColumn()[0]).toBe('59')
   })
 
-  it('pages by address, and shows the last page for one past the end', () => {
+  it('shows the last page for one past the end', () => {
     const many = Array.from({ length: 60 }, (_, i) => ({
       id: String(i),
       name: `Person ${String(i)}`,
       price: i,
     }))
-    const labels = {
-      nav: 'Pages',
-      previous: 'Previous',
-      next: 'Next',
-      status: (page: number, count: number) => `Page ${String(page)} of ${String(count)}`,
-    }
-    const Anchor = ({ href, children }: { href: string; children: React.ReactNode }) => (
-      <a href={href}>{children}</a>
-    )
-    const { rerender } = render(
+    render(
       <DataTable
-        caption="People"
-        columns={columns}
-        data={many}
-        getRowId={p => p.id}
-        pagination={{ pageIndex: 0, pageSize: 25 }}
-        pageLinks={{ hrefFor: page => `/people?page=${String(page)}`, linkAs: Anchor }}
-        paginationLabels={labels}
-      />
-    )
-    expect(screen.getByRole('link', { name: /Next/ }).getAttribute('href')).toBe('/people?page=2')
-    // Page 5 of a list that has 3: the last one, with its rows.
-    rerender(
-      <DataTable
+        paging={LOCAL}
         caption="People"
         columns={columns}
         data={many}
         getRowId={p => p.id}
         pagination={{ pageIndex: 4, pageSize: 25 }}
-        pageLinks={{ hrefFor: page => `/people?page=${String(page)}`, linkAs: Anchor }}
-        paginationLabels={labels}
+        paginationLabels={LABELS}
       />
     )
     expect(screen.getByText('Page 3 of 3')).toBeTruthy()
     expect(firstColumn()).toHaveLength(10)
+  })
+
+  it('in server mode shows the page it is given, and hands a header click to the server', async () => {
+    const user = userEvent.setup()
+    const onSortingChange = vi.fn<(sorting: SortingState) => void>()
+    const Anchor = ({ href, children }: { href: string; children: React.ReactNode }) => (
+      <a href={href}>{children}</a>
+    )
+    const { container } = render(
+      <DataTable
+        paging={{
+          server: {
+            page: 2,
+            pageCount: 4,
+            sorting: [{ id: 'name', desc: true }],
+            onSortingChange,
+            hrefFor: page => `/people?page=${String(page)}`,
+            linkAs: Anchor,
+          },
+        }}
+        caption="People"
+        columns={columns}
+        data={PEOPLE}
+        getRowId={p => p.id}
+        paginationLabels={LABELS}
+      />
+    )
+    // The rows as the server sent them: not re-sorted, not cut.
+    expect(firstColumn()).toEqual(PEOPLE.map(p => p.name))
+    expect(screen.getByText('Page 2 of 4')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Next/ }).getAttribute('href')).toBe('/people?page=3')
+    expect(header('Name').getAttribute('aria-sort')).toBe('descending')
+    // A server list always has an order: the header flips it, never clears it.
+    await user.click(within(header('Name')).getByRole('button'))
+    expect(onSortingChange).toHaveBeenLastCalledWith([{ id: 'name', desc: false }])
+    expect(container.querySelector('[data-paging]')?.getAttribute('data-paging')).toBe('server')
+  })
+
+  it('says why a table holds every row', () => {
+    const { container } = render(
+      <DataTable
+        paging={LOCAL}
+        caption="People"
+        columns={columns}
+        data={PEOPLE}
+        getRowId={p => p.id}
+      />
+    )
+    expect(container.querySelector('[data-paging]')?.getAttribute('data-paging')).toBe(
+      'local: the rows a test gives'
+    )
   })
 
   it('leaves the order to the caller in manual mode', async () => {
@@ -160,6 +224,7 @@ describe('DataTable sorting', () => {
     const onSortingChange = vi.fn<(sorting: SortingState) => void>()
     render(
       <DataTable
+        paging={LOCAL}
         caption="People"
         columns={columns}
         data={PEOPLE}
@@ -177,6 +242,7 @@ describe('DataTable sorting', () => {
   it('renders plain headers when sorting is off', () => {
     render(
       <DataTable
+        paging={LOCAL}
         caption="People"
         columns={columns}
         data={PEOPLE}
@@ -193,6 +259,7 @@ describe('DataTable detail rows', () => {
     const user = userEvent.setup()
     render(
       <DataTable
+        paging={LOCAL}
         caption="People"
         columns={columns}
         data={PEOPLE}
@@ -228,6 +295,7 @@ describe('DataTable detail rows', () => {
     const user = userEvent.setup()
     render(
       <DataTable
+        paging={LOCAL}
         caption="People"
         columns={columns}
         data={PEOPLE}

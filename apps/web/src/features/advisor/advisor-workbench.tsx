@@ -8,6 +8,7 @@ import {
   NOW,
 } from '@muni/domain/advisor'
 import { Badge } from '@muni/ui/badge'
+import type { TablePaging } from '@muni/ui/data-table'
 import { LinkTab, LinkTabs } from '@muni/ui/nav'
 import { StatCard } from '@muni/ui/stat-card'
 import { formatDate, formatInteger } from '@muni/utils/format'
@@ -26,14 +27,17 @@ import { AdvisorRules } from './rules'
  * The advisor: counts that link to their view, the view itself (breakdown by month, the
  * trainings that need action, the ones already booked, overbooked sessions) and the rule.
  * Each count has a row in the breakdown that lists exactly those trainings. The plan is
- * computed on the server; booking and resolving re-check everything there.
+ * computed on the server, which sends the view's table a page at a time (`plan.items` is that
+ * page); booking and resolving re-check everything there.
  */
 export function AdvisorWorkbench({
   plan,
   asOf,
   view,
   bucket,
-  page,
+  total,
+  counts,
+  paging,
   canApply,
 }: {
   plan: AdvisorPlan
@@ -41,8 +45,11 @@ export function AdvisorWorkbench({
   view: AdvisorView
   /** The breakdown's row: now, everything upcoming, or a month. */
   bucket: Bucket
-  /** The table's page, from the address. */
-  page: number
+  /** Trainings in the view's table, on every page. */
+  total: number
+  /** Trainings that need action, and that are booked: the tabs' counts. */
+  counts: { action: number; planned: number }
+  paging: TablePaging
   canApply: boolean
 }) {
   const t = useTranslations('advisor')
@@ -55,22 +62,16 @@ export function AdvisorWorkbench({
     planned: n((row?.counts.PLANNED ?? 0) + (row?.counts.PLANNED_LATE ?? 0)),
     action: n(row?.counts.ACTION_REQUIRED ?? 0),
   })
-  const end = formatDate(forecastEnd(asOf), locale)
-  const bucketItems =
-    bucket === UPCOMING
-      ? plan.items.filter(i => i.bucket !== NOW)
-      : plan.items.filter(i => i.bucket === bucket)
-  const actionItems = plan.items.filter(i => i.remediation === 'ACTION_REQUIRED')
-  const plannedItems = plan.items.filter(i => i.remediation !== 'ACTION_REQUIRED')
+  const end = formatDate(forecastEnd(asOf))
 
   const tabs: { view: AdvisorView; count?: number; tone?: 'danger' | 'neutral' }[] = [
     { view: 'breakdown' },
     {
       view: 'action',
-      count: actionItems.length,
-      tone: actionItems.length > 0 ? 'danger' : 'neutral',
+      count: counts.action,
+      tone: counts.action > 0 ? 'danger' : 'neutral',
     },
-    { view: 'planned', count: plannedItems.length },
+    { view: 'planned', count: counts.planned },
     {
       view: 'overbooked',
       count: plan.overbooked.length,
@@ -107,7 +108,7 @@ export function AdvisorWorkbench({
             upcoming: n(upcoming.counts.ACTION_REQUIRED),
             proposed: n(plan.totals.proposed),
           })}
-          tone="serious"
+          tone={plan.totals.actionRequired > 0 ? 'danger' : 'success'}
         />
         <StatCard
           href={advisorHref('overbooked')}
@@ -141,24 +142,35 @@ export function AdvisorWorkbench({
             {/* A new row is a new table: its sorting starts afresh. */}
             <BreakdownTable
               key={bucket}
-              items={bucketItems}
+              items={plan.items}
+              total={total}
+              paging={paging}
               bucket={bucket}
               asOf={asOf}
-              page={page}
+              canBook={canApply}
             />
           </div>
         )}
         {view === 'action' && (
           <ActionTable
-            items={actionItems}
+            // A new page starts with nothing picked: what is booked is what is on screen.
+            key={'server' in paging ? paging.server.page : 1}
+            items={plan.items}
+            total={total}
+            paging={paging}
             shortfall={plan.shortfall}
             asOf={asOf}
-            page={page}
             canBook={canApply}
           />
         )}
         {view === 'planned' && (
-          <PlannedTable items={plannedItems} asOf={asOf} page={page} canEdit={canApply} />
+          <PlannedTable
+            items={plan.items}
+            total={total}
+            paging={paging}
+            asOf={asOf}
+            canEdit={canApply}
+          />
         )}
         {view === 'overbooked' && (
           <OverbookedList overbooked={plan.overbooked} canResolve={canApply} />

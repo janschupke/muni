@@ -60,7 +60,7 @@ describe('room list', () => {
   it('shows each room’s kind, seats, equipment and how booked it is', async () => {
     const user = userEvent.setup()
     expect(await listMetadata()).toEqual({ title: 'Rooms' })
-    await renderServer(RoomsPage())
+    await renderServer(RoomsPage({ searchParams: params({}) }))
     const aula = screen.getByRole('row', { name: /Aula A/ })
     expect(within(aula).getByRole('link', { name: 'Aula A' }).getAttribute('href')).toBe(
       '/rooms/room_aula_a'
@@ -81,7 +81,7 @@ describe('room list', () => {
   it('lets admins add a room, and says when there are none', async () => {
     signInAs('ADMIN')
     vi.mocked(listRooms).mockResolvedValue([])
-    await renderServer(RoomsPage())
+    await renderServer(RoomsPage({ searchParams: params({}) }))
     // The empty list offers the first one where the table would be, as the header does.
     const empty = screen.getByText('No rooms yet.').parentElement as HTMLElement
     expect(within(empty).getByRole('link', { name: 'New room' }).getAttribute('href')).toBe(
@@ -97,28 +97,28 @@ describe('a page’s data from the server', () => {
     // Past the minute's limit: the page renders, and its view asks (and is told to wait).
     vi.mocked(spendRequest).mockRejectedValueOnce(new RateLimitedError(30))
     vi.mocked(spendRequest).mockRejectedValueOnce(new RateLimitedError(30))
-    await renderServer(RoomsPage())
+    await renderServer(RoomsPage({ searchParams: params({}) }))
     expect(fetches).toHaveBeenCalledTimes(1)
     expect(await screen.findByText(/Too many requests in a short time/)).toBeTruthy()
     cleanup()
     // A read that throws on the server is the browser's to try again.
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     vi.mocked(listRooms).mockRejectedValueOnce(new Error('timeout'))
-    await renderServer(RoomsPage())
+    await renderServer(RoomsPage({ searchParams: params({}) }))
     expect(log).toHaveBeenCalled()
     expect(fetches).toHaveBeenCalledTimes(2)
   })
 })
 
 describe('room detail', () => {
-  const props = { params: params({ id: 'room_aula_a' }) }
+  const props = { params: params({ id: 'room_aula_a' }), searchParams: params({}) }
 
   it('is titled by the room, or by the id when unknown', async () => {
     expect(await roomMetadata(props)).toEqual({ title: 'Aula A' })
     vi.mocked(getRoom).mockResolvedValueOnce(null)
-    await expect(renderServer(RoomPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
-      NotFoundError
-    )
+    await expect(
+      renderServer(RoomPage({ params: params({ id: 'gone' }), searchParams: params({}) }))
+    ).rejects.toThrow(NotFoundError)
   })
 
   it('shows its equipment, its sessions and which courses fit, read-only for viewers', async () => {
@@ -158,7 +158,7 @@ describe('room detail', () => {
     expect(
       within(within(fit).getByRole('row', { name: /osobních/ })).getAllByRole('cell')[2]?.className
     ).toContain('text-danger-fg')
-    expect(screen.getByRole('link', { name: /Nov 4, 2026/ }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: /04.11.2026/ }).getAttribute('href')).toBe(
       '/sessions/T016'
     )
     expect(screen.getByRole('link', { name: '4 past sessions' }).getAttribute('href')).toBe(
@@ -198,7 +198,9 @@ describe('room fit online', () => {
     vi.mocked(getRoom).mockResolvedValue(
       roomDetail({ ...ONLINE, capacity: null, capabilities: [], utilisation: null })
     )
-    await renderServer(RoomPage({ params: params({ id: 'room_online' }) }))
+    await renderServer(
+      RoomPage({ params: params({ id: 'room_online' }), searchParams: params({}) })
+    )
     const fit = screen.getByRole('table', { name: 'Course fit in Online' })
     expect(
       within(fit)
@@ -248,7 +250,9 @@ describe('archiving a room', () => {
   it('asks first, and refuses while sessions ahead are held there', async () => {
     const user = userEvent.setup()
     signInAs('ADMIN')
-    await renderServer(RoomPage({ params: params({ id: 'room_aula_a' }) }))
+    await renderServer(
+      RoomPage({ params: params({ id: 'room_aula_a' }), searchParams: params({}) })
+    )
     await user.click(screen.getByRole('button', { name: 'Archive' }))
     const confirm = await screen.findByRole('dialog', { name: 'Archive Aula A?' })
     expect(previewArchive).toHaveBeenCalledWith('room', 'room_aula_a')
@@ -266,7 +270,9 @@ describe('archiving a room', () => {
 
   it('offers no archiving to anyone but admins', async () => {
     signInAs('FULL')
-    await renderServer(RoomPage({ params: params({ id: 'room_aula_a' }) }))
+    await renderServer(
+      RoomPage({ params: params({ id: 'room_aula_a' }), searchParams: params({}) })
+    )
     expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull()
   })
 })

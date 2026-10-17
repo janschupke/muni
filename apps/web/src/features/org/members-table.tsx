@@ -1,41 +1,47 @@
-import type { EmployeeListItem } from '@muni/db/repositories'
+import type { EmployeeListItem, Page } from '@muni/db/repositories'
 import { BarRow } from '@muni/ui/bar-row'
 import { DetailPanel } from '@muni/ui/detail-panel'
 import { EmptyState } from '@muni/ui/empty-state'
 import { Meter } from '@muni/ui/meter'
+import { Pagination } from '@muni/ui/pagination'
 import { CellStack, Table, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 import { OrgLink } from '@/components/org-links'
+import { usePaginationLabels } from '@/components/pagination-labels'
 import { ComplianceBadge, EmploymentBadge, rateTone } from '@/components/status-badges'
 import { useOfTotal } from '@/lib/use-of-total'
 
 /**
  * A department's or position's people, one record each: where else they sit, their
  * employment, how much of what they must hold they hold, and every training that needs
- * attention (expired, missing or expiring) with its booking, if any.
+ * attention (expired, missing or expiring) with its booking, if any. A page at a time, cut on
+ * the server, the most urgent first.
  */
 export function MembersTable({
   name,
-  members,
+  members: page,
+  onPageChange,
   other,
 }: {
   /** The group's name, for the table's accessible name. */
   name: string
-  members: EmployeeListItem[]
+  members: Page<EmployeeListItem>
+  onPageChange: (page: number) => void
   /** The other side of each person's place: positions in a department, and the reverse. */
   other: 'department' | 'position'
 }) {
   const t = useTranslations('org.members')
-  const locale = useLocale()
   const ofTotal = useOfTotal()
-  if (members.length === 0) return <EmptyState variant="inline" title={t('none')} />
+  const labels = usePaginationLabels()
+  const members = page.items
+  if (page.total === 0) return <EmptyState variant="inline" title={t('none')} />
   return (
-    <DetailPanel title={t('title')} count={members.length} flush>
-      <Table density="compact" aria-label={t('label', { name })}>
+    <DetailPanel title={t('title')} count={page.total} flush>
+      <Table density="compact" paging="server" aria-label={t('label', { name })}>
         <THead>
           <tr>
             <Th>{t('person')}</Th>
@@ -110,7 +116,7 @@ export function MembersTable({
                           {r.booked && (
                             <TextLink asChild hitArea className="text-xs">
                               <Link href={`/sessions/${r.booked.sessionExternalId}`}>
-                                {t('booked', { date: formatDateTime(r.booked.startsAt, locale) })}
+                                {t('booked', { date: formatDateTime(r.booked.startsAt) })}
                               </Link>
                             </TextLink>
                           )}
@@ -124,6 +130,13 @@ export function MembersTable({
           })}
         </TBody>
       </Table>
+      <Pagination
+        className="px-4 pb-3"
+        page={page.page}
+        pageCount={page.pageCount}
+        onPageChange={onPageChange}
+        labels={{ ...labels, status: labels.status(page.page, page.pageCount) }}
+      />
     </DetailPanel>
   )
 }

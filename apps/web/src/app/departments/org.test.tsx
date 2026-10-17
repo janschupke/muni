@@ -111,7 +111,7 @@ describe('departments', () => {
   it('list who leads each, how many people, how compliant, and open to its people', async () => {
     const user = userEvent.setup()
     expect(await departmentsMetadata()).toEqual({ title: 'Departments' })
-    await renderServer(DepartmentsPage())
+    await renderServer(DepartmentsPage({ searchParams: params({}) }))
     const lab = screen.getByRole('row', { name: /^Laboratoře/ })
     expect(within(lab).getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
       '/departments/dep_lab'
@@ -161,12 +161,12 @@ describe('departments', () => {
 
   it('say when there are none', async () => {
     vi.mocked(listDepartmentSummaries).mockResolvedValue([])
-    await renderServer(DepartmentsPage())
+    await renderServer(DepartmentsPage({ searchParams: params({}) }))
     expect(screen.getByText('No departments yet.')).toBeTruthy()
   })
 
   it('show one department: its head, positions, courses and people', async () => {
-    const props = { params: params({ id: 'dep_lab' }) }
+    const props = { params: params({ id: 'dep_lab' }), searchParams: params({}) }
     expect(await departmentMetadata(props)).toEqual({ title: 'Laboratoře' })
     await renderServer(DepartmentPage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'Laboratoře' })).toBeTruthy()
@@ -206,7 +206,9 @@ describe('departments', () => {
         counts: counts({ VALID: 0, EXPIRING: 0, EXPIRED: 0, MISSING: 0 }),
       })
     )
-    await renderServer(DepartmentPage({ params: params({ id: 'dep_lab' }) }))
+    await renderServer(
+      DepartmentPage({ params: params({ id: 'dep_lab' }), searchParams: params({}) })
+    )
     expect(screen.getByText('Nobody has a position here.')).toBeTruthy()
     // The people section stays, saying so, with no way to an empty list.
     expect(screen.getByRole('heading', { level: 2, name: 'People' })).toBeTruthy()
@@ -214,9 +216,9 @@ describe('departments', () => {
     expect(screen.queryByRole('link', { name: /in the employee list/i })).toBeNull()
     expect(screen.getByText('Nothing is required of this department.')).toBeTruthy()
     vi.mocked(getDepartment).mockResolvedValueOnce(null)
-    await expect(renderServer(DepartmentPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
-      NotFoundError
-    )
+    await expect(
+      renderServer(DepartmentPage({ params: params({ id: 'gone' }), searchParams: params({}) }))
+    ).rejects.toThrow(NotFoundError)
   })
 })
 
@@ -224,7 +226,7 @@ describe('positions', () => {
   it('list where each sits and how compliant it is', async () => {
     const user = userEvent.setup()
     expect(await positionsMetadata()).toEqual({ title: 'Positions' })
-    await renderServer(PositionsPage())
+    await renderServer(PositionsPage({ searchParams: params({}) }))
     const lab = screen.getByRole('row', { name: /^Laborant/ })
     expect(within(lab).getByRole('link', { name: 'Laborant' }).getAttribute('href')).toBe(
       '/positions/pos_lab'
@@ -244,12 +246,12 @@ describe('positions', () => {
       within(within(people).getByRole('row', { name: /Bílá Jana/ })).getAllByText('—')
     ).toHaveLength(2)
     vi.mocked(listPositionSummaries).mockResolvedValue([])
-    await renderServer(PositionsPage())
+    await renderServer(PositionsPage({ searchParams: params({}) }))
     expect(screen.getByText('No positions yet.')).toBeTruthy()
   })
 
   it('show one position: its departments, courses and people', async () => {
-    const props = { params: params({ id: 'pos_lab' }) }
+    const props = { params: params({ id: 'pos_lab' }), searchParams: params({}) }
     expect(await positionMetadata(props)).toEqual({ title: 'Laborant' })
     await renderServer(PositionPage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'Laborant' })).toBeTruthy()
@@ -265,23 +267,27 @@ describe('positions', () => {
 
   it('show a position nobody holds anywhere; and not one that does not exist', async () => {
     vi.mocked(getPosition).mockResolvedValue(positionDetail({ departments: [], courses: [] }))
-    await renderServer(PositionPage({ params: params({ id: 'pos_lab' }) }))
+    await renderServer(
+      PositionPage({ params: params({ id: 'pos_lab' }), searchParams: params({}) })
+    )
     expect(screen.getByText('Nobody with this position belongs to a department.')).toBeTruthy()
     expect(screen.getByText('Nothing is required of this position.')).toBeTruthy()
     vi.mocked(getPosition).mockResolvedValueOnce(null)
-    await expect(renderServer(PositionPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
-      NotFoundError
-    )
+    await expect(
+      renderServer(PositionPage({ params: params({ id: 'gone' }), searchParams: params({}) }))
+    ).rejects.toThrow(NotFoundError)
   })
 })
 
 describe('access', () => {
   it('keeps visitors out before any data is read', async () => {
     signOut()
-    const props = { params: params({ id: 'dep_lab' }) }
-    await expect(DepartmentsPage()).rejects.toThrow('redirect to sign-in')
+    const props = { params: params({ id: 'dep_lab' }), searchParams: params({}) }
+    await expect(DepartmentsPage({ searchParams: params({}) })).rejects.toThrow(
+      'redirect to sign-in'
+    )
     await expect(DepartmentPage(props)).rejects.toThrow('redirect to sign-in')
-    await expect(PositionsPage()).rejects.toThrow('redirect to sign-in')
+    await expect(PositionsPage({ searchParams: params({}) })).rejects.toThrow('redirect to sign-in')
     await expect(PositionPage(props)).rejects.toThrow('redirect to sign-in')
     // The titles name the section only: they read nothing.
     expect(await departmentMetadata(props)).toEqual({ title: 'Departments' })
@@ -300,7 +306,7 @@ describe('access', () => {
 describe('managing departments and positions', () => {
   it('gives admins a new button, a pencil and archive per row, and record actions', async () => {
     signInAs('ADMIN')
-    await renderServer(DepartmentsPage())
+    await renderServer(DepartmentsPage({ searchParams: params({}) }))
     expect(screen.getByRole('link', { name: 'New department' }).getAttribute('href')).toBe(
       '/departments/new'
     )
@@ -308,7 +314,9 @@ describe('managing departments and positions', () => {
       '/departments/dep_lab/edit'
     )
     expect(screen.getByRole('button', { name: 'Archive Laboratoře' })).toBeTruthy()
-    await renderServer(DepartmentPage({ params: params({ id: 'dep_lab' }) }))
+    await renderServer(
+      DepartmentPage({ params: params({ id: 'dep_lab' }), searchParams: params({}) })
+    )
     expect(screen.getAllByRole('link', { name: 'Edit' }).at(-1)?.getAttribute('href')).toBe(
       '/departments/dep_lab/edit'
     )
@@ -316,7 +324,7 @@ describe('managing departments and positions', () => {
 
   it('offers none of it to readers', async () => {
     signInAs('FULL')
-    await renderServer(PositionsPage())
+    await renderServer(PositionsPage({ searchParams: params({}) }))
     expect(screen.queryByRole('link', { name: 'New position' })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Archive/ })).toBeNull()
   })

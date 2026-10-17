@@ -13,7 +13,11 @@ import { ComplianceBar } from './compliance-breakdown'
 import { ComplianceBadge, rateTone } from './status-badges'
 
 /** A manager's direct reports and how their mandatory training stands together. */
-export function TeamCard({ employee }: { employee: EmployeeDetail }) {
+export function TeamCard({
+  employee,
+}: {
+  employee: Pick<EmployeeDetail, 'externalId' | 'reports' | 'teamCounts'>
+}) {
   const t = useTranslations('employees.detail.team')
   const locale = useLocale()
   const { teamCounts: counts } = employee

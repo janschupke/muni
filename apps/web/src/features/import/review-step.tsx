@@ -237,7 +237,7 @@ export function ReviewStep({
           </TabsContent>
         ))}
       </Tabs>
-      <div className="flex gap-2">
+      <div className="flex justify-end gap-2">
         <Button onClick={onBack}>
           <ArrowLeft aria-hidden />
           {t('review.back')}

@@ -130,12 +130,13 @@ const PAIRINGS: Pairing[] = [
     on: [...CONTAINERS, CONTROL],
     why: 'the focus outline',
   },
-  ...['accent', 'success-fill', 'warning-fill', 'serious-fill', 'danger-fill', 'info-fill'].map(
+  // The warning fill is yellow, which never reaches 3:1 on white: its edge carries the shape.
+  ...['accent', 'success-fill', 'warning-edge', 'serious-fill', 'danger-fill', 'info-fill'].map(
     (fill): Pairing => ({
       kind: 'nonText',
       fg: fill,
       on: [...SURFACES, ...TRACKS],
-      why: 'bar fills, status dots, stripes',
+      why: 'bar fills (or their edge), status dots, stripes',
     })
   ),
   { kind: 'nonText', fg: 'accent', on: [RAISED], why: 'a checked checkbox' },
@@ -159,6 +160,7 @@ const PAIRINGS: Pairing[] = [
     why: 'status text, badges, alerts',
   })),
   { kind: 'text', fg: 'accent-text', on: [['accent-soft']], why: 'accent badge' },
+  { kind: 'text', fg: 'danger-fg', on: [CONTROL], why: 'destructive button' },
 
   // Coloured text reads as a colour: apart from every grey, and each from the others
   // (warning beside danger in one table). The link and accent-text are both blue.
@@ -209,7 +211,7 @@ const EXEMPT = new Set([
 
 /** A Tailwind class that paints a colour: `bg-surface-elevated` → `surface-elevated`. */
 const COLOUR_UTILITY =
-  /^(?:bg|text|border(?:-[trblxy])?|divide|outline|ring|fill|stroke|from|via|to|decoration|placeholder|caret|accent)-([a-z-]+)$/
+  /^(?:bg|text|border(?:-[trblxy])?|divide|outline|(?:inset-)?ring|fill|stroke|from|via|to|decoration|placeholder|caret|accent)-([a-z-]+)$/
 
 const ratio = (kind: Kind, fg: string, on: readonly string[], theme: Theme) => {
   const base = paint(on, theme)
@@ -236,6 +238,29 @@ describe('colour contract', () => {
         })
       }
     }
+  }
+
+  // Sentiment reads from the colour itself: a warning bar is yellow, not brown (dark yellow),
+  // and danger is red, not pink (light red short of chroma), in both themes.
+  const lch = (name: string, theme: Theme) => {
+    const [l, a, b] = oklab(role(name, theme))
+    return { l, c: Math.hypot(a, b), h: (Math.atan2(b, a) * 180) / Math.PI }
+  }
+  for (const theme of ['light', 'dark'] as const) {
+    it(`the warning fill is a clear yellow (${theme})`, () => {
+      const { l, c, h } = lch('warning-fill', theme)
+      expect(h).toBeGreaterThanOrEqual(70)
+      expect(h).toBeLessThanOrEqual(100)
+      expect(l).toBeGreaterThanOrEqual(0.75)
+      expect(c).toBeGreaterThanOrEqual(0.14)
+    })
+    it(`the danger fill is a full red (${theme})`, () => {
+      const { c, h } = lch('danger-fill', theme)
+      expect(h).toBeGreaterThanOrEqual(20)
+      expect(h).toBeLessThanOrEqual(35)
+      expect(c).toBeGreaterThanOrEqual(0.17)
+      expect(c / lch('danger-fill', theme).l).toBeGreaterThanOrEqual(0.3)
+    })
   }
 
   it('every colour the app uses is in a pairing', () => {

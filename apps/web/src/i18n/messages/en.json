@@ -86,8 +86,8 @@
     },
     "scope": {
       "ALL": "Everyone",
-      "DEPARTMENT": "Department: <link>{target}</link>",
-      "POSITION": "Position: <link>{target}</link>"
+      "DEPARTMENT": "{count, plural, one {Department} other {Departments}}",
+      "POSITION": "{count, plural, one {Position} other {Positions}}"
     },
     "optional": "Optional",
     "nothingRequired": "Nothing required",
@@ -224,9 +224,9 @@
     },
     "detail": {
       "requirements": "Required for",
-      "sessions": "Sessions",
-      "noSessions": "No sessions for this course.",
-      "recentCompletions": "Recent completions",
+      "sessions": "Upcoming sessions",
+      "noSessions": "No upcoming sessions for this course.",
+      "completions": "Completions",
       "noCompletions": "No completions yet.",
       "compliance": "Compliance",
       "complianceDescription": "Across everyone this course is mandatory for.",
@@ -875,6 +875,7 @@
       "rowsUpcoming": "Each row is one person's training that lapses by {date}, and what is being done about it."
     },
     "columns": {
+      "remedy": "What to do",
       "rank": "Order",
       "person": "Person",
       "training": "Course",
@@ -889,10 +890,9 @@
     },
     "window": {
       "none": "No gap",
-      "open": "{from} – open",
+      "open": "From {from}",
       "never": "Never held",
       "nothingBooked": "nothing booked",
-      "range": "{from} – {until}",
       "neverUntil": "Never held, until {until}",
       "days": "{count, plural, =0 {same day} one {# day} other {# days}}"
     },
@@ -917,8 +917,8 @@
       "readOnly": "Only admins can book people.",
       "book": "Book…",
       "bookOne": "Book {name}…",
+      "scheduleFor": "Schedule a session of {course} for {name}",
       "bookSelected": "Book {count, plural, one {# selected} other {# selected}} · {cost}",
-      "selectAll": "Select all {count} proposed",
       "clearSelection": "Clear selection",
       "selectRow": "Select {name}, {course}",
       "selectPage": "Select every proposed row on this page",
@@ -961,7 +961,7 @@
       "none": "No session is overbooked.",
       "booked": "Booked",
       "over": "{booked} of {capacity} · {excess} over",
-      "moveTo": "Suggested: move {count, plural, one {# seat} other {# seats}} to",
+      "moveTo": "Suggested: move {count, plural, one {# seat} other {# seats}} to:",
       "remaining": "{count, plural, one {# seat stays} other {# seats stay}} over capacity: there is no room in other sessions of this course, or the bookings are named. Schedule another session or cancel bookings.",
       "resolve": "Resolve…",
       "resolveLabel": "Resolve the overbooking of {course}, {date}",
@@ -1123,8 +1123,8 @@
       "byCourse": "By course",
       "byCourseDescription": "What was completed with this provider, most first.",
       "noCompletions": "No completion names this provider yet.",
-      "recent": "Latest completions",
-      "recentDescription": "The newest {count} completions with this provider.",
+      "recent": "Completions",
+      "recentDescription": "Every completion with this provider, {count} in all.",
       "columns": {
         "course": "Course",
         "completions": "Completions",

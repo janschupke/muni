@@ -4,7 +4,7 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
 import { formatDate } from '@muni/utils/format'
 import { useQuery } from '@tanstack/react-query'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 import { ReadView } from '@/components/read-view'
 import { TableSkeleton } from '@/components/skeletons'
@@ -15,16 +15,13 @@ import { ComplianceMatrixTable } from './compliance-matrix'
 /** Every course against every department, and each department's people. */
 export function ComplianceView() {
   const t = useTranslations('compliance')
-  const locale = useLocale()
   const read = useQuery(readQuery('compliance', {}))
   const asOf = read.data?.asOf
   return (
     <>
       <PageHeader
         title={t('title')}
-        description={
-          asOf ? t('descriptionOn', { date: formatDate(asOf, locale) }) : t('description')
-        }
+        description={asOf ? t('descriptionOn', { date: formatDate(asOf) }) : t('description')}
       />
       <ReadView titled query={read} skeleton={<TableSkeleton rows={10} columns={8} />}>
         {matrix =>

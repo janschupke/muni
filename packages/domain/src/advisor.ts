@@ -64,6 +64,8 @@ export interface AdvisorInput {
 /** `now`, or the month (`2026-11`) in which the training lapses. */
 export type Bucket = string
 export const NOW: Bucket = 'now'
+/** The breakdown's row for everything that lapses in the forecast, all months together. */
+export const UPCOMING: Bucket = 'upcoming'
 
 export type Remediation = 'PLANNED' | 'PLANNED_LATE' | 'ACTION_REQUIRED'
 export const REMEDIATIONS: Remediation[] = ['PLANNED', 'PLANNED_LATE', 'ACTION_REQUIRED']
@@ -437,4 +439,33 @@ export function unpackPlan(packed: PackedPlan): AdvisorPlan {
     return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, walk(inner)]))
   }
   return walk(packed.plan) as AdvisorPlan
+}
+
+/** The advisor's views: the breakdown by month, what needs action, what is booked, overbooked. */
+export type AdvisorTableView = 'breakdown' | 'action' | 'planned' | 'overbooked'
+
+/**
+ * The trainings one of the advisor's tables lists, in the plan's order: the breakdown's row
+ * (`now`, `upcoming` for the whole forecast, or a month; a row that is not there is `now`),
+ * the ones needing action, the booked ones; none for the overbooked sessions. With the row it
+ * settled on, and the tabs' counts.
+ */
+export function tableItems(
+  plan: AdvisorPlan,
+  view: AdvisorTableView,
+  asked: Bucket | undefined
+): { bucket: Bucket; items: PlanItem[]; counts: { action: number; planned: number } } {
+  const bucket =
+    asked === UPCOMING ? UPCOMING : (plan.breakdown.find(r => r.bucket === asked)?.bucket ?? NOW)
+  const action = plan.items.filter(i => i.remediation === 'ACTION_REQUIRED')
+  const planned = plan.items.filter(i => i.remediation !== 'ACTION_REQUIRED')
+  const items =
+    view === 'action'
+      ? action
+      : view === 'planned'
+        ? planned
+        : view === 'breakdown'
+          ? plan.items.filter(i => (bucket === UPCOMING ? i.bucket !== NOW : i.bucket === bucket))
+          : []
+  return { bucket, items, counts: { action: action.length, planned: planned.length } }
 }

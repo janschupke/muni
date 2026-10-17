@@ -20,3 +20,51 @@ export function pageBounds(
   const page = Math.min(Math.max(asked.page ?? 1, 1), pageCount)
   return { page, pageSize, pageCount, skip: (page - 1) * pageSize }
 }
+
+/** What a list reads from the address: the page, and the column it is sorted by. */
+export interface ListQuery<K extends string> {
+  page?: number | undefined
+  pageSize?: number | undefined
+  sort?: { by: K; desc: boolean } | undefined
+}
+
+/** A value a list sorts by; missing ones sort last in either direction. */
+export type SortValue = string | number | null | undefined
+
+// Czech data in either UI language: č after c, ch after h, numbers within text naturally.
+const collator = new Intl.Collator('cs', { numeric: true, sensitivity: 'base' })
+
+function compare(a: SortValue, b: SortValue): number {
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  return collator.compare(String(a), String(b))
+}
+
+/**
+ * One page of rows, sorted on the server by the column asked for (`keys` gives each column's
+ * value), else kept in the order they come in. The sort is stable, so ties keep that order.
+ */
+export function pageOf<T, K extends string>(
+  rows: readonly T[],
+  query: ListQuery<K>,
+  keys: Record<K, (row: T) => SortValue>
+): Page<T> {
+  const sort = query.sort
+  const sorted = sort
+    ? [...rows].sort((x, y) => {
+        const a = keys[sort.by](x)
+        const b = keys[sort.by](y)
+        const missingA = a === null || a === undefined || a === ''
+        const missingB = b === null || b === undefined || b === ''
+        if (missingA || missingB) return missingA === missingB ? 0 : missingA ? 1 : -1
+        return sort.desc ? compare(b, a) : compare(a, b)
+      })
+    : rows
+  const { page, pageSize, pageCount, skip } = pageBounds(sorted.length, query)
+  return {
+    items: sorted.slice(skip, skip + pageSize),
+    total: sorted.length,
+    page,
+    pageSize,
+    pageCount,
+  }
+}

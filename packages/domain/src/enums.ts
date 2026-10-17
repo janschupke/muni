@@ -65,3 +65,14 @@ export function roleMetadata(role: Role): string {
 export function canWrite(role: Role): boolean {
   return role === 'ADMIN'
 }
+
+/** The columns the employee list (and a department's or position's people) sort by. */
+export const EMPLOYEE_SORT_KEYS = [
+  'name',
+  'department',
+  'position',
+  'status',
+  'compliance',
+  'required',
+] as const
+export type EmployeeSortKey = (typeof EMPLOYEE_SORT_KEYS)[number]

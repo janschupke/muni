@@ -1,12 +1,13 @@
 'use client'
 
+import { EMPLOYEE_SORT_KEYS } from '@muni/domain/enums'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
 import { PageHeader } from '@muni/ui/page-header'
 import { PLACEHOLDER } from '@muni/utils/format'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
 import { PersonLink } from '@/components/archived'
@@ -16,6 +17,7 @@ import { RecordActions } from '@/components/record-actions'
 import { DetailSkeleton } from '@/components/skeletons'
 import { readQuery } from '@/lib/query/queries'
 import { useDocumentTitle } from '@/lib/query/use-document-title'
+import { useListUrl } from '@/lib/use-list-url'
 
 import { GroupBreakdown } from './group-breakdown'
 import { GroupFacts } from './group-facts'
@@ -24,7 +26,11 @@ import { GroupCourses, GroupPeople } from './group-sections'
 /** A department's page: who leads it, its positions, the courses it must hold, its people. */
 export function DepartmentView({ id, canEdit }: { id: string; canEdit: boolean }) {
   const t = useTranslations('departments')
-  const read = useQuery(readQuery('department', { id }))
+  const people = useListUrl(EMPLOYEE_SORT_KEYS, undefined, 'people')
+  const read = useQuery({
+    ...readQuery('department', { id, ...people.input }),
+    placeholderData: keepPreviousData,
+  })
   useDocumentTitle(read.data?.name)
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="departments">
@@ -67,7 +73,7 @@ export function DepartmentView({ id, canEdit }: { id: string; canEdit: boolean }
             }
             main={<GroupCourses kind="departments" group={department} />}
           />
-          <GroupPeople kind="departments" group={department} />
+          <GroupPeople kind="departments" group={department} paging={people.paging} />
         </>
       )}
     </ReadView>
@@ -77,7 +83,11 @@ export function DepartmentView({ id, canEdit }: { id: string; canEdit: boolean }
 /** A position's page: the departments it is in, the courses it must hold, its people. */
 export function PositionView({ id, canEdit }: { id: string; canEdit: boolean }) {
   const t = useTranslations('positions')
-  const read = useQuery(readQuery('position', { id }))
+  const people = useListUrl(EMPLOYEE_SORT_KEYS, undefined, 'people')
+  const read = useQuery({
+    ...readQuery('position', { id, ...people.input }),
+    placeholderData: keepPreviousData,
+  })
   useDocumentTitle(read.data?.name)
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="positions">
@@ -117,7 +127,7 @@ export function PositionView({ id, canEdit }: { id: string; canEdit: boolean }) 
             }
             main={<GroupCourses kind="positions" group={position} />}
           />
-          <GroupPeople kind="positions" group={position} />
+          <GroupPeople kind="positions" group={position} paging={people.paging} />
         </>
       )}
     </ReadView>

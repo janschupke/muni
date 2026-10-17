@@ -1,3 +1,7 @@
+import type { EmployeeSortKey } from '@muni/domain/enums'
+
+import type { ADVISOR_SORT, ADVISOR_VIEWS, SESSION_SORT } from '@/lib/list-keys'
+import type { ListInput } from '@/lib/search-params'
 import type { ReadInput } from '@/server/reads/registry'
 
 // The inputs of the reads whose input a page builds from its address. The page's prefetch
@@ -12,44 +16,40 @@ export interface EmployeeListFilters {
   manager?: string | undefined
 }
 
-export interface EmployeeListSort {
-  by: NonNullable<ReadInput<'employees-list'>['sort']>
-  desc: boolean
-}
-
-/** Everything that shapes the employee list, without the page. */
-export const employeesQuery = (
-  filters: EmployeeListFilters,
-  sort: EmployeeListSort | undefined
-) => ({
-  ...filters,
-  sort: sort?.by,
-  dir: sort?.desc ? ('desc' as const) : undefined,
-})
-
+/** The employee list's filters with its sort and page (from the address, `parseList`). */
 export const employeesListInput = (
   filters: EmployeeListFilters,
-  sort: EmployeeListSort | undefined,
-  page: number
-): ReadInput<'employees-list'> => ({ ...employeesQuery(filters, sort), page })
+  list: ListInput<EmployeeSortKey>
+): ReadInput<'employees-list'> => ({ ...filters, ...list })
 
-/** What the sessions list shows: the window, a room or course, and (past only) the page. */
+/** What the sessions list shows: the window, and a room or course. */
 export interface SessionListQuery {
   when: 'upcoming' | 'past'
   room?: string | undefined
   course?: string | undefined
-  page?: number | undefined
 }
 
-export const sessionsListInput = ({
-  when,
-  room,
-  course,
-  page,
-}: SessionListQuery): ReadInput<'sessions-list'> => ({
+/** The sessions list's filters with its sort and page (from the address, `parseList`). */
+export const sessionsListInput = (
+  { when, room, course }: SessionListQuery,
+  list: ListInput<(typeof SESSION_SORT)[number]>
+): ReadInput<'sessions-list'> => ({
   when: when === 'past' ? 'past' : undefined,
   room,
   course,
-  // The first page is the list without a page.
-  page: when === 'past' && page !== undefined && page > 1 ? page : undefined,
+  ...list,
+})
+
+/**
+ * The advisor's view and (breakdown only) its row, with the table's sort and page; the
+ * breakdown and the `now` row are the advisor without them.
+ */
+export const advisorInput = (
+  view: (typeof ADVISOR_VIEWS)[number],
+  bucket: string | undefined,
+  list: ListInput<(typeof ADVISOR_SORT)[number]>
+): ReadInput<'advisor'> => ({
+  ...(view !== 'breakdown' && { view }),
+  ...(view === 'breakdown' && bucket !== undefined && bucket !== 'now' && { bucket }),
+  ...list,
 })

@@ -2,8 +2,8 @@
 
 import { Alert } from '@muni/ui/alert'
 import { FieldRow } from '@muni/ui/field'
-import { currencySymbol } from '@muni/utils/format'
-import { useLocale, useTranslations } from 'next-intl'
+import { currencySymbol, formatAmount } from '@muni/utils/format'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 import { NEW_PROVIDER } from '@/lib/form'
@@ -44,7 +44,6 @@ export function CompletionForm({
   const tsave = useTranslations('forms.save')
   const t = useTranslations('forms.completion')
   const tp = useTranslations('forms.placeholders')
-  const locale = useLocale()
   const [courseId, setCourseId] = useState(defaults.courseId)
   const [provider, setProvider] = useState(defaults.providerId ?? '')
   const months = courses.find(c => c.id === courseId)?.validityMonths ?? null
@@ -52,8 +51,8 @@ export function CompletionForm({
     <TextField
       name="price"
       inputMode="decimal"
-      label={t('price', { currency: currencySymbol(locale) })}
-      defaultValue={defaults.price ?? ''}
+      label={t('price', { currency: currencySymbol() })}
+      defaultValue={formatAmount(defaults.price)}
       placeholder={tp('price')}
     />
   )

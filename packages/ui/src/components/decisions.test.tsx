@@ -13,6 +13,9 @@ import { ExpandButton } from './expand-button'
 import { tabTriggerClass } from './nav'
 import { Toast, toastDuration, ToastProvider, ToastViewport } from './toast'
 
+/** Tables here sort and page their own rows. */
+const LOCAL = { local: 'the rows a test gives' }
+
 describe('Toast', () => {
   it('says what happened, offers a shortcut, and closes', async () => {
     const user = userEvent.setup()
@@ -169,6 +172,7 @@ describe('DataTable selection', () => {
     return (
       <>
         <DataTable
+          paging={LOCAL}
           caption="People"
           columns={col.columns([col.accessor('name', { header: 'Name' })])}
           data={ROWS}

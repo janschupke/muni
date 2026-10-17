@@ -1,7 +1,6 @@
 import 'server-only'
 
 import {
-  EMPLOYEE_SORT_KEYS,
   getCompletionForEdit,
   getEmployee,
   getEmployeeForEdit,
@@ -18,13 +17,23 @@ import {
   listGroupOptions,
   listPositions,
   listProviderOptions,
+  pageOf,
 } from '@muni/db/repositories'
-import { canWrite, COMPLIANCE_STATUSES, EMPLOYMENT_STATES } from '@muni/domain/enums'
+import {
+  canWrite,
+  COMPLIANCE_STATUSES,
+  EMPLOYEE_SORT_KEYS,
+  EMPLOYMENT_STATES,
+} from '@muni/domain/enums'
 import { displayName, sortName } from '@muni/domain/names'
 import { isVisible } from '@muni/domain/sanitize'
 import * as z from 'zod'
 
-import { byExternalId, read } from './define'
+import { HISTORY_SORT } from '@/lib/list-keys'
+import { listQuery } from '@/lib/search-params'
+
+import { byExternalId, listInput, read } from './define'
+import { historyKeys } from './sorters'
 
 const text = z.string().min(1).max(200).optional()
 
@@ -57,11 +66,14 @@ export const employeesList = read({
   },
 })
 
-/** A person's page: the record (as the role may see it), their bookings, what can be booked. */
+/**
+ * A person's page: the record (as the role may see it) with a page of their completions
+ * (`completionsSort`…, sorted on the server), their bookings, what can be booked.
+ */
 export const employee = read({
   guard: 'reader',
-  input: byExternalId,
-  load: async ({ externalId }, user) => {
+  input: byExternalId.extend(listInput(HISTORY_SORT, 'completions')),
+  load: async ({ externalId, ...list }, user) => {
     const canEdit = canWrite(user.role)
     const [person, bookings, bookable] = await Promise.all([
       getEmployee(externalId, user.role),
@@ -70,7 +82,14 @@ export const employee = read({
     ])
     if (!person) return null
     return {
-      employee: person,
+      employee: {
+        ...person,
+        completions: pageOf(
+          person.completions,
+          listQuery(list, HISTORY_SORT, 'completions'),
+          historyKeys
+        ),
+      },
       bookings,
       bookable,
       showNotes: isVisible(getPolicy(), 'completion.note', user.role),

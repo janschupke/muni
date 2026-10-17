@@ -1,37 +1,41 @@
 'use client'
 
 import type { CourseDetail, EmployeeDetail } from '@muni/db/repositories'
-import { createDataColumns, DataTable } from '@muni/ui/data-table'
+import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
 import { formatCurrency, formatDate, PLACEHOLDER } from '@muni/utils/format'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { PersonLink, personText, RecordLink } from './archived'
+import { usePaginationLabels } from './pagination-labels'
 import { RowActions } from './record-actions'
 
 type EmployeeCompletion = EmployeeDetail['completions'][number]
-type CourseCompletion = CourseDetail['recentCompletions'][number]
+type CourseCompletion = CourseDetail['completionList'][number]
 
 // ISO dates (`YYYY-MM-DD`) order correctly as plain strings, so they sort with `basic`.
 
 const history = createDataColumns<EmployeeCompletion>()
 
 /**
- * An employee's completions, newest first; notes only for roles that may see them. With
- * `editFor` (the person's ID, for admins) each row gets a pencil and archive.
+ * An employee's completions, a page at a time, newest first unless sorted; notes only for
+ * roles that may see them. With `editFor` (the person's ID, for admins) each row gets a pencil
+ * and archive.
  */
 export function CompletionHistoryTable({
   completions,
+  paging,
   showNotes,
   editFor,
 }: {
   completions: EmployeeCompletion[]
+  paging: TablePaging
   showNotes: boolean
   editFor?: string | undefined
 }) {
   const t = useTranslations()
-  const locale = useLocale()
+  const paginationLabels = usePaginationLabels()
 
   const columns = useMemo(
     () =>
@@ -58,7 +62,7 @@ export function CompletionHistoryTable({
           header: t('courses.detail.completedOn'),
           sortFn: 'basic',
           meta: { nowrap: true },
-          cell: ({ getValue }) => formatDate(getValue(), locale),
+          cell: ({ getValue }) => formatDate(getValue()),
         }),
         history.accessor(c => c.validUntil ?? undefined, {
           id: 'validUntil',
@@ -67,7 +71,7 @@ export function CompletionHistoryTable({
           meta: { nowrap: true },
           cell: ({ getValue }) => {
             const value = getValue()
-            return value === undefined ? t('common.noExpiry') : formatDate(value, locale)
+            return value === undefined ? t('common.noExpiry') : formatDate(value)
           },
         }),
         history.accessor(c => c.provider?.name, {
@@ -90,7 +94,7 @@ export function CompletionHistoryTable({
           header: t('employees.detail.price'),
           sortFn: 'basic',
           meta: { align: 'right' },
-          cell: ({ getValue }) => formatCurrency(getValue(), locale),
+          cell: ({ getValue }) => formatCurrency(getValue()),
         }),
         ...(showNotes
           ? [
@@ -119,7 +123,7 @@ export function CompletionHistoryTable({
             ]
           : []),
       ]),
-    [editFor, locale, showNotes, t]
+    [editFor, showNotes, t]
   )
 
   return (
@@ -128,11 +132,13 @@ export function CompletionHistoryTable({
       columns={columns}
       data={completions}
       getRowId={c => c.externalId}
+      paging={paging}
+      paginationLabels={paginationLabels}
     />
   )
 }
 
-const recent = createDataColumns<CourseCompletion>()
+const ofCourse = createDataColumns<CourseCompletion>()
 
 /**
  * A completion's pencil and archive, for admins, wherever it is listed. An archived person's
@@ -159,47 +165,52 @@ export function CompletionActions({
   )
 }
 
-/** The latest completions of one course; each editable by admins (`canEdit`). */
-export function RecentCompletionsTable({
+/**
+ * The completions of one course, a page at a time, newest first unless sorted; each editable
+ * by admins (`canEdit`).
+ */
+export function CourseCompletionsTable({
   completions,
+  paging,
   courseName,
   canEdit,
 }: {
   completions: CourseCompletion[]
+  paging: TablePaging
   courseName: string
   canEdit: boolean
 }) {
   const t = useTranslations()
-  const locale = useLocale()
+  const paginationLabels = usePaginationLabels()
 
   const columns = useMemo(
     () =>
-      recent.columns([
-        recent.accessor(c => personText(c.employee), {
+      ofCourse.columns([
+        ofCourse.accessor(c => personText(c.employee), {
           id: 'employee',
           header: t('courses.detail.employee'),
           sortFn: 'text',
           cell: ({ row }) => <PersonLink person={row.original.employee} />,
         }),
-        recent.accessor('completedOn', {
+        ofCourse.accessor('completedOn', {
           header: t('courses.detail.completedOn'),
           sortFn: 'basic',
           meta: { nowrap: true },
-          cell: ({ getValue }) => formatDate(getValue(), locale),
+          cell: ({ getValue }) => formatDate(getValue()),
         }),
-        recent.accessor(c => c.validUntil ?? undefined, {
+        ofCourse.accessor(c => c.validUntil ?? undefined, {
           id: 'validUntil',
           header: t('courses.detail.validUntil'),
           sortFn: 'basic',
           meta: { nowrap: true },
           cell: ({ getValue }) => {
             const value = getValue()
-            return value === undefined ? t('common.noExpiry') : formatDate(value, locale)
+            return value === undefined ? t('common.noExpiry') : formatDate(value)
           },
         }),
         ...(canEdit
           ? [
-              recent.display({
+              ofCourse.display({
                 id: 'actions',
                 header: () => <span className="sr-only">{t('common.actions')}</span>,
                 meta: { headerClassName: 'w-0', align: 'right' },
@@ -216,15 +227,17 @@ export function RecentCompletionsTable({
             ]
           : []),
       ]),
-    [canEdit, courseName, locale, t]
+    [canEdit, courseName, t]
   )
 
   return (
     <DataTable
-      caption={t('courses.detail.recentCompletions')}
+      caption={t('courses.detail.completions')}
       columns={columns}
       data={completions}
       getRowId={c => c.externalId}
+      paging={paging}
+      paginationLabels={paginationLabels}
     />
   )
 }
