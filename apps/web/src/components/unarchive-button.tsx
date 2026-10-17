@@ -12,6 +12,7 @@ import { useAfterWrite } from '@/lib/query/use-after-write'
 import { unarchiveAction } from '@/server/actions/archive'
 
 import { ConfirmDialog } from './confirm-dialog'
+import { originOf } from './navigation-history'
 import { useRefusalText } from './use-refusal-text'
 
 /**
@@ -61,7 +62,8 @@ export function UnarchiveButton({
         onConfirm={async () => {
           const state = await unarchiveAction(kind, id, then, ARCHIVE_IDLE)
           if (state.status === 'refused') return { kind: 'refused', message: refusal(state) }
-          afterWrite(state.status === 'done' ? state.href : undefined)
+          // Archived from its own page: back where that page was opened from, else the list.
+          afterWrite(state.status === 'done' && state.href ? (originOf() ?? state.href) : undefined)
           return { kind: 'done', toast: { title: t('unarchivedToast', { name }) } }
         }}
       >

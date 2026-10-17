@@ -1068,6 +1068,53 @@ describe('saving and deciding', () => {
     })
   })
 
+  it('goes back where the form was opened from, filters included; opened directly, to the record', async () => {
+    const user = userEvent.setup()
+    const form = () => (
+      <DepartmentForm
+        action={() => Promise.resolve({ status: 'saved', href: '/departments/dep_lab' })}
+        cancelHref="/departments/dep_lab"
+        heading={{ title: 'Edit Laboratoře' }}
+        defaults={{ name: 'Laboratoře', headId: null }}
+        members={[]}
+      />
+    )
+    // Reached from a filtered list, in the app.
+    window.history.replaceState(null, '', '/departments/dep_lab/edit')
+    sessionStorage.setItem(
+      HISTORY,
+      JSON.stringify([
+        { href: '/departments?q=lab', title: 'Departments · Training register' },
+        { href: '/departments/dep_lab/edit', title: null },
+      ])
+    )
+    const { unmount } = renderClient(form())
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'Cancel' }).getAttribute('href')).toBe(
+        '/departments?q=lab'
+      )
+    })
+    await user.type(screen.getByRole('textbox', { name: /Name/ }), ' a')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith('/departments?q=lab')
+    })
+    unmount()
+    // Opened directly (the page the document loaded on): nothing in the app led here.
+    vi.mocked(router.push).mockClear()
+    window.history.replaceState(null, '', '/')
+    sessionStorage.setItem(HISTORY, JSON.stringify([{ href: '/departments', title: null }]))
+    renderClient(form())
+    expect(screen.getByRole('link', { name: 'Cancel' }).getAttribute('href')).toBe(
+      '/departments/dep_lab'
+    )
+    await user.type(screen.getByRole('textbox', { name: /Name/ }), ' b')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith('/departments/dep_lab')
+    })
+  })
+
   it('asks before moving the people booked on a session to another course', async () => {
     const user = userEvent.setup()
     vi.mocked(checkSessionSlotAction).mockResolvedValue(null)

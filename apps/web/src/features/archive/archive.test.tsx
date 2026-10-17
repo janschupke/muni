@@ -30,7 +30,7 @@ import { archiveAction, previewArchive, unarchiveAction } from '@/server/actions
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
-import { NotFoundError } from '@/test/next'
+import { NotFoundError, router } from '@/test/next'
 import { params, renderClient, renderServer } from '@/test/render'
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
@@ -184,6 +184,44 @@ describe('archive and bring-back buttons', () => {
     expect(archiveAction).toHaveBeenCalledWith('employee', 'emp_1', null, { status: 'idle' })
     await vi.waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull()
+    })
+  })
+
+  it('go back from an archived record’s page where it was opened from, else to the list', async () => {
+    const user = userEvent.setup()
+    vi.mocked(previewArchive).mockResolvedValue({ ok: true, removesBookings: 0 })
+    vi.mocked(archiveAction).mockResolvedValue({ status: 'done', href: '/employees' })
+    const archive = async () => {
+      await user.click(screen.getByRole('button', { name: 'Archive' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Archive Urbanová Tereza?' })
+      await user.click(await within(dialog).findByRole('button', { name: 'Archive' }))
+    }
+    // Reached from a filtered list.
+    window.history.replaceState(null, '', '/employees/E0044')
+    sessionStorage.setItem(
+      'muni.history',
+      JSON.stringify([
+        { href: '/employees?status=LEFT', title: null },
+        { href: '/employees/E0044', title: null },
+      ])
+    )
+    const { unmount } = renderClient(
+      <ConfirmArchiveButton kind="employee" id="emp_1" name="Urbanová Tereza" then="/employees" />
+    )
+    await archive()
+    await vi.waitFor(() => {
+      expect(router.push).toHaveBeenLastCalledWith('/employees?status=LEFT')
+    })
+    unmount()
+    // Opened directly: the list.
+    window.history.replaceState(null, '', '/')
+    sessionStorage.clear()
+    renderClient(
+      <ConfirmArchiveButton kind="employee" id="emp_1" name="Urbanová Tereza" then="/employees" />
+    )
+    await archive()
+    await vi.waitFor(() => {
+      expect(router.push).toHaveBeenLastCalledWith('/employees')
     })
   })
 

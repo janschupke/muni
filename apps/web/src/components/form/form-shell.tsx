@@ -36,6 +36,7 @@ import type { WriteKind } from '@/lib/query/invalidation'
 import { useWhenWritten } from '@/lib/query/use-after-write'
 
 import { ConfirmDialog } from '../confirm-dialog'
+import { useOrigin } from '../navigation-history'
 import { useDateLabels, useTimeLabels } from './session-fields'
 
 /** An error the form knows before it is sent (a key under forms.errors, and its values). */
@@ -165,11 +166,14 @@ export function FormShell({
   const formRef = useRef<HTMLFormElement>(null)
   const submitRef = useRef<HTMLButtonElement>(null)
   const [state, formAction, pending] = useActionState(action, IDLE)
+  // Saved or cancelled, the form goes back where it was opened from; opened directly, a
+  // save goes to the record and a cancel to its parent page.
+  const origin = useOrigin()
   useWhenWritten(
     writes,
     state,
     state.status === 'saved',
-    state.status === 'saved' ? state.href : undefined,
+    state.status === 'saved' ? (origin ?? state.href) : undefined,
     { title: savedMessage }
   )
   const [asking, setAsking] = useState<{ data: FormData; question: SaveConfirmation } | null>(null)
@@ -306,7 +310,7 @@ export function FormShell({
         actions={
           <>
             <Button asChild variant="ghost">
-              <Link href={cancelHref}>
+              <Link href={origin ?? cancelHref}>
                 <X aria-hidden />
                 {t('common.cancel')}
               </Link>

@@ -1,9 +1,9 @@
 'use client'
 
 import { usePathname, useSearchParams } from 'next/navigation'
-import { type ReactNode, Suspense, useEffect } from 'react'
+import { type ReactNode, Suspense, useEffect, useSyncExternalStore } from 'react'
 
-import { type HistoryEntry, record, withTitle } from '@/lib/navigation-stack'
+import { type HistoryEntry, previousEntry, record, withTitle } from '@/lib/navigation-stack'
 
 import { FocusKeeper } from './focus-keeper'
 
@@ -35,6 +35,34 @@ function write(stack: HistoryEntry[]) {
     // Storage blocked: back links fall back to the parent page.
   }
   window.dispatchEvent(new Event(EVENT))
+}
+
+/** The page shown now, path and query, written as the recorder writes it. */
+function currentHref(): string {
+  const query = new URLSearchParams(window.location.search).toString()
+  return query ? `${window.location.pathname}?${query}` : window.location.pathname
+}
+
+// The page this document loaded on (typed, bookmarked, reloaded, opened in a new tab). Read
+// once, when the app's code first runs; in-app navigation never loads the document again.
+const landed = typeof window === 'undefined' ? null : currentHref()
+
+/**
+ * Where a form or an archived record's page goes back to: the in-app page it was opened from,
+ * with its filters. Null when the page was opened directly (nothing in this app led here),
+ * or before the browser has read the history.
+ */
+export function originOf(raw: string | null = readHistory()): string | null {
+  if (typeof window === 'undefined') return null
+  const current = currentHref()
+  if (current === landed) return null
+  return previousEntry(parseHistory(raw), current)?.entry.href ?? null
+}
+
+/** `originOf`, kept current as the history is recorded; null on the server. */
+export function useOrigin(): string | null {
+  const raw = useSyncExternalStore(subscribeHistory, readHistory, () => null)
+  return raw === null ? null : originOf(raw)
 }
 
 export function subscribeHistory(onChange: () => void): () => void {

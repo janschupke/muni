@@ -27,6 +27,9 @@ test('creates, renames, archives and brings back a department', async ({ page })
   await page.getByRole('link', { name: 'New department' }).click()
   await page.getByRole('textbox', { name: /Name/ }).fill('E2E útvar')
   await save(page).click()
+  // Created from the list, back to the list, with the new row in it.
+  await expect(page).toHaveURL(/\/departments$/)
+  await page.getByRole('main').getByRole('link', { name: 'E2E útvar', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'E2E útvar' })).toBeVisible()
 
   await page.getByRole('main').getByRole('link', { name: 'Edit' }).click()
@@ -44,7 +47,10 @@ test('creates, renames, archives and brings back a department', async ({ page })
   await page.getByRole('link', { name: 'New department' }).click()
   await page.getByRole('textbox', { name: /Name/ }).fill('E2E útvar 2')
   await save(page).click()
-  await expect(page.getByRole('heading', { level: 1, name: 'E2E útvar 2' })).toBeVisible()
+  await expect(page).toHaveURL(/\/departments$/)
+  await expect(
+    page.getByRole('main').getByRole('link', { name: 'E2E útvar 2', exact: true })
+  ).toBeVisible()
   await page.goto('/departments/archived')
   await page.getByRole('main').getByRole('link', { name: 'E2E útvar 2', exact: true }).click()
   // On the record's own page: the list's row has a "Bring back E2E útvar 2" button too.
@@ -61,8 +67,8 @@ test('creates, renames, archives and brings back a department', async ({ page })
 })
 
 test('adds a person with typed and picked dates, then archives them', async ({ page }) => {
-  await page.goto('/employees')
-  await page.getByRole('link', { name: 'New employee' }).click()
+  // Opened directly: saved, the form goes on to the new person.
+  await page.goto('/employees/new')
   await page.getByRole('textbox', { name: /First name/ }).fill('Eva')
   await page.getByRole('textbox', { name: /Last name/ }).fill('E2E Testová')
   await page.getByRole('combobox', { name: 'Department' }).click()
@@ -109,8 +115,7 @@ test('adds a person with typed and picked dates, then archives them', async ({ p
 test('plans a session with the time picker, books a person by hand, and cancels it', async ({
   page,
 }) => {
-  await page.goto('/sessions')
-  await page.getByRole('link', { name: 'New session' }).click()
+  await page.goto('/sessions/new')
   await page.getByRole('combobox', { name: /Course/ }).click()
   await page.getByRole('option', { name: /^GDPR/ }).click()
   const date = page.getByRole('textbox', { name: /Date/ })
@@ -155,6 +160,38 @@ test('plans a session with the time picker, books a person by hand, and cancels 
   await expect(page.getByText('Booking cancelled', { exact: true })).toBeVisible()
   // The row and its button went; focus stayed in the page, not on the body.
   await expect.poll(() => page.evaluate(() => document.activeElement?.tagName)).not.toBe('BODY')
+})
+
+test('a form goes back where it was opened from, filters included', async ({ page }) => {
+  // Opened directly, a new person's form goes on to the person.
+  await page.goto('/employees/new')
+  await page.getByRole('textbox', { name: /First name/ }).fill('Jan')
+  await page.getByRole('textbox', { name: /Last name/ }).fill('E2E Návrat')
+  await save(page).click()
+  await expect(page).toHaveURL(/\/employees\/N\d{4}$/)
+  const record = new URL(page.url()).pathname
+
+  // From a filtered list: saved, back to that list as it was.
+  await page.goto('/employees?q=E2E+N%C3%A1vrat')
+  await page.getByRole('link', { name: 'Edit E2E Návrat Jan' }).click()
+  await expect(page).toHaveURL(`${record}/edit`)
+  await page.getByRole('textbox', { name: /Note/ }).fill('Vrací se na seznam.')
+  await save(page).click()
+  await expect(page).toHaveURL(/\/employees\?q=E2E\+N%C3%A1vrat$/)
+  const name = page.getByRole('link', { name: 'E2E Návrat Jan', exact: true })
+  await expect(name).toBeVisible()
+
+  // From the person's page: cancelled, back to it.
+  await name.click()
+  await expect(page).toHaveURL(record)
+  await page.getByRole('main').getByRole('link', { name: 'Edit', exact: true }).click()
+  await page.getByRole('main').getByRole('link', { name: 'Cancel' }).click()
+  await expect(page).toHaveURL(record)
+
+  // Opened directly, a cancel goes to the person too.
+  await page.goto(`${record}/edit`)
+  await page.getByRole('main').getByRole('link', { name: 'Cancel' }).click()
+  await expect(page).toHaveURL(record)
 })
 
 test('gives a position its departments and a department its head', async ({ page }) => {
