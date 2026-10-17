@@ -488,6 +488,7 @@
       "nextYear": "Další rok",
       "today": "Dnes",
       "clear": "Vymazat",
+      "format": { "day": "dd", "month": "mm", "year": "rrrr" },
       "hours": "Hodiny",
       "minutes": "Minuty"
     },

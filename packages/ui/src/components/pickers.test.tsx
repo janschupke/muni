@@ -15,6 +15,7 @@ const DATE_LABELS = {
   nextYear: 'Next year',
   today: 'Today',
   clear: 'Clear',
+  format: { day: 'dd', month: 'mm', year: 'rrrr' },
 }
 const TIME_LABELS = { open: 'Choose time', hours: 'Hours', minutes: 'Minutes' }
 
@@ -47,8 +48,8 @@ describe('DatePicker', () => {
     const { input, posted } = renderDate({ defaultValue: '2026-03-01' })
     expect(input.value).toBe('1. 3. 2026')
     expect(posted()).toBe('2026-03-01')
-    // Empty, it shows an example in the same order.
-    expect(input.getAttribute('placeholder')).toBe('31. 3. 2026')
+    // Empty, it shows the format, never a date that could pass for a value.
+    expect(input.getAttribute('placeholder')).toBe('dd. mm. rrrr')
   })
 
   it('reads a typed date on leaving the field, and posts what it cannot read as typed', async () => {

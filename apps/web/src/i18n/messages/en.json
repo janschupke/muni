@@ -488,6 +488,7 @@
       "nextYear": "Next year",
       "today": "Today",
       "clear": "Clear",
+      "format": { "day": "dd", "month": "mm", "year": "yyyy" },
       "hours": "Hours",
       "minutes": "Minutes"
     },

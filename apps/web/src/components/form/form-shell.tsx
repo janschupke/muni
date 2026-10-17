@@ -394,6 +394,7 @@ export function DateField({
             nextYear: t('nextYear'),
             today: t('today'),
             clear: t('clear'),
+            format: { day: t('format.day'), month: t('format.month'), year: t('format.year') },
           }}
           {...props}
         />

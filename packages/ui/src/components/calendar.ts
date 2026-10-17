@@ -71,6 +71,23 @@ function partOrder(locale: string): ('day' | 'month' | 'year')[] {
     .flatMap(p => (p.type === 'day' || p.type === 'month' || p.type === 'year' ? [p.type] : []))
 }
 
+/**
+ * How a date is typed in `locale`, spelled with the given letters: `dd. mm. rrrr`,
+ * `mm/dd/yyyy`. The field's placeholder: a hint at the format, never a date that could pass
+ * for a value.
+ */
+export function formatPattern(
+  locale: string,
+  letters: Record<'day' | 'month' | 'year', string>
+): string {
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'numeric', year: 'numeric' })
+    .formatToParts(new Date(Date.UTC(2001, 1, 3)))
+    .map(p =>
+      p.type === 'day' || p.type === 'month' || p.type === 'year' ? letters[p.type] : p.value
+    )
+    .join('')
+}
+
 /** A date as typed in the field: digits only, in the locale's order (`1. 3. 2026`, `3/1/2026`). */
 export function formatTyped(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, {

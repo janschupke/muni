@@ -10,6 +10,7 @@ import {
   addMonths,
   clamp,
   endOfWeek,
+  formatPattern,
   formatTyped,
   isoOf,
   monthGrid,
@@ -29,10 +30,12 @@ export interface DatePickerLabels {
   nextYear: string
   today: string
   clear: string
+  /** Letters for the format hint in the empty field: `{ day: 'dd', month: 'mm', year: 'yyyy' }`. */
+  format: Record<'day' | 'month' | 'year', string>
 }
 
 export const popoverClass =
-  'raised z-50 origin-(--radix-popover-content-transform-origin) rounded-md border border-border-default bg-surface-overlay text-sm text-fg shadow-overlay outline-none data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in'
+  'z-50 origin-(--radix-popover-content-transform-origin) rounded-md border border-border-default bg-surface-overlay text-sm text-fg shadow-overlay outline-none data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in'
 
 /** An icon button inside the field, on its right. */
 export const fieldButtonClass =
@@ -58,7 +61,7 @@ export function DatePicker({
   today = isoOf(new Date()),
   locale,
   labels,
-  placeholder = formatTyped(`${today.slice(0, 4)}-03-31`, locale),
+  placeholder = formatPattern(locale, labels.format),
   disabled,
   required,
   id,
