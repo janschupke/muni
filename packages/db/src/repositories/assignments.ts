@@ -62,27 +62,53 @@ async function lockSessions(tx: Tx, externalIds: string[]): Promise<Map<string, 
   return new Map(rows.map(r => [r.external_id, r]))
 }
 
+/**
+ * Locks the (active) people's rows, in id order, after their sessions': a batch takes all its
+ * locks up front in the one order every writer uses, so two batches cannot deadlock.
+ */
+export async function lockPeople(tx: Tx, externalIds: readonly string[]): Promise<void> {
+  if (externalIds.length === 0) return
+  await tx.$queryRaw`
+    SELECT id FROM employees
+    WHERE external_id = ANY(${[...new Set(externalIds)]}) AND archived_at IS NULL
+    ORDER BY id
+    FOR UPDATE`
+}
+
+/** A batch of bookings may take a while; the default 5 s is for single writes. */
+export const BATCH_TX = { timeout: 60_000, maxWait: 10_000 }
+
 const bookedIn = async (tx: Tx, session: LockedSession) =>
   session.unnamed_bookings +
   (await tx.sessionAssignment.count({ where: { sessionId: session.id } }))
 
 /**
- * Applies each request in its own transaction, so one refusal never undoes the others.
- * Every rule is checked here, against the locked row; the client's plan is never trusted.
+ * Applies the requests in one transaction. A refused request writes nothing, so one refusal
+ * never undoes the others; every rule is checked here, against the locked rows, and the
+ * client's plan is never trusted. Every session and person is locked once, up front.
  */
 export async function applyAssignments(
   requests: AssignmentRequest[],
   userId: string,
   options?: RepoOptions & { now?: Date }
 ): Promise<AssignmentOutcome[]> {
-  const db = dbOf(options)
   const now = options?.now ?? new Date()
-  const outcomes: AssignmentOutcome[] = []
-  for (const request of requests) {
-    const reason = await db.$transaction(tx => applyOne(tx, request, userId, now, options?.asOf))
-    outcomes.push(reason === null ? { request, ok: true } : { request, ok: false, reason })
-  }
-  return outcomes
+  return dbOf(options).$transaction(async tx => {
+    await lockSessions(
+      tx,
+      requests.map(r => r.sessionExternalId)
+    )
+    await lockPeople(
+      tx,
+      requests.map(r => r.employeeExternalId)
+    )
+    const outcomes: AssignmentOutcome[] = []
+    for (const request of requests) {
+      const reason = await applyOne(tx, request, userId, now, options?.asOf)
+      outcomes.push(reason === null ? { request, ok: true } : { request, ok: false, reason })
+    }
+    return outcomes
+  }, BATCH_TX)
 }
 
 /**
@@ -229,6 +255,9 @@ export async function moveSeatsMany(
     const locked = await lockSessions(tx, [fromExternalId, ...wanted.keys()])
     const from = locked.get(fromExternalId)
     if (!from) return { ok: false, reason: 'SESSION_NOT_FOUND' }
+    // Seats leave only a session still ahead: a past or cancelled one keeps its history.
+    if (from.status !== 'PLANNED') return { ok: false, reason: 'NOT_PLANNED' }
+    if (from.starts_at <= now) return { ok: false, reason: 'PAST' }
     const targets: { to: string; session: LockedSession; count: number }[] = []
     for (const [to, count] of wanted) {
       const session = locked.get(to)

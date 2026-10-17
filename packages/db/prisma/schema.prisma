@@ -120,6 +120,8 @@ model Employee {
   archivedAt         DateTime?           @map("archived_at")
   archivedById       String?             @map("archived_by_id")
   archivedBy         User?               @relation("EmployeeArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
+  /// A random tag that stands for the person once archived (never derived from the id).
+  archiveTag         String?             @map("archive_tag")
 
   @@unique([externalId], map: "employees_external_id_key", where: { archivedAt: null })
   @@unique([email], map: "employees_email_key", where: { archivedAt: null })
@@ -358,6 +360,11 @@ model User {
   lastSignInAt  DateTime?           @map("last_sign_in_at")
   /// When the row was last read from Clerk.
   syncedAt      DateTime            @map("synced_at")
+  /// When an admin last changed the role here: a sync that read Clerk before Clerk had it
+  /// never writes the older role back.
+  roleChangedAt DateTime?           @map("role_changed_at")
+  /// A random tag that stands for the user once archived (never derived from the id).
+  archiveTag    String?             @map("archive_tag")
   createdAt     DateTime            @default(now()) @map("created_at")
   updatedAt     DateTime            @updatedAt @map("updated_at")
   assignments   SessionAssignment[]

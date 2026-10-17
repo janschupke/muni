@@ -140,8 +140,10 @@ export function OfferReview({
         ? t('capacityLow', { count: people.size })
         : undefined
   const priceError = pricePerPerson === undefined ? te('not_a_number') : undefined
+  const dateError = date !== '' && date < todayIn() ? te('in_past') : undefined
   const ready =
     date !== '' &&
+    !dateError &&
     room !== undefined &&
     !endError &&
     !roomError &&
@@ -327,7 +329,7 @@ export function OfferReview({
             </Alert>
           )}
           <FieldRow>
-            <Field label={tf('date')} required>
+            <Field label={tf('date')} required error={dateError}>
               {control => (
                 <DatePicker
                   {...control}

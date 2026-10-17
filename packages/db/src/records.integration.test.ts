@@ -10,7 +10,6 @@ import {
   applyAssignments,
   archiveImpact,
   archiveRecord,
-  canSetUserRole,
   checkSessionSlot,
   createCompletion,
   createCourse,
@@ -32,6 +31,7 @@ import {
   listDepartmentPositions,
   listEmployeeOptions,
   listGroupOptions,
+  revertUserRole,
   saveDepartment,
   savePosition,
   setUserRole,
@@ -814,25 +814,22 @@ describe('users', () => {
       bookingsMade: await db.sessionAssignment.count({ where: { createdById: TEST_USER } }),
     })
     expect(await getUser('nope', options)).toBeNull()
-    expect(await canSetUserRole(viewer.id, 'FULL', admin.id, options)).toEqual({
-      ok: true,
-      clerkId: 'user_it_rec_viewer',
-    })
     expect(await setUserRole(viewer.id, 'FULL', admin.id, options)).toEqual({
       ok: true,
       clerkId: 'user_it_rec_viewer',
+      previous: 'VIEWER',
     })
     expect((await getUser(viewer.id, options))?.role).toBe('FULL')
-    for (const change of [canSetUserRole, setUserRole])
-      expect(await change(admin.id, 'VIEWER', admin.id, options)).toEqual({
-        ok: false,
-        reason: 'SELF',
-      })
-    expect(await setUserRole('nope', 'FULL', admin.id, options)).toEqual({
+    // When Clerk refuses, the role goes back, unless something changed it again meanwhile.
+    await revertUserRole(viewer.id, { from: 'VIEWER', to: 'ADMIN' }, options)
+    expect((await getUser(viewer.id, options))?.role).toBe('FULL')
+    await revertUserRole(viewer.id, { from: 'VIEWER', to: 'FULL' }, options)
+    expect((await getUser(viewer.id, options))?.role).toBe('VIEWER')
+    expect(await setUserRole(admin.id, 'VIEWER', admin.id, options)).toEqual({
       ok: false,
-      reason: 'NOT_FOUND',
+      reason: 'SELF',
     })
-    expect(await canSetUserRole('nope', 'FULL', admin.id, options)).toEqual({
+    expect(await setUserRole('nope', 'FULL', admin.id, options)).toEqual({
       ok: false,
       reason: 'NOT_FOUND',
     })
@@ -841,12 +838,25 @@ describe('users', () => {
       where: { role: 'ADMIN', archivedAt: null, id: { not: admin.id } },
       data: { archivedAt: now, archivedById: TEST_USER },
     })
-    for (const change of [canSetUserRole, setUserRole])
-      expect(await change(admin.id, 'FULL', viewer.id, options)).toEqual({
-        ok: false,
-        reason: 'LAST_ADMIN',
-      })
+    expect(await setUserRole(admin.id, 'FULL', viewer.id, options)).toEqual({
+      ok: false,
+      reason: 'LAST_ADMIN',
+    })
+    // Two admins demoting each other at once: one goes through, the other is refused.
     expect(await setUserRole(viewer.id, 'ADMIN', admin.id, options)).toMatchObject({ ok: true })
-    expect(await setUserRole(admin.id, 'FULL', viewer.id, options)).toMatchObject({ ok: true })
+    const both = await Promise.all([
+      setUserRole(admin.id, 'FULL', viewer.id, options),
+      setUserRole(viewer.id, 'FULL', admin.id, options),
+    ])
+    expect(both.filter(r => r.ok)).toHaveLength(1)
+    expect(both.filter(r => !r.ok)).toEqual([{ ok: false, reason: 'LAST_ADMIN' }])
+    expect(await db.user.count({ where: { role: 'ADMIN', archivedAt: null } })).toBe(1)
+    // Whoever is still admin hands the role back, so the clean-up finds what it expects.
+    const [still] = await db.user.findMany({
+      where: { role: 'ADMIN', archivedAt: null },
+      select: { id: true },
+    })
+    const other = still?.id === admin.id ? viewer.id : admin.id
+    expect(await setUserRole(other, 'ADMIN', still?.id ?? '', options)).toMatchObject({ ok: true })
   })
 })

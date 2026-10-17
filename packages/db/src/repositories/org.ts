@@ -98,6 +98,7 @@ async function loadOrg(options?: RepoOptions & { now?: Date }) {
         firstName: true,
         lastName: true,
         archivedAt: true,
+        archiveTag: true,
         status: true,
         managerId: true,
         leadsDepartment: true,

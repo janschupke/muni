@@ -368,6 +368,7 @@
       "too_small": "Hodnota je příliš malá.",
       "too_big": "Hodnota je příliš velká.",
       "before_start": "Konec musí být po začátku.",
+      "in_past": "Plánovaný termín nemůže být v den, který už uplynul.",
       "before_hired": "Datum ukončení nemůže být před nástupem.",
       "before_completed": "Platnost nemůže skončit před datem absolvování.",
       "not_found": "Záznam už neexistuje.",
@@ -386,6 +387,7 @@
       "own_role": "Vlastní roli změnit nemůžete.",
       "last_admin": "Je to poslední správce; nejdřív udělejte správcem někoho jiného.",
       "over_capacity": "Obsazeno je víc míst; nejdřív zrušte rezervace.",
+      "attendee_conflict": "Někdo s rezervací na tomto termínu má v tu dobu jiný termín. Zvolte jiný čas, nebo nejdřív zrušte jeho rezervaci.",
       "below_booked": "{booked, plural, one {Obsazené je # místo} few {Obsazená jsou # místa} other {Obsazeno je # míst}}; termín jich nemůže otevřít méně.",
       "room_too_small_live": "{room} má {capacity} míst; termín jich otevírá {seats}.",
       "room_missing_live": "{room}: chybí {missing}.",
@@ -652,6 +654,8 @@
       "errors": {
         "unauthorized": "vaše přihlášení už import nedovoluje; přihlaste se znovu",
         "invalid": "server záznamy odmítl jako neplatné",
+        "room_busy": "místnost je v tu dobu obsazená termínem naplánovaným v aplikaci; nejdřív jeden z nich přesuňte",
+        "room_unfit": "nadcházející termíny v této místnosti by se do ní nevešly; nejdřív je přesuňte",
         "failed": "databáze zápis odmítla",
         "network": "server nebyl dostupný"
       }
@@ -979,7 +983,8 @@
         "ROOM_MISSING_CAPABILITIES": "Místnosti chybí, co kurz potřebuje.",
         "ROOM_ARCHIVED": "Místnost byla archivována.",
         "COURSE_ARCHIVED": "Kurz byl archivován.",
-        "OVER_CAPACITY": "Přihlášeno je víc lidí, než tato kapacita pojme."
+        "OVER_CAPACITY": "Přihlášeno je víc lidí, než tato kapacita pojme.",
+        "ATTENDEE_CONFLICT": "Někdo s rezervací na termínu má v tu dobu jiný termín."
       }
     },
     "outcome": {
@@ -1228,7 +1233,8 @@
       "ROOM_MISSING_CAPABILITIES": "Místnosti chybí vybavení, které kurz potřebuje. Zvolte jinou místnost.",
       "ROOM_ARCHIVED": "Místnost byla mezitím archivována. Zvolte jinou místnost.",
       "COURSE_ARCHIVED": "Kurz byl mezitím archivován. Načtěte plánovač znovu.",
-      "OVER_CAPACITY": "Kapacita je nižší než počet lidí k přihlášení. Zvyšte ji, nebo přihlaste méně lidí."
+      "OVER_CAPACITY": "Kapacita je nižší než počet lidí k přihlášení. Zvyšte ji, nebo přihlaste méně lidí.",
+      "ATTENDEE_CONFLICT": "Někdo s rezervací na termínu má v tu dobu jiný termín."
     },
     "problems": {
       "NO_ROOM_WITH": "I nejlépe vybavené místnosti chybí {missing}.",
@@ -1377,6 +1383,8 @@
       "last_admin": "Je to poslední správce. Nejdřív udělejte správcem někoho jiného.",
       "taken": "Aktivní záznam teď používá stejné pole: {fields}. Nejdřív jej přejmenujte nebo archivujte.",
       "parent_archived": "Patří k něčemu, co je archivované. Nejdřív obnovte to.",
+      "room_busy": "Místnost je v tu dobu obsazená jiným plánovaným termínem. Nejdřív jeden z nich přesuňte.",
+      "room_unfit": "Místnost mu už nevyhovuje. Nejdřív místnost upravte.",
       "generic": "Nepovedlo se to. Zkuste to znovu."
     },
     "fields": {

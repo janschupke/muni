@@ -1,5 +1,6 @@
 import { roomKindOfName } from '@muni/domain/rooms'
 import {
+  APP_ID_PREFIX,
   type CompletionInput,
   completionSchema,
   type CourseInput,
@@ -18,6 +19,7 @@ import type * as z from 'zod'
 
 import type { Db, Tx } from './client'
 import { ACTIVE } from './repositories/archive'
+import { lockSessions, newlyUnfit, roomFactsOf, roomFactsSelect } from './repositories/session-fit'
 
 export const COMMIT_CHUNK_SIZE = 500
 const TX_OPTIONS = { timeout: 60_000, maxWait: 10_000 }
@@ -82,12 +84,23 @@ function withoutArchived<T>(
  * The server never trusts records coming back from the browser: every record is re-parsed
  * with the domain schema and its free text re-sanitised before anything is written.
  */
+const notReserved = (
+  prefix: string
+): [(r: { externalId: string }) => boolean, { path: PropertyKey[]; message: string }] => [
+  r => !r.externalId.startsWith(prefix),
+  { path: ['externalId'], message: 'RESERVED_ID' },
+]
+
+/**
+ * IDs with the prefix the app gives what it creates (S…, A…, N…) are refused here as the
+ * browser's importer refuses them: an import must never overwrite a record made in the app.
+ */
 const SCHEMAS = {
   rooms: roomSchema,
   courses: courseSchema,
-  employees: employeeSchema,
-  sessions: sessionSchema,
-  completions: completionSchema,
+  employees: employeeSchema.refine(...notReserved(APP_ID_PREFIX.employee)),
+  sessions: sessionSchema.refine(...notReserved(APP_ID_PREFIX.session)),
+  completions: completionSchema.refine(...notReserved(APP_ID_PREFIX.completion)),
 } satisfies Record<DatasetKind, z.ZodType>
 
 export class CommitValidationError extends Error {
@@ -97,6 +110,25 @@ export class CommitValidationError extends Error {
     readonly issues: z.core.$ZodIssue[]
   ) {
     super(`Record ${index} failed validation`)
+  }
+}
+
+/**
+ * Why a valid record still cannot be written: it would take a room an app-planned session
+ * holds then (`ROOM_BUSY`), or leave upcoming sessions in a room that no longer suits them
+ * (`ROOM_UNFIT`), as the room and session forms refuse.
+ */
+export type CommitRefusal = 'ROOM_BUSY' | 'ROOM_UNFIT'
+
+export class CommitRefusedError extends Error {
+  override name = 'CommitRefusedError'
+  constructor(
+    readonly index: number,
+    readonly reason: CommitRefusal,
+    /** The record's key, and what it clashes with where there is one ("T012 → S004"). */
+    readonly key: string
+  ) {
+    super(`Record ${index} (${key}) refused: ${reason}`)
   }
 }
 
@@ -173,6 +205,8 @@ async function writeRooms(tx: Tx, all: RoomInput[]): Promise<CommitResult> {
       r => [r.name],
     ],
   ])
+  // Room and session writes take turns (see lockSessions): sessions planned meanwhile count.
+  await lockSessions(tx)
   let created = 0
   let updated = 0
   for (const record of records) {
@@ -183,8 +217,17 @@ async function writeRooms(tx: Tx, all: RoomInput[]): Promise<CommitResult> {
     }
     const existing = await tx.room.findFirst({
       where: { name: record.name, ...ACTIVE },
-      select: { id: true },
+      select: roomFactsSelect,
     })
+    if (existing) {
+      const before = roomFactsOf(existing)
+      const unfit = await newlyUnfit(tx, {
+        roomId: existing.id,
+        room: { ...before, ...data, capabilities: record.capabilities ?? before.capabilities },
+      })
+      if (unfit.length > 0)
+        throw new CommitRefusedError(all.indexOf(record), 'ROOM_UNFIT', record.name)
+    }
     const room = existing
       ? await tx.room.update({ where: { id: existing.id }, data, select: { id: true } })
       : await tx.room.create({ data: { name: record.name, ...data }, select: { id: true } })
@@ -390,6 +433,8 @@ async function writeEmployees(tx: Tx, records: EmployeeInput[]): Promise<CommitR
  * left out (the review warned: MANAGER_CYCLE).
  */
 async function linkManagers(tx: Tx, records: EmployeeInput[]): Promise<void> {
+  // As the employee form does: manager links change one writer at a time.
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('employees_managers'))`
   const people = await tx.employee.findMany({
     where: ACTIVE,
     select: { id: true, externalId: true, email: true, managerId: true },
@@ -511,6 +556,42 @@ function mostCommon(values: number[]): number {
   return [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 0
 }
 
+/**
+ * Refuses a planned session in a room that a session planned in the app (an S… ID) holds at
+ * the same time. Clashes between imported sessions are the source system's to keep.
+ */
+async function refuseAppRoomClashes(
+  tx: Tx,
+  all: SessionInput[],
+  records: SessionInput[],
+  rooms: Map<string, string>
+): Promise<void> {
+  const planned = records.filter(r => r.status === 'PLANNED')
+  if (planned.length === 0) return
+  const held = await tx.courseSession.findMany({
+    where: {
+      ...ACTIVE,
+      status: 'PLANNED',
+      externalId: { startsWith: APP_ID_PREFIX.session },
+      roomId: { in: [...new Set(planned.map(r => lookup(rooms, r.location, 'room')))] },
+      room: { kind: { not: 'ONLINE' } },
+    },
+    select: { externalId: true, roomId: true, startsAt: true, endsAt: true },
+  })
+  for (const record of planned) {
+    const roomId = lookup(rooms, record.location, 'room')
+    const startsAt = zonedTimeToUtc(record.date, record.startTime)
+    const endsAt = zonedTimeToUtc(record.date, record.endTime)
+    const clash = held.find(s => s.roomId === roomId && s.startsAt < endsAt && s.endsAt > startsAt)
+    if (clash)
+      throw new CommitRefusedError(
+        all.indexOf(record),
+        'ROOM_BUSY',
+        `${record.externalId} → ${clash.externalId}`
+      )
+  }
+}
+
 async function writeSessions(tx: Tx, all: SessionInput[]): Promise<CommitResult> {
   const { kept: records, skipped } = withoutArchived(all, [
     [
@@ -541,11 +622,14 @@ async function writeSessions(tx: Tx, all: SessionInput[]): Promise<CommitResult>
       r => [r.location],
     ],
   ])
+  // Session writes take turns, as the app's own do (see lockSessions).
+  await lockSessions(tx)
   const courses = await courseIds(
     tx,
     records.map(r => r.courseCode)
   )
   const rooms = await resolveRooms(tx, records)
+  await refuseAppRoomClashes(tx, all, records, rooms)
   // The export's booked count is the session's total. Named bookings (assignments) are part of
   // it, so only the remainder is stored as unnamed seats; a total below the named count keeps
   // the named bookings and stores no unnamed ones.
@@ -563,16 +647,21 @@ async function writeSessions(tx: Tx, all: SessionInput[]): Promise<CommitResult>
   const { fresh, existing } = await partition(
     records,
     r => r.externalId,
-    async keys =>
-      (
-        await tx.courseSession.findMany({
-          where: { externalId: { in: keys }, ...ACTIVE },
-          select: { id: true, externalId: true, _count: { select: { assignments: true } } },
-        })
-      ).map(e => {
-        assignedBySession.set(e.id, e._count.assignments)
-        return { key: e.externalId, id: e.id }
+    async keys => {
+      // Locked before the named bookings are counted, as booking locks the session: one
+      // booked meanwhile is counted, not stored again as an unnamed seat.
+      const found = await tx.$queryRaw<{ id: string; external_id: string }[]>`
+        SELECT id, external_id FROM course_sessions
+        WHERE external_id = ANY(${keys}) AND archived_at IS NULL
+        ORDER BY id FOR UPDATE`
+      const counts = await tx.sessionAssignment.groupBy({
+        by: ['sessionId'],
+        where: { sessionId: { in: found.map(f => f.id) } },
+        _count: { _all: true },
       })
+      for (const c of counts) assignedBySession.set(c.sessionId, c._count._all)
+      return found.map(f => ({ key: f.external_id, id: f.id }))
+    }
   )
   await tx.courseSession.createMany({
     data: fresh.map(r => ({ externalId: r.externalId, ...toData(r, 0) })),

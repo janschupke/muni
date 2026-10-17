@@ -1,3 +1,4 @@
+import { todayIn } from '@muni/utils/dates'
 import { isCompanyId } from '@muni/utils/text'
 import * as z from 'zod'
 
@@ -223,6 +224,12 @@ export const sessionCreateSchema = z
     roomId: entityId,
   })
   .refine(endAfterStart, endAfterStartIssue)
+  // A session planned now is ahead: one on an earlier day is a typo (record a completion for
+  // what already took place). Checked against today wherever it is parsed, form or server.
+  .refine(s => s.status !== 'PLANNED' || s.date >= todayIn(), {
+    path: ['date'],
+    error: 'in_past',
+  })
 export type SessionCreate = z.infer<typeof sessionCreateSchema>
 
 /** The room form edits every field the import sets. */

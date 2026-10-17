@@ -2,7 +2,12 @@
 
 import { getDb } from '@muni/db/client'
 import { findArchivedKeys } from '@muni/db/reference'
-import { COMMIT_CHUNK_SIZE, commitChunk, CommitValidationError } from '@muni/db/writer'
+import {
+  COMMIT_CHUNK_SIZE,
+  commitChunk,
+  CommitRefusedError,
+  CommitValidationError,
+} from '@muni/db/writer'
 import { type ArchivedKeys, DATASET_KINDS, type DatasetKind, NO_ARCHIVED } from '@muni/importer'
 import * as z from 'zod'
 
@@ -10,7 +15,11 @@ import { requireAdmin } from '@/server/auth'
 
 export type CommitChunkResult =
   | { ok: true; created: number; updated: number; skipped: number }
-  | { ok: false; error: 'unauthorized' | 'invalid' | 'failed'; detail?: string }
+  | {
+      ok: false
+      error: 'unauthorized' | 'invalid' | 'room_busy' | 'room_unfit' | 'failed'
+      detail?: string
+    }
 
 /**
  * Writes one chunk of validated records. The browser did the parsing and review; the server
@@ -41,6 +50,13 @@ export async function commitImportChunk(
         ok: false,
         error: 'invalid',
         detail: `#${error.index}: ${error.issues.map(i => i.message).join(', ')}`,
+      }
+    }
+    if (error instanceof CommitRefusedError) {
+      return {
+        ok: false,
+        error: error.reason === 'ROOM_BUSY' ? 'room_busy' : 'room_unfit',
+        detail: `#${error.index}: ${error.key}`,
       }
     }
     console.error(error)

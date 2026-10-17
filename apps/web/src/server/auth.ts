@@ -60,6 +60,7 @@ async function syncFromClerk(
     role,
     sessionId,
     lastSignInAt: user.lastSignInAt === null ? null : new Date(user.lastSignInAt),
+    clerkUpdatedAt: new Date(user.updatedAt),
     syncedAt: now,
   })
 }
@@ -82,7 +83,10 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     // Without a stored role there is nothing safe to fall back on: show the error page.
     if (!row) throw error
     console.warn('Clerk sync failed; using the stored role', error)
-    return toSessionUser(row)
+    // A role Clerk has not confirmed for long may have been taken away there: read-only, with
+    // personal data redacted, until Clerk answers again.
+    const unconfirmed = now.getTime() - row.syncedAt.getTime() > 2 * SYNC_INTERVAL_MS
+    return toSessionUser(unconfirmed ? { ...row, role: 'VIEWER' } : row)
   }
 })
 

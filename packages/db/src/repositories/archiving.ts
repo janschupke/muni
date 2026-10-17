@@ -6,6 +6,7 @@ import type { Tx } from '../client'
 import { ACTIVE, toUserRef, userSelect } from './archive'
 import { dbOf, type RepoOptions } from './context'
 import { stateOf } from './employment'
+import { type SessionProblem, storedSessionProblem } from './mutations'
 import { lockSessions } from './session-fit'
 
 // Archiving and unarchiving. Nothing in the app deletes a record: archiving hides it from every
@@ -43,6 +44,8 @@ export type UnarchiveOutcome =
   | { ok: true }
   | { ok: false; reason: 'NOT_FOUND' | 'PARENT_ARCHIVED' }
   | { ok: false; reason: 'TAKEN'; fields: UniqueField[] }
+  /** An upcoming session whose room is now taken then, or no longer suits it. */
+  | { ok: false; reason: 'SESSION'; problem: SessionProblem }
 
 type ArchiveOptions = RepoOptions & { now?: Date }
 
@@ -100,6 +103,18 @@ interface Delegate {
   update(args: object): Promise<unknown>
 }
 const delegate = (tx: Tx, kind: Archivable) => tx[KINDS[kind].model] as unknown as Delegate
+
+/**
+ * Holds a parent's row while a child comes back, so archiving the parent (which locks it for
+ * update and counts its children) waits, and sees the child.
+ */
+async function shareRow(tx: Tx, kind: Archivable, id: string) {
+  const [row] = await tx.$queryRawUnsafe<{ archived_at: Date | null }[]>(
+    `SELECT archived_at FROM ${KINDS[kind].table} WHERE id = $1 FOR SHARE`,
+    id
+  )
+  return row ?? null
+}
 
 /** Locks the record's row; its archived state is read under the lock. */
 async function lockRow(tx: Tx, kind: Archivable, id: string) {
@@ -261,11 +276,15 @@ export async function archiveRecord(
 export async function unarchiveRecord(
   kind: Archivable,
   id: string,
-  options?: RepoOptions
+  options?: ArchiveOptions
 ): Promise<UnarchiveOutcome> {
   const config = KINDS[kind]
+  const now = options?.now ?? new Date()
   try {
     return await dbOf(options).$transaction(async tx => {
+      // A session comes back into a room and a course: it takes turns with session writes and
+      // with archiving either of them, as they take the same lock.
+      if (kind === 'session') await lockSessions(tx)
       const lock = await lockRow(tx, kind, id)
       if (!lock?.archived_at) return { ok: false, reason: 'NOT_FOUND' }
       const row = await delegate(tx, kind).findUnique({ where: { id } })
@@ -274,11 +293,15 @@ export async function unarchiveRecord(
       for (const [parent, field] of config.parents) {
         const parentId = row[field]
         if (typeof parentId !== 'string') continue
-        const active = await delegate(tx, parent).count({ where: { id: parentId, ...ACTIVE } })
-        if (active === 0) return { ok: false, reason: 'PARENT_ARCHIVED' }
+        const held = await shareRow(tx, parent, parentId)
+        if (held?.archived_at !== null) return { ok: false, reason: 'PARENT_ARCHIVED' }
       }
       const taken = await takenFields(tx, kind, row)
       if (taken.length > 0) return { ok: false, reason: 'TAKEN', fields: taken }
+      if (kind === 'session') {
+        const problem = await storedSessionProblem(tx, id, now)
+        if (problem) return { ok: false, reason: 'SESSION', problem }
+      }
 
       await delegate(tx, kind).update({
         where: { id },
@@ -343,11 +366,14 @@ const datetime = (key: string, value: Date | null): ArchivedField => ({
 interface ArchivedRow {
   id: string
   archivedAt: Date | null
+  /** People carry a stored random tag; other records are tagged from their id. */
+  archiveTag?: string | null
   archivedBy: {
     id: string
     name: string | null
     email: string | null
     archivedAt: Date | null
+    archiveTag: string | null
   } | null
 }
 
@@ -362,7 +388,7 @@ function item(
     label,
     detail,
     when,
-    tag: archiveTag(row.id),
+    tag: row.archiveTag ?? archiveTag(row.id),
     archivedAt: (row.archivedAt ?? new Date(0)).toISOString(),
     archivedBy: row.archivedBy ? toUserRef(row.archivedBy) : null,
   }
@@ -387,12 +413,18 @@ export async function listArchived(
   switch (kind) {
     case 'employee':
       return (
-        await db.employee.findMany({ ...base, select: { id: true, ...archivedBySelect } })
+        await db.employee.findMany({
+          ...base,
+          select: { id: true, archiveTag: true, ...archivedBySelect },
+        })
       ).map(r => item(r, null))
     case 'user':
-      return (await db.user.findMany({ ...base, select: { id: true, ...archivedBySelect } })).map(
-        r => item(r, null)
-      )
+      return (
+        await db.user.findMany({
+          ...base,
+          select: { id: true, archiveTag: true, ...archivedBySelect },
+        })
+      ).map(r => item(r, null))
     case 'course':
       return (
         await db.course.findMany({
@@ -516,6 +548,7 @@ export async function getArchivedRecord(
           status: true,
           hiredOn: true,
           leftOn: true,
+          archiveTag: true,
           department: { select: { name: true } },
           position: { select: { name: true } },
           ...archivedBySelect,
@@ -549,6 +582,7 @@ export async function getArchivedRecord(
           email: true,
           role: true,
           lastSignInAt: true,
+          archiveTag: true,
           ...archivedBySelect,
         },
       })
@@ -556,7 +590,7 @@ export async function getArchivedRecord(
         u &&
         record(
           u,
-          u.name ?? u.email ?? archiveTag(u.id),
+          u.name ?? u.email ?? u.archiveTag ?? u.id,
           [text('email', u.email), text('role', u.role), datetime('lastSignInAt', u.lastSignInAt)],
           null
         )

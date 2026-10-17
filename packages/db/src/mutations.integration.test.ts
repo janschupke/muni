@@ -42,7 +42,7 @@ import {
 } from './repositories'
 import { complianceOptions, dbOf } from './repositories/context'
 import { seedFromDirectory } from './seed'
-import { COMMIT_CHUNK_SIZE, commitChunk, CommitValidationError } from './writer'
+import { COMMIT_CHUNK_SIZE, commitChunk, CommitRefusedError, CommitValidationError } from './writer'
 
 // Writes that the main suite does not exercise. Everything here is undone in afterAll:
 // a re-seed restores edited rows (upsert by source ID) and app-created rows are deleted.
@@ -383,6 +383,9 @@ describe('bookings the main suite does not reach', () => {
       move('T019'),
       move('T018', 0),
       moveSeatsMany('T999', [{ to: 'T018', count: 1 }], { ...options, now }),
+      // Nor out of a session that is cancelled or over: those seats are history.
+      moveSeatsMany('T017', [{ to: 'T018', count: 1 }], { ...options, now }),
+      moveSeatsMany('T019', [{ to: 'T018', count: 1 }], { ...options, now }),
     ])
     expect(reasons.map(r => (r.ok ? 'ok' : r.reason))).toEqual([
       'SAME_SESSION',
@@ -392,6 +395,8 @@ describe('bookings the main suite does not reach', () => {
       'PAST',
       'NOT_ENOUGH_UNNAMED',
       'SESSION_NOT_FOUND',
+      'NOT_PLANNED',
+      'PAST',
     ])
   })
 })
@@ -545,6 +550,58 @@ describe('rooms', () => {
       ok: false,
       problem: 'ROOM_BUSY',
     })
+  })
+
+  it('refuses to move a session onto a time its booked people are elsewhere', async () => {
+    // S001: CREATED.room, 2027-03-03 09:00-13:00. A second session on another day, then one
+    // person booked on both.
+    const first = await getSession('S001', options)
+    if (!first) throw new Error('no S001')
+    const later = {
+      courseId: first.courseId,
+      date: '2027-03-10',
+      startTime: '09:00',
+      endTime: '10:00',
+      roomId: first.room.id,
+      capacity: 5,
+      pricePerPerson: null,
+      status: 'PLANNED' as const,
+    }
+    const created = await createSession(later, options)
+    if (!created.ok) throw new Error('second session refused')
+    const booked = await applyAssignments(
+      ['S001', created.externalId].map(sessionExternalId => ({
+        sessionExternalId,
+        employeeExternalId: 'E0153',
+        source: 'MANUAL' as const,
+      })),
+      TEST_USER,
+      { ...options, now }
+    )
+    expect(booked.map(b => b.ok)).toEqual([true, true])
+    // Another room that suits the course is free then; but E0153 is at S001.
+    const needs = (await listCourseOptions(options)).find(c => c.id === first.courseId)?.needs
+    const other = (await listRoomOptions(options)).find(
+      r => r.id !== first.room.id && needs && roomMismatch(r, needs, 5) === null
+    )
+    if (!other) throw new Error('no other room for the course')
+    const onto = { ...later, date: '2027-03-03', startTime: '12:00', endTime: '13:00' }
+    expect(
+      await updateSession(
+        created.externalId,
+        { ...onto, roomId: other.id, unnamedBookings: 0 },
+        options
+      )
+    ).toEqual({ ok: false, problem: 'ATTENDEE_CONFLICT' })
+    // Cancelled, it holds nobody anywhere.
+    expect(
+      await updateSession(
+        created.externalId,
+        { ...onto, status: 'CANCELLED', unnamedBookings: 0 },
+        options
+      )
+    ).toMatchObject({ ok: true })
+    await db.sessionAssignment.deleteMany({ where: { employee: { externalId: 'E0153' } } })
   })
 
   it('imports rooms and creates the ones only sessions name', async () => {
@@ -748,6 +805,63 @@ describe('the writer refuses what it should never write', () => {
     ]).catch((e: unknown) => e)
     expect(error).toBeInstanceOf(CommitValidationError)
     expect(error).toMatchObject({ index: 1 })
+  })
+
+  it('refuses app IDs, and rooms that app sessions hold or would no longer fit in', async () => {
+    // S001 is the app's session in CREATED.room on 2027-03-03, 09:00-13:00 (seats 16).
+    const session = {
+      externalId: 'S777',
+      courseCode: 'LAB-BEZ',
+      date: '2027-03-03',
+      startTime: '10:00',
+      endTime: '11:00',
+      location: CREATED.room,
+      capacity: 5,
+      bookedCount: 0,
+      pricePerPerson: null,
+      status: 'PLANNED',
+    }
+    const reserved = await commitChunk(db, 'sessions', [session]).catch((e: unknown) => e)
+    expect(reserved).toBeInstanceOf(CommitValidationError)
+    expect(reserved).toMatchObject({
+      index: 0,
+      issues: [{ path: ['externalId'], message: 'RESERVED_ID' }],
+    })
+    const completion = {
+      externalId: 'A12345',
+      employeeExternalId: 'E0153',
+      courseCode: 'LAB-BEZ',
+      completedOn: '2026-01-01',
+      validUntil: null,
+      provider: null,
+      price: null,
+      note: null,
+    }
+    await expect(commitChunk(db, 'completions', [completion])).rejects.toBeInstanceOf(
+      CommitValidationError
+    )
+
+    // The second record takes the room while S001 holds it: nothing of the chunk is written.
+    const busy = await commitChunk(db, 'sessions', [
+      { ...session, externalId: 'T950', startTime: '07:00', endTime: '08:00' },
+      { ...session, externalId: 'T951' },
+    ]).catch((e: unknown) => e)
+    expect(busy).toBeInstanceOf(CommitRefusedError)
+    expect(busy).toMatchObject({ index: 1, reason: 'ROOM_BUSY', key: 'T951 → S001' })
+    expect(await db.courseSession.count({ where: { externalId: { in: ['T950', 'T951'] } } })).toBe(
+      0
+    )
+    // A cancelled one holds nothing.
+    expect(
+      await commitChunk(db, 'sessions', [{ ...session, externalId: 'T952', status: 'CANCELLED' }])
+    ).toEqual({ created: 1, updated: 0, skipped: 0 })
+
+    // Four seats would no longer hold S001's sixteen.
+    await expect(
+      commitChunk(db, 'rooms', [
+        { name: CREATED.room, kind: 'LAB', capacity: 4, capabilities: null, note: null },
+      ])
+    ).rejects.toMatchObject({ reason: 'ROOM_UNFIT', key: CREATED.room })
   })
 
   it('caps the chunk size', async () => {

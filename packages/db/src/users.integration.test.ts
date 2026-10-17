@@ -28,6 +28,7 @@ const sync = (clerkId: string, overrides: Partial<Parameters<typeof upsertUserFr
   role: 'VIEWER' as const,
   sessionId: null,
   lastSignInAt: null,
+  clerkUpdatedAt: new Date('2026-10-16T09:00:00Z'),
   syncedAt: new Date('2026-10-16T10:00:00Z'),
   ...overrides,
 })
@@ -77,6 +78,27 @@ describe('users', () => {
     expect((await listUsers(options)).some(u => u.id === user.id)).toBe(false)
   })
 
+  it('keeps a role the app changed after Clerk last changed', async () => {
+    const user = await upsertUserFromClerk(sync('late', { name: 'Lada', role: 'ADMIN' }), options)
+    // An admin demotes her here at 09:30; Clerk has not been written yet.
+    await db.user.update({
+      where: { id: user.id },
+      data: { role: 'VIEWER', roleChangedAt: new Date('2026-10-16T09:30:00Z') },
+    })
+    const stale = await upsertUserFromClerk(sync('late', { name: 'Lada', role: 'ADMIN' }), options)
+    expect(stale.role).toBe('VIEWER')
+    // Once Clerk has changed since, Clerk wins again (a change made in Clerk's dashboard).
+    const fresh = await upsertUserFromClerk(
+      sync('late', {
+        name: 'Lada',
+        role: 'FULL',
+        clerkUpdatedAt: new Date('2026-10-16T09:45:00Z'),
+      }),
+      options
+    )
+    expect(fresh.role).toBe('FULL')
+  })
+
   it('lists admins first, then by name', async () => {
     await upsertUserFromClerk(sync('b', { name: 'Bára', role: 'ADMIN' }), options)
     await upsertUserFromClerk(sync('c', { name: 'Cyril' }), options)
@@ -84,6 +106,7 @@ describe('users', () => {
     expect(ours.map(u => [u.name, u.role])).toEqual([
       ['Bára', 'ADMIN'],
       ['Alena', 'FULL'],
+      ['Lada', 'FULL'],
       ['Cyril', 'VIEWER'],
       ['Rita', 'VIEWER'],
     ])

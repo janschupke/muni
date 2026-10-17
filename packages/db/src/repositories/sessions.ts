@@ -91,6 +91,7 @@ interface SessionRow {
       firstName: string
       lastName: string
       archivedAt: Date | null
+      archiveTag: string | null
       department: { name: string } | null
       position: { name: string } | null
     }

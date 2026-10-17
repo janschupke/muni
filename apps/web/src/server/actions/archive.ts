@@ -71,12 +71,19 @@ export async function unarchiveAction(
     return { status: 'refused', reason: 'generic' }
   }
   if (!outcome.ok) {
-    return outcome.reason === 'TAKEN'
-      ? { status: 'refused', reason: 'taken', fields: outcome.fields }
-      : {
+    switch (outcome.reason) {
+      case 'TAKEN':
+        return { status: 'refused', reason: 'taken', fields: outcome.fields }
+      case 'SESSION':
+        return {
           status: 'refused',
-          reason: outcome.reason === 'NOT_FOUND' ? 'not_found' : 'parent_archived',
+          reason: outcome.problem === 'ROOM_BUSY' ? 'room_busy' : 'room_unfit',
         }
+      case 'NOT_FOUND':
+        return { status: 'refused', reason: 'not_found' }
+      case 'PARENT_ARCHIVED':
+        return { status: 'refused', reason: 'parent_archived' }
+    }
   }
   return then ? { status: 'done', href: then } : { status: 'done' }
 }

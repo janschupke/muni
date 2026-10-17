@@ -14,7 +14,7 @@ import { cleanFreeText } from '@muni/utils/text'
 
 import type { Tx } from '../client'
 import { ACTIVE, isArchived } from './archive'
-import { applyOne, type AssignmentFailure } from './assignments'
+import { applyOne, type AssignmentFailure, BATCH_TX, lockPeople } from './assignments'
 import { dbOf, type RepoOptions } from './context'
 import {
   lockSessions,
@@ -38,6 +38,8 @@ export type SessionProblem =
   | 'COURSE_ARCHIVED'
   /** Fewer seats than are booked (unnamed and named together). */
   | 'OVER_CAPACITY'
+  /** Someone booked by name has another planned session at the new time. */
+  | 'ATTENDEE_CONFLICT'
 
 export type SessionWrite =
   { ok: true; externalId: string; courseCode: string } | { ok: false; problem: SessionProblem }
@@ -123,6 +125,46 @@ async function sessionProblem(
 }
 
 /**
+ * What stops a stored session from standing as it is now: for a session being brought back
+ * from the archive, whose room may since have been taken or changed. Past and cancelled
+ * sessions hold nothing. Run after the sessions lock.
+ */
+export async function storedSessionProblem(
+  tx: Tx,
+  id: string,
+  now: Date
+): Promise<SessionProblem | null> {
+  const session = await tx.courseSession.findUniqueOrThrow({
+    where: { id },
+    select: {
+      externalId: true,
+      courseId: true,
+      roomId: true,
+      startsAt: true,
+      endsAt: true,
+      capacity: true,
+      unnamedBookings: true,
+      status: true,
+      _count: { select: { assignments: true } },
+    },
+  })
+  if (session.status !== 'PLANNED' || session.endsAt < now) return null
+  return sessionProblem(
+    tx,
+    {
+      courseId: session.courseId,
+      roomId: session.roomId,
+      startsAt: session.startsAt,
+      endsAt: session.endsAt,
+      capacity: session.capacity,
+      booked: session.unnamedBookings + session._count.assignments,
+      planned: true,
+    },
+    { externalId: session.externalId, courseId: session.courseId, roomId: session.roomId }
+  )
+}
+
+/**
  * Whether the room is free then, for the session form to say while the user picks (no lock:
  * saving checks again). `self` is the session being edited, which never clashes with itself.
  */
@@ -137,6 +179,31 @@ export async function checkSessionSlot(
   return dbOf(options).$transaction(async tx =>
     (await roomBusy(tx, { roomId: input.roomId, startsAt, endsAt }, self)) ? 'ROOM_BUSY' : null
   )
+}
+
+/**
+ * Whether someone booked on the session by name has another planned session overlapping the
+ * new time. Their rows are locked first, as booking locks them, so no clash is booked meanwhile.
+ */
+async function attendeeClash(tx: Tx, sessionId: string, startsAt: Date, endsAt: Date) {
+  await tx.$queryRaw`
+    SELECT e.id FROM employees e
+    JOIN session_assignments a ON a.employee_id = e.id AND a.session_id = ${sessionId}
+    ORDER BY e.id FOR UPDATE OF e`
+  const clash = await tx.sessionAssignment.findFirst({
+    where: {
+      employee: { assignments: { some: { sessionId } } },
+      session: {
+        ...ACTIVE,
+        id: { not: sessionId },
+        status: 'PLANNED',
+        startsAt: { lt: endsAt },
+        endsAt: { gt: startsAt },
+      },
+    },
+    select: { id: true },
+  })
+  return clash !== null
 }
 
 export async function updateSession(
@@ -172,6 +239,12 @@ export async function updateSession(
       { externalId, courseId: current.course_id, roomId: current.room_id }
     )
     if (problem) return { ok: false, problem }
+    if (
+      data.status === 'PLANNED' &&
+      named > 0 &&
+      (await attendeeClash(tx, current.id, startsAt, endsAt))
+    )
+      return { ok: false, problem: 'ATTENDEE_CONFLICT' }
     const saved = await tx.courseSession.update({
       where: { id: current.id },
       data: {
@@ -283,6 +356,7 @@ export async function createSessionWithBookings(
       const created = await insertSession(tx, data)
       if (!created.ok) throw new Rollback({ ok: false, problem: created.problem, refusals: [] })
       const refusals: { employeeExternalId: string; reason: AssignmentFailure }[] = []
+      await lockPeople(tx, people)
       for (const employeeExternalId of new Set(people)) {
         const reason = await applyOne(
           tx,
@@ -303,7 +377,7 @@ export async function createSessionWithBookings(
       }
       if (options?.dryRun) throw new Rollback(result)
       return result
-    })
+    }, BATCH_TX)
   } catch (error) {
     if (error instanceof Rollback) return error.result
     throw error

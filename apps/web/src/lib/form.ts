@@ -21,6 +21,7 @@ export type FieldErrorKey =
   | 'too_big_number'
   | 'too_long'
   | 'before_start'
+  | 'in_past'
   | 'before_hired'
   | 'before_completed'
   | 'duplicate'
@@ -37,6 +38,7 @@ export type FieldErrorKey =
   | 'own_role'
   | 'last_admin'
   | 'over_capacity'
+  | 'attendee_conflict'
   | 'sessions_unfit'
   | 'not_a_member'
   | 'pair_unknown'
@@ -73,6 +75,8 @@ type ArchiveRefusalKey =
   | 'not_found'
   | 'taken'
   | 'parent_archived'
+  | 'room_busy'
+  | 'room_unfit'
   | 'generic'
 
 /**
@@ -144,6 +148,7 @@ const KNOWN = new Set<string>([
   'too_small',
   'too_big',
   'before_start',
+  'in_past',
   'before_hired',
   'before_completed',
   'duplicate',
@@ -234,6 +239,7 @@ const PROBLEM_FIELD: Partial<Record<SessionProblem, string>> = {
   ROOM_TOO_SMALL: 'capacity',
   OVER_CAPACITY: 'capacity',
   COURSE_ARCHIVED: 'courseId',
+  ATTENDEE_CONFLICT: 'startTime',
 }
 
 /** A session the room cannot take: the reason goes on the field to change. */

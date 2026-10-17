@@ -437,6 +437,37 @@ describe('what may be archived', () => {
     expect(await unarchiveRecord('employee', employee.id, options)).toEqual({ ok: true })
   })
 
+  it('brings no session back into a room that another one now holds', async () => {
+    const roomId = await fixtureRoom(`${ROOM} termín`)
+    const course = await fixtureCourse('TEST-ARCH-SLOT')
+    const slot = {
+      courseId: course.id,
+      date: '2027-06-01',
+      startTime: '10:00',
+      endTime: '12:00',
+      roomId,
+      capacity: 10,
+      pricePerPerson: null,
+      status: 'PLANNED' as const,
+    }
+    const first = await createSession(slot, options)
+    if (!first.ok) throw new Error('first session refused')
+    const firstId = await idOf('courseSession', first.externalId)
+    expect(await archive('session', firstId)).toMatchObject({ ok: true })
+    // Its slot is free again, and another session takes it.
+    const second = await createSession(slot, options)
+    if (!second.ok) throw new Error('second session refused')
+    expect(await unarchiveRecord('session', firstId, options)).toEqual({
+      ok: false,
+      reason: 'SESSION',
+      problem: 'ROOM_BUSY',
+    })
+    expect(await archive('session', await idOf('courseSession', second.externalId))).toMatchObject({
+      ok: true,
+    })
+    expect(await unarchiveRecord('session', firstId, options)).toEqual({ ok: true })
+  })
+
   it('keeps an admin from archiving themselves or the last admin', async () => {
     expect(await archive('user', TEST_USER)).toEqual({ ok: false, reason: 'SELF', count: 0 })
     // Only this admin is active while the check runs.
@@ -586,8 +617,14 @@ describe('archived people are anonymised everywhere but on their own admin page'
           expect(text, `${role} ${name}: ${secret}`).not.toContain(secret)
       }
     }
-    // The report's manager and the past session's attendee are there, as a tag.
-    const tag = archiveTag(id)
+    // The report's manager and the past session's attendee are there, as the tag stored when
+    // they were archived: random, not one anybody could work out from the id lists send.
+    const { archiveTag: tag } = await db.employee.findUniqueOrThrow({
+      where: { id },
+      select: { archiveTag: true },
+    })
+    expect(tag).toMatch(/^[0-9a-f]{6}$/)
+    expect(tag).not.toBe(archiveTag(id))
     expect((await getEmployee(report.externalId, 'ADMIN', options))?.manager).toEqual({
       archived: true,
       tag,
@@ -700,9 +737,17 @@ describe('archived records, for admins', () => {
 
     for (const [kind, id, label] of records) {
       const listed = (await listArchived(kind, 'ADMIN', options)).find(i => i.id === id)
+      // People carry their stored tag; other records one derived from the id.
+      const select = { where: { id }, select: { archiveTag: true } }
+      const stored =
+        kind === 'employee'
+          ? (await db.employee.findFirstOrThrow(select)).archiveTag
+          : kind === 'user'
+            ? (await db.user.findFirstOrThrow(select)).archiveTag
+            : archiveTag(id)
       expect(listed, kind).toMatchObject({
         label,
-        tag: archiveTag(id),
+        tag: stored,
         archivedBy: { archived: false, id: TEST_USER },
       })
       const record = await getArchivedRecord(kind, id, 'ADMIN', options)

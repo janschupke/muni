@@ -20,12 +20,19 @@ export const personSelect = {
   firstName: true,
   lastName: true,
   archivedAt: true,
+  archiveTag: true,
 } as const
 
 export const toPersonRef = personRef
 
 /** Select this to read an app user as a `UserRef`. */
-export const userSelect = { id: true, name: true, email: true, archivedAt: true } as const
+export const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  archivedAt: true,
+  archiveTag: true,
+} as const
 
 export const toUserRef = userRef
 

@@ -86,27 +86,40 @@ export interface ClerkUserSync {
   sessionId: string | null
   /** Clerk's last sign-in time, when it has one. */
   lastSignInAt: Date | null
+  /** When Clerk last changed the user: a role the app changed later is not Clerk's yet. */
+  clerkUpdatedAt: Date
   syncedAt: Date
 }
 
 /**
  * Creates or refreshes the user's row from Clerk. An archived user is returned as they are:
- * signing in again neither revives them nor creates a new row.
+ * signing in again neither revives them nor creates a new row. The role is taken only when
+ * Clerk changed after the app last changed it: an admin's change is written here first and to
+ * Clerk second, so a sync that read Clerk in between never puts the old role back.
  */
 export async function upsertUserFromClerk(
   sync: ClerkUserSync,
   options?: RepoOptions
 ): Promise<UserRecord> {
-  const { clerkId, sessionId, ...fields } = sync
+  const { clerkId, sessionId, role, clerkUpdatedAt, ...fields } = sync
   const data = { ...fields, lastSessionId: sessionId }
   const db = dbOf(options)
   const current = await findUserByClerkId(clerkId, options)
   if (current?.archived) return current
   if (current) {
-    return toRecord(await db.user.update({ where: { id: current.id }, data, select: RECORD }))
+    return db.$transaction(async tx => {
+      await tx.user.updateMany({
+        where: {
+          id: current.id,
+          OR: [{ roleChangedAt: null }, { roleChangedAt: { lte: clerkUpdatedAt } }],
+        },
+        data: { role },
+      })
+      return toRecord(await tx.user.update({ where: { id: current.id }, data, select: RECORD }))
+    })
   }
   try {
-    return toRecord(await db.user.create({ data: { clerkId, ...data }, select: RECORD }))
+    return toRecord(await db.user.create({ data: { clerkId, role, ...data }, select: RECORD }))
   } catch (error) {
     // Two first requests at once: the other created the row; refresh that one.
     if ((error as { code?: unknown }).code !== 'P2002') throw error
@@ -159,18 +172,20 @@ export async function getUser(id: string, options?: RepoOptions): Promise<UserDe
 }
 
 export type RoleChange =
-  { ok: true; clerkId: string } | { ok: false; reason: 'NOT_FOUND' | 'SELF' | 'LAST_ADMIN' }
+  | { ok: true; clerkId: string; previous: Role }
+  | { ok: false; reason: 'NOT_FOUND' | 'SELF' | 'LAST_ADMIN' }
 
 /**
- * Sets a user's role in the mirror, after it was written to Clerk (the source of truth; the
- * next sync would bring it anyway). Admins do not change their own role, and the last admin
- * stays one: both checks hold the admins' rows, so two admins cannot demote each other.
+ * Changes a user's role here first, then the caller writes it to Clerk (which every sync
+ * reads). Admins do not change their own role, and the last admin stays one: the check holds
+ * the admins' rows, so two admins demoting each other at once cannot both pass, and nothing
+ * reaches Clerk for the one refused.
  */
 export async function setUserRole(
   id: string,
   role: Role,
   byUserId: string,
-  options?: RepoOptions
+  options?: RepoOptions & { now?: Date }
 ): Promise<RoleChange> {
   if (id === byUserId) return { ok: false, reason: 'SELF' }
   return dbOf(options).$transaction(async tx => {
@@ -183,28 +198,25 @@ export async function setUserRole(
     if (!user) return { ok: false, reason: 'NOT_FOUND' }
     if (user.role === 'ADMIN' && role !== 'ADMIN' && !admins.some(a => a.id !== id))
       return { ok: false, reason: 'LAST_ADMIN' }
-    await tx.user.update({ where: { id }, data: { role } })
-    return { ok: true, clerkId: user.clerkId }
+    await tx.user.update({
+      where: { id },
+      data: { role, roleChangedAt: options?.now ?? new Date() },
+    })
+    return { ok: true, clerkId: user.clerkId, previous: user.role }
   })
 }
 
-/** Whether a role change would be allowed now (the Clerk write happens only if so). */
-export async function canSetUserRole(
+/**
+ * Puts a role back after Clerk refused the change: only if the role is still the one this
+ * change set, so a later change is never undone.
+ */
+export async function revertUserRole(
   id: string,
-  role: Role,
-  byUserId: string,
+  change: { from: Role; to: Role },
   options?: RepoOptions
-): Promise<RoleChange> {
-  if (id === byUserId) return { ok: false, reason: 'SELF' }
-  const db = dbOf(options)
-  const user = await db.user.findFirst({
-    where: { id, ...ACTIVE },
-    select: { clerkId: true, role: true },
+): Promise<void> {
+  await dbOf(options).user.updateMany({
+    where: { id, role: change.to, ...ACTIVE },
+    data: { role: change.from, roleChangedAt: new Date() },
   })
-  if (!user) return { ok: false, reason: 'NOT_FOUND' }
-  if (user.role === 'ADMIN' && role !== 'ADMIN') {
-    const others = await db.user.count({ where: { role: 'ADMIN', ...ACTIVE, id: { not: id } } })
-    if (others === 0) return { ok: false, reason: 'LAST_ADMIN' }
-  }
-  return { ok: true, clerkId: user.clerkId }
 }

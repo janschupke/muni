@@ -52,6 +52,8 @@ async function guarded(run: () => Promise<{ id: string }>): Promise<GroupWrite> 
 async function setHead(tx: Tx, departmentId: string, headId: string | null) {
   await tx.$queryRaw`SELECT id FROM departments WHERE id = ${departmentId} FOR UPDATE`
   if (headId) {
+    // The person's row too, as archiving them takes it: an archived person never becomes head.
+    await tx.$queryRaw`SELECT id FROM employees WHERE id = ${headId} FOR UPDATE`
     const head = await tx.employee.findFirst({
       where: { id: headId, departmentId, ...ACTIVE, ...stillEmployed() },
       select: { id: true },
@@ -96,6 +98,12 @@ async function setDepartments(tx: Tx, positionId: string, departmentIds: string[
     SELECT id FROM departments WHERE id = ANY(${departmentIds}) AND archived_at IS NULL FOR SHARE`
   if (departments.length !== departmentIds.length)
     throw new Refused({ field: 'departmentIds', reason: 'not_found' })
+  // The pairs left out, locked before their holders are counted: a person given one of them
+  // meanwhile (which reads the pair FOR SHARE) is either counted here or finds it gone.
+  await tx.$queryRaw`
+    SELECT 1 FROM department_positions
+     WHERE position_id = ${positionId} AND NOT (department_id = ANY(${departmentIds}))
+     FOR UPDATE`
   const dropped = { positionId, departmentId: { notIn: departmentIds } }
   const holders = await tx.employee.count({ where: { ...ACTIVE, ...dropped } })
   if (holders > 0) throw new Refused({ field: 'departmentIds', reason: 'in_use', count: holders })

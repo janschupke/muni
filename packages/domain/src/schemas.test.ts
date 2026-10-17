@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   completionEditSchema,
@@ -267,6 +267,33 @@ describe('rooms and new sessions', () => {
     ])
     // A new session opens at least one seat.
     expect(sessionCreateSchema.safeParse({ ...create, capacity: 0 }).success).toBe(false)
+  })
+
+  it('plan a new session for today or later, never for a day gone by', () => {
+    vi.useFakeTimers({ now: new Date('2026-10-17T10:00:00Z') })
+    try {
+      const create = {
+        courseId: 'course_bozp',
+        date: '2026-10-17',
+        startTime: '14:00',
+        endTime: '16:00',
+        roomId: 'room_aula_a',
+        capacity: 10,
+        pricePerPerson: null,
+        status: 'PLANNED',
+      }
+      expect(sessionCreateSchema.safeParse(create).success).toBe(true)
+      expect(issues(sessionCreateSchema.safeParse({ ...create, date: '2026-10-16' }))).toEqual([
+        'date: in_past',
+      ])
+      // Recording one that was cancelled is another matter.
+      expect(
+        sessionCreateSchema.safeParse({ ...create, date: '2026-10-16', status: 'CANCELLED' })
+          .success
+      ).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

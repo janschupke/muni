@@ -144,11 +144,11 @@ export {
 export { getRoom, getRoomForEdit, listRooms, type RoomDetail, type RoomListItem } from './rooms'
 export { getSession, listSessions, type SessionWindow } from './sessions'
 export {
-  canSetUserRole,
   type ClerkUserSync,
   findUserByClerkId,
   getUser,
   listUsers,
+  revertUserRole,
   type RoleChange,
   setUserRole,
   upsertUserFromClerk,

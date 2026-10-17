@@ -4,7 +4,6 @@ import {
   applyAssignments,
   archiveImpact,
   archiveRecord,
-  canSetUserRole,
   checkSessionSlot,
   createCompletion,
   createCourse,
@@ -17,6 +16,7 @@ import {
   moveSeatsMany,
   raiseCapacity,
   removeAssignment,
+  revertUserRole,
   saveDepartment,
   savePosition,
   setUserRole,
@@ -30,7 +30,7 @@ import {
   upsertUserFromClerk,
   type UserRecord,
 } from '@muni/db/repositories'
-import { commitChunk, CommitValidationError } from '@muni/db/writer'
+import { commitChunk, CommitRefusedError, CommitValidationError } from '@muni/db/writer'
 import type { Role } from '@muni/domain/enums'
 import { NO_ARCHIVED } from '@muni/importer'
 import { revalidatePath } from 'next/cache'
@@ -83,7 +83,7 @@ vi.mock('@muni/db/repositories', () => ({
   archiveImpact: vi.fn(),
   archiveRecord: vi.fn(),
   unarchiveRecord: vi.fn(),
-  canSetUserRole: vi.fn(),
+  revertUserRole: vi.fn(),
   setUserRole: vi.fn(),
   createCourse: vi.fn(),
   createEmployee: vi.fn(),
@@ -151,6 +151,7 @@ const clerkHas = (role: unknown) => {
     fullName: 'Jana Nová',
     username: null,
     lastSignInAt: Date.parse('2026-10-16T09:00:00Z'),
+    updatedAt: Date.parse('2026-10-16T08:00:00Z'),
   })
 }
 
@@ -228,6 +229,7 @@ describe('session user', () => {
       role: 'VIEWER',
       sessionId: 'sess_1',
       lastSignInAt: new Date('2026-10-16T09:00:00Z'),
+      clerkUpdatedAt: new Date('2026-10-16T08:00:00Z'),
       syncedAt: expect.any(Date) as Date,
     })
   })
@@ -321,6 +323,10 @@ describe('session user', () => {
     )
     expect(await getSessionUser()).toMatchObject({ role: 'FULL' })
     expect(warn).toHaveBeenCalled()
+    // Unconfirmed for over twice the interval: read-only until Clerk answers.
+    const long = new Date(Date.now() - 2 * SYNC_INTERVAL_MS - 1000)
+    vi.mocked(findUserByClerkId).mockResolvedValue(userRow('user_1', 'ADMIN', { syncedAt: long }))
+    expect(await getSessionUser()).toMatchObject({ role: 'VIEWER' })
     vi.mocked(findUserByClerkId).mockResolvedValue(null)
     await expect(getSessionUser()).rejects.toThrow('Clerk down')
   })
@@ -773,50 +779,51 @@ describe('department and position actions', () => {
 })
 
 describe('role changes', () => {
-  it('write the role to Clerk, then the mirror, and show the user', async () => {
-    vi.mocked(canSetUserRole).mockResolvedValue({ ok: true, clerkId: 'user_2' })
-    vi.mocked(setUserRole).mockResolvedValue({ ok: true, clerkId: 'user_2' })
+  it('write the role here first, then to Clerk, and show the user', async () => {
+    vi.mocked(setUserRole).mockResolvedValue({ ok: true, clerkId: 'user_2', previous: 'VIEWER' })
     expect(await redirectOf(saveUserRole('usr_2', idle, form({ role: 'FULL' })))).toBe(
       '/users/usr_2'
     )
+    expect(setUserRole).toHaveBeenCalledWith('usr_2', 'FULL', 'usr_1')
     expect(clerkUsers.updateUserMetadata).toHaveBeenCalledWith('user_2', {
       publicMetadata: { role: 'full' },
     })
-    expect(setUserRole).toHaveBeenCalledWith('usr_2', 'FULL', 'usr_1')
+    expect(revertUserRole).not.toHaveBeenCalled()
   })
 
   it('refuse an unknown role, one’s own, the last admin’s, and a user who is gone', async () => {
     expect(await saveUserRole('usr_2', idle, form({ role: 'OWNER' }))).toMatchObject({
       fieldErrors: { role: 'required' },
     })
-    vi.mocked(canSetUserRole).mockResolvedValueOnce({ ok: false, reason: 'SELF' })
+    vi.mocked(setUserRole).mockResolvedValueOnce({ ok: false, reason: 'SELF' })
     expect(await saveUserRole('usr_1', idle, form({ role: 'FULL' }))).toMatchObject({
       fieldErrors: { role: 'own_role' },
     })
-    vi.mocked(canSetUserRole).mockResolvedValueOnce({ ok: false, reason: 'LAST_ADMIN' })
+    vi.mocked(setUserRole).mockResolvedValueOnce({ ok: false, reason: 'LAST_ADMIN' })
     expect(await saveUserRole('usr_2', idle, form({ role: 'FULL' }))).toMatchObject({
       fieldErrors: { role: 'last_admin' },
     })
-    vi.mocked(canSetUserRole).mockResolvedValueOnce({ ok: false, reason: 'NOT_FOUND' })
+    vi.mocked(setUserRole).mockResolvedValueOnce({ ok: false, reason: 'NOT_FOUND' })
     expect(await saveUserRole('gone', idle, form({ role: 'FULL' }))).toMatchObject({
       formError: 'not_found',
     })
+    // Nothing refused here ever reaches Clerk.
     expect(clerkUsers.updateUserMetadata).not.toHaveBeenCalled()
-    // Clerk fails, or the mirror refuses after all.
-    vi.mocked(canSetUserRole).mockResolvedValue({ ok: true, clerkId: 'user_2' })
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(setUserRole).mockRejectedValueOnce(new Error('deadlock'))
+    expect(await saveUserRole('usr_2', idle, form({ role: 'FULL' }))).toMatchObject({
+      formError: 'generic',
+    })
+  })
+
+  it('puts the role back when Clerk refuses it', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(setUserRole).mockResolvedValue({ ok: true, clerkId: 'user_2', previous: 'ADMIN' })
     clerkUsers.updateUserMetadata.mockRejectedValueOnce(new Error('Clerk down'))
     expect(await saveUserRole('usr_2', idle, form({ role: 'FULL' }))).toMatchObject({
       formError: 'generic',
     })
-    vi.mocked(setUserRole).mockResolvedValueOnce({ ok: false, reason: 'LAST_ADMIN' })
-    expect(await saveUserRole('usr_2', idle, form({ role: 'FULL' }))).toMatchObject({
-      formError: 'generic',
-    })
-    vi.mocked(setUserRole).mockResolvedValueOnce({ ok: false, reason: 'NOT_FOUND' })
-    expect(await saveUserRole('usr_2', idle, form({ role: 'FULL' }))).toMatchObject({
-      formError: 'not_found',
-    })
+    expect(revertUserRole).toHaveBeenCalledWith('usr_2', { from: 'ADMIN', to: 'FULL' })
   })
 })
 
@@ -983,6 +990,17 @@ describe('import commit', () => {
       error: 'invalid',
       detail: '#3: before_start',
     })
+    // Valid, but in the way of what the app planned.
+    vi.mocked(commitChunk).mockRejectedValueOnce(
+      new CommitRefusedError(1, 'ROOM_BUSY', 'T951 → S001')
+    )
+    expect(await commitImportChunk('sessions', [course])).toEqual({
+      ok: false,
+      error: 'room_busy',
+      detail: '#1: T951 → S001',
+    })
+    vi.mocked(commitChunk).mockRejectedValueOnce(new CommitRefusedError(0, 'ROOM_UNFIT', 'Aula A'))
+    expect(await commitImportChunk('rooms', [course])).toMatchObject({ error: 'room_unfit' })
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     vi.mocked(commitChunk).mockRejectedValueOnce(new Error('deadlock'))
     expect(await commitImportChunk('sessions', [course])).toEqual({ ok: false, error: 'failed' })
@@ -1325,6 +1343,22 @@ describe('archive actions', () => {
     vi.mocked(unarchiveRecord).mockResolvedValueOnce({ ok: false, reason: 'NOT_FOUND' })
     expect(await unarchiveAction('session', 's1', null, idle)).toMatchObject({
       reason: 'not_found',
+    })
+    vi.mocked(unarchiveRecord).mockResolvedValueOnce({
+      ok: false,
+      reason: 'SESSION',
+      problem: 'ROOM_BUSY',
+    })
+    expect(await unarchiveAction('session', 's1', null, idle)).toMatchObject({
+      reason: 'room_busy',
+    })
+    vi.mocked(unarchiveRecord).mockResolvedValueOnce({
+      ok: false,
+      reason: 'SESSION',
+      problem: 'ROOM_TOO_SMALL',
+    })
+    expect(await unarchiveAction('session', 's1', null, idle)).toMatchObject({
+      reason: 'room_unfit',
     })
     vi.mocked(unarchiveRecord).mockResolvedValueOnce({ ok: true })
     expect(await unarchiveAction('session', 's1', null, idle)).toEqual({ status: 'done' })

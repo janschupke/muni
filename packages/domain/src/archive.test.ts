@@ -28,6 +28,7 @@ describe('personRef', () => {
     firstName: 'Tereza',
     lastName: 'Urbanová',
     archivedAt: null,
+    archiveTag: null,
   }
 
   it('names an active person "Last First"', () => {
@@ -40,8 +41,10 @@ describe('personRef', () => {
 
   it('keeps nothing of an archived person but the tag', () => {
     const extra = { ...row, email: 'tereza@vzorova.example', nationalId: '8551011234' }
-    const ref = personRef({ ...extra, archivedAt: new Date('2026-10-20') })
-    expect(ref).toEqual({ archived: true, tag: archiveTag('cm-person-1') })
+    const ref = personRef({ ...extra, archivedAt: new Date('2026-10-20'), archiveTag: '3fa9c1' })
+    // The stored random tag, never one derived from the id every reader receives.
+    expect(ref).toEqual({ archived: true, tag: '3fa9c1' })
+    expect(ref).not.toEqual({ archived: true, tag: archiveTag('cm-person-1') })
     const text = JSON.stringify(ref)
     for (const value of ['E0042', 'Tereza', 'Urbanová', 'vzorova', '8551011234']) {
       expect(text).not.toContain(value)
@@ -50,7 +53,13 @@ describe('personRef', () => {
 })
 
 describe('userRef', () => {
-  const row = { id: 'cm-user-1', name: 'Jana Admin', email: 'jana@muni.example', archivedAt: null }
+  const row = {
+    id: 'cm-user-1',
+    name: 'Jana Admin',
+    email: 'jana@muni.example',
+    archivedAt: null,
+    archiveTag: null,
+  }
 
   it('passes an active user through', () => {
     expect(userRef(row)).toEqual({
@@ -62,8 +71,8 @@ describe('userRef', () => {
   })
 
   it('reduces an archived user to the tag', () => {
-    const ref = userRef({ ...row, archivedAt: new Date() })
-    expect(Object.keys(ref).sort()).toEqual(['archived', 'tag'])
+    const ref = userRef({ ...row, archivedAt: new Date(), archiveTag: '0b7e22' })
+    expect(ref).toEqual({ archived: true, tag: '0b7e22' })
     expect(JSON.stringify(ref)).not.toMatch(/Jana|muni\.example|cm-user-1/)
   })
 })

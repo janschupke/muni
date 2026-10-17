@@ -193,6 +193,30 @@ export async function updateCourse(
   )
 }
 
+/**
+ * Finds the active row and locks it for the rest of the transaction, as archiving does: an
+ * edit never lands on a row archived meanwhile. A missing or archived row throws P2025, as
+ * `findFirstOrThrow` does, which the actions report as not found.
+ */
+async function lockActive(
+  tx: Tx,
+  model: 'employee' | 'courseCompletion',
+  where: { externalId: string } | { id: string }
+): Promise<{ id: string }> {
+  const delegate = tx[model] as unknown as {
+    findFirstOrThrow(args: object): Promise<{ id: string }>
+  }
+  const found = await delegate.findFirstOrThrow({
+    where: { ...where, ...ACTIVE },
+    select: { id: true },
+  })
+  if (model === 'employee')
+    await tx.$queryRaw`SELECT id FROM employees WHERE id = ${found.id} FOR UPDATE`
+  else await tx.$queryRaw`SELECT id FROM course_completions WHERE id = ${found.id} FOR UPDATE`
+  // Read again under the lock: archived while this waited is gone.
+  return delegate.findFirstOrThrow({ where: { id: found.id, ...ACTIVE }, select: { id: true } })
+}
+
 /** Whether the department has the position (locked, so the pair cannot be dropped meanwhile). */
 async function pairExists(tx: Tx, departmentId: string, positionId: string) {
   const rows = await tx.$queryRaw<unknown[]>`
@@ -220,6 +244,9 @@ async function personLinks(tx: Tx, data: EmployeeEdit, self: string | null) {
   )
     throw new Refused({ field: 'positionId', reason: 'pair_unknown' })
   if (data.managerId) {
+    // Manager links change one at a time, so two edits cannot each pass the loop check below
+    // and close a loop together (A under B while C goes under A, with B under C).
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('employees_managers'))`
     const [manager] = await tx.$queryRaw<{ id: string }[]>`
       SELECT id FROM employees WHERE id = ${data.managerId} AND archived_at IS NULL FOR SHARE`
     if (!manager) throw new Refused({ field: 'managerId', reason: 'not_found' })
@@ -305,10 +332,7 @@ export async function updateEmployee(
   try {
     return await refusable(() =>
       dbOf(options).$transaction(async tx => {
-        const current = await tx.employee.findFirstOrThrow({
-          where: { externalId, ...ACTIVE },
-          select: { id: true },
-        })
+        const current = await lockActive(tx, 'employee', { externalId })
         const links = await personLinks(tx, data, current.id)
         await tx.employee.update({
           where: { id: current.id },
@@ -429,8 +453,9 @@ export function createCompletion(input: CompletionEdit, options?: RepoOptions) {
 export function updateCompletion(id: string, input: CompletionEdit, options?: RepoOptions) {
   const data = completionEditSchema.parse(input)
   return writeCompletion(options, async tx => {
-    const current = await tx.courseCompletion.findFirstOrThrow({
-      where: { id, ...ACTIVE },
+    await lockActive(tx, 'courseCompletion', { id })
+    const current = await tx.courseCompletion.findUniqueOrThrow({
+      where: { id },
       select: { id: true, courseId: true, providerId: true },
     })
     return tx.courseCompletion.update({

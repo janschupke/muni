@@ -368,6 +368,7 @@
       "too_small": "The value is too small.",
       "too_big": "The value is too large.",
       "before_start": "The end must be after the start.",
+      "in_past": "A planned session cannot be on a day that has passed.",
       "before_hired": "The leaving date cannot be before the hiring date.",
       "before_completed": "Validity cannot end before the completion date.",
       "not_found": "The record no longer exists.",
@@ -386,6 +387,7 @@
       "own_role": "You cannot change your own role.",
       "last_admin": "This is the last admin; make someone else an admin first.",
       "over_capacity": "More seats are booked than that; remove bookings first.",
+      "attendee_conflict": "Someone booked on this session has another session at that time. Choose another time, or cancel their booking first.",
       "below_booked": "{booked, plural, one {# seat is} other {# seats are}} booked; the session cannot open fewer.",
       "room_too_small_live": "{room} holds {capacity}; this session opens {seats}.",
       "room_missing_live": "{room} lacks: {missing}.",
@@ -652,6 +654,8 @@
       "errors": {
         "unauthorized": "your session no longer allows importing; sign in again",
         "invalid": "the server refused the records as invalid",
+        "room_busy": "a session planned in the app holds that room then; move one of them first",
+        "room_unfit": "upcoming sessions in that room would no longer fit; move them first",
         "failed": "the database refused the write",
         "network": "the server could not be reached"
       }
@@ -979,7 +983,8 @@
         "ROOM_MISSING_CAPABILITIES": "The room lacks what the course needs.",
         "ROOM_ARCHIVED": "The room was archived.",
         "COURSE_ARCHIVED": "The course was archived.",
-        "OVER_CAPACITY": "More people are booked than that capacity holds."
+        "OVER_CAPACITY": "More people are booked than that capacity holds.",
+        "ATTENDEE_CONFLICT": "Someone booked on the session has another session at that time."
       }
     },
     "outcome": {
@@ -1228,7 +1233,8 @@
       "ROOM_MISSING_CAPABILITIES": "The room lacks equipment the course needs. Choose another room.",
       "ROOM_ARCHIVED": "The room has been archived meanwhile. Choose another room.",
       "COURSE_ARCHIVED": "The course has been archived meanwhile. Reload the planner.",
-      "OVER_CAPACITY": "The capacity is below the people to book. Raise it, or book fewer people."
+      "OVER_CAPACITY": "The capacity is below the people to book. Raise it, or book fewer people.",
+      "ATTENDEE_CONFLICT": "Someone booked on the session has another session at that time."
     },
     "problems": {
       "NO_ROOM_WITH": "Even the best-equipped room lacks {missing}.",
@@ -1377,6 +1383,8 @@
       "last_admin": "This is the last admin. Make someone else an admin first.",
       "taken": "An active record now uses its {fields}. Rename or archive that one first.",
       "parent_archived": "It belongs to something that is archived. Bring that back first.",
+      "room_busy": "Another planned session holds its room at that time. Move one of them first.",
+      "room_unfit": "Its room no longer suits it. Edit the room first.",
       "generic": "That did not work. Please try again."
     },
     "fields": {
