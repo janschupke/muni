@@ -98,10 +98,17 @@ for (const theme of ['light', 'dark'] as const) {
       await page.locator('tbody tr').nth(1).hover()
       await shot(page, 'compliance-open-hover')
       // A person's cell reached by keyboard: the focus ring and its words.
-      await page.locator('tbody tr').nth(1).getByRole('link').focus()
+      const toggle = page.getByRole('button', { name: 'People in Laboratoře' })
+      const firstPerson = page.locator(
+        `[id="${(await toggle.getAttribute('aria-controls'))?.split(' ')[0] ?? ''}"]`
+      )
+      await firstPerson.getByRole('link').focus()
       await page.keyboard.press('Tab')
+      await expect(firstPerson.getByRole('button').first()).toBeFocused()
+      await page.mouse.move(0, 0)
       await page.keyboard.press('ArrowRight')
-      await expect(page.locator('[data-radix-popper-content-wrapper]')).toBeVisible()
+      // Only the focused cell's words: the one left behind closes.
+      await expect(page.locator('[data-radix-popper-content-wrapper]')).toHaveCount(1)
       await shot(page, 'compliance-person-cell-focus', false)
       await page.getByRole('button', { name: /^Laboratoře, BOZP – základní školení: / }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
