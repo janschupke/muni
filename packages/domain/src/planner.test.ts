@@ -136,11 +136,13 @@ describe('planSessions: demand', () => {
         kind: 'SESSION',
         rank: 1,
         window: null,
+        alternatives: [],
         session: {
           externalId: 'T016',
           courseCode: 'BOZP-Z',
           courseName: 'BOZP',
           room: { id: 'aula', name: 'Aula A', kind: 'CLASSROOM' },
+          roomCapacity: 40,
           startsAt: '2026-11-04T07:00:00.000Z',
           endsAt: '2026-11-04T10:00:00.000Z',
           capacity: 30,

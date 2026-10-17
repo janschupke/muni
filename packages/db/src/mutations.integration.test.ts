@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
+import { roomMismatch } from '@muni/domain/rooms'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { deleteCourses, deleteRooms, unarchiveAll } from '../test/archive'
@@ -13,6 +14,7 @@ import {
   createCourse,
   createRoom,
   createSession,
+  createSessionWithBookings,
   getAdvisorInput,
   getCourse,
   getCourseForEdit,
@@ -29,7 +31,8 @@ import {
   listRoomOptions,
   listRooms,
   listSessions,
-  moveSeats,
+  moveSeatsMany,
+  raiseCapacity,
   removeAssignment,
   savePosition,
   updateCourse,
@@ -360,21 +363,26 @@ describe('bookings the main suite does not reach', () => {
   it('uses the real clock when none is given', async () => {
     const [outcome] = await applyAssignments([manual('T999', 'E0153')], TEST_USER, options)
     expect(outcome).toMatchObject({ reason: 'SESSION_NOT_FOUND' })
-    expect(await moveSeats('T016', 'T999', 1, options)).toEqual({
+    expect(await moveSeatsMany('T016', [{ to: 'T999', count: 1 }], options)).toEqual({
       ok: false,
       reason: 'SESSION_NOT_FOUND',
+      to: 'T999',
     })
     expect((await getAdvisorInput(options)).asOf).toBe(asOf)
   })
 
   it('refuses seat moves that make no sense', async () => {
+    const move = (to: string, count = 1) =>
+      moveSeatsMany('T016', [{ to, count }], { ...options, now })
     const reasons = await Promise.all([
-      moveSeats('T016', 'T016', 1, { ...options, now }),
-      moveSeats('T016', 'T999', 1, { ...options, now }),
-      moveSeats('T016', 'T020', 1, { ...options, now }),
-      moveSeats('T016', 'T017', 1, { ...options, now }),
+      move('T016'),
+      move('T999'),
+      move('T020'),
+      move('T017'),
       // T019 took place in September.
-      moveSeats('T016', 'T019', 1, { ...options, now }),
+      move('T019'),
+      move('T018', 0),
+      moveSeatsMany('T999', [{ to: 'T018', count: 1 }], { ...options, now }),
     ])
     expect(reasons.map(r => (r.ok ? 'ok' : r.reason))).toEqual([
       'SAME_SESSION',
@@ -382,6 +390,8 @@ describe('bookings the main suite does not reach', () => {
       'DIFFERENT_COURSE',
       'NOT_PLANNED',
       'PAST',
+      'NOT_ENOUGH_UNNAMED',
+      'SESSION_NOT_FOUND',
     ])
   })
 })
@@ -644,6 +654,89 @@ describe('rooms', () => {
         select: { capacity: true, capabilities: { select: { capability: true } } },
       })
     ).toEqual({ capacity: 90, capabilities: [{ capability: 'PROJECTOR' }] })
+  })
+})
+
+describe('a planned session with the people it is for', () => {
+  it('checks without writing, refuses as a whole, then creates and books everyone', async () => {
+    const course = (await listCourseOptions(options)).find(c => c.code === 'BOZP-Z')
+    if (!course) throw new Error('no BOZP-Z')
+    // A room with a seat limit, so raising past it can be refused.
+    const room = (await listRoomOptions(options)).find(
+      r => r.kind !== 'ONLINE' && r.capacity !== null && roomMismatch(r, course.needs, 10) === null
+    )
+    if (!room) throw new Error('no room for BOZP-Z')
+    const people = (await getAdvisorInput({ ...options, now })).needs
+      .filter(n => n.course.code === 'BOZP-Z')
+      .slice(0, 2)
+      .map(n => n.employee.externalId)
+    expect(people).toHaveLength(2)
+    const session = {
+      courseId: course.id,
+      date: '2027-05-04',
+      startTime: '13:00',
+      endTime: '16:00',
+      roomId: room.id,
+      capacity: 10,
+      pricePerPerson: 450,
+      status: 'PLANNED' as const,
+    }
+    const sessions = () => db.courseSession.count({ where: { externalId: { startsWith: 'S' } } })
+    const before = await sessions()
+
+    // A dry run answers as the real one would, and leaves nothing behind.
+    const preview = await createSessionWithBookings(session, people, TEST_USER, {
+      ...options,
+      now,
+      dryRun: true,
+    })
+    expect(preview).toMatchObject({ ok: true, booked: 2, dryRun: true })
+    expect(await sessions()).toBe(before)
+
+    // One person who cannot be booked stops all of it.
+    expect(
+      await createSessionWithBookings(session, [...people, 'E9999'], TEST_USER, {
+        ...options,
+        now,
+      })
+    ).toEqual({
+      ok: false,
+      problem: null,
+      refusals: [{ employeeExternalId: 'E9999', reason: 'EMPLOYEE_NOT_FOUND' }],
+    })
+    expect(await sessions()).toBe(before)
+    // So does a session that cannot be saved so.
+    expect(
+      await createSessionWithBookings({ ...session, capacity: 10_000 }, people, TEST_USER, {
+        ...options,
+        now,
+      })
+    ).toMatchObject({ ok: false, problem: 'ROOM_TOO_SMALL' })
+
+    const created = await createSessionWithBookings(session, people, TEST_USER, {
+      ...options,
+      now,
+    })
+    expect(created).toMatchObject({ ok: true, booked: 2, dryRun: false })
+    if (!created.ok) return
+    const saved = await getSession(created.externalId, options)
+    expect(saved?.bookedCount).toBe(2)
+    expect(saved?.assigned.map(p => (p.archived ? '' : p.externalId)).toSorted()).toEqual(
+      people.toSorted()
+    )
+
+    // Its capacity can grow while the room has the seats, never shrink this way.
+    expect(await raiseCapacity(created.externalId, 12, options)).toEqual({ ok: true })
+    expect((await getSession(created.externalId, options))?.capacity).toBe(12)
+    expect(await raiseCapacity(created.externalId, 11, options)).toEqual({
+      ok: false,
+      problem: 'NOT_RAISED',
+    })
+    expect(await raiseCapacity('T999', 40, options)).toEqual({ ok: false, problem: 'NOT_FOUND' })
+    expect(await raiseCapacity(created.externalId, (room.capacity ?? 0) + 1, options)).toEqual({
+      ok: false,
+      problem: 'ROOM_TOO_SMALL',
+    })
   })
 })
 

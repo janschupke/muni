@@ -1,5 +1,4 @@
 import {
-  effectiveNeeds,
   type RoomFacts,
   type RoomMismatch,
   roomMismatch,
@@ -7,6 +6,7 @@ import {
 } from '@muni/domain/rooms'
 
 import type { Tx } from '../client'
+import { needsOf, needsSelect, roomFactsOf, roomFactsSelect } from './fit-selects'
 import { upcomingSessionWhere } from './sessions'
 
 // Whether planned sessions fit their rooms, shared by the session form and by the room and
@@ -17,47 +17,7 @@ import { upcomingSessionWhere } from './sessions'
 export const lockSessions = (tx: Tx) =>
   tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('course_sessions'))`
 
-/** Select this on a course to read what its sessions need (`needsOf`). */
-export const needsSelect = {
-  sessionMinutes: true,
-  groupSize: true,
-  onlineAllowed: true,
-  sessionMinutesOverride: true,
-  groupSizeOverride: true,
-  onlineAllowedOverride: true,
-  capabilities: { select: { capability: true } },
-} as const
-
-interface StoredNeedsRow {
-  sessionMinutes: number | null
-  groupSize: number | null
-  onlineAllowed: boolean
-  sessionMinutesOverride: number | null
-  groupSizeOverride: number | null
-  onlineAllowedOverride: boolean | null
-  capabilities: { capability: RoomFacts['capabilities'][number] }[]
-}
-
-/** What a session of the course needs: the app's overrides, else what imports derived. */
-export const needsOf = (course: StoredNeedsRow) =>
-  effectiveNeeds({ ...course, capabilities: course.capabilities.map(c => c.capability) })
-
-/** Select this on a room to read it as `RoomFacts` (`roomFactsOf`). */
-export const roomFactsSelect = {
-  id: true,
-  name: true,
-  kind: true,
-  capacity: true,
-  capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
-} as const
-
-export const roomFactsOf = (room: {
-  id: string
-  name: string
-  kind: RoomFacts['kind']
-  capacity: number | null
-  capabilities: { capability: RoomFacts['capabilities'][number] }[]
-}): RoomFacts => ({ ...room, capabilities: room.capabilities.map(c => c.capability) })
+export { needsOf, needsSelect, roomFactsOf, roomFactsSelect } from './fit-selects'
 
 /**
  * Upcoming planned sessions in the room (or of the course) that fit today and would not after

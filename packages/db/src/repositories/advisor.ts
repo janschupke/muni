@@ -40,7 +40,7 @@ export async function getAdvisorInput(
         unnamedBookings: true,
         pricePerPerson: true,
         status: true,
-        room: { select: roomRefSelect },
+        room: { select: { ...roomRefSelect, capacity: true } },
         course: { select: { code: true, name: true } },
         // Every named booking holds a seat. (Archiving a person removes their future ones.)
         assignments: { select: { employee: { select: { externalId: true } } } },
@@ -81,6 +81,7 @@ export async function getAdvisorInput(
       courseCode: s.course.code,
       courseName: s.course.name,
       room: toRoomRef(s.room),
+      roomCapacity: s.room.capacity,
       startsAt: s.startsAt.toISOString(),
       endsAt: s.endsAt.toISOString(),
       capacity: s.capacity,

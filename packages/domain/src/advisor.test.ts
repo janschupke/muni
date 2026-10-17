@@ -7,7 +7,9 @@ import {
   type AdvisorSession,
   forecastEnd,
   forecastMonths,
+  MAX_ALTERNATIVES,
   planAssignments,
+  seatsFree,
 } from './advisor'
 
 const AS_OF = '2026-10-16'
@@ -20,6 +22,7 @@ function session(courseCode: string, date: string, extra: Partial<AdvisorSession
     courseCode,
     courseName: `Course ${courseCode}`,
     room: { id: 'room_aula_a', name: 'Aula A', kind: 'CLASSROOM' },
+    roomCapacity: 40,
     // 09:00–12:00 Prague (UTC+2 until 25 Oct, +1 after) — the exact hour only matters for clashes.
     startsAt: `${date}T07:00:00.000Z`,
     endsAt: `${date}T10:00:00.000Z`,
@@ -303,6 +306,42 @@ describe('session choice', () => {
   })
 })
 
+describe('alternatives', () => {
+  it('offers the other sessions with a seat and no clash, those in time first', () => {
+    const early = session('BOZP', '2026-11-02')
+    const inTime = session('BOZP', '2026-11-20')
+    const late = session('BOZP', '2027-01-15')
+    const full = session('BOZP', '2026-11-10', { capacity: 1, unnamedBookings: 1 })
+    const clash = session('GDPR', '2026-11-20', { assigned: ['E1'] })
+    const p = plan(
+      [need('E1', 'BOZP', 'EXPIRING', { validUntil: '2026-12-01' })],
+      [early, inTime, late, full, clash]
+    )
+    const proposal = itemOf(p, 'E1').proposal
+    // The pick is the last session still in time; the full one and the one on the day the
+    // person is already booked elsewhere are left out, so the late one is what remains.
+    expect(proposal?.kind === 'SESSION' && proposal.session.externalId).toBe(early.externalId)
+    expect(
+      proposal?.kind === 'SESSION' && proposal.alternatives.map(a => a.session.externalId)
+    ).toEqual([late.externalId])
+  })
+
+  it('offers at most five', () => {
+    const sessions = Array.from({ length: 8 }, (_, i) =>
+      session('BOZP', `2026-11-${String(i + 2).padStart(2, '0')}`)
+    )
+    const p = plan([need('E1', 'BOZP', 'MISSING')], sessions)
+    const proposal = itemOf(p, 'E1').proposal
+    expect(proposal?.kind === 'SESSION' && proposal.alternatives).toHaveLength(MAX_ALTERNATIVES)
+  })
+
+  it('counts free seats from every booking, named or not', () => {
+    expect(seatsFree(session('BOZP', '2026-11-02', { unnamedBookings: 3, assigned: ['E1'] }))).toBe(
+      6
+    )
+  })
+})
+
 describe('overbooking', () => {
   it('moves anonymous seats to sessions of the same course with room, earliest first', () => {
     const over = session('BOZP', '2026-11-02', { capacity: 30, unnamedBookings: 33 })
@@ -317,6 +356,32 @@ describe('overbooking', () => {
     expect(o?.moves.map(m => [m.to.externalId, m.count])).toEqual([
       [soon.externalId, 1],
       [later.externalId, 2],
+    ])
+    // Where seats could go instead: every session of the course with room, as it is now.
+    expect(o?.targets.map(t => [t.session.externalId, t.free])).toEqual([
+      [soon.externalId, 1],
+      [later.externalId, 10],
+    ])
+    // The room (40 seats) holds all 33: raising the capacity is the other way out.
+    expect(o?.raiseTo).toBe(33)
+  })
+
+  it('cannot raise the capacity past what the room holds; online rooms hold anyone', () => {
+    const small = session('BOZP', '2026-11-02', {
+      capacity: 10,
+      unnamedBookings: 12,
+      roomCapacity: 11,
+    })
+    const online = session('GDPR', '2026-11-02', {
+      capacity: 10,
+      unnamedBookings: 12,
+      room: { id: 'room_online', name: 'Online', kind: 'ONLINE' },
+      roomCapacity: null,
+    })
+    const p = plan([], [small, online])
+    expect(p.overbooked.map(o => [o.session.externalId, o.raiseTo])).toEqual([
+      [small.externalId, null],
+      [online.externalId, 12],
     ])
   })
 

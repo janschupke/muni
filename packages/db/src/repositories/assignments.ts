@@ -85,7 +85,11 @@ export async function applyAssignments(
   return outcomes
 }
 
-async function applyOne(
+/**
+ * Books one person, inside the caller's transaction: every rule is checked against the
+ * locked session and person. Null when booked; otherwise why not (nothing is written).
+ */
+export async function applyOne(
   tx: Tx,
   request: AssignmentRequest,
   userId: string,
@@ -194,38 +198,65 @@ export const MOVE_FAILURES = [
 ] as const
 export type MoveFailure = (typeof MOVE_FAILURES)[number]
 
+/** One destination of anonymous seats. */
+export interface SeatMoveRequest {
+  to: string
+  count: number
+}
+
+export type MoveOutcome =
+  | { ok: true; moved: number }
+  | { ok: false; reason: MoveFailure; /** The destination refused, if one was. */ to?: string }
+
 /**
- * Moves anonymous seats between two sessions of the same course (repairing overbooking).
- * Named bookings never move: they are people, and only they can be reassigned.
+ * Moves anonymous seats out of a session into others of the same course (repairing
+ * overbooking), all in one transaction: every destination is checked before anything is
+ * written, so the seats move as asked or not at all. Named bookings never move: they are
+ * people, and only they can be reassigned.
  */
-export async function moveSeats(
+export async function moveSeatsMany(
   fromExternalId: string,
-  toExternalId: string,
-  count: number,
+  moves: SeatMoveRequest[],
   options?: RepoOptions & { now?: Date }
-): Promise<{ ok: true } | { ok: false; reason: MoveFailure }> {
-  if (fromExternalId === toExternalId) return { ok: false, reason: 'SAME_SESSION' }
+): Promise<MoveOutcome> {
+  // One entry per destination, in a stable order.
+  const wanted = new Map<string, number>()
+  for (const { to, count } of moves) wanted.set(to, (wanted.get(to) ?? 0) + count)
+  if (wanted.has(fromExternalId)) return { ok: false, reason: 'SAME_SESSION' }
+  const total = [...wanted.values()].reduce((n, c) => n + c, 0)
   const now = options?.now ?? new Date()
-  return dbOf(options).$transaction(async tx => {
-    const locked = await lockSessions(tx, [fromExternalId, toExternalId])
+  return dbOf(options).$transaction(async (tx): Promise<MoveOutcome> => {
+    const locked = await lockSessions(tx, [fromExternalId, ...wanted.keys()])
     const from = locked.get(fromExternalId)
-    const to = locked.get(toExternalId)
-    if (!from || !to) return { ok: false, reason: 'SESSION_NOT_FOUND' }
-    if (from.course_id !== to.course_id) return { ok: false, reason: 'DIFFERENT_COURSE' }
-    if (to.status !== 'PLANNED') return { ok: false, reason: 'NOT_PLANNED' }
-    if (to.starts_at <= now) return { ok: false, reason: 'PAST' }
-    if (!Number.isInteger(count) || count < 1 || count > from.unnamed_bookings)
+    if (!from) return { ok: false, reason: 'SESSION_NOT_FOUND' }
+    const targets: { to: string; session: LockedSession; count: number }[] = []
+    for (const [to, count] of wanted) {
+      const session = locked.get(to)
+      if (!session) return { ok: false, reason: 'SESSION_NOT_FOUND', to }
+      if (from.course_id !== session.course_id) return { ok: false, reason: 'DIFFERENT_COURSE', to }
+      if (session.status !== 'PLANNED') return { ok: false, reason: 'NOT_PLANNED', to }
+      if (session.starts_at <= now) return { ok: false, reason: 'PAST', to }
+      if (!Number.isInteger(count) || count < 1)
+        return { ok: false, reason: 'NOT_ENOUGH_UNNAMED', to }
+      targets.push({ to, session, count })
+    }
+    if (total < 1 || total > from.unnamed_bookings)
       return { ok: false, reason: 'NOT_ENOUGH_UNNAMED' }
-    if ((await bookedIn(tx, to)) + count > to.capacity) return { ok: false, reason: 'TARGET_FULL' }
+    for (const { to, session, count } of targets) {
+      if ((await bookedIn(tx, session)) + count > session.capacity)
+        return { ok: false, reason: 'TARGET_FULL', to }
+    }
     await tx.courseSession.update({
       where: { id: from.id },
-      data: { unnamedBookings: { decrement: count } },
+      data: { unnamedBookings: { decrement: total } },
     })
-    await tx.courseSession.update({
-      where: { id: to.id },
-      data: { unnamedBookings: { increment: count } },
-    })
-    return { ok: true }
+    for (const { session, count } of targets) {
+      await tx.courseSession.update({
+        where: { id: session.id },
+        data: { unnamedBookings: { increment: count } },
+      })
+    }
+    return { ok: true, moved: total }
   })
 }
 

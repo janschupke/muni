@@ -28,8 +28,10 @@ export {
   listEmployeeBookings,
   MOVE_FAILURES,
   type MoveFailure,
-  moveSeats,
+  type MoveOutcome,
+  moveSeatsMany,
   removeAssignment,
+  type SeatMoveRequest,
 } from './assignments'
 export { getPolicy, type RepoOptions } from './context'
 export {
@@ -41,6 +43,7 @@ export {
   listCourseOptions,
   listCourses,
   type RequirementView,
+  type SessionBooking,
   type SessionListItem,
 } from './courses'
 export {
@@ -93,6 +96,10 @@ export {
   checkSessionSlot,
   createRoom,
   createSession,
+  createSessionWithBookings,
+  type PlannedSessionWrite,
+  raiseCapacity,
+  type RaiseProblem,
   type RoomWrite,
   type SessionProblem,
   type SessionWrite,

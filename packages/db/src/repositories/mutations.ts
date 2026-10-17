@@ -14,6 +14,7 @@ import { cleanFreeText } from '@muni/utils/text'
 
 import type { Tx } from '../client'
 import { ACTIVE, isArchived } from './archive'
+import { applyOne, type AssignmentFailure } from './assignments'
 import { dbOf, type RepoOptions } from './context'
 import {
   lockSessions,
@@ -198,48 +199,164 @@ export async function createSession(
   options?: RepoOptions
 ): Promise<SessionWrite> {
   const data = sessionCreateSchema.parse(input)
+  return dbOf(options).$transaction(tx => insertSession(tx, data))
+}
+
+/** Creates the session inside the caller's transaction, after the same checks. */
+async function insertSession(tx: Tx, data: SessionCreate): Promise<SessionWrite> {
+  await lockSessions(tx)
+  const course = await tx.course.findUniqueOrThrow({
+    where: { id: data.courseId },
+    select: { id: true, code: true },
+  })
+  const startsAt = zonedTimeToUtc(data.date, data.startTime)
+  const endsAt = zonedTimeToUtc(data.date, data.endTime)
+  const problem = await sessionProblem(
+    tx,
+    {
+      courseId: course.id,
+      roomId: data.roomId,
+      startsAt,
+      endsAt,
+      capacity: data.capacity,
+      booked: 0,
+      planned: data.status === 'PLANNED',
+    },
+    null
+  )
+  if (problem) return { ok: false, problem }
+  const ids = await tx.courseSession.findMany({
+    // eslint-disable-next-line no-restricted-syntax -- archived ones count: an ID is never reused
+    where: { externalId: { startsWith: APP_ID_PREFIX.session } },
+    select: { externalId: true },
+  })
+  const next = Math.max(0, ...ids.map(s => Number(s.externalId.slice(1)) || 0)) + 1
+  const externalId = `${APP_ID_PREFIX.session}${String(next).padStart(3, '0')}`
+  await tx.courseSession.create({
+    data: {
+      externalId,
+      courseId: course.id,
+      roomId: data.roomId,
+      startsAt,
+      endsAt,
+      capacity: data.capacity,
+      pricePerPerson: data.pricePerPerson,
+      status: data.status,
+    },
+  })
+  return { ok: true, externalId, courseCode: course.code }
+}
+
+/** A planned session and the people booked on it, or why it would not go through. */
+export type PlannedSessionWrite =
+  | { ok: true; externalId: string; courseCode: string; booked: number; dryRun: boolean }
+  | {
+      ok: false
+      /** The session itself cannot be saved so (null: it can, but people were refused). */
+      problem: SessionProblem | null
+      refusals: { employeeExternalId: string; reason: AssignmentFailure }[]
+    }
+
+/** Unwinds the transaction while carrying its answer out. */
+class Rollback extends Error {
+  constructor(readonly result: PlannedSessionWrite) {
+    super('rollback')
+  }
+}
+
+/**
+ * Creates a session and books the chosen people on it, all or nothing: if the session cannot
+ * be saved, or any person cannot be booked (a clash, no longer employed, …), nothing is
+ * written and the answer says why. `dryRun` runs every check the same way and then undoes it:
+ * what the planner's review shows before the user confirms.
+ */
+export async function createSessionWithBookings(
+  input: SessionCreate,
+  people: readonly string[],
+  userId: string,
+  options?: RepoOptions & { now?: Date; dryRun?: boolean }
+): Promise<PlannedSessionWrite> {
+  const data = sessionCreateSchema.parse(input)
+  const now = options?.now ?? new Date()
+  try {
+    return await dbOf(options).$transaction(async tx => {
+      const created = await insertSession(tx, data)
+      if (!created.ok) throw new Rollback({ ok: false, problem: created.problem, refusals: [] })
+      const refusals: { employeeExternalId: string; reason: AssignmentFailure }[] = []
+      for (const employeeExternalId of new Set(people)) {
+        const reason = await applyOne(
+          tx,
+          { sessionExternalId: created.externalId, employeeExternalId, source: 'ADVISOR' },
+          userId,
+          now,
+          options?.asOf
+        )
+        if (reason) refusals.push({ employeeExternalId, reason })
+      }
+      if (refusals.length > 0) throw new Rollback({ ok: false, problem: null, refusals })
+      const result: PlannedSessionWrite = {
+        ok: true,
+        externalId: created.externalId,
+        courseCode: created.courseCode,
+        booked: new Set(people).size,
+        dryRun: options?.dryRun ?? false,
+      }
+      if (options?.dryRun) throw new Rollback(result)
+      return result
+    })
+  } catch (error) {
+    if (error instanceof Rollback) return error.result
+    throw error
+  }
+}
+
+/** Why a session's capacity was not raised. */
+export type RaiseProblem = SessionProblem | 'NOT_FOUND' | 'NOT_RAISED'
+
+/**
+ * Raises a session's capacity (repairing overbooking), when its room has the seats: the same
+ * checks as saving the session, under the same lock.
+ */
+export async function raiseCapacity(
+  externalId: string,
+  capacity: number,
+  options?: RepoOptions
+): Promise<{ ok: true } | { ok: false; problem: RaiseProblem }> {
   return dbOf(options).$transaction(async tx => {
     await lockSessions(tx)
-    const course = await tx.course.findUniqueOrThrow({
-      where: { id: data.courseId },
-      select: { id: true, code: true },
+    const session = await tx.courseSession.findFirst({
+      where: { externalId, ...ACTIVE },
+      select: {
+        id: true,
+        courseId: true,
+        roomId: true,
+        startsAt: true,
+        endsAt: true,
+        capacity: true,
+        unnamedBookings: true,
+        status: true,
+        _count: { select: { assignments: true } },
+      },
     })
-    const startsAt = zonedTimeToUtc(data.date, data.startTime)
-    const endsAt = zonedTimeToUtc(data.date, data.endTime)
+    if (!session) return { ok: false, problem: 'NOT_FOUND' }
+    if (!Number.isInteger(capacity) || capacity <= session.capacity)
+      return { ok: false, problem: 'NOT_RAISED' }
     const problem = await sessionProblem(
       tx,
       {
-        courseId: course.id,
-        roomId: data.roomId,
-        startsAt,
-        endsAt,
-        capacity: data.capacity,
-        booked: 0,
-        planned: data.status === 'PLANNED',
+        courseId: session.courseId,
+        roomId: session.roomId,
+        startsAt: session.startsAt,
+        endsAt: session.endsAt,
+        capacity,
+        booked: session.unnamedBookings + session._count.assignments,
+        planned: session.status === 'PLANNED',
       },
-      null
+      { externalId, courseId: session.courseId, roomId: session.roomId }
     )
     if (problem) return { ok: false, problem }
-    const ids = await tx.courseSession.findMany({
-      // eslint-disable-next-line no-restricted-syntax -- archived ones count: an ID is never reused
-      where: { externalId: { startsWith: APP_ID_PREFIX.session } },
-      select: { externalId: true },
-    })
-    const next = Math.max(0, ...ids.map(s => Number(s.externalId.slice(1)) || 0)) + 1
-    const externalId = `${APP_ID_PREFIX.session}${String(next).padStart(3, '0')}`
-    await tx.courseSession.create({
-      data: {
-        externalId,
-        courseId: course.id,
-        roomId: data.roomId,
-        startsAt,
-        endsAt,
-        capacity: data.capacity,
-        pricePerPerson: data.pricePerPerson,
-        status: data.status,
-      },
-    })
-    return { ok: true, externalId, courseCode: course.code }
+    await tx.courseSession.update({ where: { id: session.id }, data: { capacity } })
+    return { ok: true }
   })
 }
 

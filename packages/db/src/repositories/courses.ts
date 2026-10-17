@@ -120,6 +120,16 @@ function byDepartment(
   })
 }
 
+/** A named booking on a session; an archived person's department and position stay hidden. */
+export interface SessionBooking {
+  person: PersonRef
+  department: string | null
+  position: string | null
+  /** Booked through the advisor (or the planner), or by hand. */
+  source: 'ADVISOR' | 'MANUAL'
+  bookedAt: string
+}
+
 export interface SessionListItem {
   /** Internal id (archiving acts on it). */
   id: string
@@ -135,8 +145,15 @@ export interface SessionListItem {
   capacity: number
   /** Seats booked without a name (from the export). */
   unnamedBookings: number
+  /** Seats the room has (null: online), and its equipment. */
+  roomSeats: number | null
+  roomCapabilities: Capability[]
+  /** What a session of the course needs (its length, group size, online, equipment). */
+  needs: SessionNeeds & { sessionMinutes: number | null }
   /** Named bookings (assignments), oldest first; archived people anonymised. */
   assigned: PersonRef[]
+  /** The same bookings with who each person is and how they were booked. */
+  bookings: SessionBooking[]
   /** Derived: unnamedBookings + assigned.length. */
   bookedCount: number
   pricePerPerson: number | null

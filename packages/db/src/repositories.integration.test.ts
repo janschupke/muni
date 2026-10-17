@@ -30,7 +30,7 @@ import {
   listPositionSummaries,
   listRooms,
   listSessions,
-  moveSeats,
+  moveSeatsMany,
   removeAssignment,
   updateSession,
 } from './repositories'
@@ -796,22 +796,32 @@ describe('assignments', () => {
 
   it('moves anonymous seats to repair overbooking, within the rules', async () => {
     expect(await booked('T016')).toBe(31)
-    expect(await moveSeats('T016', 'T018', 1, opts)).toEqual({ ok: true })
+    const move = (from: string, to: string, count: number) =>
+      moveSeatsMany(from, [{ to, count }], opts)
+    expect(await move('T016', 'T018', 1)).toEqual({ ok: true, moved: 1 })
     expect(await booked('T016')).toBe(30)
-    expect(await moveSeats('T016', 'T011', 1, opts)).toEqual({
+    expect(await move('T016', 'T011', 1)).toEqual({
       ok: false,
       reason: 'DIFFERENT_COURSE',
+      to: 'T011',
     })
-    expect(await moveSeats('T018', 'T016', 5, opts)).toEqual({
-      ok: false,
-      reason: 'NOT_ENOUGH_UNNAMED',
-    })
-    expect(await moveSeats('T018', 'T016', 1, opts)).toEqual({ ok: false, reason: 'TARGET_FULL' })
+    expect(await move('T018', 'T016', 5)).toEqual({ ok: false, reason: 'NOT_ENOUGH_UNNAMED' })
+    expect(await move('T018', 'T016', 1)).toEqual({ ok: false, reason: 'TARGET_FULL', to: 'T016' })
+    // Several destinations move together or not at all: one refused stops every move.
+    const before = await Promise.all([booked('T016'), booked('T018')])
+    expect(
+      await moveSeatsMany(
+        'T016',
+        [
+          { to: 'T018', count: 1 },
+          { to: 'T011', count: 1 },
+        ],
+        opts
+      )
+    ).toEqual({ ok: false, reason: 'DIFFERENT_COURSE', to: 'T011' })
+    expect(await Promise.all([booked('T016'), booked('T018')])).toEqual(before)
     // Opposite directions at once: locks are taken in id order, so neither deadlocks.
-    const results = await Promise.all([
-      moveSeats('T016', 'T018', 1, opts),
-      moveSeats('T018', 'T016', 1, opts),
-    ])
+    const results = await Promise.all([move('T016', 'T018', 1), move('T018', 'T016', 1)])
     expect(results.every(r => 'ok' in r)).toBe(true)
   })
 })

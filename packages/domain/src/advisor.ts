@@ -41,6 +41,8 @@ export interface AdvisorSession {
   courseCode: string
   courseName: string
   room: RoomRef
+  /** Seats the room has; null for an online room (no limit). */
+  roomCapacity: number | null
   startsAt: string
   endsAt: string
   capacity: number
@@ -79,6 +81,20 @@ export interface NonComplianceWindow {
 
 export type UnplacedReason = 'NO_SESSION' | 'NO_SEATS' | 'CONFLICT'
 
+/** A session a person could take, with the gap it would leave. */
+export interface SessionChoice {
+  session: AdvisorSession
+  window: NonComplianceWindow | null
+}
+
+/** How many alternatives a proposal offers besides its own session. */
+export const MAX_ALTERNATIVES = 5
+
+/** Seats a session has free now: its capacity less every booking, named or not. */
+export function seatsFree(session: AdvisorSession): number {
+  return session.capacity - session.unnamedBookings - session.assigned.length
+}
+
 export type Proposal =
   | {
       kind: 'SESSION'
@@ -87,6 +103,11 @@ export type Proposal =
       session: AdvisorSession
       /** The window this session would leave; null when it ends before the training lapses. */
       window: NonComplianceWindow | null
+      /**
+       * Other sessions with a seat and no clash, for the admin to pick instead: those that end
+       * before the training lapses first, then by start; at most `MAX_ALTERNATIVES`.
+       */
+      alternatives: SessionChoice[]
     }
   | { kind: 'NONE'; rank: number; reason: UnplacedReason }
 
@@ -112,9 +133,14 @@ export interface OverbookedSession {
   session: AdvisorSession
   booked: number
   excess: number
+  /** The suggestion: anonymous seats moved to the earliest sessions with room. */
   moves: SeatMove[]
   /** Seats still over capacity after the moves (no room elsewhere, or only named bookings). */
   remaining: number
+  /** Every upcoming session of the course with free seats, by start: where seats could go. */
+  targets: { session: AdvisorSession; free: number }[]
+  /** The capacity that fits every booking, when the room has the seats; null when it has not. */
+  raiseTo: number | null
 }
 
 export interface BreakdownRow {
@@ -205,12 +231,22 @@ export function planAssignments(input: AdvisorInput): AdvisorPlan {
       movable -= count
     }
     const moved = moves.reduce((n, m) => n + m.count, 0)
+    const { roomCapacity } = source.session
     overbooked.push({
       session: source.session,
       booked: before,
       excess,
       moves,
       remaining: excess - moved,
+      targets: upcoming.flatMap(({ session }) => {
+        const free = seatsFree(session)
+        return session !== source.session &&
+          session.courseCode === source.session.courseCode &&
+          free > 0
+          ? [{ session, free }]
+          : []
+      }),
+      raiseTo: roomCapacity === null || roomCapacity >= before ? before : null,
     })
   }
 
@@ -278,11 +314,19 @@ export function planAssignments(input: AdvisorInput): AdvisorPlan {
     const slot = inTime.at(-1) ?? earliest
     slot.taken += 1
     busy.set(person, [...(busy.get(person) ?? []), slot.session])
+    const others = free.filter(other => other !== slot)
+    const alternatives = [
+      ...others.filter(other => inTime.includes(other)),
+      ...others.filter(other => !inTime.includes(other)),
+    ]
+      .slice(0, MAX_ALTERNATIVES)
+      .map(({ session }) => ({ session, window: windowFor(need, session) }))
     return item({
       kind: 'SESSION',
       rank,
       session: slot.session,
       window: windowFor(need, slot.session),
+      alternatives,
     })
   })
 

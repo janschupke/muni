@@ -1,9 +1,10 @@
 import type { RoomKind } from '@muni/domain/enums'
-import type { RoomRef } from '@muni/domain/rooms'
+import type { RoomFacts, RoomRef } from '@muni/domain/rooms'
 
 import { ACTIVE, isArchived, personSelect, toPersonRef } from './archive'
 import { dbOf, type RepoOptions, toAmount } from './context'
 import type { SessionListItem } from './courses'
+import { needsOf, needsSelect } from './fit-selects'
 
 /**
  * What "upcoming" means wherever sessions are shown or counted: planned and not yet ended,
@@ -32,11 +33,33 @@ export const toRoomRef = (room: {
 
 export type SessionWindow = 'upcoming' | 'past'
 
-/** What every session read selects: the course and the named bookings. */
+/**
+ * What every session read selects: the course and what its sessions need, the room with its
+ * seats and equipment, and the named bookings with who they are and how they were made.
+ */
 export const sessionInclude = {
-  course: { select: { id: true, code: true, name: true, archivedAt: true } },
-  room: { select: roomRefSelect },
-  assignments: { select: { employee: { select: personSelect } }, orderBy: { createdAt: 'asc' } },
+  course: { select: { id: true, code: true, name: true, archivedAt: true, ...needsSelect } },
+  room: {
+    select: {
+      ...roomRefSelect,
+      capacity: true,
+      capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
+    },
+  },
+  assignments: {
+    select: {
+      source: true,
+      createdAt: true,
+      employee: {
+        select: {
+          ...personSelect,
+          department: { select: { name: true } },
+          position: { select: { name: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+  },
 } as const
 
 interface SessionRow {
@@ -44,19 +67,32 @@ interface SessionRow {
   externalId: string
   startsAt: Date
   endsAt: Date
-  room: { id: string; name: string; kind: RoomKind; archivedAt: Date | null }
+  room: {
+    id: string
+    name: string
+    kind: RoomKind
+    archivedAt: Date | null
+    capacity: number | null
+    capabilities: { capability: RoomFacts['capabilities'][number] }[]
+  }
   capacity: number
   unnamedBookings: number
   pricePerPerson: { toString(): string } | null
   status: SessionListItem['status']
-  course: { id: string; code: string; name: string; archivedAt: Date | null }
+  course: { id: string; code: string; name: string; archivedAt: Date | null } & Parameters<
+    typeof needsOf
+  >[0]
   assignments: {
+    source: 'ADVISOR' | 'MANUAL'
+    createdAt: Date
     employee: {
       id: string
       externalId: string
       firstName: string
       lastName: string
       archivedAt: Date | null
+      department: { name: string } | null
+      position: { name: string } | null
     }
   }[]
 }
@@ -73,9 +109,23 @@ export function toSessionItem(s: SessionRow): SessionListItem {
     startsAt: s.startsAt.toISOString(),
     endsAt: s.endsAt.toISOString(),
     room: toRoomRef(s.room),
+    roomSeats: s.room.capacity,
+    roomCapabilities: s.room.capabilities.map(c => c.capability),
+    needs: needsOf(s.course),
     capacity: s.capacity,
     unnamedBookings: s.unnamedBookings,
     assigned: s.assignments.map(a => toPersonRef(a.employee)),
+    // An archived person shows only as their tag: nothing else about them.
+    bookings: s.assignments.map(a => {
+      const archived = isArchived(a.employee)
+      return {
+        person: toPersonRef(a.employee),
+        department: archived ? null : (a.employee.department?.name ?? null),
+        position: archived ? null : (a.employee.position?.name ?? null),
+        source: a.source,
+        bookedAt: a.createdAt.toISOString(),
+      }
+    }),
     bookedCount: s.unnamedBookings + s.assignments.length,
     pricePerPerson: toAmount(s.pricePerPerson),
     status: s.status,
