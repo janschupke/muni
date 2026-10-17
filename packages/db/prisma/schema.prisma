@@ -4,17 +4,19 @@ generator client {
   moduleFormat    = "esm"
   /// Unique indexes skip archived rows (`WHERE archived_at IS NULL`), so an archived record never
   /// blocks a new one with the same name, code or ID.
-  previewFeatures = ["partialIndexes"]
+  previewFeatures = ["partialIndexes", "postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  /// Case-insensitive names: "aula a" is the same room as "Aula A".
+  extensions = [citext]
 }
 
+/// Whether someone has left is not a status: it is `leftOn` reached (`leftOn <= today`).
 enum EmploymentStatus {
   ACTIVE
   PARENTAL_LEAVE
-  TERMINATED
 }
 
 enum RoomKind {
@@ -43,9 +45,11 @@ enum SessionStatus {
 
 model Department {
   id           String                        @id @default(cuid())
-  name         String
+  name         String                        @db.Citext
   employees    Employee[]
   requirements CourseDepartmentRequirement[]
+  /// The positions people in the department may hold.
+  positions    DepartmentPosition[]
   /// Archived records are hidden from every list and count; nothing is ever deleted.
   archivedAt   DateTime?                     @map("archived_at")
   archivedById String?                       @map("archived_by_id")
@@ -57,9 +61,11 @@ model Department {
 
 model Position {
   id           String                      @id @default(cuid())
-  name         String
+  name         String                      @db.Citext
   employees    Employee[]
   requirements CoursePositionRequirement[]
+  /// The departments the position exists in (a title like "Vedoucí" is shared by many).
+  departments  DepartmentPosition[]
   /// Archived records are hidden from every list and count; nothing is ever deleted.
   archivedAt   DateTime?                   @map("archived_at")
   archivedById String?                     @map("archived_by_id")
@@ -69,37 +75,55 @@ model Position {
   @@map("positions")
 }
 
+/// A position held in a department. A person's department and position must be such a pair.
+model DepartmentPosition {
+  departmentId String     @map("department_id")
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  positionId   String     @map("position_id")
+  position     Position   @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  employees    Employee[]
+
+  @@id([departmentId, positionId])
+  @@index([positionId])
+  @@map("department_positions")
+}
+
 model Employee {
-  id           String              @id @default(cuid())
+  id                 String              @id @default(cuid())
   /// Source-system ID (E0001). Imports upsert on it.
-  externalId   String              @map("external_id")
-  firstName    String              @map("first_name")
-  lastName     String              @map("last_name")
-  email        String?
+  externalId         String              @map("external_id")
+  firstName          String              @map("first_name")
+  lastName           String              @map("last_name")
+  email              String?
   /// Rodné číslo. Sensitive: only ever leaves the server through the sanitisation policy.
-  nationalId   String?             @map("national_id")
-  departmentId String?             @map("department_id")
-  department   Department?         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  positionId   String?             @map("position_id")
-  position     Position?           @relation(fields: [positionId], references: [id], onDelete: Restrict)
-  managerId    String?             @map("manager_id")
-  manager      Employee?           @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: Restrict)
-  reports      Employee[]          @relation("EmployeeManager")
-  hiredOn      DateTime            @map("hired_on") @db.Date
-  leftOn       DateTime?           @map("left_on") @db.Date
-  status       EmploymentStatus
-  note         String?
-  completions  CourseCompletion[]
-  assignments  SessionAssignment[]
-  createdAt    DateTime            @default(now()) @map("created_at")
-  updatedAt    DateTime            @updatedAt @map("updated_at")
+  nationalId         String?             @map("national_id")
+  departmentId       String?             @map("department_id")
+  department         Department?         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  positionId         String?             @map("position_id")
+  position           Position?           @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  /// The pair must exist: a person holds only a position their department has.
+  departmentPosition DepartmentPosition? @relation(fields: [departmentId, positionId], references: [departmentId, positionId], onDelete: Restrict)
+  /// Leads their department. One head per department, and only a member (CHECK in the SQL).
+  leadsDepartment    Boolean             @default(false) @map("leads_department")
+  managerId          String?             @map("manager_id")
+  manager            Employee?           @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: Restrict)
+  reports            Employee[]          @relation("EmployeeManager")
+  hiredOn            DateTime            @map("hired_on") @db.Date
+  leftOn             DateTime?           @map("left_on") @db.Date
+  status             EmploymentStatus
+  note               String?
+  completions        CourseCompletion[]
+  assignments        SessionAssignment[]
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
   /// Archived records are hidden from every list and count; nothing is ever deleted.
-  archivedAt   DateTime?           @map("archived_at")
-  archivedById String?             @map("archived_by_id")
-  archivedBy   User?               @relation("EmployeeArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
+  archivedAt         DateTime?           @map("archived_at")
+  archivedById       String?             @map("archived_by_id")
+  archivedBy         User?               @relation("EmployeeArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
 
   @@unique([externalId], map: "employees_external_id_key", where: { archivedAt: null })
   @@unique([email], map: "employees_email_key", where: { archivedAt: null })
+  @@unique([departmentId], map: "employees_department_head_key", where: { leadsDepartment: true, archivedAt: null })
   @@index([departmentId])
   @@index([positionId])
   @@index([lastName, firstName])
@@ -117,14 +141,16 @@ model Course {
   requiredForAll         Boolean                       @default(false) @map("required_for_all")
   departmentRequirements CourseDepartmentRequirement[]
   positionRequirements   CoursePositionRequirement[]
-  /// What one session needs (the planner's input). null = not known yet.
+  /// What one session needs (the planner's input), as the sessions import derives it from the
+  /// course's sessions. null = not known yet. The effective need is the override, else this.
   sessionMinutes         Int?                          @map("session_minutes")
   groupSize              Int?                          @map("group_size")
   onlineAllowed          Boolean                       @default(false) @map("online_allowed")
   capabilities           CourseCapability[]
-  /// The needs were set in the app, so imports leave them alone. Otherwise every sessions
-  /// import derives them again from the course's sessions.
-  needsManual            Boolean                       @default(false) @map("needs_manual")
+  /// Set in the app; imports never touch them. null = take the derived value above.
+  sessionMinutesOverride Int?                          @map("session_minutes_override")
+  groupSizeOverride      Int?                          @map("group_size_override")
+  onlineAllowedOverride  Boolean?                      @map("online_allowed_override")
   sessions               CourseSession[]
   completions            CourseCompletion[]
   createdAt              DateTime                      @default(now()) @map("created_at")
@@ -174,7 +200,7 @@ model CourseCapability {
 
 model Room {
   id           String           @id @default(cuid())
-  name         String
+  name         String           @db.Citext
   kind         RoomKind
   /// Seats. null = no fixed limit, which an online room has and only it (CHECK in the SQL).
   capacity     Int?
@@ -205,7 +231,7 @@ model RoomCapability {
 /// are filled in the app.
 model Provider {
   id           String             @id @default(cuid())
-  name         String
+  name         String             @db.Citext
   /// IČO: 8 digits (CHECK in the migration SQL); the schema checks its checksum.
   companyId    String?            @map("company_id")
   email        String?
