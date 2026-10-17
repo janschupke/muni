@@ -1,6 +1,7 @@
 import { ROLES } from '@muni/domain/enums'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody } from '@muni/ui/card'
+import { SectionHeading } from '@muni/ui/section-heading'
 import { CalendarRange, Grid3x3, Lightbulb, LogIn, Upload, UserPlus } from 'lucide-react'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
@@ -39,9 +40,9 @@ export async function Landing() {
       </section>
 
       <section aria-labelledby="landing-features">
-        <h2 id="landing-features" className="mb-4 text-lg font-semibold text-fg">
+        <SectionHeading id="landing-features" className="mt-0">
           {t('features.title')}
-        </h2>
+        </SectionHeading>
         <ul className="grid gap-3 sm:grid-cols-2">
           {FEATURES.map(({ key, Icon }) => (
             <li key={key}>
@@ -60,19 +61,17 @@ export async function Landing() {
       </section>
 
       <section aria-labelledby="landing-access">
-        <h2 id="landing-access" className="mb-1 text-lg font-semibold text-fg">
+        <SectionHeading id="landing-access" className="mt-0" description={t('access.description')}>
           {t('access.title')}
-        </h2>
-        <p className="mb-4 text-sm text-fg-muted">{t('access.description')}</p>
+        </SectionHeading>
         <dl className="grid gap-3 sm:grid-cols-3">
           {ROLES.map(role => (
-            <div
-              key={role}
-              className="rounded-lg border border-border-default bg-surface-elevated p-4"
-            >
-              <dt className="font-medium text-fg">{t(`access.${role}.title`)}</dt>
-              <dd className="mt-1 text-sm text-fg-muted">{t(`access.${role}.body`)}</dd>
-            </div>
+            <Card key={role} asChild className="p-4">
+              <div>
+                <dt className="font-medium text-fg">{t(`access.${role}.title`)}</dt>
+                <dd className="mt-1 text-sm text-fg-muted">{t(`access.${role}.body`)}</dd>
+              </div>
+            </Card>
           ))}
         </dl>
       </section>

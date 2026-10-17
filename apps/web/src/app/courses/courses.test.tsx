@@ -333,7 +333,7 @@ describe('compliance matrix', () => {
     )
     const library = screen.getByRole('row', { name: /^Knihovna/ })
     expect(within(library).getByText('Not required')).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'LAB-BEZ' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: /^LAB-BEZ / }).getAttribute('href')).toBe(
       '/courses/LAB-BEZ'
     )
   })

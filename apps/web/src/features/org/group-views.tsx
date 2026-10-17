@@ -2,6 +2,7 @@
 
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem } from '@muni/ui/description-list'
+import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
 import { PageHeader } from '@muni/ui/page-header'
 import { PLACEHOLDER } from '@muni/utils/format'
@@ -53,17 +54,14 @@ export function DepartmentView({ id, canEdit }: { id: string; canEdit: boolean }
                     <DescriptionItem label={t('detail.head')}>
                       {department.head ? <PersonLink person={department.head} /> : PLACEHOLDER}
                     </DescriptionItem>
+                    <DescriptionItem label={t('detail.positions')}>
+                      {department.positions.length === 0 ? (
+                        <EmptyState variant="inline" title={t('detail.noPositions')} />
+                      ) : (
+                        <GroupBreakdown kind="positions" groups={department.positions} />
+                      )}
+                    </DescriptionItem>
                   </GroupFacts>
-                  <div>
-                    <p className="mb-1.5 text-xs font-medium text-fg-muted">
-                      {t('detail.positions')}
-                    </p>
-                    {department.positions.length === 0 ? (
-                      <p className="text-sm text-fg-subtle">{t('detail.noPositions')}</p>
-                    ) : (
-                      <GroupBreakdown kind="positions" groups={department.positions} />
-                    )}
-                  </div>
                 </CardBody>
               </Card>
             }
@@ -105,17 +103,15 @@ export function PositionView({ id, canEdit }: { id: string; canEdit: boolean }) 
               <Card>
                 <CardHeader title={t('detail.facts')} />
                 <CardBody className="flex flex-col gap-5">
-                  <GroupFacts group={position} />
-                  <div>
-                    <p className="mb-1.5 text-xs font-medium text-fg-muted">
-                      {t('detail.departments')}
-                    </p>
-                    {position.departments.length === 0 ? (
-                      <p className="text-sm text-fg-subtle">{t('detail.noDepartments')}</p>
-                    ) : (
-                      <GroupBreakdown kind="departments" groups={position.departments} />
-                    )}
-                  </div>
+                  <GroupFacts group={position}>
+                    <DescriptionItem label={t('detail.departments')}>
+                      {position.departments.length === 0 ? (
+                        <EmptyState variant="inline" title={t('detail.noDepartments')} />
+                      ) : (
+                        <GroupBreakdown kind="departments" groups={position.departments} />
+                      )}
+                    </DescriptionItem>
+                  </GroupFacts>
                 </CardBody>
               </Card>
             }

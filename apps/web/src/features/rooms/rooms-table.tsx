@@ -114,5 +114,5 @@ export function RoomsTable({
       ]),
     [canEdit, locale, t, tk, tcommon]
   )
-  return <DataTable columns={columns} data={rooms} getRowId={r => r.id} />
+  return <DataTable caption={t('title')} columns={columns} data={rooms} getRowId={r => r.id} />
 }

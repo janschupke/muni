@@ -20,7 +20,7 @@ export function LoadingRegion({ children }: { children: ReactNode }) {
 }
 
 /** A page heading: the title, and room for a line under it. */
-export function HeaderSkeleton() {
+function HeaderSkeleton() {
   return (
     <div className="mb-6 flex flex-col gap-2">
       <Skeleton className="h-3.5 w-24" />

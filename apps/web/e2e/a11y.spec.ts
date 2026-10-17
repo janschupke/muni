@@ -24,6 +24,43 @@ async function expectNoViolations(page: Page, label: string, within?: string) {
   }))
   expect(summary, label).toEqual([])
   await expectRenderedContrast(page, label, within)
+  if (!within) await expectStructure(page, label)
+}
+
+/**
+ * What axe does not check: one h1 per page, headings that never skip a level going down
+ * (an h2 then an h4 hides a level from heading navigation), and every table named.
+ */
+async function expectStructure(page: Page, label: string) {
+  // With a dialog open the page behind it is hidden: the dialog is checked by axe alone.
+  if ((await page.getByRole('dialog').count()) > 0) return
+  const { levels, unnamed } = await page.evaluate(() => {
+    const visible = (el: Element) => !el.closest('[aria-hidden="true"], [hidden]')
+    const levels = [
+      ...document.querySelectorAll('main h1, main h2, main h3, main h4, main h5, main h6'),
+    ]
+      .filter(visible)
+      .map(h => Number(h.tagName.slice(1)))
+    const unnamed = [...document.querySelectorAll('table')]
+      .filter(visible)
+      .filter(
+        t =>
+          !t.getAttribute('aria-label') &&
+          !t.getAttribute('aria-labelledby') &&
+          !t.querySelector('caption')?.textContent.trim()
+      ).length
+    return { levels, unnamed }
+  })
+  expect(
+    levels.filter(l => l === 1),
+    `${label}: one h1`
+  ).toHaveLength(1)
+  const skips = levels.flatMap((level, i) => {
+    const before = levels[i - 1]
+    return before !== undefined && level > before + 1 ? [`h${before} → h${level}`] : []
+  })
+  expect(skips, `${label}: heading levels`).toEqual([])
+  expect(unnamed, `${label}: tables without a name`).toBe(0)
 }
 
 // Contrast is judged on the settled page: with motion reduced, the page fade-in is instant.

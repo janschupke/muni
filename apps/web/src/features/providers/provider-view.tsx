@@ -91,7 +91,7 @@ function ProviderDetail({ data, canEdit }: { data: ReadOutput<'provider'>; canEd
                   )}
                 </DescriptionList>
               ) : (
-                <p className="text-sm text-fg-subtle">{t('detail.noDetails')}</p>
+                <EmptyState variant="inline" title={t('detail.noDetails')} />
               )}
               <DescriptionList>
                 <DescriptionItem label={t('detail.totals')}>

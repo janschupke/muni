@@ -15,7 +15,7 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { Select } from '@muni/ui/select'
 import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatDate, formatTimeRange } from '@muni/utils/format'
-import { ArrowRight, CalendarCheck, CalendarPlus } from 'lucide-react'
+import { CalendarCheck, CalendarPlus } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -214,13 +214,9 @@ export function ActionTable({
           <ul className="mt-1 flex flex-col gap-0.5">
             {shortfall.map(s => (
               <li key={s.courseCode}>
-                <TextLink asChild tone="inherit">
-                  <Link
-                    href={`/courses/${s.courseCode}`}
-                    className="inline-flex items-center gap-1"
-                  >
+                <TextLink asChild tone="inherit" arrow>
+                  <Link href={`/courses/${s.courseCode}`}>
                     {t('action.shortfall', { course: s.courseName, people: s.people })}
-                    <ArrowRight aria-hidden className="size-3.5" />
                   </Link>
                 </TextLink>
               </li>
@@ -305,11 +301,8 @@ function ProposalCell({ item, asOf }: { item: PlanItem; asOf: string }) {
     return (
       <div className="flex flex-col items-start gap-1">
         <Badge tone="neutral">{t(`reasons.${proposal.reason}`)}</Badge>
-        <TextLink asChild className="text-xs">
-          <Link href={todo.href} className="inline-flex items-center gap-1">
-            {todo.label}
-            <ArrowRight aria-hidden className="size-3" />
-          </Link>
+        <TextLink asChild className="text-xs" arrow hitArea>
+          <Link href={todo.href}>{todo.label}</Link>
         </TextLink>
       </div>
     )

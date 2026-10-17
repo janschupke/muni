@@ -153,6 +153,7 @@ export function GroupsTable(
   }, [canEdit, kind, locale, t, tcommon, to])
   return (
     <DataTable<Group>
+      caption={t('title')}
       columns={columns}
       data={props.groups}
       getRowId={g => g.id}
@@ -177,6 +178,7 @@ function GroupMembers({
   const read = useQuery(readQuery('group-members', { kind, id: group.id }))
   return (
     <ReadView
+      titled
       query={read}
       skeleton={<TableSkeleton rows={Math.min(group.memberCount, 6)} columns={5} />}
     >

@@ -2,6 +2,7 @@
 
 import { Alert } from '@muni/ui/alert'
 import { Button } from '@muni/ui/button'
+import { EmptyState } from '@muni/ui/empty-state'
 import { Field } from '@muni/ui/field'
 import { Select } from '@muni/ui/select'
 import { UserPlus } from 'lucide-react'
@@ -53,7 +54,7 @@ export function AddBookingForm({
     },
     IDLE
   )
-  if (options.length === 0) return <p className="text-sm text-fg-muted">{t('bookings.noneLeft')}</p>
+  if (options.length === 0) return <EmptyState variant="inline" title={t('bookings.noneLeft')} />
   return (
     <form action={formAction} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-end gap-2">

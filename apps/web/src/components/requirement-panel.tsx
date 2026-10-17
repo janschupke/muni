@@ -10,11 +10,19 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ComplianceBadge } from './status-badges'
 
 /** One person's required courses: state, expiry and any booking (an employee row's detail). */
-export function RequirementPanel({ requirements }: { requirements: EmployeeListRequirement[] }) {
+export function RequirementPanel({
+  requirements,
+  level = 2,
+}: {
+  requirements: EmployeeListRequirement[]
+  /** `h2` under the page's `h1`, `h3` under a section's `h2`. */
+  level?: 2 | 3 | undefined
+}) {
   const t = useTranslations('employees.panel')
   return (
     <DetailPanel
       title={t('title')}
+      level={level}
       count={requirements.length}
       flush={requirements.length > 0}
       className="max-w-5xl"
@@ -47,7 +55,7 @@ function RequirementTable({ requirements }: { requirements: EmployeeListRequirem
         {requirements.map(r => (
           <Tr key={r.courseCode}>
             <Td>
-              <TextLink asChild>
+              <TextLink asChild hitArea>
                 <Link href={`/courses/${r.courseCode}`}>{r.courseName}</Link>
               </TextLink>
             </Td>
@@ -77,7 +85,7 @@ function RequirementTable({ requirements }: { requirements: EmployeeListRequirem
             </Td>
             <Td nowrap>
               {r.booked ? (
-                <TextLink asChild>
+                <TextLink asChild hitArea>
                   <Link href={`/sessions/${r.booked.sessionExternalId}`}>
                     {formatDateTime(r.booked.startsAt, locale)}
                   </Link>

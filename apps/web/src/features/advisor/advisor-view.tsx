@@ -31,7 +31,7 @@ export function AdvisorView({
   return (
     <>
       <PageHeader title={t('title')} description={t('description', { months: FORECAST_MONTHS })} />
-      <ReadView query={read} skeleton={<ListSkeleton columns={6} />}>
+      <ReadView titled query={read} skeleton={<ListSkeleton columns={6} />}>
         {({ plan, asOf }) => (
           <AdvisorWorkbench
             plan={plan}

@@ -20,7 +20,7 @@ import {
 import { StepIndicator } from '@muni/ui/step-indicator'
 import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
-import { useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 
 import { useAfterWrite } from '@/lib/query/use-after-write'
 
@@ -60,6 +60,15 @@ export function ImportWizard({
   const tp = useTranslations('import.progress')
   const ctx = { today }
   const [step, setStep] = useState(0)
+  const stepHeading = useRef<HTMLHeadingElement>(null)
+  const firstStep = useRef(true)
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false
+      return
+    }
+    stepHeading.current?.focus()
+  }, [step])
   const [files, setFiles] = useState<Partial<Record<DatasetKind, ParsedFile>>>({})
   const [rejected, setRejected] = useState<RejectedFile[]>([])
   const [batch, setBatch] = useState<ImportBatch>({})
@@ -152,6 +161,7 @@ export function ImportWizard({
     setStep(0)
   }
 
+  const steps = [t('steps.upload'), t('steps.review'), t('steps.confirm'), t('steps.done')]
   const columnsByKind: Partial<Record<DatasetKind, string[]>> = {}
   for (const file of Object.values(files)) {
     if (file.kind) columnsByKind[file.kind] = file.columns
@@ -159,10 +169,11 @@ export function ImportWizard({
 
   return (
     <div className="flex flex-col gap-6">
-      <StepIndicator
-        steps={[t('steps.upload'), t('steps.review'), t('steps.confirm'), t('steps.done')]}
-        current={step}
-      />
+      <StepIndicator steps={steps} current={step} />
+      {/* Each step is named, and a new step takes the focus: the button that led to it is gone. */}
+      <h2 ref={stepHeading} tabIndex={-1} className="sr-only">
+        {t('stepHeading', { step: step + 1, count: steps.length, name: steps[step] ?? '' })}
+      </h2>
       {step === 0 && (
         <UploadStep
           files={files}

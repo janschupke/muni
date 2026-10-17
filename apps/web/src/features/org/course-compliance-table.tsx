@@ -11,12 +11,19 @@ import { ComplianceBar } from '@/components/compliance-breakdown'
 import { RequirementList } from '@/components/requirement-list'
 
 /** A group's mandatory courses: why it must hold each, and how much of it it holds. */
-export function CourseComplianceTable({ courses }: { courses: CourseCompliance[] }) {
+export function CourseComplianceTable({
+  courses,
+  label,
+}: {
+  courses: CourseCompliance[]
+  /** The table's accessible name: the section's heading. */
+  label: string
+}) {
   const t = useTranslations('org.courseColumns')
   const locale = useLocale()
   return (
     <TableContainer>
-      <Table>
+      <Table aria-label={label}>
         <THead>
           <tr>
             <Th>{t('course')}</Th>

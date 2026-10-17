@@ -21,12 +21,15 @@ export function ReadView<T>({
   query,
   skeleton,
   entity,
+  titled = false,
   children,
 }: {
   query: UseQueryResult<T>
   skeleton: ReactNode
   /** Whose not-found message a missing record shows. */
   entity?: Entity | undefined
+  /** The page shows its own title (`h1`) above: a failure here heads with an `h2`. */
+  titled?: boolean | undefined
   children: (data: T) => ReactNode
 }) {
   const t = useTranslations('errors')
@@ -36,6 +39,7 @@ export function ReadView<T>({
       return <NotFoundMessage entity={entity} />
     return (
       <PageMessage
+        level={titled ? 2 : 1}
         icon={<CloudOff aria-hidden />}
         title={t('loadFailedTitle')}
         description={

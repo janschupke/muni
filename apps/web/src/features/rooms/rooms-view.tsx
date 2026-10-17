@@ -24,7 +24,7 @@ export function RoomsView({ canEdit }: { canEdit: boolean }) {
           canEdit && <ListActions kind="room" create={{ href: '/rooms/new', label: t('new') }} />
         }
       />
-      <ReadView query={read} skeleton={<TableSkeleton columns={5} />}>
+      <ReadView titled query={read} skeleton={<TableSkeleton columns={5} />}>
         {rooms =>
           rooms.length === 0 ? (
             <EmptyState title={t('empty')} />

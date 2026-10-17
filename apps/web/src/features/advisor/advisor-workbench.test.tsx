@@ -275,7 +275,14 @@ describe('AdvisorWorkbench', () => {
     // More than the session can take is refused before anything is sent.
     await user.clear(target)
     await user.type(target, '5')
-    expect(within(dialog).getByText(/has only 2 seats free/)).toBeTruthy()
+    // The error sits on the field it is about.
+    expect(within(dialog).getByText('Only 2 seats are free there.')).toBeTruthy()
+    expect(target.getAttribute('aria-invalid')).toBe('true')
+    await user.clear(target)
+    await user.type(target, 'two')
+    expect(within(dialog).getByText('Enter a number.')).toBeTruthy()
+    await user.clear(target)
+    await user.type(target, '5')
     expect(within(dialog).getByRole('button', { name: 'Move 5 seats' })).toHaveProperty(
       'disabled',
       true

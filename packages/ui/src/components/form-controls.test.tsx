@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from '../test/render'
 import { Checkbox } from './checkbox'
 import { Dropzone } from './dropzone'
-import { Field, FieldRow, Hint, Input, Textarea } from './field'
+import { Field, FieldRow, Fieldset, Hint, Input, Textarea } from './field'
 
 describe('Field', () => {
   it('names the control by its label alone and links help and error', () => {
@@ -61,6 +61,28 @@ describe('Field', () => {
     )
     expect(container.firstElementChild?.className).toContain('sm:grid-cols-2')
     expect(screen.getByText('Nápověda').className).toContain('text-xs')
+  })
+})
+
+describe('Fieldset', () => {
+  it('names a group of controls and links its help and error to it', () => {
+    render(
+      <Fieldset
+        name="departmentIds"
+        legend="Departments"
+        help="Where the position exists."
+        error="Pick one."
+      >
+        <Checkbox name="departmentIds" value="d1" label="Laboratoře" />
+      </Fieldset>
+    )
+    const group = screen.getByRole('group', { name: 'Departments' })
+    expect(group.getAttribute('data-invalid')).toBe('true')
+    const described = (group.getAttribute('aria-describedby') ?? '').split(' ')
+    expect(described.map(id => document.getElementById(id)?.textContent)).toEqual([
+      'Where the position exists.',
+      'Pick one.',
+    ])
   })
 })
 

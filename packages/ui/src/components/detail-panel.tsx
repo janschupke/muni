@@ -3,18 +3,32 @@ import type { ReactNode } from 'react'
 import { cn } from '../cn'
 import { surfaceClass } from './card'
 
+const LAYOUT = {
+  /** Two equal columns. */
+  halves: 'lg:grid-cols-2',
+  /** Facts beside a wider table. */
+  'narrow-wide': 'lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]',
+  /** A wide table beside a short list. */
+  'wide-narrow': 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]',
+  /** Three equal columns. */
+  thirds: 'lg:grid-cols-3',
+} as const
+
 /**
- * The layout of an opened row's details: panels side by side where there is room. Every
- * expanded view is built from these, so they read alike across the app.
+ * The layout of an opened row's details: panels side by side where there is room (one
+ * column on a phone). Every expanded view is built from these, so they read alike across
+ * the app.
  */
 export function DetailGrid({
+  layout = 'halves',
   children,
   className,
 }: {
+  layout?: keyof typeof LAYOUT | undefined
   children: ReactNode
   className?: string | undefined
 }) {
-  return <div className={cn('grid gap-4 lg:grid-cols-2', className)}>{children}</div>
+  return <div className={cn('grid gap-4', LAYOUT[layout], className)}>{children}</div>
 }
 
 /**

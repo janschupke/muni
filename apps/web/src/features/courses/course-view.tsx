@@ -117,7 +117,13 @@ function CourseDetail({ course, canEdit }: { course: ReadOutput<'course'>; canEd
       {course.sessions.length === 0 ? (
         <EmptyState title={t('detail.noSessions')} />
       ) : (
-        <SessionTable sessions={course.sessions} canEdit={canEdit} showCourse={false} />
+        <SessionTable
+          sessions={course.sessions}
+          canEdit={canEdit}
+          showCourse={false}
+          caption={t('detail.sessions')}
+          panelLevel={3}
+        />
       )}
 
       <SectionHeading>{t('detail.recentCompletions')}</SectionHeading>

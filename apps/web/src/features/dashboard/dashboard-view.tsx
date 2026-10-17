@@ -10,7 +10,6 @@ import { StatCard } from '@muni/ui/stat-card'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDate, formatInteger, formatPercent } from '@muni/utils/format'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -51,11 +50,8 @@ function Dashboard({ data, advisor, canEdit }: ReadOutput<'dashboard'> & { canEd
       {(now > 0 || overbooked > 0) && (
         <Alert tone={action > 0 || overbooked > 0 ? 'warning' : 'info'} className="mb-4">
           {t('advisor.summary', { now, action, overbooked })}{' '}
-          <TextLink asChild emphasis tone="inherit">
-            <Link href="/advisor" className="inline-flex items-center gap-1">
-              {t('advisor.open')}
-              <ArrowRight aria-hidden className="size-3.5" />
-            </Link>
+          <TextLink asChild emphasis tone="inherit" arrow>
+            <Link href="/advisor">{t('advisor.open')}</Link>
           </TextLink>
         </Alert>
       )}
@@ -135,7 +131,12 @@ function Dashboard({ data, advisor, canEdit }: ReadOutput<'dashboard'> & { canEd
           {data.upcomingSessions.length === 0 ? (
             <EmptyState title={t('upcoming.empty')} />
           ) : (
-            <SessionTable sessions={data.upcomingSessions} canEdit={canEdit} compact />
+            <SessionTable
+              sessions={data.upcomingSessions}
+              canEdit={canEdit}
+              compact
+              caption={t('upcoming.title')}
+            />
           )}
         </div>
       </div>

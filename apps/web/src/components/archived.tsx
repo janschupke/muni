@@ -36,10 +36,8 @@ export function RecordLink({
 }) {
   if (archived) return <ArchivedName>{children}</ArchivedName>
   return (
-    <TextLink asChild emphasis={emphasis}>
-      <Link href={href} className="inline-flex min-h-6 items-center">
-        {children}
-      </Link>
+    <TextLink asChild emphasis={emphasis} hitArea>
+      <Link href={href}>{children}</Link>
     </TextLink>
   )
 }
@@ -69,10 +67,8 @@ export function PersonLink({
   const t = useTranslations('archive')
   if (person.archived) return <ArchivedName>{t('person', { tag: person.tag })}</ArchivedName>
   return (
-    <TextLink asChild emphasis={emphasis}>
-      <Link href={`/employees/${person.externalId}`} className="inline-flex min-h-6 items-center">
-        {person.name}
-      </Link>
+    <TextLink asChild emphasis={emphasis} hitArea>
+      <Link href={`/employees/${person.externalId}`}>{person.name}</Link>
     </TextLink>
   )
 }

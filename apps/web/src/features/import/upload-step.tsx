@@ -7,6 +7,7 @@ import { Button } from '@muni/ui/button'
 import { Card } from '@muni/ui/card'
 import { Dropzone } from '@muni/ui/dropzone'
 import { Hint } from '@muni/ui/field'
+import { IconButton } from '@muni/ui/icon-button'
 import { ArrowRight, FileSpreadsheet, X } from 'lucide-react'
 
 import { useImportText } from './use-issue-text'
@@ -95,16 +96,15 @@ export function UploadStep({
                       </p>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
+                  <IconButton
                     size="icon"
-                    aria-label={t('upload.removeFile', { name: file.fileName })}
+                    label={t('upload.removeFile', { name: file.fileName })}
                     onClick={() => {
                       onRemove(file.kind as DatasetKind)
                     }}
                   >
                     <X aria-hidden />
-                  </Button>
+                  </IconButton>
                 </li>
               </Card>
             ) : null

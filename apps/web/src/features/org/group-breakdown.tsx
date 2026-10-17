@@ -16,10 +16,8 @@ export function GroupBreakdown({
     <ul className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
       {groups.map(g => (
         <li key={g.id} className="inline-flex items-baseline gap-1.5">
-          <TextLink asChild>
-            <Link href={`/${kind}/${g.id}`} className="inline-flex min-h-6 items-center">
-              {g.name}
-            </Link>
+          <TextLink asChild hitArea>
+            <Link href={`/${kind}/${g.id}`}>{g.name}</Link>
           </TextLink>
           <span className="text-fg-muted tabular-nums">{formatInteger(g.count, locale)}</span>
         </li>

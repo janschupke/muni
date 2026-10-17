@@ -6,7 +6,6 @@ import { Meter } from '@muni/ui/meter'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatPercent } from '@muni/utils/format'
-import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -61,14 +60,8 @@ export function TeamCard({ employee }: { employee: EmployeeDetail }) {
           ))}
         </ItemList>
         <p className="text-sm">
-          <TextLink asChild>
-            <Link
-              href={`/employees?manager=${employee.externalId}`}
-              className="inline-flex items-center gap-1"
-            >
-              {t('inList')}
-              <ArrowRight aria-hidden className="size-3.5" />
-            </Link>
+          <TextLink asChild arrow>
+            <Link href={`/employees?manager=${employee.externalId}`}>{t('inList')}</Link>
           </TextLink>
         </p>
       </CardBody>

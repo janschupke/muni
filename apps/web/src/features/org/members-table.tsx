@@ -1,6 +1,7 @@
 import type { EmployeeListItem } from '@muni/db/repositories'
 import { BarRow } from '@muni/ui/bar-row'
 import { DetailPanel } from '@muni/ui/detail-panel'
+import { EmptyState } from '@muni/ui/empty-state'
 import { Meter } from '@muni/ui/meter'
 import { CellStack, Table, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
@@ -29,7 +30,7 @@ export function MembersTable({
 }) {
   const t = useTranslations('org.members')
   const locale = useLocale()
-  if (members.length === 0) return <p className="text-sm text-fg-muted">{t('none')}</p>
+  if (members.length === 0) return <EmptyState variant="inline" title={t('none')} />
   return (
     <DetailPanel title={t('title')} count={members.length} flush>
       <Table density="compact" aria-label={t('label', { name })}>
@@ -104,20 +105,12 @@ export function MembersTable({
                           className="flex flex-wrap items-center gap-x-2 gap-y-0.5"
                         >
                           <ComplianceBadge status={r.status} />
-                          <TextLink asChild>
-                            <Link
-                              href={`/courses/${r.courseCode}`}
-                              className="inline-flex min-h-6 items-center"
-                            >
-                              {r.courseName}
-                            </Link>
+                          <TextLink asChild hitArea>
+                            <Link href={`/courses/${r.courseCode}`}>{r.courseName}</Link>
                           </TextLink>
                           {r.booked && (
-                            <TextLink asChild tone="muted">
-                              <Link
-                                href={`/sessions/${r.booked.sessionExternalId}`}
-                                className="inline-flex min-h-6 items-center text-xs"
-                              >
+                            <TextLink asChild tone="muted" hitArea className="text-xs">
+                              <Link href={`/sessions/${r.booked.sessionExternalId}`}>
                                 {t('booked', { date: formatDateTime(r.booked.startsAt, locale) })}
                               </Link>
                             </TextLink>

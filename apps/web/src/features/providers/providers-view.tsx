@@ -26,7 +26,7 @@ export function ProvidersView({ canEdit }: { canEdit: boolean }) {
           )
         }
       />
-      <ReadView query={read} skeleton={<TableSkeleton columns={5} />}>
+      <ReadView titled query={read} skeleton={<TableSkeleton columns={5} />}>
         {({ providers, prices }) =>
           providers.length === 0 ? (
             <EmptyState title={t('empty')} />

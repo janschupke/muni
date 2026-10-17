@@ -18,10 +18,13 @@ export interface StackedSegment {
 export function StackedBar({
   segments,
   label,
+  scale = 1,
   className,
 }: {
   segments: StackedSegment[]
   label: string
+  /** How long the bar is against the longest of its set (0–1): bars in a list compare. */
+  scale?: number | undefined
   className?: string | undefined
 }) {
   const total = segments.reduce((sum, s) => sum + s.value, 0)
@@ -31,6 +34,7 @@ export function StackedBar({
       role="img"
       aria-label={`${label}: ${segments.map(s => `${s.label} ${s.value}`).join(', ')}`}
       className={cn(barTrackClass, 'flex h-3 gap-0.5', className)}
+      style={scale < 1 ? { width: `${Math.max(0, scale) * 100}%` } : undefined}
     >
       {total > 0 &&
         visible.map(segment => (

@@ -24,7 +24,7 @@ export function ImportView() {
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
-      <ReadView query={read} skeleton={<TableSkeleton rows={3} columns={3} />}>
+      <ReadView titled query={read} skeleton={<TableSkeleton rows={3} columns={3} />}>
         {({ reference, today }) => <ImportWizard reference={reference} today={today} />}
       </ReadView>
     </>

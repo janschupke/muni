@@ -16,7 +16,7 @@ import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
 import { advisorInput, AULA_A, ONLINE, session } from '@/test/fixtures'
-import { NotFoundError } from '@/test/next'
+import { NotFoundError, router } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
 import AdvisorPage, { generateMetadata as advisorMetadata } from '../advisor/page'
@@ -103,7 +103,7 @@ describe('session list', () => {
     expect(within(row).getByRole('link', { name: 'Online' }).getAttribute('href')).toBe(
       '/rooms/room_online'
     )
-    expect(within(row).getByLabelText('Online')).toBeTruthy()
+    expect(within(row).getByText('Online', { selector: '.sr-only' })).toBeTruthy()
     expect(
       within(row)
         .getByRole('link', { name: /Nov 4, 2026/ })
@@ -125,9 +125,12 @@ describe('session list', () => {
       '/sessions?room=room_aula_a'
     )
     expect(screen.getByRole('link', { name: 'Past' }).getAttribute('aria-current')).toBe('page')
-    expect(screen.getByRole('link', { name: 'All locations' }).getAttribute('href')).toBe(
-      '/sessions?when=past'
-    )
+    // The room filter shows the room; choosing all rooms keeps the past tab.
+    const filter = screen.getByRole('combobox', { name: 'Room' })
+    expect(filter.textContent).toContain('Aula A')
+    await userEvent.setup().click(filter)
+    await userEvent.setup().click(screen.getByRole('option', { name: 'All locations' }))
+    expect(router.push).toHaveBeenCalledWith('/sessions?when=past')
   })
 
   it('opens a session row to the session and the people booked on it', async () => {
@@ -151,10 +154,11 @@ describe('session list', () => {
     await expectNoAxeViolations()
   })
 
-  it('ignores a room that does not exist', async () => {
+  it('shows nothing for a room that does not exist', async () => {
     expect(await listMetadata(search({ room: 'gone' }))).toEqual({ title: 'Sessions' })
     await renderServer(SessionsPage(search({ room: 'gone' })))
-    expect(listSessions).toHaveBeenCalledWith({ window: 'upcoming', room: undefined })
+    expect(screen.getByRole('heading', { level: 1, name: 'Sessions' })).toBeTruthy()
+    expect(screen.getByText('No sessions to show.')).toBeTruthy()
   })
 
   it('says when there is nothing to show', async () => {

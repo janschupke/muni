@@ -13,6 +13,7 @@ import {
   ArrowRight,
   BookOpen,
   CalendarDays,
+  CircleX,
   DoorOpen,
   GraduationCap,
   type LucideIcon,
@@ -53,6 +54,7 @@ function matches(row: ParsedRow<unknown>, filter: Filter): boolean {
 }
 
 function DatasetReview({
+  name,
   columns,
   rows,
   onEdit,
@@ -60,6 +62,7 @@ function DatasetReview({
   onRestore,
   onRevert,
 }: {
+  name: string
   columns: string[]
   rows: ParsedRow<unknown>[]
   onEdit: (index: number, field: string, value: string) => void
@@ -148,6 +151,7 @@ function DatasetReview({
         <Alert tone="info">{t('review.skippedNotice', { count: summary.skipped })}</Alert>
       )}
       <ReviewTable
+        caption={name}
         columns={columns}
         rows={filtered}
         pagination={{ pageIndex: current, pageSize: PAGE_SIZE }}
@@ -181,6 +185,7 @@ export function ReviewStep({
   onNext: () => void
 }) {
   const { t } = useImportText()
+  const locale = useLocale()
   const kinds = (Object.keys(batch) as DatasetKind[]).filter(k => (batch[k]?.length ?? 0) > 0)
   const [tab, setTab] = useState<string>(kinds[0] ?? 'courses')
 
@@ -195,8 +200,17 @@ export function ReviewStep({
               <TabsTrigger key={kind} value={kind}>
                 <Icon aria-hidden />
                 {t(`kinds.${kind}`)}
-                <Badge>{s.total}</Badge>
-                {s.invalid > 0 && <Badge tone="danger">{s.invalid}</Badge>}
+                <Badge>
+                  <span aria-hidden>{formatInteger(s.total, locale)}</span>
+                  <span className="sr-only">{t('review.tabCount', { total: s.total })}</span>
+                </Badge>
+                {s.invalid > 0 && (
+                  <Badge tone="danger">
+                    <CircleX aria-hidden />
+                    <span aria-hidden>{formatInteger(s.invalid, locale)}</span>
+                    <span className="sr-only">{t('review.tabInvalid', { count: s.invalid })}</span>
+                  </Badge>
+                )}
               </TabsTrigger>
             )
           })}
@@ -204,6 +218,7 @@ export function ReviewStep({
         {kinds.map(kind => (
           <TabsContent key={kind} value={kind}>
             <DatasetReview
+              name={t(`kinds.${kind}`)}
               columns={columnsByKind[kind] ?? []}
               rows={(batch[kind] ?? []) as ParsedRow<unknown>[]}
               onEdit={(index, field, value) => {

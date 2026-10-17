@@ -22,7 +22,7 @@ export function CoursePanel({ course }: { course: CourseListItem }) {
   const locale = useLocale()
   const { sessionNeeds: needs } = course
   return (
-    <DetailGrid className="lg:grid-cols-3">
+    <DetailGrid layout="thirds">
       <DetailPanel title={t('sessions')} count={course.upcoming.length}>
         {course.upcoming.length === 0 ? (
           <EmptyState variant="inline" title={t('noSessions')} />

@@ -10,9 +10,8 @@ import { RecordLink } from './archived'
 const sessionHref = (externalId: string) => `/sessions/${externalId}`
 const roomHref = (room: RoomRef) => `/rooms/${encodeURIComponent(room.id)}`
 
-// These links sit stacked in table cells and card headers; 24px tall keeps them apart enough
-// to hit (WCAG 2.2 target size).
-const TARGET = 'inline-flex min-h-6 items-center'
+// These links sit stacked in table cells and card headers; 24px tall (`hitArea`) keeps them
+// apart enough to hit (WCAG 2.2 target size).
 
 /** A session's date and time, linking to the session. */
 export function SessionDateLink({
@@ -24,8 +23,8 @@ export function SessionDateLink({
 }) {
   const locale = useLocale()
   return (
-    <TextLink asChild emphasis={emphasis}>
-      <Link href={sessionHref(session.externalId)} className={TARGET}>
+    <TextLink asChild emphasis={emphasis} hitArea>
+      <Link href={sessionHref(session.externalId)}>
         {formatTimeRange(session.startsAt, session.endsAt, locale)}
       </Link>
     </TextLink>
@@ -38,7 +37,10 @@ export function RoomLink({ room }: { room: RoomRef }) {
   return (
     <span className="inline-flex items-center gap-1.5">
       {room.kind === 'ONLINE' && (
-        <Wifi aria-label={t('online')} className="size-3.5 text-fg-muted" />
+        <>
+          <Wifi aria-hidden className="size-3.5 text-fg-muted" />
+          <span className="sr-only">{t('online')}</span>
+        </>
       )}
       <RecordLink href={roomHref(room)} archived={room.archived ?? false}>
         {room.name}

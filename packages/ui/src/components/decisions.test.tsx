@@ -169,6 +169,7 @@ describe('DataTable selection', () => {
     return (
       <>
         <DataTable
+          caption="People"
           columns={col.columns([col.accessor('name', { header: 'Name' })])}
           data={ROWS}
           getRowId={r => r.id}

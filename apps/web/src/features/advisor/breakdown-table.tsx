@@ -6,7 +6,7 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { formatMonth } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
-import { useMemo } from 'react'
+import { useId, useMemo } from 'react'
 
 import { RoomLink, SessionDateLink } from '@/components/session-links'
 
@@ -46,10 +46,13 @@ export function BreakdownTable({
   )
 
   const title = `${bucketName(bucket)}: ${t('breakdown.trainings', { count: items.length })}`
+  const headingId = useId()
   return (
-    <section aria-label={title} className="flex flex-col gap-3">
+    <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <div>
-        <SectionHeading className="mt-0">{title}</SectionHeading>
+        <SectionHeading id={headingId} className="mt-0">
+          {title}
+        </SectionHeading>
         <p className="text-sm text-fg-muted">
           {bucket === NOW
             ? t('breakdown.rowsNow')

@@ -16,7 +16,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ArchivedBadge, UserName } from '@/components/archived'
 import { BackLink } from '@/components/back-link'
 import { ReadView } from '@/components/read-view'
-import { DetailSkeleton, HeaderSkeleton, TableSkeleton } from '@/components/skeletons'
+import { DetailSkeleton, TableSkeleton } from '@/components/skeletons'
 import { UnarchiveButton } from '@/components/unarchive-button'
 import type en from '@/i18n/messages/en.json'
 import { readQuery } from '@/lib/query/queries'
@@ -39,41 +39,33 @@ export function ArchivedListView({ kind }: { kind: Archivable }) {
   const tk = useTranslations('archive.kinds')
   const read = useQuery(readQuery('archived-list', { kind }))
   return (
-    <ReadView
-      query={read}
-      skeleton={
-        <>
-          <HeaderSkeleton />
-          <TableSkeleton columns={4} />
-        </>
-      }
-    >
-      {items => (
-        <>
-          <PageHeader
-            eyebrow={<BackLink fallback={{ href: LIST_PATH[kind], label: tk(`${kind}.list`) }} />}
-            title={tk(`${kind}.title`)}
-            description={t('list.description')}
-            actions={
-              // Completions belong to people; theirs are reached from the archived people.
-              kind === 'employee' && (
-                <Button asChild variant="ghost">
-                  <Link href={archivedListPath('completion')}>
-                    <Archive aria-hidden />
-                    {tk('completion.title')}
-                  </Link>
-                </Button>
-              )
-            }
-          />
-          {items.length === 0 ? (
+    <>
+      <PageHeader
+        eyebrow={<BackLink fallback={{ href: LIST_PATH[kind], label: tk(`${kind}.list`) }} />}
+        title={tk(`${kind}.title`)}
+        description={t('list.description')}
+        actions={
+          // Completions belong to people; theirs are reached from the archived people.
+          kind === 'employee' && (
+            <Button asChild variant="ghost">
+              <Link href={archivedListPath('completion')}>
+                <Archive aria-hidden />
+                {tk('completion.title')}
+              </Link>
+            </Button>
+          )
+        }
+      />
+      <ReadView titled query={read} skeleton={<TableSkeleton columns={4} />}>
+        {items =>
+          items.length === 0 ? (
             <EmptyState title={t('list.empty')} />
           ) : (
             <ArchivedTable kind={kind} items={items} />
-          )}
-        </>
-      )}
-    </ReadView>
+          )
+        }
+      </ReadView>
+    </>
   )
 }
 

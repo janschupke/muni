@@ -9,7 +9,10 @@ export const badgeClass = cva(
     variants: {
       tone: {
         neutral: 'border-border-default bg-tint text-fg-muted',
+        /** The brand: who someone is (an admin), never a state. */
         accent: 'border-info-border bg-accent-soft text-accent-text',
+        /** A state that needs nothing (on leave, planned). */
+        info: 'border-info-border bg-info-soft text-info-fg',
         success: 'border-success-border bg-success-soft text-success-fg',
         warning: 'border-warning-border bg-warning-soft text-warning-fg',
         serious: 'border-serious-border bg-serious-soft text-serious-fg',

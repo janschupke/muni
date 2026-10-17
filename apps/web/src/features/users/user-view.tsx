@@ -1,6 +1,5 @@
 'use client'
 
-import { Badge } from '@muni/ui/badge'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { SplitLayout } from '@muni/ui/layout'
@@ -13,6 +12,7 @@ import { BackLink } from '@/components/back-link'
 import { ConfirmArchiveButton } from '@/components/confirm-archive-button'
 import { ReadView } from '@/components/read-view'
 import { DetailSkeleton } from '@/components/skeletons'
+import { RoleBadge } from '@/components/status-badges'
 import { RoleForm } from '@/features/users/role-form'
 import { readQuery } from '@/lib/query/queries'
 import { useDocumentTitle } from '@/lib/query/use-document-title'
@@ -34,7 +34,6 @@ export function UserView({ id }: { id: string }) {
 function UserDetail({ data }: { data: ReadOutput<'user'> }) {
   const { user, self } = data
   const t = useTranslations('users')
-  const tr = useTranslations('status.role')
   const locale = useLocale()
   const name = user.name ?? user.email ?? user.clerkId
   return (
@@ -42,9 +41,7 @@ function UserDetail({ data }: { data: ReadOutput<'user'> }) {
       <PageHeader
         eyebrow={<BackLink fallback={{ href: '/users', label: t('title') }} />}
         title={name}
-        description={
-          <Badge tone={user.role === 'ADMIN' ? 'accent' : 'neutral'}>{tr(user.role)}</Badge>
-        }
+        description={<RoleBadge value={user.role} />}
         actions={
           !self && <ConfirmArchiveButton kind="user" id={user.id} name={name} then="/users" />
         }

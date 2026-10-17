@@ -115,6 +115,7 @@ export function CoursesTable({
 
   return (
     <DataTable
+      caption={t('title')}
       columns={columns}
       data={courses}
       getRowId={c => c.code}

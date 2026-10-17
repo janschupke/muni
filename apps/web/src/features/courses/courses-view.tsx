@@ -27,7 +27,7 @@ export function CoursesView({ canEdit }: { canEdit: boolean }) {
           )
         }
       />
-      <ReadView query={read} skeleton={<TableSkeleton columns={5} />}>
+      <ReadView titled query={read} skeleton={<TableSkeleton columns={5} />}>
         {courses =>
           courses.length === 0 ? (
             <EmptyState title={t('empty')} />

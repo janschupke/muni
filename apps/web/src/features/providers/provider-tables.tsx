@@ -22,6 +22,7 @@ const byCourse = createDataColumns<CourseRow>()
 /** What was completed with a provider, per course; spend only for viewers who see prices. */
 export function ProviderCoursesTable({ rows, prices }: { rows: CourseRow[]; prices: boolean }) {
   const t = useTranslations('providers.detail.columns')
+  const td = useTranslations('providers.detail')
   const locale = useLocale()
   const columns = useMemo(
     () =>
@@ -74,7 +75,7 @@ export function ProviderCoursesTable({ rows, prices }: { rows: CourseRow[]; pric
       ]),
     [locale, prices, t]
   )
-  return <DataTable columns={columns} data={rows} getRowId={c => c.code} />
+  return <DataTable caption={td('byCourse')} columns={columns} data={rows} getRowId={c => c.code} />
 }
 
 const recent = createDataColumns<CompletionRow>()
@@ -149,5 +150,12 @@ export function ProviderCompletionsTable({
       ]),
     [locale, prices, t, tc]
   )
-  return <DataTable columns={columns} data={rows} getRowId={c => c.externalId} />
+  return (
+    <DataTable
+      caption={t('providers.detail.recent')}
+      columns={columns}
+      data={rows}
+      getRowId={c => c.externalId}
+    />
+  )
 }

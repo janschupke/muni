@@ -126,3 +126,57 @@ export function FieldRow({ columns = 2, children }: { columns?: 2 | 3; children:
 export function Hint({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
   return <p className={cn('text-xs text-fg-subtle', className)} {...props} />
 }
+
+/**
+ * A group of controls under one label (checkboxes that post one name): the legend names the
+ * group, its help and error are linked to it like a field's, and it carries the same state
+ * attributes a Field does.
+ */
+export function Fieldset({
+  legend,
+  help,
+  error,
+  name,
+  dirty,
+  touched,
+  children,
+  className,
+}: {
+  legend: ReactNode
+  help?: ReactNode | undefined
+  error?: ReactNode | undefined
+  name?: string | undefined
+  dirty?: boolean | undefined
+  touched?: boolean | undefined
+  children: ReactNode
+  className?: string | undefined
+}) {
+  const id = useId()
+  const helpId = `${id}-help`
+  const errorId = `${id}-error`
+  const describedBy =
+    [help ? helpId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined
+  return (
+    <fieldset
+      data-field={name}
+      data-dirty={dirty ? true : undefined}
+      data-touched={touched ? true : undefined}
+      data-invalid={error ? true : undefined}
+      aria-describedby={describedBy}
+      className={cn('flex flex-col gap-2', className)}
+    >
+      <legend className="mb-1 text-sm font-medium text-fg">{legend}</legend>
+      {Boolean(help) && (
+        <p id={helpId} className="-mt-1 text-xs text-fg-muted">
+          {help}
+        </p>
+      )}
+      {children}
+      {Boolean(error) && (
+        <p id={errorId} aria-live="polite" className="text-xs text-danger-fg">
+          {error}
+        </p>
+      )}
+    </fieldset>
+  )
+}

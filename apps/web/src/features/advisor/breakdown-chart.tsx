@@ -59,17 +59,16 @@ export function BreakdownChart({
                       {t('trainings', { count: row.total })}
                     </span>
                   </div>
-                  <div style={{ width: `${(row.total / max) * 100}%` }}>
-                    <StackedBar
-                      label={name}
-                      segments={REMEDIATIONS.map(r => ({
-                        key: r,
-                        label: tr(r),
-                        value: row.counts[r],
-                        fillClass: REMEDIATION_FILL[r],
-                      }))}
-                    />
-                  </div>
+                  <StackedBar
+                    label={name}
+                    scale={row.total / max}
+                    segments={REMEDIATIONS.map(r => ({
+                      key: r,
+                      label: tr(r),
+                      value: row.counts[r],
+                      fillClass: REMEDIATION_FILL[r],
+                    }))}
+                  />
                   {row.total > 0 && (
                     <div className="mt-1 text-xs text-fg-muted tabular-nums">
                       {t('counts', {

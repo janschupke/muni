@@ -33,8 +33,14 @@ export function EmployeesTable({
   sort,
   omit,
   canEdit = false,
+  caption,
+  panelLevel = 2,
 }: {
   items: EmployeeListItem[]
+  /** The table's accessible name: "Employees" unless the section names them otherwise. */
+  caption?: string | undefined
+  /** An opened row's panel heads with an `h2`, or an `h3` under a section's `h2`. */
+  panelLevel?: 2 | 3 | undefined
   /** Admins get a pencil and archive on each row. */
   canEdit?: boolean | undefined
   /** A column every row shares, left out: the department on a department's page. */
@@ -163,13 +169,14 @@ export function EmployeesTable({
   return (
     <div aria-busy={pending}>
       <DataTable
+        caption={caption ?? t('title')}
         columns={columns}
         data={items}
         getRowId={e => e.externalId}
         {...(query
           ? { manualSorting: true, sorting }
           : { initialSorting: [{ id: 'name', desc: false }] })}
-        renderExpanded={e => <RequirementPanel requirements={e.requirements} />}
+        renderExpanded={e => <RequirementPanel requirements={e.requirements} level={panelLevel} />}
         getRowCanExpand={e => e.requirements.length > 0}
         expandLabel={e => t('panel.toggle', { name: sortName(e) })}
         expandHeader={t('panel.header')}

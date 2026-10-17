@@ -64,6 +64,9 @@ describe('Badge, Button and TextLink', () => {
         <TextLink asChild>
           <a href="/sessions">Termíny</a>
         </TextLink>
+        <TextLink asChild arrow hitArea>
+          <a href="/advisor">Poradce</a>
+        </TextLink>
       </>
     )
     expect(screen.getByText('Prošlé').className).toContain('text-danger-fg')
@@ -74,6 +77,10 @@ describe('Badge, Button and TextLink', () => {
     expect(asLink.className).toContain('inline-flex')
     expect(screen.getByRole('link', { name: 'Kurzy' }).className).toContain('font-medium')
     expect(screen.getByRole('link', { name: 'Termíny' }).getAttribute('href')).toBe('/sessions')
+    // A link that leads on ends with an arrow inside it; listed links are 24px tall.
+    const onward = screen.getByRole('link', { name: 'Poradce' })
+    expect(onward.querySelector('svg')).toBeTruthy()
+    expect(onward.className).toContain('min-h-6')
   })
 })
 

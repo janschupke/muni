@@ -123,7 +123,14 @@ export function CompletionHistoryTable({
     [editFor, locale, showNotes, t]
   )
 
-  return <DataTable columns={columns} data={completions} getRowId={c => c.externalId} />
+  return (
+    <DataTable
+      caption={t('employees.detail.history')}
+      columns={columns}
+      data={completions}
+      getRowId={c => c.externalId}
+    />
+  )
 }
 
 const recent = createDataColumns<CourseCompletion>()
@@ -162,5 +169,12 @@ export function RecentCompletionsTable({ completions }: { completions: CourseCom
     [locale, t]
   )
 
-  return <DataTable columns={columns} data={completions} getRowId={c => c.externalId} />
+  return (
+    <DataTable
+      caption={t('courses.detail.recentCompletions')}
+      columns={columns}
+      data={completions}
+      getRowId={c => c.externalId}
+    />
+  )
 }

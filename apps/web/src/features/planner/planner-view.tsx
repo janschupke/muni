@@ -59,8 +59,8 @@ export function PlannerView({
         </Alert>
       )}
       {groups.map(group => (
-        <section key={group.course.code} aria-label={group.course.name}>
-          <CourseHeading course={group.course} />
+        <section key={group.course.code} aria-labelledby={`course-${group.course.code}`}>
+          <CourseHeading course={group.course} id={`course-${group.course.code}`} />
           <OfferTable
             group={group}
             canCreate={canCreate}
@@ -86,7 +86,7 @@ export function PlannerView({
   )
 }
 
-function CourseHeading({ course }: { course: OfferCourse }) {
+function CourseHeading({ course, id }: { course: OfferCourse; id: string }) {
   const t = useTranslations('planner')
   const tc = useTranslations('status.capability')
   const length = course.sessionMinutes ?? DEFAULT_SESSION_MINUTES
@@ -100,7 +100,7 @@ function CourseHeading({ course }: { course: OfferCourse }) {
       : []),
   ]
   return (
-    <SectionHeading className="mt-0" description={facts.join(' · ')}>
+    <SectionHeading id={id} className="mt-0" description={facts.join(' · ')}>
       <TextLink asChild>
         <Link href={`/courses/${course.code}`}>{course.name}</Link>
       </TextLink>
@@ -192,8 +192,8 @@ function OfferTable({
           ? [
               col.display({
                 id: 'action',
-                header: t('columns.action'),
-                meta: { headerClassName: 'sr-only' },
+                // Named for screen readers; the buttons say what they do.
+                header: () => <span className="sr-only">{t('columns.action')}</span>,
                 cell: ({ row }) => {
                   const offer = row.original
                   if (!offer.slot || !offer.room || offer.capacity === null) return null
@@ -265,7 +265,7 @@ function OfferDetails({ offer }: { offer: SessionOffer }) {
   const tr = useTranslations('planner.review')
   const locale = useLocale()
   return (
-    <DetailGrid className="lg:grid-cols-[2fr_1fr]">
+    <DetailGrid layout="wide-narrow">
       <DetailPanel title={t('people')} count={offer.people.length} level={3} flush>
         <Table density="compact" aria-label={t('people')}>
           <THead>

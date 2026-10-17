@@ -1,20 +1,13 @@
 'use client'
 
-import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { Toast as ToastPrimitive } from 'radix-ui'
 import type { ReactNode } from 'react'
 
 import { cn } from '../cn'
+import { type MessageTone, TONE_ICON, TONE_INK } from './tone'
 
-export type ToastTone = 'success' | 'info' | 'warning' | 'danger'
-
-const ICON = { success: CircleCheck, info: Info, warning: TriangleAlert, danger: CircleAlert }
-const INK = {
-  success: 'text-success-fg',
-  info: 'text-info-fg',
-  warning: 'text-warning-fg',
-  danger: 'text-danger-fg',
-}
+export type ToastTone = MessageTone
 
 /** How long a toast stays: a failure stays until it is closed, everything else 6 s. */
 export const toastDuration = (tone: ToastTone) => (tone === 'danger' ? Infinity : 6000)
@@ -64,7 +57,7 @@ export function Toast({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const Icon = ICON[tone]
+  const Icon = TONE_ICON[tone]
   return (
     <ToastPrimitive.Root
       open={open}
@@ -74,7 +67,7 @@ export function Toast({
       type={tone === 'danger' ? 'foreground' : 'background'}
       className="flex items-start gap-3 rounded-md border border-border-default bg-surface-overlay p-3 text-fg shadow-overlay data-[state=closed]:animate-fade-out data-[state=open]:animate-slide-up data-[swipe=end]:animate-fade-out data-[swipe=move]:translate-x-(--radix-toast-swipe-move-x)"
     >
-      <Icon aria-hidden className={cn('mt-0.5 size-4 shrink-0', INK[tone])} />
+      <Icon aria-hidden className={cn('mt-0.5 size-4 shrink-0', TONE_INK[tone])} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <ToastPrimitive.Title className="text-sm font-medium">{title}</ToastPrimitive.Title>
         {description !== undefined && (

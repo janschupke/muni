@@ -58,7 +58,7 @@ export function EmployeesView({
           )
         }
       />
-      <ReadView query={read} skeleton={<ListSkeleton columns={6} />}>
+      <ReadView titled query={read} skeleton={<ListSkeleton columns={6} />}>
         {({ result, departments, positions, managerName }) => (
           <div
             aria-busy={read.isPlaceholderData || undefined}

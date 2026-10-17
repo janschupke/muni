@@ -45,13 +45,8 @@ export function OverbookedList({
         <Card key={o.session.externalId}>
           <CardHeader
             title={
-              <TextLink asChild>
-                <Link
-                  href={`/courses/${o.session.courseCode}`}
-                  className="inline-flex min-h-6 items-center"
-                >
-                  {o.session.courseName}
-                </Link>
+              <TextLink asChild hitArea>
+                <Link href={`/courses/${o.session.courseCode}`}>{o.session.courseName}</Link>
               </TextLink>
             }
             description={

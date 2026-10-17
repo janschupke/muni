@@ -153,6 +153,8 @@ test('plans a session with the time picker, books a person by hand, and cancels 
     .click()
   await expect(booked).toHaveCount(0)
   await expect(page.getByText('Booking cancelled', { exact: true })).toBeVisible()
+  // The row and its button went; focus stayed in the page, not on the body.
+  await expect.poll(() => page.evaluate(() => document.activeElement?.tagName)).not.toBe('BODY')
 })
 
 test('gives a position its departments and a department its head', async ({ page }) => {

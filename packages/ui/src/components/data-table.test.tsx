@@ -48,7 +48,7 @@ const header = (name: string) => screen.getByRole('columnheader', { name: new Re
 describe('DataTable sorting', () => {
   it('cycles a header from ascending to descending to unsorted', async () => {
     const user = userEvent.setup()
-    render(<DataTable columns={columns} data={PEOPLE} getRowId={p => p.id} />)
+    render(<DataTable caption="People" columns={columns} data={PEOPLE} getRowId={p => p.id} />)
     const button = within(header('Name')).getByRole('button')
 
     expect(header('Name').getAttribute('aria-sort')).toBeNull()
@@ -63,14 +63,14 @@ describe('DataTable sorting', () => {
 
   it('collates Czech names: č after c, ch after h', async () => {
     const user = userEvent.setup()
-    render(<DataTable columns={columns} data={PEOPLE} getRowId={p => p.id} />)
+    render(<DataTable caption="People" columns={columns} data={PEOPLE} getRowId={p => p.id} />)
     await user.click(within(header('Name')).getByRole('button'))
     expect(firstColumn()).toEqual(['Adámek', 'Čermák', 'Hora', 'Chalupa', 'Zelený'])
   })
 
   it('keeps missing values last in both directions', async () => {
     const user = userEvent.setup()
-    render(<DataTable columns={columns} data={PEOPLE} getRowId={p => p.id} />)
+    render(<DataTable caption="People" columns={columns} data={PEOPLE} getRowId={p => p.id} />)
     const button = within(header('Price')).getByRole('button')
     await user.click(button)
     expect(priceColumn()).toEqual(['0', '120', '450', '2100', '—'])
@@ -87,6 +87,7 @@ describe('DataTable sorting', () => {
     }))
     render(
       <DataTable
+        caption="People"
         columns={columns}
         data={many}
         getRowId={p => p.id}
@@ -116,6 +117,7 @@ describe('DataTable sorting', () => {
     const onSortingChange = vi.fn<(sorting: SortingState) => void>()
     render(
       <DataTable
+        caption="People"
         columns={columns}
         data={PEOPLE}
         getRowId={p => p.id}
@@ -130,7 +132,15 @@ describe('DataTable sorting', () => {
   })
 
   it('renders plain headers when sorting is off', () => {
-    render(<DataTable columns={columns} data={PEOPLE} getRowId={p => p.id} enableSorting={false} />)
+    render(
+      <DataTable
+        caption="People"
+        columns={columns}
+        data={PEOPLE}
+        getRowId={p => p.id}
+        enableSorting={false}
+      />
+    )
     expect(within(header('Name')).queryByRole('button')).toBeNull()
   })
 })
@@ -140,6 +150,7 @@ describe('DataTable detail rows', () => {
     const user = userEvent.setup()
     render(
       <DataTable
+        caption="People"
         columns={columns}
         data={PEOPLE}
         getRowId={p => p.id}
@@ -174,6 +185,7 @@ describe('DataTable detail rows', () => {
     const user = userEvent.setup()
     render(
       <DataTable
+        caption="People"
         columns={columns}
         data={PEOPLE}
         getRowId={p => p.id}

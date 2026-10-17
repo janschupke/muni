@@ -1,5 +1,5 @@
 import { type ComplianceBand, complianceBand } from '@muni/domain/compliance'
-import type { ComplianceStatus, EmploymentState, SessionStatus } from '@muni/domain/enums'
+import type { ComplianceStatus, EmploymentState, Role, SessionStatus } from '@muni/domain/enums'
 import { type Occupancy, occupancy } from '@muni/domain/sessions'
 import { Badge, type BadgeTone } from '@muni/ui/badge'
 import type { MeterTone } from '@muni/ui/meter'
@@ -57,7 +57,7 @@ export function ComplianceBadge({ status }: { status: ComplianceStatus | null })
 
 const EMPLOYMENT: Record<EmploymentState, { tone: BadgeTone; Icon: LucideIcon }> = {
   ACTIVE: { tone: 'success', Icon: UserCheck },
-  PARENTAL_LEAVE: { tone: 'accent', Icon: Baby },
+  PARENTAL_LEAVE: { tone: 'info', Icon: Baby },
   LEFT: { tone: 'neutral', Icon: UserX },
 }
 
@@ -76,7 +76,7 @@ export function SessionStatusBadge({ status }: { status: SessionStatus }) {
   const t = useTranslations('status.session')
   const Icon = status === 'CANCELLED' ? CalendarX : CalendarCheck
   return (
-    <Badge tone={status === 'CANCELLED' ? 'neutral' : 'accent'}>
+    <Badge tone={status === 'CANCELLED' ? 'neutral' : 'info'}>
       <Icon aria-hidden />
       {t(status)}
     </Badge>
@@ -121,6 +121,16 @@ export function OccupancyBadge({ booked, capacity }: { booked: number; capacity:
     <Badge tone={tone}>
       <Icon aria-hidden />
       {t(key)}
+    </Badge>
+  )
+}
+
+/** Someone's role. Admin wears the brand: it says who they are, not a state. */
+export function RoleBadge({ value, className }: { value: Role; className?: string | undefined }) {
+  const t = useTranslations('status.role')
+  return (
+    <Badge tone={value === 'ADMIN' ? 'accent' : 'neutral'} className={className}>
+      {t(value)}
     </Badge>
   )
 }

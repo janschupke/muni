@@ -1,6 +1,7 @@
 import { SignOutButton } from '@clerk/nextjs'
 import { Alert } from '@muni/ui/alert'
 import { Button } from '@muni/ui/button'
+import { PageHeader } from '@muni/ui/page-header'
 import { LogOut } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 
@@ -9,7 +10,7 @@ export async function ArchivedAccount() {
   const t = await getTranslations('landing.archived')
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-start gap-5 py-6 lg:py-12">
-      <h1 className="text-2xl font-semibold tracking-tight text-fg">{t('title')}</h1>
+      <PageHeader title={t('title')} />
       <Alert tone="warning">{t('body')}</Alert>
       <SignOutButton>
         <Button>

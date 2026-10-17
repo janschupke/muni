@@ -72,7 +72,7 @@ function GroupsPage<G>({
           )
         }
       />
-      <ReadView query={read} skeleton={<TableSkeleton columns={4} />}>
+      <ReadView titled query={read} skeleton={<TableSkeleton columns={4} />}>
         {groups => (groups.length === 0 ? <EmptyState title={t('empty')} /> : children(groups))}
       </ReadView>
     </>

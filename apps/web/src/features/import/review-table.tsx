@@ -6,7 +6,7 @@ import { createDataColumns, DataTable, type PaginationState } from '@muni/ui/dat
 import { Input } from '@muni/ui/field'
 import { IconButton } from '@muni/ui/icon-button'
 import { Tooltip } from '@muni/ui/tooltip'
-import { CircleAlert, RotateCcw, Trash2, Undo2 } from 'lucide-react'
+import { CircleX, Pencil, RotateCcw, Trash2, TriangleAlert, Undo2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { type ReactElement, useMemo, useState } from 'react'
 
@@ -30,6 +30,13 @@ const CELL_TINT = {
   edited: 'bg-info-soft',
 } as const
 
+/** Each state also has its own mark, so it never rests on the tint alone. */
+const CELL_MARK = {
+  error: { Icon: CircleX, className: 'text-danger-fg' },
+  warning: { Icon: TriangleAlert, className: 'text-warning-fg' },
+  edited: { Icon: Pencil, className: 'text-info-fg' },
+} as const
+
 const LINE = '__line'
 const ACTIONS = '__actions'
 
@@ -40,6 +47,7 @@ const col = createDataColumns<IndexedRow>()
  * Sorting and paging run over every row of the current filter, sorting first.
  */
 export function ReviewTable({
+  caption,
   columns,
   rows,
   pagination,
@@ -49,6 +57,8 @@ export function ReviewTable({
   onRestore,
   onRevert,
 }: {
+  /** The dataset's name: the table's accessible name. */
+  caption: string
   columns: string[]
   rows: IndexedRow[]
   pagination: PaginationState
@@ -90,7 +100,11 @@ export function ReviewTable({
                 aria-label={`${t('review.problems', { row: row.rowNumber })}\n${describe(row)}`}
               >
                 {row.rowNumber}
-                <CircleAlert aria-hidden className="size-3.5" />
+                {row.errors.length > 0 ? (
+                  <CircleX aria-hidden className="size-3.5" />
+                ) : (
+                  <TriangleAlert aria-hidden className="size-3.5" />
+                )}
               </button>
             </Tooltip>
           )
@@ -134,16 +148,24 @@ export function ReviewTable({
             if (row.isRemoved) {
               return full(<span className="block truncate px-3 py-2">{value}</span>)
             }
+            const state = fieldState(row, field)
+            const mark = state && CELL_MARK[state]
             return full(
               <button
                 type="button"
-                aria-label={label}
-                className="block w-full truncate px-3 py-2 text-left hover:bg-state-hover"
+                // What is in it, its state, and what pressing does: the value is not hidden.
+                aria-label={[value || t('review.empty'), state && t(`review.state.${state}`), label]
+                  .filter(Boolean)
+                  .join(', ')}
+                className="flex w-full items-center gap-1 px-3 py-2 text-left hover:bg-state-hover"
                 onClick={() => {
                   setEditing({ index, field })
                 }}
               >
-                {value || '\u00a0'}
+                <span className="min-w-0 flex-1 truncate">{value || '\u00a0'}</span>
+                {mark && (
+                  <mark.Icon aria-hidden className={cn('size-3 shrink-0', mark.className)} />
+                )}
               </button>
             )
           },
@@ -160,7 +182,7 @@ export function ReviewTable({
               {row.isRemoved ? (
                 <IconButton
                   size="icon"
-                  label={t('review.restore')}
+                  label={t('review.restore', { row: row.rowNumber })}
                   onClick={() => {
                     onRestore(index)
                   }}
@@ -170,7 +192,7 @@ export function ReviewTable({
               ) : (
                 <IconButton
                   size="icon"
-                  label={t('review.remove')}
+                  label={t('review.remove', { row: row.rowNumber })}
                   onClick={() => {
                     onRemove(index)
                   }}
@@ -181,7 +203,7 @@ export function ReviewTable({
               {row.isEdited && (
                 <IconButton
                   size="icon"
-                  label={t('review.revert')}
+                  label={t('review.revert', { row: row.rowNumber })}
                   onClick={() => {
                     onRevert(index)
                   }}
@@ -198,6 +220,7 @@ export function ReviewTable({
 
   return (
     <DataTable
+      caption={caption}
       columns={tableColumns}
       data={rows}
       getRowId={r => String(r.index)}

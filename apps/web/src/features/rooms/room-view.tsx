@@ -98,7 +98,12 @@ function RoomDetail({ data, canEdit }: { data: ReadOutput<'room'>; canEdit: bool
             {room.upcoming.length === 0 ? (
               <EmptyState variant="inline" title={t('detail.noUpcoming')} />
             ) : (
-              <SessionTable sessions={room.upcoming} canEdit={canEdit} />
+              <SessionTable
+                sessions={room.upcoming}
+                canEdit={canEdit}
+                caption={t('detail.upcoming')}
+                panelLevel={3}
+              />
             )}
             {room.pastCount > 0 && (
               <p className="mt-3 text-sm">

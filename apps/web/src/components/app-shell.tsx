@@ -1,6 +1,5 @@
 import { SignInButton, UserButton } from '@clerk/nextjs'
 import { canWrite } from '@muni/domain/enums'
-import { Badge } from '@muni/ui/badge'
 import { Button } from '@muni/ui/button'
 import { ThemeToggle } from '@muni/ui/theme/theme-toggle'
 import {
@@ -28,6 +27,7 @@ import type { SessionUser } from '@/server/auth'
 
 import { LocaleSwitch } from './locale-switch'
 import { type NavGroup, PublicShell, SidebarShell } from './sidebar-shell'
+import { RoleBadge } from './status-badges'
 
 /**
  * The language/theme/account controls and the frame around every page: the navigation for
@@ -102,9 +102,7 @@ export async function AppShell({
       />
       {user ? (
         <>
-          <Badge tone={user.role === 'ADMIN' ? 'accent' : 'neutral'} className="max-sm:sr-only">
-            {t(`status.role.${user.role}`)}
-          </Badge>
+          <RoleBadge value={user.role} className="max-sm:sr-only" />
           <UserButton />
         </>
       ) : (

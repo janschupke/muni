@@ -14,7 +14,7 @@ export function OrgLink({
 }) {
   if (id === null || name === null) return PLACEHOLDER
   return (
-    <TextLink asChild>
+    <TextLink asChild hitArea>
       <Link href={`/${kind}/${id}`}>{name}</Link>
     </TextLink>
   )

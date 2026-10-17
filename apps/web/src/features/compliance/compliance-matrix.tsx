@@ -22,7 +22,7 @@ import {
   formatRelativeDays,
   PLACEHOLDER,
 } from '@muni/utils/format'
-import { ArrowRight, BookOpen, CalendarCheck, Users } from 'lucide-react'
+import { BookOpen, CalendarCheck, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { Fragment, useId, useRef, useState } from 'react'
@@ -95,7 +95,7 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
       </div>
       <TableContainer className="mt-3">
         {/* A real table: the colours reinforce the printed values, they never replace them. */}
-        <Table className="border-separate border-spacing-0.5 p-2">
+        <Table className="border-separate border-spacing-0.5 p-2" aria-label={t('title')}>
           <THead className="bg-transparent">
             <tr>
               <Th className={cn(HEAD, STICKY)}>{t('department')}</Th>
@@ -106,7 +106,10 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
                 <Th key={c.code} className={cn(HEAD, 'px-1 text-center')}>
                   <Tooltip content={c.name}>
                     <TextLink asChild tone="muted">
-                      <Link href={`/courses/${c.code}`}>{c.code}</Link>
+                      {/* The column says the code; its link says the whole course. */}
+                      <Link href={`/courses/${c.code}`} aria-label={`${c.code} ${c.name}`}>
+                        {c.code}
+                      </Link>
                     </TextLink>
                   </Tooltip>
                 </Th>
@@ -224,6 +227,18 @@ export function ComplianceMatrixTable({ matrix }: { matrix: ComplianceMatrix }) 
           </TBody>
         </Table>
       </TableContainer>
+      {/* The columns say codes: the names, readable without a pointer to hover with. */}
+      <dl
+        aria-label={t('courseKey')}
+        className="mt-3 grid gap-x-6 gap-y-1 text-xs text-fg-muted sm:grid-cols-2 lg:grid-cols-3"
+      >
+        {matrix.courses.map(c => (
+          <div key={c.code} className="flex gap-2">
+            <dt className="font-medium text-fg">{c.code}</dt>
+            <dd>{c.name}</dd>
+          </div>
+        ))}
+      </dl>
       <CellDialog
         matrix={matrix}
         selected={selected}
@@ -375,14 +390,10 @@ function CellDialog({
                 {t('course')}
               </Link>
             </TextLink>
-            <TextLink asChild>
-              <Link
-                href={employeesHref(row.department)}
-                className="inline-flex items-center gap-1.5"
-              >
+            <TextLink asChild arrow className="gap-1.5">
+              <Link href={employeesHref(row.department)}>
                 <Users aria-hidden className="size-4" />
                 {t('employees', { department: row.department })}
-                <ArrowRight aria-hidden className="size-3.5" />
               </Link>
             </TextLink>
           </div>
@@ -408,7 +419,7 @@ function CellPeople({ row, code }: { row: ComplianceMatrixRow; code: string }) {
         (a.requirement.daysLeft ?? Infinity) - (b.requirement.daysLeft ?? Infinity)
     )
   return (
-    <Table density="compact">
+    <Table density="compact" aria-label={t('table')}>
       <THead className="bg-transparent">
         <tr>
           <Th>{t('name')}</Th>

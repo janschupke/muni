@@ -2,7 +2,6 @@ import type { DepartmentDetail, PositionDetail } from '@muni/db/repositories'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
-import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
@@ -25,7 +24,7 @@ export function GroupCourses({ kind, group }: { kind: Kind; group: Group }) {
       {group.courses.length === 0 ? (
         <EmptyState variant="inline" title={tk('noCourses')} />
       ) : (
-        <CourseComplianceTable courses={group.courses} />
+        <CourseComplianceTable courses={group.courses} label={t('courses')} />
       )}
     </>
   )
@@ -44,15 +43,11 @@ export function GroupPeople({ kind, group }: { kind: Kind; group: Group }) {
       <SectionHeading description={t('peopleDescription', { count: group.members.length })}>
         {t('people')}
       </SectionHeading>
-      <EmployeesTable items={group.members} omit={filter} />
+      <EmployeesTable items={group.members} omit={filter} caption={t('people')} panelLevel={3} />
       <p className="mt-3 text-sm">
-        <TextLink asChild>
-          <Link
-            href={`/employees?${filter}=${encodeURIComponent(group.name)}`}
-            className="inline-flex items-center gap-1"
-          >
+        <TextLink asChild arrow>
+          <Link href={`/employees?${filter}=${encodeURIComponent(group.name)}`}>
             {tk('inList')}
-            <ArrowRight aria-hidden className="size-3.5" />
           </Link>
         </TextLink>
       </p>

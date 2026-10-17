@@ -3,6 +3,7 @@
 import type { AdvisorSession, OverbookedSession } from '@muni/domain/advisor'
 import { Alert } from '@muni/ui/alert'
 import { ChoiceGroup } from '@muni/ui/choice-group'
+import { EmptyState } from '@muni/ui/empty-state'
 import { Field, Input } from '@muni/ui/field'
 import { formatTimeRange } from '@muni/utils/format'
 import { parseCount } from '@muni/utils/money'
@@ -36,6 +37,7 @@ export function ResolveDialog({
   returnFocusTo?: (() => HTMLElement | null | undefined) | undefined
 }) {
   const t = useTranslations('advisor.overbooked.dialog')
+  const te = useTranslations('forms.errors')
   const tr = useTranslations('advisor.overbooked.refused')
   const locale = useLocale()
   const afterWrite = useAfterWrite('session')
@@ -55,17 +57,15 @@ export function ResolveDialog({
     count: countOf(counts.get(target.session.externalId) ?? ''),
   }))
   const total = moves.reduce((sum, m) => sum + (m.count ?? 0), 0)
+  // What is wrong with one count goes on its field; the total, under them all.
+  const fieldError = ({ target, count }: (typeof moves)[number]) =>
+    count === null
+      ? te('not_a_number')
+      : count > target.free
+        ? t('overField', { free: target.free })
+        : undefined
   const problems = [
-    ...moves.flatMap(({ target, count }) =>
-      count !== null && count > target.free
-        ? [
-            t('overTarget', {
-              session: `${target.session.courseName}, ${when(target.session)}`,
-              free: target.free,
-            }),
-          ]
-        : []
-    ),
+    ...moves.flatMap(move => (fieldError(move) ? [move.target.session.externalId] : [])),
     ...(total > movable ? [t('tooMany', { count: movable })] : []),
   ]
   const typedWell = moves.every(m => m.count !== null)
@@ -157,6 +157,7 @@ export function ResolveDialog({
                     room: target.session.room.name,
                   })}
                   help={t('free', { free: target.free })}
+                  error={fieldError(moves.find(m => m.target === target) ?? { target, count: 0 })}
                 >
                   {control => (
                     <Input
@@ -173,14 +174,10 @@ export function ResolveDialog({
                 </Field>
               ))}
             </div>
-            {problems.map(problem => (
-              <Alert key={problem} tone="danger">
-                {problem}
-              </Alert>
-            ))}
+            {total > movable && <Alert tone="danger">{t('tooMany', { count: movable })}</Alert>}
             {problems.length === 0 &&
               (total === 0 ? (
-                <p className="text-sm text-fg-muted">{t('nothing')}</p>
+                <EmptyState variant="inline" title={t('nothing')} />
               ) : (
                 <p className="text-sm font-medium">
                   {t('after', {

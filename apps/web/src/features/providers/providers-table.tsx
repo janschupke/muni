@@ -24,6 +24,7 @@ export function ProvidersTable({
   canEdit?: boolean | undefined
 }) {
   const t = useTranslations('providers.columns')
+  const tp = useTranslations('providers')
   const tcommon = useTranslations('common')
   const locale = useLocale()
   const columns = useMemo(
@@ -104,5 +105,5 @@ export function ProvidersTable({
       ]),
     [canEdit, locale, prices, t, tcommon]
   )
-  return <DataTable columns={columns} data={providers} getRowId={p => p.id} />
+  return <DataTable caption={tp('title')} columns={columns} data={providers} getRowId={p => p.id} />
 }

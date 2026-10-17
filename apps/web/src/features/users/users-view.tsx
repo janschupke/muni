@@ -22,7 +22,7 @@ export function UsersView() {
         description={t('description')}
         actions={<ListActions kind="user" />}
       />
-      <ReadView query={read} skeleton={<TableSkeleton columns={4} />}>
+      <ReadView titled query={read} skeleton={<TableSkeleton columns={4} />}>
         {users => <UsersTable users={users} />}
       </ReadView>
     </>

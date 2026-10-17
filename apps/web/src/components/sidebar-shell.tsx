@@ -3,7 +3,7 @@
 import { Button } from '@muni/ui/button'
 import { cn } from '@muni/ui/cn'
 import { Drawer } from '@muni/ui/dialog'
-import { Tooltip } from '@muni/ui/tooltip'
+import { IconButton } from '@muni/ui/icon-button'
 import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -201,18 +201,15 @@ export function SidebarShell({
               collapsed ? 'justify-center' : 'justify-end px-4'
             )}
           >
-            <Tooltip content={collapsed ? labels.expand : labels.collapse} side="right">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={collapsed ? labels.expand : labels.collapse}
-                aria-expanded={!collapsed}
-                aria-controls="sidebar"
-                onClick={toggle}
-              >
-                {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}
-              </Button>
-            </Tooltip>
+            <IconButton
+              side="right"
+              label={collapsed ? labels.expand : labels.collapse}
+              aria-expanded={!collapsed}
+              aria-controls="sidebar"
+              onClick={toggle}
+            >
+              {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}
+            </IconButton>
           </div>
         </aside>
 

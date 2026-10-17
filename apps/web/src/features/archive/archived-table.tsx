@@ -74,5 +74,12 @@ export function ArchivedTable({ kind, items }: { kind: Archivable; items: Archiv
       }),
     ])
   }, [t, kind, locale])
-  return <DataTable columns={columns} data={items} getRowId={i => i.id} />
+  return (
+    <DataTable
+      caption={t(`kinds.${kind}.title`)}
+      columns={columns}
+      data={items}
+      getRowId={i => i.id}
+    />
+  )
 }

@@ -5,6 +5,8 @@ import { type ReactNode, Suspense, useEffect } from 'react'
 
 import { type HistoryEntry, record, withTitle } from '@/lib/navigation-stack'
 
+import { FocusKeeper } from './focus-keeper'
+
 const KEY = 'muni.history'
 const EVENT = 'muni:history'
 
@@ -83,6 +85,7 @@ export function NavigationHistory({ children }: { children: ReactNode }) {
       <Suspense fallback={null}>
         <Recorder />
       </Suspense>
+      <FocusKeeper />
       {children}
     </>
   )

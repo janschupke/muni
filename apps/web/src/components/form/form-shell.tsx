@@ -5,7 +5,7 @@ import { Button } from '@muni/ui/button'
 import { Card, CardBody } from '@muni/ui/card'
 import { Checkbox } from '@muni/ui/checkbox'
 import { DatePicker } from '@muni/ui/date-picker'
-import { Field, Input, Textarea } from '@muni/ui/field'
+import { Field, Fieldset, Input, Textarea } from '@muni/ui/field'
 import { PageHeader } from '@muni/ui/page-header'
 import { Select } from '@muni/ui/select'
 import { TimePicker } from '@muni/ui/time-picker'
@@ -367,16 +367,22 @@ export function FormSection({
   description?: string | undefined
   children: ReactNode
 }) {
+  const id = useId()
+  // A group named by its heading: a real h2, so heading navigation runs through a long form.
   return (
-    <fieldset className="flex flex-col gap-4 border-t border-border-muted pt-5 first:border-t-0 first:pt-0">
-      {/* A legend does not lay out as a flex item; it names the group, the heading shows it. */}
-      <legend className="sr-only">{title}</legend>
-      <div aria-hidden>
-        <p className="text-sm font-semibold text-fg">{title}</p>
+    <div
+      role="group"
+      aria-labelledby={id}
+      className="flex flex-col gap-4 border-t border-border-muted pt-5 first:border-t-0 first:pt-0"
+    >
+      <div>
+        <h2 id={id} className="text-sm font-semibold text-fg">
+          {title}
+        </h2>
         {description && <p className="text-xs text-fg-muted">{description}</p>}
       </div>
       {children}
-    </fieldset>
+    </div>
   )
 }
 
@@ -576,18 +582,8 @@ export function CheckboxGroupField({
   defaultValue: readonly string[]
 }) {
   const { error, changed, dirty, touched } = useField(name)
-  const errorId = `${useId()}-error`
   return (
-    <fieldset
-      data-field={name}
-      data-dirty={dirty ? true : undefined}
-      data-touched={touched ? true : undefined}
-      data-invalid={error ? true : undefined}
-      aria-describedby={error ? errorId : undefined}
-      className="flex flex-col gap-2"
-    >
-      <legend className="mb-1 text-sm font-medium text-fg">{label}</legend>
-      {help && <p className="-mt-1 text-xs text-fg-muted">{help}</p>}
+    <Fieldset name={name} legend={label} help={help} error={error} dirty={dirty} touched={touched}>
       <div className="grid gap-2 sm:grid-cols-2">
         {options.map(o => (
           <Checkbox
@@ -601,12 +597,7 @@ export function CheckboxGroupField({
           />
         ))}
       </div>
-      {error && (
-        <p id={errorId} aria-live="polite" className="text-xs text-danger-fg">
-          {error}
-        </p>
-      )}
-    </fieldset>
+    </Fieldset>
   )
 }
 

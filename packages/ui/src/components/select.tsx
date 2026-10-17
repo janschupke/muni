@@ -77,6 +77,7 @@ export function Select({
           id={id}
           aria-describedby={describedBy}
           aria-invalid={invalid}
+          aria-required={required}
           aria-label={ariaLabel}
           className={cn(
             controlClass,

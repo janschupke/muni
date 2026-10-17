@@ -138,7 +138,8 @@ export function DataTable<TData extends RowData>({
   className?: string | undefined
   containerClassName?: string | undefined
   /** Accessible table name, visually hidden. */
-  caption?: string | undefined
+  /** The table's accessible name (read out, not shown): every table has one. */
+  caption: string
   /** A detail panel under the row, toggled by a disclosure button in a leading column. */
   renderExpanded?: ((row: TData) => ReactNode) | undefined
   getRowCanExpand?: ((row: TData) => boolean) | undefined
@@ -222,7 +223,7 @@ export function DataTable<TData extends RowData>({
 
   return (
     <>
-      <TableContainer className={containerClassName}>
+      <TableContainer className={cn('@container', containerClassName)}>
         <Table density={density} className={className}>
           {caption && <caption className="sr-only">{caption}</caption>}
           <THead className="sticky top-0 z-10">
@@ -261,7 +262,7 @@ export function DataTable<TData extends RowData>({
                           type="button"
                           onClick={header.column.getToggleSortingHandler()}
                           className={cn(
-                            '-mx-1 inline-flex items-center gap-1 rounded-sm px-1 hover:text-fg',
+                            '-mx-1 inline-flex min-h-6 items-center gap-1 rounded-sm px-1 hover:text-fg',
                             sorted && 'text-fg'
                           )}
                         >
@@ -340,7 +341,11 @@ export function DataTable<TData extends RowData>({
                         {/* Opens from zero height: the grid row animates from its starting style. */}
                         <div className="grid grid-rows-[1fr] transition-[grid-template-rows] duration-(--motion-normal) starting:grid-rows-[0fr]">
                           <div className="overflow-hidden">
-                            <div className="p-4">{renderExpanded(row.original)}</div>
+                            {/* As wide as the visible table, not the whole one: on a phone a
+                                wide table scrolls sideways, its opened row stays in view. */}
+                            <div className="sticky left-0 w-[100cqw] max-w-full p-4">
+                              {renderExpanded(row.original)}
+                            </div>
                           </div>
                         </div>
                       </td>

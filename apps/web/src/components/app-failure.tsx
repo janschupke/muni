@@ -1,5 +1,6 @@
 'use client'
 
+import { buttonClass } from '@muni/ui/button'
 import { useEffect, useSyncExternalStore } from 'react'
 
 import { DEFAULT_LOCALE, type Locale, localeCookieIn, resolveLocale } from '@/i18n/locales'
@@ -56,11 +57,7 @@ export function AppFailure({
           {text.reference}: {error.digest}
         </code>
       )}
-      <button
-        type="button"
-        onClick={reset}
-        className="mt-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg hover:bg-accent-hover"
-      >
+      <button type="button" onClick={reset} className={buttonClass({ variant: 'primary' })}>
         {text.retry}
       </button>
     </main>

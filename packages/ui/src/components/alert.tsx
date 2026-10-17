@@ -1,21 +1,16 @@
 import { cva } from 'class-variance-authority'
-import { CircleCheck, CircleX, Info, type LucideIcon, TriangleAlert } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { cn } from '../cn'
+import { type MessageTone, TONE_ICON, TONE_INK } from './tone'
 
-type AlertTone = 'danger' | 'warning' | 'success' | 'info'
+type AlertTone = MessageTone
 
 const alertClass = cva(
   'flex items-start gap-2 text-sm [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0',
   {
     variants: {
-      tone: {
-        danger: 'text-danger-fg',
-        warning: 'text-warning-fg',
-        success: 'text-success-fg',
-        info: 'text-fg',
-      },
+      tone: TONE_INK,
       variant: {
         box: 'rounded-md border px-3 py-2',
         inline: 'font-medium',
@@ -29,13 +24,6 @@ const alertClass = cva(
     ],
   }
 )
-
-const ICONS: Record<AlertTone, LucideIcon> = {
-  danger: CircleX,
-  warning: TriangleAlert,
-  success: CircleCheck,
-  info: Info,
-}
 
 /**
  * A message with a status tone. Tone always comes with an icon, never colour alone.
@@ -56,7 +44,7 @@ export function Alert({
   role?: 'alert' | 'status' | 'none' | undefined
   className?: string | undefined
 }) {
-  const Icon = ICONS[tone]
+  const Icon = TONE_ICON[tone]
   return (
     <div
       role={role === 'none' ? undefined : role}

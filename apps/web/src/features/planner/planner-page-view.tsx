@@ -18,7 +18,7 @@ export function PlannerPageView({ canCreate }: { canCreate: boolean }) {
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
-      <ReadView query={read} skeleton={<ListSkeleton columns={6} />}>
+      <ReadView titled query={read} skeleton={<ListSkeleton columns={6} />}>
         {({ groups, rooms }) =>
           groups.length === 0 ? (
             <EmptyState title={t('empty')} />

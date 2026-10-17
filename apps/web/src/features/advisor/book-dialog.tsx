@@ -124,7 +124,7 @@ export function BookDialog({
     >
       <p className="text-sm text-fg-muted">{t('body')}</p>
       <TableContainer>
-        <Table density="compact">
+        <Table density="compact" aria-label={t('table')}>
           <THead>
             <tr>
               <Th>{t('person')}</Th>

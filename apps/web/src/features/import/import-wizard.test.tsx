@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { EMPTY_REFERENCE } from '@muni/importer'
-import { cleanup, screen, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -57,7 +57,11 @@ describe('ImportWizard', () => {
 
     await user.click(screen.getByRole('button', { name: 'Review rows' }))
 
-    // Review step (loaded when needed): the sessions tab has the two known errors.
+    // Review step (loaded when needed), named and focused: the button that led here is gone.
+    await waitFor(() => {
+      expect(document.activeElement?.textContent).toMatch(/^Step 2 of 4: /)
+    })
+    // The sessions tab has the two known errors.
     await user.click(await screen.findByRole('tab', { name: /Sessions/ }))
     const panel = screen.getByRole('tabpanel')
     const errorsCard = within(panel).getByRole('button', { name: /Errors/ })
@@ -71,7 +75,13 @@ describe('ImportWizard', () => {
     ).toContain('Unknown course “KYB3R”')
 
     // Fix T010's course code inline; the row becomes valid and leaves the "errors" filter.
-    await user.click(within(panel).getByRole('button', { name: 'Edit Course on line 11' }))
+    // The cell says what is in it and that it is wrong, not only by its colour.
+    expect(
+      within(panel)
+        .getByRole('button', { name: /Edit Course on line 11$/ })
+        .getAttribute('aria-label')
+    ).toMatch(/, has an error, Edit Course on line 11$/)
+    await user.click(within(panel).getByRole('button', { name: /Edit Course on line 11$/ }))
     const cell = within(panel).getByRole('textbox', { name: 'Edit Course on line 11' })
     await user.clear(cell)
     await user.type(cell, 'KYBER{Enter}')
@@ -91,7 +101,8 @@ describe('ImportWizard', () => {
     await user.click(screen.getByRole('button', { name: /Import 3,035 records/ }))
 
     // Commit: dependency order, chunks of at most 500.
-    expect(await screen.findByText('Import complete')).toBeTruthy()
+    // Announced from the one status region the run keeps.
+    expect(await screen.findByText('Import complete', { selector: '[role="status"]' })).toBeTruthy()
     const calls = commitImportChunk.mock.calls.map(([kind, records]) => [kind, records.length])
     expect(calls).toEqual([
       ['courses', 10],
@@ -143,7 +154,7 @@ describe('ImportWizard', () => {
 
     const firstRow = within(panel).getAllByRole('row')[1]
     if (!firstRow) throw new Error('no rows')
-    const [editButton] = within(firstRow).getAllByRole('button', { name: /^Edit / })
+    const [editButton] = within(firstRow).getAllByRole('button', { name: /Edit .+ on line \d+$/ })
     if (!editButton) throw new Error('no editable cell')
     await user.click(editButton)
     await user.type(within(panel).getByRole('textbox'), ' x{Enter}')
@@ -221,22 +232,22 @@ describe('ImportWizard', () => {
     expect(rows()).toBe(3)
 
     // A cell edit cancelled with Escape changes nothing; a real one can be undone.
-    await user.click(within(panel).getByRole('button', { name: 'Edit Name on line 3' }))
+    await user.click(within(panel).getByRole('button', { name: /Edit Name on line 3$/ }))
     await user.type(within(panel).getByRole('textbox'), ' navíc{Escape}')
-    expect(within(panel).queryByRole('button', { name: 'Undo edits' })).toBeNull()
-    await user.click(within(panel).getByRole('button', { name: 'Edit Name on line 3' }))
+    expect(within(panel).queryByRole('button', { name: /^Undo the edits on line / })).toBeNull()
+    await user.click(within(panel).getByRole('button', { name: /Edit Name on line 3$/ }))
     await user.type(within(panel).getByRole('textbox'), ' navíc{Enter}')
-    await user.click(within(panel).getByRole('button', { name: 'Undo edits' }))
-    expect(within(panel).getByRole('button', { name: 'Edit Name on line 3' }).textContent).toBe(
+    await user.click(within(panel).getByRole('button', { name: /^Undo the edits on line / }))
+    expect(within(panel).getByRole('button', { name: /Edit Name on line 3$/ }).textContent).toBe(
       'Ochrana osobních údajů'
     )
 
-    const [remove] = within(panel).getAllByRole('button', { name: 'Remove row' })
+    const [remove] = within(panel).getAllByRole('button', { name: /^Remove line / })
     if (!remove) throw new Error('no row to remove')
     await user.click(remove)
     await user.click(within(panel).getByRole('button', { name: /Removed/ }))
     expect(rows()).toBe(1)
-    await user.click(within(panel).getByRole('button', { name: 'Restore row' }))
+    await user.click(within(panel).getByRole('button', { name: /^Restore line / }))
     expect(within(panel).getByRole('button', { name: /Removed/ }).textContent).toContain('0')
 
     await user.click(within(panel).getByRole('button', { name: /Ready/ }))
@@ -268,7 +279,9 @@ describe('ImportWizard', () => {
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Import 3 records' }))
     expect(
-      await screen.findByText('The import failed: the database refused the write')
+      await screen.findByText('The import failed: the database refused the write', {
+        selector: '[role="status"]',
+      })
     ).toBeTruthy()
     expect(screen.getByText('2 records were written before the failure.')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Import more files' }))

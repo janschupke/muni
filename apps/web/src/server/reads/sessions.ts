@@ -20,9 +20,17 @@ export const sessionsList = read({
     room: z.string().min(1).max(64).optional(),
   }),
   load: async ({ when, room: roomId }) => {
-    const room = roomId ? ((await listRoomOptions()).find(r => r.id === roomId) ?? null) : null
-    const sessions = await listSessions({ window: when ?? 'upcoming', room: room?.id })
-    return { sessions, room }
+    // Every room, for the filter; the sessions in the one asked for, if it is one.
+    const [rooms, sessions] = await Promise.all([
+      listRoomOptions(),
+      listSessions({ window: when ?? 'upcoming', room: roomId }),
+    ])
+    const room = roomId ? (rooms.find(r => r.id === roomId) ?? null) : null
+    return {
+      sessions: roomId && !room ? [] : sessions,
+      room,
+      rooms: rooms.map(r => ({ id: r.id, name: r.name })),
+    }
   },
 })
 

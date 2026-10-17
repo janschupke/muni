@@ -1,3 +1,4 @@
+import { ArrowRight } from 'lucide-react'
 import { Slot } from 'radix-ui'
 import type { AnchorHTMLAttributes } from 'react'
 
@@ -18,18 +19,25 @@ const TONE = {
 
 /**
  * An inline link. With `asChild` the styling goes onto the child, which keeps routing to the
- * app (`<TextLink asChild><Link href="…">…</Link></TextLink>`).
+ * app (`<TextLink asChild><Link href="…">…</Link></TextLink>`). `arrow` ends it with an arrow
+ * (a link that leads on: "In the list →"); `hitArea` makes it at least 24px tall, for links
+ * stacked in lists and cells (WCAG 2.2 target size).
  */
 export function TextLink({
   asChild = false,
   emphasis = false,
   tone = 'default',
+  arrow = false,
+  hitArea = false,
   className,
+  children,
   ...props
 }: AnchorHTMLAttributes<HTMLAnchorElement> & {
   asChild?: boolean | undefined
   emphasis?: boolean | undefined
   tone?: keyof typeof TONE | undefined
+  arrow?: boolean | undefined
+  hitArea?: boolean | undefined
 }) {
   const Comp = asChild ? Slot.Root : 'a'
   return (
@@ -38,9 +46,14 @@ export function TextLink({
         'underline-offset-2 transition-colors',
         TONE[tone],
         emphasis && 'font-medium',
+        (arrow || hitArea) && 'inline-flex items-center gap-1',
+        hitArea && 'min-h-6',
         className
       )}
       {...props}
-    />
+    >
+      {asChild ? <Slot.Slottable>{children}</Slot.Slottable> : children}
+      {arrow && <ArrowRight aria-hidden className="size-3.5 shrink-0" />}
+    </Comp>
   )
 }

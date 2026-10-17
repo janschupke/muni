@@ -324,7 +324,8 @@
       "viaAdvisor": "Poradce",
       "viaManual": "Ručně",
       "bookedOn": "Přihlášen dne"
-    }
+    },
+    "roomFilter": "Místnost"
   },
   "compliance": {
     "title": "Matice plnění",
@@ -357,8 +358,11 @@
       "booked": "Přihlášený termín",
       "course": "Detail kurzu",
       "employees": "Všichni z útvaru {department}",
-      "summary": "Splňuje {held} z {total} osob ({rate})"
-    }
+      "summary": "Splňuje {held} z {total} osob ({rate})",
+      "table": "Kdo zde musí mít školení"
+    },
+    "descriptionOn": "Podíl splněných povinných školení podle útvaru a kurzu k {date}. Jen aktivní zaměstnanci.",
+    "courseKey": "Kurzy"
   },
   "forms": {
     "errors": {
@@ -628,16 +632,24 @@
       "rowNumber": "Řádek",
       "actions": "Akce",
       "problems": "Problémy na řádku {row}",
-      "remove": "Odebrat řádek",
-      "restore": "Vrátit řádek",
-      "revert": "Zrušit úpravy",
+      "remove": "Odebrat řádek {row}",
+      "restore": "Vrátit řádek {row}",
+      "revert": "Vrátit úpravy na řádku {row}",
       "editCell": "Upravit {field} na řádku {row}",
       "errorPrefix": "Chyba",
       "warningPrefix": "Upozornění",
       "back": "Zpět k souborům",
       "next": "Pokračovat",
       "skipped": "Přeskočeno",
-      "skippedNotice": "{count, plural, one {# řádek odkazuje na archivovaný záznam a bude přeskočen} few {# řádky odkazují na archivované záznamy a budou přeskočeny} other {# řádků odkazuje na archivované záznamy a bude přeskočeno}}. Chcete-li je naimportovat, nejdřív záznamy obnovte."
+      "skippedNotice": "{count, plural, one {# řádek odkazuje na archivovaný záznam a bude přeskočen} few {# řádky odkazují na archivované záznamy a budou přeskočeny} other {# řádků odkazuje na archivované záznamy a bude přeskočeno}}. Chcete-li je naimportovat, nejdřív záznamy obnovte.",
+      "empty": "prázdné",
+      "state": {
+        "error": "obsahuje chybu",
+        "warning": "obsahuje upozornění",
+        "edited": "upraveno"
+      },
+      "tabCount": "{total, plural, one {# řádek} few {# řádky} other {# řádků}}",
+      "tabInvalid": "{count} s chybami"
     },
     "confirm": {
       "title": "Připraveno k importu",
@@ -661,7 +673,8 @@
         "failed": "databáze zápis odmítla",
         "network": "server nebyl dostupný",
         "rate_limited": "příliš mnoho zápisů v krátké době; chvíli počkejte a importujte znovu"
-      }
+      },
+      "meter": "Zapsané záznamy"
     },
     "fields": {
       "row": "Řádek",
@@ -748,7 +761,8 @@
       "ROOM_UNSUITABLE": "Místnost „{value}“ nesplňuje, co kurz potřebuje (vybavení, nebo je online).",
       "ROOM_BUSY": "Místnost je v tu dobu obsazená termínem {otherId}.",
       "WILL_CREATE": "„{value}“ je nové; import jej vytvoří."
-    }
+    },
+    "stepHeading": "Krok {step} z {count}: {name}"
   },
   "errors": {
     "notFoundTitle": "Stránka nenalezena",
@@ -912,7 +926,8 @@
         "confirm": "Přihlásit {count, plural, one {# osobu} few {# osoby} other {# osob}}",
         "done": "Přihlášeno: {count, plural, one {# osoba} few {# osoby} other {# osob}}",
         "partial": "Přihlášeno {applied}; {failed, plural, one {# odmítnuta} few {# odmítnuty} other {# odmítnuto}}:",
-        "refused": "Nikdo nebyl přihlášen:"
+        "refused": "Nikdo nebyl přihlášen:",
+        "table": "Kdo je rezervován na který termín"
       }
     },
     "planned": {
@@ -960,7 +975,6 @@
         "noUnnamed": "Všechna místa jsou přihlášena jménem, žádné nelze přesunout.",
         "after": "Poté: přihlášeno {booked} na {capacity} míst{over, plural, =0 {.} other {, stále # navíc.}}",
         "tooMany": "Přesunout lze nejvýše {count, plural, one {# místo} few {# místa} other {# míst}}: ta přihlášená bez jména.",
-        "overTarget": "{session} má volných jen {free, plural, one {# místo} few {# místa} other {# míst}}.",
         "nothing": "Zvolte, kolik míst kam přesunout.",
         "raiseRoom": "{room} má {seats} míst: kapacita se zvýší z {capacity} na {to}, takže každý přihlášený bude mít místo.",
         "raiseOnline": "{room} je online: kapacita se zvýší z {capacity} na {to}, takže každý přihlášený bude mít místo.",
@@ -968,7 +982,8 @@
         "confirmMove": "Přesunout {count, plural, one {# místo} few {# místa} other {# míst}}",
         "confirmRaise": "Navýšit kapacitu na {to}",
         "moved": "Přesunuto {count, plural, one {# místo} few {# místa} other {# míst}} z termínu {session}",
-        "raised": "Kapacita termínu {session} navýšena na {to}"
+        "raised": "Kapacita termínu {session} navýšena na {to}",
+        "overField": "Volná {free, plural, one {je tam # místo} few {jsou tam # místa} other {je tam # míst}}."
       },
       "refused": {
         "invalid": "Požadavek nebyl platný. Načtěte stránku znovu a zkuste to znovu.",

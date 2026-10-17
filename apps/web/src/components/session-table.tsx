@@ -27,12 +27,18 @@ export function SessionTable({
   canEdit,
   showCourse = true,
   compact = false,
+  caption,
+  panelLevel = 2,
 }: {
   sessions: SessionListItem[]
   canEdit: boolean
   showCourse?: boolean | undefined
   /** Course, time and occupancy only, not sortable (dashboard). */
   compact?: boolean | undefined
+  /** The table's accessible name: "Sessions" unless the section names them otherwise. */
+  caption?: string | undefined
+  /** An opened row's panels head with `h2`s, or `h3`s under a section's `h2`. */
+  panelLevel?: 2 | 3 | undefined
 }) {
   const t = useTranslations('sessions')
   const tc = useTranslations('common')
@@ -58,7 +64,17 @@ export function SessionTable({
                         {row.original.courseName}
                       </RecordLink>
                     }
-                    meta={`${row.original.courseCode} · ${row.original.externalId}`}
+                    meta={
+                      // Compact rows have no status column: a cancelled one still says so.
+                      compact && row.original.status === 'CANCELLED' ? (
+                        <>
+                          {`${row.original.courseCode} · ${row.original.externalId}`}{' '}
+                          <SessionStatusBadge status="CANCELLED" />
+                        </>
+                      ) : (
+                        `${row.original.courseCode} · ${row.original.externalId}`
+                      )
+                    }
                   />
                 ),
               }),
@@ -151,13 +167,14 @@ export function SessionTable({
 
   return (
     <DataTable
+      caption={caption ?? t('title')}
       columns={columns}
       data={sessions}
       getRowId={s => s.externalId}
       enableSorting={!compact}
       rowClassName={s => (s.status === 'CANCELLED' ? 'text-fg-subtle' : undefined)}
       {...(!compact && {
-        renderExpanded: (s: SessionListItem) => <SessionDetails session={s} />,
+        renderExpanded: (s: SessionListItem) => <SessionDetails session={s} level={panelLevel} />,
         expandLabel: (s: SessionListItem) => t('attendees.toggle', { id: s.externalId }),
         expandHeader: t('attendees.header'),
       })}
@@ -169,7 +186,7 @@ export function SessionTable({
  * An opened session: the session itself (when, the room against what the course needs, the
  * seats, the price, the status) and who is booked on it by name, how and when.
  */
-function SessionDetails({ session: s }: { session: SessionListItem }) {
+function SessionDetails({ session: s, level }: { session: SessionListItem; level: 2 | 3 }) {
   const t = useTranslations('sessions.expanded')
   const ta = useTranslations('sessions.attendees')
   const tu = useTranslations('forms.session.unfit')
@@ -189,8 +206,8 @@ function SessionDetails({ session: s }: { session: SessionListItem }) {
       : []),
   ]
   return (
-    <DetailGrid className="lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <DetailPanel title={t('session')}>
+    <DetailGrid layout="narrow-wide">
+      <DetailPanel title={t('session')} level={level}>
         <DescriptionList>
           <DescriptionItem label={t('when')}>
             {formatTimeRange(s.startsAt, s.endsAt, locale)}
@@ -242,7 +259,7 @@ function SessionDetails({ session: s }: { session: SessionListItem }) {
           </DescriptionItem>
         </DescriptionList>
       </DetailPanel>
-      <DetailPanel title={t('people')} count={named} flush={named > 0}>
+      <DetailPanel title={t('people')} count={named} flush={named > 0} level={level}>
         {named === 0 ? (
           <EmptyState variant="inline" title={ta('noneNamed')} />
         ) : (

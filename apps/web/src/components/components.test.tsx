@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { EMPLOYMENT_STATES, SESSION_STATUSES } from '@muni/domain/enums'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
@@ -9,7 +10,7 @@ import { fieldErrors, type FormState } from '@/lib/form'
 import { checkSessionSlotAction } from '@/server/actions/sessions'
 import { expectNoAxeViolations } from '@/test/axe'
 import { ONLINE, session } from '@/test/fixtures'
-import { route, router } from '@/test/next'
+import { navigate, route, router } from '@/test/next'
 import { renderClient } from '@/test/render'
 
 import { BackLink } from './back-link'
@@ -27,6 +28,7 @@ import {
   ComplianceBadge,
   EmploymentBadge,
   OccupancyBadge,
+  RoleBadge,
   SessionStatusBadge,
 } from './status-badges'
 
@@ -761,6 +763,45 @@ describe('navigation history', () => {
   })
 })
 
+describe('focus', () => {
+  function Page() {
+    const [shown, setShown] = useState(true)
+    return (
+      <NavigationHistory>
+        <main id="main" tabIndex={-1}>
+          <h1>Departments</h1>
+          {shown && (
+            <button
+              type="button"
+              onClick={() => {
+                setShown(false)
+              }}
+            >
+              Archive Laboratoře
+            </button>
+          )}
+        </main>
+      </NavigationHistory>
+    )
+  }
+
+  it('stays on the page when the focused element leaves it, and starts a new page at its title', async () => {
+    renderClient(<Page />)
+    // The row is archived: its button goes, and focus goes to the main region, not the body.
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Archive Laboratoře' }))
+    await waitFor(() => {
+      expect(document.activeElement?.id).toBe('main')
+    })
+    act(() => {
+      navigate('/positions')
+    })
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Departments' }))
+    })
+    navigate('/')
+  })
+})
+
 describe('badges and small panels', () => {
   it('label every state with an icon and text', () => {
     renderClient(
@@ -778,6 +819,27 @@ describe('badges and small panels', () => {
     expect(screen.queryByText('Full')).toBeNull()
     expect(screen.queryByText('Almost full')).toBeNull()
     expect(screen.getByText('Nothing is required of this person.')).toBeTruthy()
+  })
+
+  it('never wear the brand blue for a state; a role does', () => {
+    renderClient(
+      <>
+        {EMPLOYMENT_STATES.map(state => (
+          <EmploymentBadge key={state} status={state} />
+        ))}
+        {SESSION_STATUSES.map(state => (
+          <SessionStatusBadge key={state} status={state} />
+        ))}
+        <RoleBadge value="ADMIN" />
+      </>
+    )
+    const badges = [...document.querySelectorAll('span')].filter(b =>
+      b.className.includes('rounded-sm border')
+    )
+    const admin = screen.getByText('Admin')
+    expect(admin.className).toContain('bg-accent-soft')
+    for (const badge of badges.filter(b => b !== admin))
+      expect(badge.className, badge.textContent).not.toContain('accent')
   })
 
   it('show a requirement never completed, and one without a booking', () => {
