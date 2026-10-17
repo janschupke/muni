@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:lighthouse": "playwright test --config playwright.lighthouse.config.ts"
+    "test:lighthouse": "playwright test --config playwright.lighthouse.config.ts",
+    "test:visual": "playwright test --config playwright.visual.config.ts"
   },
   "dependencies": {
     "@clerk/localizations": "catalog:",

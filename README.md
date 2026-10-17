@@ -255,18 +255,43 @@ One palette, defined once in `packages/ui/src/styles/tokens.css`:
 - **Ramps** (`--ramp-*`) are the only place colour values live: a warm neutral ramp for
   surfaces, ink and hairlines; brand blue; and green, yellow, orange and red for signals.
   Steps run light (50) to dark (900). The signal ramps are built in OKLCH around the dataviz
-  reference status colours (green 500, yellow 300, orange 400, red 500).
+  reference status colours (green 500, yellow 300, orange 400, red 500); the fills step away
+  from them where a rule below needs it (light: green 600, yellow 550, orange 600, red 700;
+  dark: green 500, yellow 300, orange 300, red 400).
 - **Roles** (`--p-*`, used as Tailwind classes such as `bg-surface-elevated`,
   `text-success-fg`, `bg-status-expired`) pick a light and a dark step with `light-dark()`.
   The OS preference chooses the side unless the theme switch pins it (`data-theme`).
-- **Form controls take their fill from where they sit** (`bg-control`). On the page they are
-  white, like a card. Inside anything raised (cards, dialogs, menus, the sidebar and top bar,
-  marked with the `raised` utility) they sink one step, so a field never shares its
-  container's background. `tokens.test.ts` checks every pairing in both themes: at least
-  ΔE 0.02 (OKLab) between a control and its container, and 4.5:1 for placeholder text.
+- **Surfaces are layers, and a higher layer is lighter** in both themes:
+
+  | Layer                                                | Light       | Dark        |
+  | ---------------------------------------------------- | ----------- | ----------- |
+  | the page (`surface-base`); wells in cards (`sunken`) | neutral 100 | 950 / 900   |
+  | cards, sidebar, top bar, footer (`surface-elevated`) | neutral 50  | neutral 850 |
+  | dialogs, popovers, tooltips (`surface-overlay`)      | neutral 50  | neutral 800 |
+  | form controls and secondary buttons (`control`)      | white       | neutral 750 |
+
+  A field is the top layer wherever it sits, so it never shares its container's fill and
+  needs no context. A disabled field drops its fill (`disabled:bg-transparent`) and its
+  strong outline: flat against its container, so it cannot pass for an enabled one. A
+  field's outline (`border-control`) has 3:1 against the field and every surface. In light,
+  dialogs and popovers share the card fill and stand out by their shadow.
+
+- **Translucent ink for what sits on any layer.** Bar tracks (`chart-track`), skeletons and
+  neutral badges (`tint`) darken (or, in dark, lighten) whatever is under them, so a track
+  shows in a card, on the page and in an opened row alike. Hover and press are state layers
+  painted over an element's own fill (`layer-hover`, `layer-active`); a table row publishes
+  its state as `--row-state`, which its pinned cells paint over their opaque fill
+  (`layer-row`), so a row's hover reaches its pinned column.
 - **Signals mean one thing each:** green = held, yellow = attention soon (expiring, a session
   80 % booked or full), orange = lapsed, red = action needed (missing, overbooked). Blue is
   the brand and never a state. A signal colour always comes with an icon and a label.
+- **The colour contract** (`packages/ui/src/styles/tokens.test.ts`) reads `tokens.css` as data
+  and checks every pairing the UI renders, in both themes, translucent roles composited first:
+  a fill against what it sits on ΔE ≥ 0.02 (OKLab); a control's outline, a bar fill on its
+  track and on every surface 3:1 (WCAG 1.4.11); text 4.5:1; any two signal fills ΔE ≥ 0.09,
+  since they meet in stacked bars. It also scans the app for colour classes: a role used
+  anywhere but in no pairing fails, so a new use cannot skip the contract. The rendered pages
+  are checked too (next section).
 - **Compliance rates** are coloured by band (`complianceBand` in `@muni/domain`): 100 %,
   90–99 %, 75–89 %, 50–74 % and under 50 %, in plain sentiment colours: solid green, light
   green, yellow, orange, red (`bg-heat-*`). Neighbouring bands stay apart for colour-blind
@@ -442,15 +467,16 @@ Prisma models directly.
 
 ## Commands
 
-| Command                 | What it does                                                    |
-| ----------------------- | --------------------------------------------------------------- |
-| `pnpm check`            | every gate below except e2e and Lighthouse (needs `db:up`)      |
-| `pnpm test`             | unit tests in every package                                     |
-| `pnpm coverage`         | tests with coverage in every package; fails below 90 %          |
-| `pnpm test:integration` | repositories and seed against the test database (port 5439)     |
-| `pnpm test:e2e`         | Playwright access, smoke and axe tests on `next start`, test DB |
-| `pnpm test:lighthouse`  | Lighthouse on every page; reports in `test-results/lighthouse`  |
-| `pnpm db:studio`        | Prisma Studio on the dev database                               |
+| Command                 | What it does                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| `pnpm check`            | every gate below except e2e and Lighthouse (needs `db:up`)                             |
+| `pnpm test`             | unit tests in every package                                                            |
+| `pnpm coverage`         | tests with coverage in every package; fails below 90 %                                 |
+| `pnpm test:integration` | repositories and seed against the test database (port 5439)                            |
+| `pnpm test:e2e`         | Playwright access, smoke and axe tests on `next start`, test DB                        |
+| `pnpm test:lighthouse`  | Lighthouse on every page; reports in `test-results/lighthouse`                         |
+| `pnpm test:visual`      | screenshots of every page and state, both themes, in `test-results/visual`, for review |
+| `pnpm db:studio`        | Prisma Studio on the dev database                                                      |
 
 The integration tests apply migrations and seed the test database; run them before
 `pnpm test:e2e` and `pnpm test:lighthouse`, which also need `pnpm --filter @muni/web build`
@@ -465,7 +491,11 @@ the session in `e2e/.auth/`. `e2e/access.spec.ts` checks what each role and a vi
 Accessibility is checked twice. `e2e/a11y.spec.ts` runs axe (WCAG 2.2 A/AA and best
 practices) on every page as an admin (who sees every control) and on the introduction signed
 out, in the light and dark theme, and on the open states (matrix row and dialog, employee
-row, an open select); any violation fails. Unit tests also run axe on what they render
+row, an open select, your own role); any violation fails. The same states go through
+`e2e/support/contrast.ts`, which measures what axe does not, on the rendered page: a filled
+element either matches what it sits on or stands ΔE 0.02 apart from it; each enabled
+control's outline and each meter's fill have 3:1; and hovering a table's first row changes
+every cell, pinned ones included. Unit tests also run axe on what they render
 (`apps/web/src/test/axe.ts`, without contrast and target size, which jsdom cannot measure).
 `pnpm test:lighthouse` requires accessibility 100, best practices 95, SEO 90 and performance
 90 (desktop) on every page as an admin and on the introduction. One exception: findings
