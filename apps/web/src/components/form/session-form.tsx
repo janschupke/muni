@@ -1,7 +1,6 @@
 'use client'
 
 import type { CourseOption, RoomOption } from '@muni/db/repositories'
-import { SESSION_STATUSES } from '@muni/domain/enums'
 import { type SessionIssue, sessionIssues } from '@muni/domain/sessions'
 import { FieldRow } from '@muni/ui/field'
 import { currencySymbol, formatAmount } from '@muni/utils/format'
@@ -34,7 +33,11 @@ export interface SessionDefaults {
   capacity: number | null
   unnamedBookings: number
   pricePerPerson: number | null
-  status: string
+  /**
+   * As stored; the form never changes it (cancelling and reinstating are their own acts). A
+   * cancelled session holds no room, so its room is not checked.
+   */
+  status: 'PLANNED' | 'CANCELLED'
 }
 
 /**
@@ -67,7 +70,6 @@ export function SessionForm({
   const t = useTranslations('forms.session')
   const tq = useTranslations('forms.session.confirm')
   const tsave = useTranslations('forms.save')
-  const ts = useTranslations('status')
   const tp = useTranslations('forms.placeholders')
 
   const [courseId, setCourseId] = useState(defaults.courseId)
@@ -77,14 +79,13 @@ export function SessionForm({
   const [date, setDate] = useState(defaults.date)
   const [startTime, setStartTime] = useState(defaults.startTime)
   const [endTime, setEndTime] = useState(defaults.endTime)
-  const [status, setStatus] = useState(defaults.status)
 
   const course = courses.find(c => c.id === courseId)
   const room = rooms.find(r => r.id === roomId)
   const seats = parseCount(capacity)
   const unnamedSeats = isNew ? 0 : (parseCount(unnamed) ?? 0)
   const booked = unnamedSeats + named
-  const planned = status === 'PLANNED'
+  const planned = defaults.status === 'PLANNED'
 
   const busy = useRoomBusy(
     planned && room !== undefined && room.kind !== 'ONLINE' && !!date && endTime > startTime
@@ -138,28 +139,15 @@ export function SessionForm({
     .filter(Boolean)
     .join(' ')
 
-  // Cancelling a session, or moving its bookings to another course, does more than the form
-  // shows: ask first, saying what happens to the people on it.
+  // Moving its bookings to another course does more than the form shows: ask first, saying
+  // what happens to the people on it.
   const confirm = (): SaveConfirmation | null => {
-    if (isNew) return null
-    const cancelling = status === 'CANCELLED' && defaults.status !== 'CANCELLED'
-    const moving = named > 0 && courseId !== defaults.courseId
-    if (!cancelling && !moving) return null
-    const body = (
-      <>
-        {cancelling && <p>{tq('cancelBody', { count: named })}</p>}
-        {moving && <p>{tq('courseBody', { count: named, course: course?.name ?? '' })}</p>}
-      </>
-    )
+    if (isNew || named === 0 || courseId === defaults.courseId) return null
     return {
-      title: cancelling ? tq('cancelTitle') : tq('courseTitle'),
-      body,
-      confirmLabel: cancelling
-        ? moving
-          ? tq('bothConfirm')
-          : tq('cancelConfirm')
-        : tq('courseConfirm'),
-      tone: cancelling ? 'danger' : 'primary',
+      title: tq('courseTitle'),
+      body: <p>{tq('courseBody', { count: named, course: course?.name ?? '' })}</p>,
+      confirmLabel: tq('courseConfirm'),
+      tone: 'primary',
     }
   }
 
@@ -202,24 +190,14 @@ export function SessionForm({
           onValueChange={setEndTime}
         />
       </FieldRow>
-      <FieldRow>
-        <SelectField
-          name="roomId"
-          label={t('room')}
-          required
-          value={roomId}
-          onValueChange={setRoomId}
-          options={rooms.map(r => ({ value: r.id, label: roomLabel(r) }))}
-        />
-        <SelectField
-          name="status"
-          label={t('status')}
-          required
-          value={status}
-          onValueChange={setStatus}
-          options={SESSION_STATUSES.map(s => ({ value: s, label: ts(`session.${s}`) }))}
-        />
-      </FieldRow>
+      <SelectField
+        name="roomId"
+        label={t('room')}
+        required
+        value={roomId}
+        onValueChange={setRoomId}
+        options={rooms.map(r => ({ value: r.id, label: roomLabel(r) }))}
+      />
       <FieldRow columns={3}>
         <TextField
           name="capacity"

@@ -3,9 +3,11 @@
 import type { CourseListItem } from '@muni/db/repositories'
 import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
-import { formatInteger, formatPercent, PLACEHOLDER } from '@muni/utils/format'
+import { formatInteger, PLACEHOLDER } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
+
+import { formatRate } from '@/lib/format-rate'
 
 import { ComplianceBar } from './compliance-breakdown'
 import { CoursePanel } from './course-panel'
@@ -65,7 +67,7 @@ export function CoursesTable({
               <BarRow
                 layout="inline"
                 bar={<ComplianceBar counts={row.original.counts} label={row.original.name} />}
-                value={formatPercent(row.original.rate, locale)}
+                value={formatRate(row.original.rate, locale)}
               />
             ) : (
               <span className="text-fg-subtle">{PLACEHOLDER}</span>

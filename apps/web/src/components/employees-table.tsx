@@ -1,7 +1,7 @@
 'use client'
 
 import type { EmployeeListItem } from '@muni/db/repositories'
-import { needsBooking } from '@muni/domain/advisor'
+import { personBookingState } from '@muni/domain/advisor'
 import { sortName } from '@muni/domain/names'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { PLACEHOLDER } from '@muni/utils/format'
@@ -119,13 +119,21 @@ export function EmployeesTable({
                 id: 'book',
                 header: hiddenHeader(t('panel.book')),
                 meta: { headerClassName: 'w-0', nowrap: true },
-                cell: ({ row }) =>
-                  row.original.requirements.some(r => needsBooking(r, row.original.status)) && (
-                    <BookNeedButton
-                      query={{ employee: row.original.externalId }}
-                      label={tb('bookAllFor', { name: sortName(row.original) })}
-                    />
-                  ),
+                cell: ({ row }) => {
+                  // Every training they need, or, when none can be booked, why not.
+                  const state = personBookingState(row.original.requirements, row.original.status)
+                  return (
+                    state && (
+                      <BookNeedButton
+                        query={{ employee: row.original.externalId }}
+                        label={tb('bookAllFor', { name: sortName(row.original) })}
+                        blocked={
+                          state.kind === 'BLOCKED' ? { of: 'person', reason: state.reason } : null
+                        }
+                      />
+                    )
+                  )
+                },
               }),
             ]
           : []),

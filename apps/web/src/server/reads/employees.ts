@@ -15,7 +15,6 @@ import {
   listGroupOptions,
   listPositions,
   listProviderOptions,
-  listUpcomingBookings,
   pageOf,
 } from '@muni/db/repositories'
 import { COMPLIANCE_STATUSES, EMPLOYEE_SORT_KEYS, EMPLOYMENT_STATES } from '@muni/domain/enums'
@@ -61,17 +60,14 @@ export const employeesList = read({
 })
 
 /**
- * A person's page: the record (as the role may see it) with a page of their completions
- * (`completionsSort`…, sorted on the server) and their upcoming bookings.
+ * A person's page: the record (as the role may see it, its requirements with their bookings)
+ * with a page of their completions (`completionsSort`…, sorted on the server).
  */
 export const employee = read({
   guard: 'reader',
   input: byExternalId.extend(listInput(HISTORY_SORT, 'completions')),
   load: async ({ externalId, ...list }, user) => {
-    const [person, bookings] = await Promise.all([
-      getEmployee(externalId, user.role),
-      listUpcomingBookings({ employee: externalId }),
-    ])
+    const person = await getEmployee(externalId, user.role)
     if (!person) return null
     return {
       employee: {
@@ -82,7 +78,6 @@ export const employee = read({
           historyKeys
         ),
       },
-      bookings,
       showNotes: isVisible(getPolicy(), 'completion.note', user.role),
     }
   },

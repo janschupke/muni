@@ -167,6 +167,24 @@ for (const theme of ['light', 'dark'] as const) {
       await page.keyboard.press('Escape')
     })
 
+    test('cancel session dialog, and a Book… that cannot book', async ({ page }) => {
+      await page.goto('/sessions/T018')
+      await loaded(page)
+      await page.getByRole('main').getByRole('button', { name: 'Cancel session…' }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await shot(page, 'cancel-session-dialog', false)
+      await page.keyboard.press('Escape')
+
+      await page.goto('/employees?status=PARENTAL_LEAVE')
+      await loaded(page)
+      await page
+        .getByRole('button', { name: /^Book every training .+ needs…$/ })
+        .first()
+        .hover()
+      await expect(page.getByRole('tooltip', { includeHidden: true })).toBeAttached()
+      await shot(page, 'book-unavailable', false)
+    })
+
     // No skeleton shots: pages arrive with their data from the server, so a skeleton shows
     // only when that read fails (past the read limit, a database error), which a browser
     // cannot cause. components.test.tsx renders each one.

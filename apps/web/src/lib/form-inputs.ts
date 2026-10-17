@@ -84,7 +84,6 @@ const sessionInput = (form: FormData) => ({
   roomId: text(form, 'roomId'),
   capacity: number(form, 'capacity'),
   pricePerPerson: money(form, 'pricePerPerson'),
-  status: text(form, 'status'),
 })
 
 export const sessionEditSpec = spec(

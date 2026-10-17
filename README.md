@@ -139,13 +139,16 @@ session times are `timestamptz` converted from Europe/Prague wall-clock time.
 Bookings: a session's seats are `unnamedBookings` (anonymous seats from the export) plus
 `SessionAssignment` rows (a named person on a session, with FKs to both and to the `User` who
 booked it). Only what a person needs is booked: a training required of them that they do not
-hold, lapsed or lapsing soon, with nothing booked (`needsBooking`). Admins book from every place
+hold, lapsed or lapsing soon, with nothing booked (`bookingState`). Admins book from every place
 such a training shows, always through one **Book…** dialog that lists each training with the
 session proposed for it (the advisor's plan) and up to five alternatives to choose from: the
 advisor's two tables, a person's required trainings, the people of the employee list and of a
 department or position (each person, or each training of an opened row), and a compliance
-matrix cell (each person, or all who need it). A session's page offers only the people who
-need its course. The booked total is always derived, never stored twice. Saving a booking
+matrix cell (each person, or all who need it). Where a training needs booking but cannot be
+booked (the person is on leave, no session of the course is scheduled, or every one is full),
+**Book…** stays in its place, dimmed, and says why on hover and focus. Booked, the row shows
+when and where, and the way to cancel the booking, in the same column. A session's page offers
+only the people who need its course. The booked total is always derived, never stored twice. Saving a booking
 locks the session row (`SELECT … FOR UPDATE`) and re-checks seats, status, clashes and need,
 so two people can never take the last seat and nobody is booked on a training that is not
 required of them or that they hold past the advisor's forecast.
@@ -175,8 +178,12 @@ foreign key is `ON DELETE RESTRICT`, and a lint rule in `@muni/db` refuses any o
   record can take an archived one's name. Bringing the old one back is then refused, as it
   is while something it belongs to is archived.
 - **What may be archived:** a person's bookings on sessions ahead go with them (the dialog
-  says how many). A course or room with sessions ahead, a session ahead with seats taken, or
-  a department or position with people in it is refused, with the count. An admin cannot
+  says how many). A course or room with sessions ahead, or a department or position with
+  people in it, is refused, with the count. A session still to start is **cancelled**, not
+  archived (its page and row offer Cancel in Archive's place; its bookings stay as the record
+  of who was to come, and those people need a session again); once cancelled or over it can be
+  archived. A cancelled session still to start can be reinstated if its room and people are
+  still free then. The edit form never changes a session's status. An admin cannot
   archive themselves or the last admin.
 - **Imports** never revive an archived record or create an active twin of one: a row whose
   ID, code or name (or anything it refers to) only an archived record holds is skipped
@@ -328,7 +335,7 @@ stays until it is closed, the rest leave after six seconds. A form's button says
 A write asks first (`components/confirm-dialog.tsx`) when it cannot be undone, touches many
 records, costs money or does more than its button shows: cancelling a booking, changing a role
 (with what the new role can do, and what an admin loses), archiving and bringing back,
-cancelling a session or moving its bookings to another course (from the edit form), booking from
+cancelling or reinstating a session, moving its bookings to another course (from the edit form), booking from
 the advisor, resolving overbooking and creating from the planner. The dialog says exactly what
 will change; its confirm button names the act and the other one keeps things as they are. A
 refusal shows in the dialog, which stays open; a partial result lists what was refused.
@@ -398,7 +405,10 @@ One palette, defined once in `packages/ui/src/styles/tokens.css`:
   readers (ΔE ≥ 8.2); the closest pair overall, a green and the orange further down the
   scale, is ΔE 7.0, which the printed rate makes safe: every cell prints it, on an ink with at least
   4.8:1 contrast. Rate meters and the overview card use the same bands in the four signal
-  colours (100 % and 90–99 % are both green).
+  colours (100 % and 90–99 % are both green). A rate is printed as its whole percent rounded
+  down (`compliancePercent`, through `formatRate`), and the band is taken from that same
+  number, so two cells that read the same are the same colour and only a full rate reads
+  100 %. `compliance.test.ts` checks every count up to 300.
 
 - **Links** are drawn one way, by `TextLink`: the link colour (`text-link`, blue-500 /
   blue-250), underlined only on hover. No link sits inside a sentence: in the dark theme no

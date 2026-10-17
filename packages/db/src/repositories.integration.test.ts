@@ -37,6 +37,8 @@ import {
   removeAssignment,
   updateSession,
 } from './repositories'
+import { ACTIVE } from './repositories/archive'
+import { loadBookingContext } from './repositories/requirements'
 import { seedFromDirectory } from './seed'
 
 const db = createDb()
@@ -351,7 +353,6 @@ describe('sessions', () => {
         capacity: 40,
         unnamedBookings: 3,
         pricePerPerson: 800,
-        status: 'PLANNED',
       },
       options
     )
@@ -696,7 +697,20 @@ describe('assignments', () => {
     )
     if (!need) throw new Error('fixture: no active employee has an expired BOZP-Z')
     await applyAssignments([manual('T018', need.employee.externalId)], TEST_USER, opts)
-    const booked = { sessionExternalId: 'T018', startsAt: '2027-02-03T07:00:00.000Z' }
+    // With its end and room, as the person's page shows it.
+    const session = await getSession('T018', options)
+    if (!session) throw new Error('fixture: T018')
+    const booked = {
+      sessionExternalId: 'T018',
+      startsAt: '2027-02-03T07:00:00.000Z',
+      endsAt: session.endsAt,
+      room: {
+        id: session.room.id,
+        name: session.room.name,
+        kind: session.room.kind,
+        archived: false,
+      },
+    }
 
     const matrix = await getComplianceMatrix(options)
     const person = matrix.rows
@@ -722,6 +736,42 @@ describe('assignments', () => {
     expect(typeof onSession?.departmentId).toBe('string')
     expect(typeof onSession?.positionId).toBe('string')
     await removeAssignment('T018', need.employee.externalId, options)
+  })
+
+  it('says per course whether a session still to start has a seat', async () => {
+    const ahead = { ...ACTIVE, status: 'PLANNED' as const, startsAt: { gt: now } }
+    const bozp = await courseIdOf(db, 'BOZP-Z')
+    const without = await db.course.findFirstOrThrow({
+      where: { ...ACTIVE, sessions: { none: ahead } },
+      select: { id: true },
+    })
+    const read = () => loadBookingContext(db, now)
+    expect((await read()).openings.get(bozp)).toBe('OPEN')
+    // No session ahead: the course is absent, and its rows read NONE.
+    expect((await read()).openings.has(without.id)).toBe(false)
+    // Every seat of every session ahead taken, named or not: FULL.
+    const sessions = await db.courseSession.findMany({
+      where: { ...ahead, courseId: bozp },
+      select: { id: true, capacity: true, unnamedBookings: true },
+    })
+    try {
+      for (const s of sessions)
+        await db.courseSession.update({
+          where: { id: s.id },
+          data: { unnamedBookings: s.capacity },
+        })
+      expect((await read()).openings.get(bozp)).toBe('FULL')
+      const listed = await listEmployees({}, options)
+      const rows = listed.items.flatMap(e => e.requirements).filter(r => r.courseCode === 'BOZP-Z')
+      expect(rows.length).toBeGreaterThan(0)
+      expect(new Set(rows.map(r => r.opening))).toEqual(new Set(['FULL']))
+    } finally {
+      for (const s of sessions)
+        await db.courseSession.update({
+          where: { id: s.id },
+          data: { unnamedBookings: s.unnamedBookings },
+        })
+    }
   })
 
   it('applies a suggestion: the booked total follows, and a repeat is refused', async () => {

@@ -8,11 +8,12 @@ import {
   type SessionEdit,
   sessionEditSchema,
 } from '@muni/domain/schemas'
-import { sessionIssues } from '@muni/domain/sessions'
+import { sessionIssues, sessionPhase, startsLater } from '@muni/domain/sessions'
 import { zonedTimeToUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
 
 import type { Tx } from '../client'
+import type { Prisma } from '../generated/prisma/client'
 import { ACTIVE, isArchived } from './archive'
 import { applyOne, type AssignmentFailure, BATCH_TX, lockPeople } from './assignments'
 import { dbOf, type RepoOptions } from './context'
@@ -124,31 +125,24 @@ async function sessionProblem(
   return null
 }
 
-/**
- * What stops a stored session from standing as it is now: for a session being brought back
- * from the archive, whose room may since have been taken or changed. Past and cancelled
- * sessions hold nothing. Run after the sessions lock.
- */
-export async function storedSessionProblem(
-  tx: Tx,
-  id: string,
-  now: Date
-): Promise<SessionProblem | null> {
-  const session = await tx.courseSession.findUniqueOrThrow({
-    where: { id },
-    select: {
-      externalId: true,
-      courseId: true,
-      roomId: true,
-      startsAt: true,
-      endsAt: true,
-      capacity: true,
-      unnamedBookings: true,
-      status: true,
-      _count: { select: { assignments: true } },
-    },
-  })
-  if (session.status !== 'PLANNED' || session.endsAt < now) return null
+const storedSelect = {
+  id: true,
+  externalId: true,
+  courseId: true,
+  roomId: true,
+  startsAt: true,
+  endsAt: true,
+  capacity: true,
+  unnamedBookings: true,
+  status: true,
+  course: { select: { code: true } },
+  _count: { select: { assignments: true } },
+} as const
+
+type StoredSession = Prisma.CourseSessionGetPayload<{ select: typeof storedSelect }>
+
+/** What stops a stored session from standing as a planned one where and when it is. */
+function plannedProblem(tx: Tx, session: StoredSession): Promise<SessionProblem | null> {
   return sessionProblem(
     tx,
     {
@@ -162,6 +156,21 @@ export async function storedSessionProblem(
     },
     { externalId: session.externalId, courseId: session.courseId, roomId: session.roomId }
   )
+}
+
+/**
+ * What stops a stored session from standing as it is now: for a session being brought back
+ * from the archive, whose room may since have been taken or changed. Past and cancelled
+ * sessions hold nothing. Run after the sessions lock.
+ */
+export async function storedSessionProblem(
+  tx: Tx,
+  id: string,
+  now: Date
+): Promise<SessionProblem | null> {
+  const session = await tx.courseSession.findUniqueOrThrow({ where: { id }, select: storedSelect })
+  if (session.status !== 'PLANNED' || session.endsAt < now) return null
+  return plannedProblem(tx, session)
 }
 
 /**
@@ -219,8 +228,10 @@ export async function updateSession(
       select: { id: true },
     })
     // The row too, as booking takes it: a seat booked meanwhile is counted below.
-    const [current] = await tx.$queryRaw<{ id: string; course_id: string; room_id: string }[]>`
-      SELECT id, course_id, room_id FROM course_sessions WHERE id = ${found.id} FOR UPDATE`
+    const [current] = await tx.$queryRaw<
+      { id: string; course_id: string; room_id: string; status: 'PLANNED' | 'CANCELLED' }[]
+    >`
+      SELECT id, course_id, room_id, status FROM course_sessions WHERE id = ${found.id} FOR UPDATE`
     if (!current) throw new Error(`Session ${externalId} vanished under its lock`)
     const named = await tx.sessionAssignment.count({ where: { sessionId: current.id } })
     const startsAt = zonedTimeToUtc(data.date, data.startTime)
@@ -234,13 +245,14 @@ export async function updateSession(
         endsAt,
         capacity: data.capacity,
         booked: data.unnamedBookings + named,
-        planned: data.status === 'PLANNED',
+        // Its status stays: a cancelled one holds no room, wherever it is moved.
+        planned: current.status === 'PLANNED',
       },
       { externalId, courseId: current.course_id, roomId: current.room_id }
     )
     if (problem) return { ok: false, problem }
     if (
-      data.status === 'PLANNED' &&
+      current.status === 'PLANNED' &&
       named > 0 &&
       (await attendeeClash(tx, current.id, startsAt, endsAt))
     )
@@ -255,11 +267,81 @@ export async function updateSession(
         capacity: data.capacity,
         unnamedBookings: data.unnamedBookings,
         pricePerPerson: data.pricePerPerson,
-        status: data.status,
       },
       select: { course: { select: { code: true } } },
     })
     return { ok: true, externalId, courseCode: saved.course.code }
+  })
+}
+
+/** Why a session cannot be cancelled or reinstated. */
+export type SessionStatusRefusal =
+  | 'NOT_FOUND'
+  /** Cancelling one already cancelled, or reinstating one that is planned. */
+  | 'UNCHANGED'
+  /** It has started: what happened stays as it was. */
+  | 'STARTED'
+
+export type SessionStatusWrite =
+  | { ok: true; externalId: string; courseCode: string }
+  | { ok: false; problem: SessionStatusRefusal | SessionProblem }
+
+/** Locks the sessions and the session's row, then reads it as it is under the lock. */
+async function lockedSession(tx: Tx, externalId: string): Promise<StoredSession | null> {
+  await lockSessionWrites(tx)
+  const found = await tx.courseSession.findFirst({
+    where: { externalId, ...ACTIVE },
+    select: { id: true },
+  })
+  if (!found) return null
+  await tx.$queryRaw`SELECT id FROM course_sessions WHERE id = ${found.id} FOR UPDATE`
+  return tx.courseSession.findUniqueOrThrow({ where: { id: found.id }, select: storedSelect })
+}
+
+/**
+ * Cancels a session still to start. Its bookings stay, as the record of who was to come; the
+ * advisor counts none of them, so those people need a session again. A session that has
+ * started stays as it is.
+ */
+export async function cancelSession(
+  externalId: string,
+  options?: RepoOptions & { now?: Date }
+): Promise<SessionStatusWrite> {
+  const now = options?.now ?? new Date()
+  return dbOf(options).$transaction(async tx => {
+    const session = await lockedSession(tx, externalId)
+    if (!session) return { ok: false, problem: 'NOT_FOUND' }
+    const phase = sessionPhase(session, now)
+    if (phase === 'CANCELLED') return { ok: false, problem: 'UNCHANGED' }
+    if (phase !== 'AHEAD') return { ok: false, problem: 'STARTED' }
+    await tx.courseSession.update({ where: { id: session.id }, data: { status: 'CANCELLED' } })
+    return { ok: true, externalId, courseCode: session.course.code }
+  })
+}
+
+/**
+ * Plans a cancelled session again, if it is still to start and could be saved so now: its
+ * room free and suited, and nobody booked on it elsewhere at that time.
+ */
+export async function reinstateSession(
+  externalId: string,
+  options?: RepoOptions & { now?: Date }
+): Promise<SessionStatusWrite> {
+  const now = options?.now ?? new Date()
+  return dbOf(options).$transaction(async tx => {
+    const session = await lockedSession(tx, externalId)
+    if (!session) return { ok: false, problem: 'NOT_FOUND' }
+    if (session.status !== 'CANCELLED') return { ok: false, problem: 'UNCHANGED' }
+    if (!startsLater(session, now)) return { ok: false, problem: 'STARTED' }
+    const problem = await plannedProblem(tx, session)
+    if (problem) return { ok: false, problem }
+    if (
+      session._count.assignments > 0 &&
+      (await attendeeClash(tx, session.id, session.startsAt, session.endsAt))
+    )
+      return { ok: false, problem: 'ATTENDEE_CONFLICT' }
+    await tx.courseSession.update({ where: { id: session.id }, data: { status: 'PLANNED' } })
+    return { ok: true, externalId, courseCode: session.course.code }
   })
 }
 
@@ -293,7 +375,7 @@ async function insertSession(tx: Tx, data: SessionCreate): Promise<SessionWrite>
       endsAt,
       capacity: data.capacity,
       booked: 0,
-      planned: data.status === 'PLANNED',
+      planned: true,
     },
     null
   )
@@ -314,7 +396,7 @@ async function insertSession(tx: Tx, data: SessionCreate): Promise<SessionWrite>
       endsAt,
       capacity: data.capacity,
       pricePerPerson: data.pricePerPerson,
-      status: data.status,
+      status: 'PLANNED',
     },
   })
   return { ok: true, externalId, courseCode: course.code }

@@ -1,5 +1,5 @@
 import type { EmployeeListItem, Page } from '@muni/db/repositories'
-import { needsBooking } from '@muni/domain/advisor'
+import { bookingState } from '@muni/domain/advisor'
 import { sortName } from '@muni/domain/names'
 import { DetailPanel } from '@muni/ui/detail-panel'
 import { EmptyState } from '@muni/ui/empty-state'
@@ -20,7 +20,7 @@ import { BookNeedButton } from '@/features/bookings/book-button'
  * A department's or position's people, one record each: where else they sit, their
  * employment, how much of what they must hold they hold, and every training that needs
  * attention (expired, missing or expiring) with its booking, if any, or for admins the way to
- * book it. A page at a time, cut on the server, the most urgent first.
+ * book it (or, dimmed, why it cannot be), all in one column at the cell's edge. A page at a time, cut on the server, the most urgent first.
  */
 export function MembersTable({
   name,
@@ -95,31 +95,45 @@ export function MembersTable({
                   ) : attention.length === 0 ? (
                     <span className="text-fg-subtle">{t('allValid')}</span>
                   ) : (
-                    <ul className="flex flex-col gap-1">
-                      {attention.map(r => (
-                        <li
-                          key={r.courseCode}
-                          className="flex flex-wrap items-center gap-x-2 gap-y-0.5"
-                        >
-                          <ComplianceBadge status={r.status} />
-                          <TextLink asChild hitArea>
-                            <Link href={`/courses/${r.courseCode}`}>{r.courseName}</Link>
-                          </TextLink>
-                          {r.booked && (
-                            <TextLink asChild hitArea className="text-xs">
-                              <Link href={`/sessions/${r.booked.sessionExternalId}`}>
-                                {t('booked', { date: formatDateTime(r.booked.startsAt) })}
-                              </Link>
-                            </TextLink>
-                          )}
-                          {canBook && needsBooking(r, m.status) && (
-                            <BookNeedButton
-                              query={{ employee: m.externalId, course: r.courseCode }}
-                              label={tb('bookFor', { course: r.courseName, name: sortName(m) })}
-                            />
-                          )}
-                        </li>
-                      ))}
+                    // A grid: the actions share the cell's right edge, one column for
+                    // every person, and the courses line up after their badges.
+                    <ul className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1">
+                      {attention.map(r => {
+                        const state = canBook ? bookingState(r, m.status) : null
+                        return (
+                          <li
+                            key={r.courseCode}
+                            className="col-span-3 grid grid-cols-subgrid items-center"
+                          >
+                            <ComplianceBadge status={r.status} />
+                            <span className="flex flex-wrap items-center gap-x-2">
+                              <TextLink asChild hitArea>
+                                <Link href={`/courses/${r.courseCode}`}>{r.courseName}</Link>
+                              </TextLink>
+                              {r.booked && (
+                                <TextLink asChild hitArea className="text-xs">
+                                  <Link href={`/sessions/${r.booked.sessionExternalId}`}>
+                                    {t('booked', { date: formatDateTime(r.booked.startsAt) })}
+                                  </Link>
+                                </TextLink>
+                              )}
+                            </span>
+                            <span className="justify-self-end">
+                              {state && (
+                                <BookNeedButton
+                                  query={{ employee: m.externalId, course: r.courseCode }}
+                                  label={tb('bookFor', { course: r.courseName, name: sortName(m) })}
+                                  blocked={
+                                    state.kind === 'BLOCKED'
+                                      ? { of: 'training', reason: state.reason }
+                                      : null
+                                  }
+                                />
+                              )}
+                            </span>
+                          </li>
+                        )
+                      })}
                     </ul>
                   )}
                 </Td>

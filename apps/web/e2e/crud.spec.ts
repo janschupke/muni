@@ -115,7 +115,7 @@ test('adds a person with typed and picked dates, then archives them', async ({ p
   await expect(page.getByRole('heading', { level: 1, name: /E2E Testová/ })).toBeVisible()
 })
 
-test('plans a session with the time picker, books a person by hand, and cancels it', async ({
+test('plans a session with the time picker, books a person, cancels, reinstates and archives it', async ({
   page,
 }) => {
   await page.goto('/sessions/new')
@@ -150,13 +150,24 @@ test('plans a session with the time picker, books a person by hand, and cancels 
   await expect(booked).toBeVisible()
   await expect(page.getByText(`Booked: ${label}`, { exact: true })).toBeVisible()
 
-  // Booked, it cannot be archived; the dialog says why.
-  await page.getByRole('main').getByRole('button', { name: 'Archive' }).click()
-  const refusal = page.getByRole('dialog', { name: /^Archive S\d{3}/ })
-  await expect(
-    refusal.getByText('1 seat is taken on this session.', { exact: false })
-  ).toBeVisible()
-  await refusal.getByRole('button', { name: 'Keep as is' }).click()
+  // Still to start, it is cancelled, not archived: its people stay listed, and need a session.
+  const main = page.getByRole('main')
+  await expect(main.getByRole('button', { name: 'Archive' })).toHaveCount(0)
+  await main.getByRole('button', { name: 'Cancel session…' }).click()
+  const cancel = page.getByRole('dialog', { name: /^Cancel S\d{3} · .+\?$/ })
+  await expect(cancel.getByText(/The 1 person booked stays listed on it/)).toBeVisible()
+  await cancel.getByRole('button', { name: 'Cancel session', exact: true }).click()
+  await expect(page.getByText(/^Session cancelled: S\d{3}/)).toBeVisible()
+  await expect(main.getByText('Cancelled', { exact: true })).toBeVisible()
+  await expect(booked).toBeVisible()
+  // Planned again: its room and its person are still free then.
+  await main.getByRole('button', { name: 'Reinstate…' }).click()
+  await page
+    .getByRole('dialog', { name: /^Plan S\d{3} · .+ again\?$/ })
+    .getByRole('button', { name: 'Reinstate', exact: true })
+    .click()
+  await expect(page.getByText(/^Session planned again: S\d{3}/)).toBeVisible()
+  await expect(main.getByRole('button', { name: 'Cancel session…' })).toBeVisible()
 
   await page.getByRole('button', { name: `Cancel the booking of ${name}` }).click()
   await page
@@ -167,6 +178,33 @@ test('plans a session with the time picker, books a person by hand, and cancels 
   await expect(page.getByText('Booking cancelled', { exact: true })).toBeVisible()
   // The row and its button went; focus stayed in the page, not on the body.
   await expect.poll(() => page.evaluate(() => document.activeElement?.tagName)).not.toBe('BODY')
+
+  // Cancelled, it can be archived, and leaves for the list.
+  await main.getByRole('button', { name: 'Cancel session…' }).click()
+  await page
+    .getByRole('dialog', { name: /^Cancel S\d{3}/ })
+    .getByRole('button', { name: 'Cancel session', exact: true })
+    .click()
+  await main.getByRole('button', { name: 'Archive' }).click()
+  const archive = page.getByRole('dialog', { name: /^Archive S\d{3}/ })
+  await archive.getByRole('button', { name: 'Archive', exact: true }).click()
+  await expect(page).toHaveURL(/\/sessions$/)
+})
+
+test('a training that cannot be booked keeps its Book… in place and says why', async ({ page }) => {
+  await page.goto('/employees?status=PARENTAL_LEAVE')
+  const book = page.getByRole('button', { name: /^Book every training .+ needs…$/ }).first()
+  await expect(book).toHaveAttribute('aria-disabled', 'true')
+  await book.hover()
+  await expect(page.getByRole('tooltip', { includeHidden: true })).toHaveText(
+    'On parental leave: nothing to book until they are back'
+  )
+  // Pressing it opens nothing. (Playwright waits forever to click what is aria-disabled, so
+  // it is pressed from the keyboard, where it still takes focus.)
+  await book.focus()
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Space')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
 test('a form goes back where it was opened from, filters included', async ({ page }) => {

@@ -8,8 +8,8 @@ import { roomRefSelect, toRoomRef } from './sessions'
 
 /**
  * Everything the advisor needs, as plain data: every training that is non-compliant now or
- * lapses within the forecast (with names, for the tables), and the upcoming sessions with
- * their named bookings. The plan itself is `planAssignments`, a pure function of this.
+ * lapses within the forecast (with names, for the tables), and the sessions not yet over with
+ * their named bookings (one under way still counts as its people's booking). The plan itself is `planAssignments`, a pure function of this.
  * Names and departments are already public on the employee list; nothing sensitive is read.
  */
 export async function getAdvisorInput(
@@ -34,7 +34,8 @@ export async function getAdvisorInput(
     }),
     db.course.findMany({ where: ACTIVE, select: { id: true, code: true, name: true } }),
     db.courseSession.findMany({
-      where: { ...ACTIVE, startsAt: { gt: now }, course: ACTIVE },
+      // Any status, the plan ignores the cancelled; not yet over, as `upcomingSessionWhere`.
+      where: { ...ACTIVE, endsAt: { gte: now }, course: ACTIVE },
       select: {
         externalId: true,
         startsAt: true,
@@ -80,6 +81,7 @@ export async function getAdvisorInput(
 
   return {
     asOf: compliance.options.asOf,
+    now: now.toISOString(),
     needs,
     sessions: sessions.map(s => ({
       externalId: s.externalId,

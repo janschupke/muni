@@ -5,7 +5,7 @@ import type {
   ComplianceMatrixRow,
   EmployeeListRequirement,
 } from '@muni/db/repositories'
-import { needsBooking } from '@muni/domain/advisor'
+import { canBookNow } from '@muni/domain/advisor'
 import { COMPLIANCE_BANDS, complianceBand, complianceOf } from '@muni/domain/compliance'
 import { COMPLIANCE_STATUSES, type ComplianceStatus } from '@muni/domain/enums'
 import { HeatCell, HeatLegend } from '@muni/ui/charts/heat-cell'
@@ -15,7 +15,7 @@ import { ExpandButton } from '@muni/ui/expand-button'
 import { Table, TableContainer, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { Tooltip } from '@muni/ui/tooltip'
-import { formatDate, formatDateTime, formatInteger, formatPercent } from '@muni/utils/format'
+import { formatDate, formatDateTime, formatInteger } from '@muni/utils/format'
 import { BookOpen, CalendarCheck, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -26,6 +26,7 @@ import { RequirementRows } from '@/components/requirement-panel'
 import { COMPLIANCE } from '@/components/status-badges'
 import { useRovingGrid } from '@/components/use-roving-grid'
 import { BookNeedButton } from '@/features/bookings/book-button'
+import { formatRate } from '@/lib/format-rate'
 
 const HEAD = 'border-b-0 px-2 py-1'
 // The department column stays put while the courses scroll sideways on narrow screens.
@@ -74,7 +75,7 @@ export function ComplianceMatrixTable({
   }
   const personRowId = (rowIndex: number, externalId: string) =>
     `${baseId}-${rowIndex}-${externalId}`
-  const pct = (rate: number) => formatPercent(rate, locale)
+  const pct = (rate: number) => formatRate(rate, locale)
 
   return (
     <>
@@ -415,7 +416,7 @@ function CellDialog({
           ? t('summary', {
               held: complianceOf(cell.counts).held,
               total: cell.counts.total,
-              rate: formatPercent(cell.rate, locale),
+              rate: formatRate(cell.rate, locale),
             })
           : undefined
       }
@@ -467,11 +468,11 @@ function CellDialog({
   )
 }
 
-/** The people of a department who need a course's training booked (`needsBooking`). */
+/** The people of a department whose training of a course can be booked now (`canBookNow`). */
 const toBook = (row: ComplianceMatrixRow, code: string) =>
   row.people.filter(p => {
     const requirement = p.cells[code]
-    return requirement != null && needsBooking(requirement, 'ACTIVE')
+    return requirement != null && canBookNow(requirement, 'ACTIVE')
   }).length
 
 /** The people a department cell counts, most urgent first; an admin books who needs it. */
@@ -485,7 +486,6 @@ function CellPeople({
   canBook: boolean
 }) {
   const t = useTranslations('compliance.detail')
-  const tb = useTranslations('bookings')
   const people = row.people
     .flatMap(person => {
       const requirement = person.cells[course.code]
@@ -512,7 +512,7 @@ function CellPeople({
         requirement,
         // The matrix counts the people at work only.
         person: { externalId: person.externalId, name: person.name, status: 'ACTIVE' },
-        bookLabel: tb('bookFor', { course: course.name, name: person.name }),
+        course: course.name,
       }))}
     />
   )

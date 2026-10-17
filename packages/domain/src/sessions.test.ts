@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import type { RoomFacts, SessionNeeds } from './rooms'
-import { NEARLY_FULL_RATIO, occupancy, sessionIssues } from './sessions'
+import {
+  NEARLY_FULL_RATIO,
+  occupancy,
+  openingOf,
+  seatsLeft,
+  sessionIssues,
+  sessionPhase,
+  startsLater,
+} from './sessions'
 
 describe('occupancy', () => {
   it.each([
@@ -61,5 +69,34 @@ describe('sessionIssues', () => {
     expect(sessionIssues({ ...fine, planned: false, capacity: 25 })).toEqual([])
     expect(sessionIssues({ ...fine, room: null, needs: null, capacity: null })).toEqual([])
     expect(sessionIssues({ ...fine, startTime: '', endTime: '' })).toEqual([])
+  })
+})
+
+describe('sessionPhase', () => {
+  const at = (status: 'PLANNED' | 'CANCELLED') => ({
+    status,
+    startsAt: '2026-11-02T08:00:00.000Z',
+    endsAt: '2026-11-02T12:00:00.000Z',
+  })
+  it('is ahead until it starts, running until it ends, then ended; cancelled whenever', () => {
+    expect(sessionPhase(at('PLANNED'), new Date('2026-11-02T07:59:59.999Z'))).toBe('AHEAD')
+    expect(sessionPhase(at('PLANNED'), new Date('2026-11-02T08:00:00.000Z'))).toBe('RUNNING')
+    expect(sessionPhase(at('PLANNED'), new Date('2026-11-02T12:00:00.000Z'))).toBe('RUNNING')
+    expect(sessionPhase(at('PLANNED'), new Date('2026-11-02T12:00:00.001Z'))).toBe('ENDED')
+    expect(sessionPhase(at('CANCELLED'), new Date('2026-11-01T00:00:00.000Z'))).toBe('CANCELLED')
+    expect(startsLater(at('CANCELLED'), new Date('2026-11-01T00:00:00.000Z'))).toBe(true)
+    expect(startsLater(at('CANCELLED'), new Date('2026-11-02T08:00:00.000Z'))).toBe(false)
+  })
+})
+
+describe('openings', () => {
+  it('counts every booking against the seats', () => {
+    expect(seatsLeft({ capacity: 10, unnamedBookings: 3, named: 2 })).toBe(5)
+    expect(seatsLeft({ capacity: 2, unnamedBookings: 3, named: 0 })).toBe(-1)
+  })
+  it('is open with a free seat anywhere, full when every session is, none without one', () => {
+    expect(openingOf([])).toBe('NONE')
+    expect(openingOf([0, -1])).toBe('FULL')
+    expect(openingOf([0, 2])).toBe('OPEN')
   })
 })

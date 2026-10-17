@@ -12,7 +12,7 @@ import {
 import { bookingSchema } from '@muni/domain/schemas'
 import * as z from 'zod'
 
-import { asAdmin, type Denied, logFailure } from './guard'
+import { asAdmin, type Denied, failedWith } from './guard'
 
 const externalId = z.string().trim().min(1).max(32)
 const applyInput = z
@@ -35,13 +35,6 @@ export type ApplyResult =
     }
   /** Nothing was saved: turned away, a request that does not parse, or the write failed. */
   | { ok: false; problem: Denied | 'invalid' | 'failed' }
-
-const failedWith =
-  <T>(answer: T) =>
-  (error: unknown): T => {
-    logFailure(error)
-    return answer
-  }
 
 /**
  * Saves bookings (the advisor's, or picked on a record's page). Each pair is re-checked on the

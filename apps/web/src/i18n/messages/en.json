@@ -185,16 +185,12 @@
       "noHistory": "No completed trainings on record.",
       "recordCompletion": "Record completion",
       "rate": "{rate} of required trainings held",
-      "bookings": "Upcoming sessions",
-      "noBookings": "No upcoming bookings.",
-      "cancelBooking": "Cancel booking for {course}",
       "team": {
         "title": "Team",
         "description": "{count, plural, one {# direct report who has not left} other {# direct reports who have not left}}",
         "inList": "All direct reports in the list",
         "held": "Held"
       },
-      "cancelBookingConfirm": "Cancel the booking for {course}?",
       "leftNothing": "Left on {date}; nothing is required any more."
     },
     "panel": {
@@ -329,7 +325,34 @@
     "allRooms": "All rooms",
     "titleOf": "Sessions of {course}",
     "courseFilter": "Course: {course}",
-    "clearCourse": "Remove the course filter"
+    "clearCourse": "Remove the course filter",
+    "cancel": {
+      "action": "Cancel session…",
+      "actionLabel": "Cancel {name}",
+      "title": "Cancel {name}?",
+      "after": "It stays in the list as cancelled; then it can be archived.",
+      "confirm": "Cancel session",
+      "keep": "Keep session",
+      "done": "Session cancelled: {name}",
+      "refused": {
+        "UNCHANGED": "It is cancelled already.",
+        "STARTED": "It has started: what took place stays as it was."
+      },
+      "body": "{count, plural, =0 {Nobody is booked on it by name.} one {The # person booked stays listed on it, but a cancelled session no longer counts as their training: the advisor shows them as action required again.} other {The # people booked stay listed on it, but a cancelled session no longer counts as their training: the advisor shows them as action required again.}}"
+    },
+    "reinstate": {
+      "action": "Reinstate…",
+      "actionLabel": "Reinstate {name}",
+      "title": "Plan {name} again?",
+      "body": "It is planned again at its time and in its room, if the room is still free then and nobody booked on it has another session at that time. Its bookings count again.",
+      "confirm": "Reinstate",
+      "keep": "Keep cancelled",
+      "done": "Session planned again: {name}",
+      "refused": {
+        "UNCHANGED": "It is planned already.",
+        "STARTED": "It has started: it stays cancelled."
+      }
+    }
   },
   "compliance": {
     "title": "Compliance matrix",
@@ -467,7 +490,6 @@
       "endTime": "End",
       "capacity": "Capacity",
       "pricePerPerson": "Price per person ({currency})",
-      "status": "Status",
       "unnamedBookings": "Other bookings (not named)",
       "unnamedHelp": "{count, plural, =0 {Nobody is booked by name.} one {Plus # person booked by name.} other {Plus # people booked by name.}}",
       "room": "Room",
@@ -483,13 +505,9 @@
       "bookedSeats": "{count, plural, one {# seat is booked.} other {# seats are booked.}}",
       "courseKeepsBookings": "{count, plural, one {# person booked by name stays booked} other {# people booked by name stay booked}} if the course changes.",
       "confirm": {
-        "cancelTitle": "Cancel this session?",
-        "cancelBody": "{count, plural, =0 {Nobody is booked on it by name.} one {The # person booked stays listed on it, but a cancelled session no longer counts as their training: the advisor shows them as action required again.} other {The # people booked stay listed on it, but a cancelled session no longer counts as their training: the advisor shows them as action required again.}}",
-        "cancelConfirm": "Cancel session",
         "courseTitle": "Change the course?",
         "courseBody": "{count, plural, one {The # person booked stays booked} other {The # people booked stay booked}}, now for {course}. Check that it is the training they need.",
-        "courseConfirm": "Change course",
-        "bothConfirm": "Save and cancel session"
+        "courseConfirm": "Change course"
       }
     },
     "employee": {
@@ -1398,7 +1416,7 @@
       "not_found": "It no longer exists, or it is archived already.",
       "in_use": "{kind, select, room {{count, plural, one {# session ahead is held here.} other {# sessions ahead are held here.}} Move or cancel them first.} other {{count, plural, one {# person belongs here.} other {# people belong here.}} Move them elsewhere first.}}",
       "has_upcoming_sessions": "{count, plural, one {# session of it is ahead.} other {# sessions of it are ahead.}} Cancel or archive them first.",
-      "has_bookings": "{count, plural, one {# seat is taken on this session.} other {# seats are taken on this session.}} Cancel it first; its bookings then stay as history.",
+      "upcoming": "This session is still to start: cancel it instead; its bookings then stay as history, and it can be archived.",
       "self": "You cannot archive yourself.",
       "last_admin": "This is the last admin. Make someone else an admin first.",
       "taken": "An active record now uses its {fields}. Rename or archive that one first.",
@@ -1553,6 +1571,19 @@
       "done": "Booked {count, plural, one {# training} other {# trainings}}",
       "partial": "Booked {applied}; {failed, plural, one {# was} other {# were}} refused:",
       "refused": "Nobody was booked:"
-    }
+    },
+    "blocked": {
+      "ON_LEAVE": "On parental leave: nothing to book until they are back",
+      "NO_SESSION": "No session of this course is scheduled",
+      "NO_SEATS": "Every session of this course is full"
+    },
+    "blockedAll": {
+      "ON_LEAVE": "On parental leave: nothing to book until they are back",
+      "NO_SESSION": "No session is scheduled for the trainings they need",
+      "NO_SEATS": "Every session of the trainings they need is full",
+      "MIXED": "No session with a free seat for the trainings they need"
+    },
+    "cancelFor": "Cancel the booking of {course} for {name}",
+    "cancelForConfirm": "Cancel the booking of {course} for {name}?"
   }
 }

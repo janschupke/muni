@@ -12,7 +12,6 @@ import {
   listGroupOptions,
   listPositions,
   listProviderOptions,
-  listUpcomingBookings,
 } from '@muni/db/repositories'
 import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -21,14 +20,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
-import {
-  advisorInput,
-  booking,
-  counts,
-  employeeDetail,
-  employeePage,
-  employeeRow,
-} from '@/test/fixtures'
+import { advisorInput, counts, employeeDetail, employeePage, employeeRow } from '@/test/fixtures'
 import { NotFoundError, router } from '@/test/next'
 import { at, params, renderServer } from '@/test/render'
 
@@ -56,7 +48,6 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   getPersonName: vi.fn(),
   listCourseOptions: vi.fn(),
   listDepartments: vi.fn(),
-  listUpcomingBookings: vi.fn(),
   listEmployees: vi.fn(),
   listPositions: vi.fn(),
   listProviderOptions: vi.fn(),
@@ -127,7 +118,6 @@ beforeEach(() => {
     status: 'ACTIVE',
     note: null,
   })
-  vi.mocked(listUpcomingBookings).mockResolvedValue([booking()])
 })
 
 describe('employee list', () => {
@@ -291,7 +281,7 @@ describe('employee detail', () => {
     expect(getEmployee).toHaveBeenLastCalledWith('E9999', 'VIEWER')
   })
 
-  it('shows the profile, requirements, bookings and history to viewers, read-only', async () => {
+  it('shows the profile, requirements with their bookings, and history to viewers, read-only', async () => {
     await renderServer(EmployeePage(props))
     expect(screen.getByRole('heading', { level: 1, name: 'Marie Černá' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Back to Employees' }).getAttribute('href')).toBe(
@@ -310,11 +300,14 @@ describe('employee detail', () => {
     ])
     expect(held.firstElementChild?.className).toContain('bg-serious-fill')
     expect(screen.getByText('1 of 2')).toBeTruthy()
-    expect(screen.getByRole('link', { name: /03.02.2027/ }).getAttribute('href')).toBe(
-      '/sessions/T018'
+    // Each booking on its requirement: when, linking to the session, and where.
+    expect(screen.getByRole('link', { name: /04.11.2026/ }).getAttribute('href')).toBe(
+      '/sessions/T016'
     )
+    expect(screen.getByRole('link', { name: 'Aula A' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Upcoming sessions' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
-    expect(screen.queryByRole('button', { name: /Cancel booking/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Cancel the booking/ })).toBeNull()
     expect(getEmployee).toHaveBeenCalledWith('E0153', 'VIEWER')
   })
 
@@ -349,7 +342,9 @@ describe('employee detail', () => {
       '/employees/E0153/completions/new'
     )
     expect(
-      screen.getByRole('button', { name: 'Cancel booking for BOZP – základní školení' })
+      screen.getByRole('button', {
+        name: 'Cancel the booking of BOZP – základní školení for Marie Černá',
+      })
     ).toBeTruthy()
     expect(screen.getByText('•••••••0359')).toBeTruthy()
     expect(screen.getByText('interní poznámka')).toBeTruthy()
@@ -374,7 +369,6 @@ describe('employee detail', () => {
       employeeDetail({ requirements: [{ ...bozp, booked: null }, gdpr] })
     )
     await renderServer(EmployeePage(props))
-    expect(screen.getByRole('heading', { name: 'Upcoming sessions' })).toBeTruthy()
     // No list of every session there is: only the expired training, and nothing for the valid.
     expect(screen.queryByRole('combobox')).toBeNull()
     expect(screen.getAllByRole('button', { name: /^Book / })).toHaveLength(1)
@@ -391,17 +385,15 @@ describe('employee detail', () => {
     ])
   })
 
-  it('says when nothing is required, booked or recorded', async () => {
+  it('says when nothing is required or recorded', async () => {
     // A viewer policy that omits the email drops the key altogether.
     const { email: _omitted, ...withoutEmail } = employeeDetail({
       requirements: [],
       completions: [],
     })
     vi.mocked(getEmployee).mockResolvedValue(withoutEmail)
-    vi.mocked(listUpcomingBookings).mockResolvedValue([])
     await renderServer(EmployeePage(props))
     expect(screen.getByText('No training is required for this person.')).toBeTruthy()
-    expect(screen.getByText('No upcoming bookings.')).toBeTruthy()
     expect(screen.getByText('No completed trainings on record.')).toBeTruthy()
     expect(screen.queryByText('Email')).toBeNull()
   })
@@ -438,7 +430,7 @@ describe('managers', () => {
     expect(screen.getByRole('heading', { name: 'Team' })).toBeTruthy()
     expect(screen.getByText('2 direct reports who have not left')).toBeTruthy()
     // One bar, the breakdown, with the share and the count over it.
-    expect(screen.getByText(/^67\s?%\s·\s2 of 3$/)).toBeTruthy()
+    expect(screen.getByText(/^66\s?%\s·\s2 of 3$/)).toBeTruthy()
     expect(screen.getAllByRole('img', { name: /^Team/ })).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'Adámek Petr' }).getAttribute('href')).toBe(
       '/employees/E0002'

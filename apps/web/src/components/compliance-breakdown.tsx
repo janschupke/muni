@@ -4,10 +4,10 @@ import { BarRow } from '@muni/ui/bar-row'
 import { Legend } from '@muni/ui/charts/legend'
 import { StackedBar } from '@muni/ui/charts/stacked-bar'
 import { Meter } from '@muni/ui/meter'
-import { formatPercent } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 
+import { formatRate } from '@/lib/format-rate'
 import { useOfTotal } from '@/lib/use-of-total'
 
 import { COMPLIANCE_FILL, rateTone } from './status-badges'
@@ -34,7 +34,7 @@ export function useHeldText(): (counts: ComplianceCounts) => string {
   const ofTotal = useOfTotal()
   return counts => {
     const { held, total, rate } = complianceOf(counts)
-    return `${formatPercent(rate, locale)} · ${ofTotal(held, total)}`
+    return `${formatRate(rate, locale)} · ${ofTotal(held, total)}`
   }
 }
 
@@ -87,7 +87,7 @@ export function HeldMeter({
     <BarRow
       layout="inline"
       bar={<Meter value={held} max={total} label={label} tone={rateTone(rate)} size={size} />}
-      value={figure === 'share' ? formatPercent(rate, locale) : ofTotal(held, total)}
+      value={figure === 'share' ? formatRate(rate, locale) : ofTotal(held, total)}
     />
   )
 }

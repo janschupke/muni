@@ -5,20 +5,25 @@ import {
   type AdvisorNeed,
   type AdvisorPlan,
   type AdvisorSession,
+  bookingState,
+  canBookNow,
   choicesOf,
   forecastEnd,
   forecastMonths,
   isProposed,
   itemsToBook,
   MAX_ALTERNATIVES,
-  needsBooking,
   pack,
+  personBookingState,
   planAssignments,
   seatsFree,
   unpack,
 } from './advisor'
+import { openingOf, type SessionOpening } from './sessions'
 
 const AS_OF = '2026-10-16'
+/** Midnight of AS_OF in Prague: every session that day is still to start. */
+const NOW = '2026-10-15T22:00:00.000Z'
 
 let nextSession = 1
 function session(courseCode: string, date: string, extra: Partial<AdvisorSession> = {}) {
@@ -68,7 +73,7 @@ function need(
 }
 
 const plan = (needs: AdvisorNeed[], sessions: AdvisorSession[]) =>
-  planAssignments({ asOf: AS_OF, needs, sessions } satisfies AdvisorInput)
+  planAssignments({ asOf: AS_OF, now: NOW, needs, sessions } satisfies AdvisorInput)
 
 const itemOf = (p: AdvisorPlan, employee: string, course = 'BOZP') => {
   const item = p.items.find(
@@ -437,15 +442,130 @@ describe('overbooking', () => {
 })
 
 describe('booking what is needed, anywhere', () => {
-  it('needs a booking for a training not held or expiring, nothing booked, someone at work', () => {
-    const at = (status: AdvisorNeed['status'], booked: unknown = null) => ({ status, booked })
-    expect(needsBooking(at('MISSING'), 'ACTIVE')).toBe(true)
-    expect(needsBooking(at('EXPIRED'), 'ACTIVE')).toBe(true)
-    expect(needsBooking(at('EXPIRING'), 'ACTIVE')).toBe(true)
-    expect(needsBooking(at('VALID'), 'ACTIVE')).toBe(false)
-    expect(needsBooking(at('EXPIRED', { sessionExternalId: 'T1' }), 'ACTIVE')).toBe(false)
-    expect(needsBooking(at('EXPIRED'), 'PARENTAL_LEAVE')).toBe(false)
-    expect(needsBooking(at('EXPIRED'), 'LEFT')).toBe(false)
+  it('offers to book a training not held or expiring, nothing booked, someone at work', () => {
+    const at = (
+      status: AdvisorNeed['status'],
+      opening: SessionOpening = 'OPEN',
+      booked: unknown = null
+    ) => ({ status, booked, opening })
+    expect(bookingState(at('MISSING'), 'ACTIVE')).toEqual({ kind: 'BOOK' })
+    expect(bookingState(at('EXPIRED'), 'ACTIVE')).toEqual({ kind: 'BOOK' })
+    expect(bookingState(at('EXPIRING'), 'ACTIVE')).toEqual({ kind: 'BOOK' })
+    expect(canBookNow(at('EXPIRING'), 'ACTIVE')).toBe(true)
+    // Nothing to do: held, booked, or gone.
+    expect(bookingState(at('VALID'), 'ACTIVE')).toBeNull()
+    expect(bookingState(at('EXPIRED', 'OPEN', { sessionExternalId: 'T1' }), 'ACTIVE')).toBeNull()
+    expect(bookingState(at('EXPIRED'), 'LEFT')).toBeNull()
+    // Needed, but not bookable from here: say why.
+    expect(bookingState(at('EXPIRED'), 'PARENTAL_LEAVE')).toEqual({
+      kind: 'BLOCKED',
+      reason: 'ON_LEAVE',
+    })
+    expect(bookingState(at('EXPIRED', 'NONE'), 'ACTIVE')).toEqual({
+      kind: 'BLOCKED',
+      reason: 'NO_SESSION',
+    })
+    expect(bookingState(at('MISSING', 'FULL'), 'ACTIVE')).toEqual({
+      kind: 'BLOCKED',
+      reason: 'NO_SEATS',
+    })
+    expect(canBookNow(at('MISSING', 'FULL'), 'ACTIVE')).toBe(false)
+  })
+
+  it('offers a person’s row the trainings that can be booked, or says why none can', () => {
+    const at = (status: AdvisorNeed['status'], opening: SessionOpening) => ({
+      status,
+      booked: null,
+      opening,
+    })
+    expect(personBookingState([at('VALID', 'OPEN')], 'ACTIVE')).toBeNull()
+    expect(
+      personBookingState(
+        [at('EXPIRED', 'OPEN'), at('MISSING', 'NONE'), at('MISSING', 'OPEN')],
+        'ACTIVE'
+      )
+    ).toEqual({ kind: 'BOOK', count: 2 })
+    expect(personBookingState([at('EXPIRED', 'NONE')], 'ACTIVE')).toEqual({
+      kind: 'BLOCKED',
+      reason: 'NO_SESSION',
+    })
+    expect(personBookingState([at('EXPIRED', 'NONE'), at('MISSING', 'FULL')], 'ACTIVE')).toEqual({
+      kind: 'BLOCKED',
+      reason: 'MIXED',
+    })
+    expect(personBookingState([at('EXPIRED', 'OPEN')], 'PARENTAL_LEAVE')).toEqual({
+      kind: 'BLOCKED',
+      reason: 'ON_LEAVE',
+    })
+  })
+
+  it('offers to book exactly what the plan needs action on, and blocks what it cannot place', () => {
+    const near = session('BOZP', '2026-11-02', { capacity: 5 })
+    const later = session('BOZP', '2026-12-07', { capacity: 5 })
+    const full = session('GDPR', '2026-11-03', { capacity: 1, unnamedBookings: 1 })
+    const sessions = [near, later, full]
+    const needs = [
+      need('E1', 'BOZP', 'EXPIRED'),
+      need('E2', 'BOZP', 'MISSING'),
+      need('E3', 'BOZP', 'EXPIRING', { validUntil: '2026-11-10' }),
+      need('E5', 'BOZP', 'EXPIRED', { leave: true }),
+      need('E6', 'GDPR', 'MISSING'),
+      need('E7', 'FIRE', 'EXPIRED'),
+    ]
+    const p = plan(needs, sessions)
+    // What a screen knows: the free seats of each course's sessions still to start.
+    const opening = (course: string) =>
+      openingOf(
+        sessions
+          .filter(s => s.courseCode === course && new Date(s.startsAt) > new Date(NOW))
+          .map(s => seatsFree(s))
+      )
+    // Each need as a screen shows it, next to what the plan does with it.
+    const rows = needs.map(n => ({
+      id: n.employee.externalId,
+      state: bookingState(
+        { ...n, booked: null, opening: opening(n.course.code) },
+        n.employee.status
+      ),
+      // Offered to book (with a session), or absent / without one.
+      proposed: itemsToBook(p, { employee: n.employee.externalId, course: n.course.code }).some(
+        isProposed
+      ),
+    }))
+    // "Book…" exactly where the plan has a session for it; blocked everywhere it has none.
+    expect(rows.filter(r => (r.state?.kind === 'BOOK') !== r.proposed)).toEqual([])
+    expect(rows.map(r => [r.id, r.state])).toEqual([
+      ['E1', { kind: 'BOOK' }],
+      ['E2', { kind: 'BOOK' }],
+      ['E3', { kind: 'BOOK' }],
+      ['E5', { kind: 'BLOCKED', reason: 'ON_LEAVE' }],
+      ['E6', { kind: 'BLOCKED', reason: 'NO_SEATS' }],
+      ['E7', { kind: 'BLOCKED', reason: 'NO_SESSION' }],
+    ])
+  })
+
+  it('counts a booking on a session under way as booked, and never proposes one', () => {
+    // Started at 07:00 UTC, ends at 15:00; it is 09:00.
+    const running = session('BOZP', '2026-10-16', { endsAt: '2026-10-16T15:00:00.000Z' })
+    const later = session('BOZP', '2026-11-02')
+    const at = (now: string, sessions: AdvisorSession[], needs: AdvisorNeed[]) =>
+      planAssignments({ asOf: AS_OF, now, needs, sessions })
+    const now = '2026-10-16T09:00:00.000Z'
+    const booked = at(
+      now,
+      [{ ...running, assigned: ['E1'] }, later],
+      [need('E1', 'BOZP', 'EXPIRED')]
+    )
+    // Expired before it: planned, with the gap since the expiry.
+    expect(itemOf(booked, 'E1')).toMatchObject({
+      remediation: 'PLANNED_LATE',
+      booked: { externalId: running.externalId },
+    })
+    const fresh = at(now, [running, later], [need('E2', 'BOZP', 'EXPIRED')])
+    expect(itemOf(fresh, 'E2').proposal).toMatchObject({
+      kind: 'SESSION',
+      session: { externalId: later.externalId },
+    })
   })
 
   it('finds, for every training that needs booking, the plan’s item, with its sessions', () => {
@@ -462,7 +582,9 @@ describe('booking what is needed, anywhere', () => {
     ]
     const p = plan(needs, [near, later])
     // Each need a screen would offer to book (not valid, at work, nothing booked) is there.
-    for (const n of needs.filter(n => needsBooking({ ...n, booked: null }, n.employee.status)))
+    for (const n of needs.filter(n =>
+      canBookNow({ ...n, booked: null, opening: 'OPEN' }, n.employee.status)
+    ))
       expect(
         itemsToBook(p, { employee: n.employee.externalId, course: n.course.code }),
         n.employee.externalId

@@ -1,10 +1,14 @@
 'use server'
 
 import {
+  cancelSession,
   checkSessionSlot,
   createSession,
   createSessionWithBookings,
   type PlannedSessionWrite,
+  reinstateSession,
+  type SessionProblem,
+  type SessionStatusRefusal,
 } from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
 import { sessionCreateSchema } from '@muni/domain/schemas'
@@ -14,7 +18,15 @@ import { type FormState, sessionProblem } from '@/lib/form'
 import { parseForm, sessionCreateSpec } from '@/lib/form-inputs'
 import { getSessionUser } from '@/server/auth'
 
-import { asAdmin, type Denied, isBoundIdOrNull, logFailure, saveForm } from './guard'
+import {
+  asAdmin,
+  type Denied,
+  failedWith,
+  isBoundId,
+  isBoundIdOrNull,
+  logFailure,
+  saveForm,
+} from './guard'
 
 const plannedInput = z.object({
   session: sessionCreateSchema,
@@ -89,4 +101,37 @@ export async function checkSessionSlotAction(
     logFailure(error)
     return null
   }
+}
+
+/** What cancelling or reinstating a session came to, or why not. */
+export type StatusOutcome =
+  | { ok: true }
+  | { ok: false; reason: SessionStatusRefusal | SessionProblem | Denied | 'invalid' | 'failed' }
+
+/** Changes a session's status by one of the two acts; the repository checks it may. */
+function statusAction(
+  write: typeof cancelSession
+): (externalId: unknown) => Promise<StatusOutcome> {
+  return externalId =>
+    asAdmin<StatusOutcome>(
+      async () => {
+        if (!isBoundId(externalId)) return { ok: false, reason: 'invalid' }
+        const result = await write(externalId)
+        return result.ok ? { ok: true } : { ok: false, reason: result.problem }
+      },
+      {
+        denied: reason => ({ ok: false, reason }),
+        failed: failedWith({ ok: false, reason: 'failed' }),
+      }
+    )
+}
+
+/** Cancels a session still to start; its bookings stay as the record of who was to come. */
+export async function cancelSessionAction(externalId: unknown): Promise<StatusOutcome> {
+  return statusAction(cancelSession)(externalId)
+}
+
+/** Plans a cancelled session again, while it is still to start and its room is free. */
+export async function reinstateSessionAction(externalId: unknown): Promise<StatusOutcome> {
+  return statusAction(reinstateSession)(externalId)
 }

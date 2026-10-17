@@ -280,17 +280,17 @@ describe('rooms and new sessions', () => {
         roomId: 'room_aula_a',
         capacity: 10,
         pricePerPerson: null,
-        status: 'PLANNED',
       }
       expect(sessionCreateSchema.safeParse(create).success).toBe(true)
       expect(issues(sessionCreateSchema.safeParse({ ...create, date: '2026-10-16' }))).toEqual([
         'date: in_past',
       ])
-      // Recording one that was cancelled is another matter.
+      // A new session is planned: no status to give it, so none can excuse a past date.
       expect(
-        sessionCreateSchema.safeParse({ ...create, date: '2026-10-16', status: 'CANCELLED' })
-          .success
-      ).toBe(true)
+        issues(
+          sessionCreateSchema.safeParse({ ...create, date: '2026-10-16', status: 'CANCELLED' })
+        )
+      ).toEqual(['date: in_past'])
     } finally {
       vi.useRealTimers()
     }

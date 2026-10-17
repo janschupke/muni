@@ -15,25 +15,33 @@ export interface Target {
   /** What the record is called in labels and the confirm dialog. */
   name: string
   editHref?: string | undefined
+  /** False for a record that is not archived now (an upcoming session is cancelled instead). */
+  archivable?: boolean | undefined
+  /** What the record offers in archiving's place or beside it (cancel or reinstate a session). */
+  lead?: ReactNode
 }
 
 /**
- * A record page's header actions for admins, left to right: Archive, Edit (when the record
- * has a form), then the page's own primary action (`children`) last; with none, Edit is the
- * primary. Archiving leaves for `then`, the list the record was in.
+ * A record page's header actions for admins, left to right: the record's own acts (`lead`),
+ * Archive (when it can be archived now), Edit (when the record has a form), then the page's
+ * own primary action (`children`) last; with none, Edit is the primary. Archiving leaves for
+ * `then`, the list the record was in.
  */
 export function RecordActions({
   kind,
   id,
   name,
   editHref,
+  archivable = true,
+  lead,
   then,
   children,
 }: Target & { then: string; children?: ReactNode }) {
   const t = useTranslations('common')
   return (
     <>
-      <ConfirmArchiveButton kind={kind} id={id} name={name} then={then} />
+      {lead}
+      {archivable && <ConfirmArchiveButton kind={kind} id={id} name={name} then={then} />}
       {editHref && (
         <Button asChild variant={children ? 'secondary' : 'primary'}>
           <Link href={editHref}>
@@ -48,10 +56,11 @@ export function RecordActions({
 }
 
 /**
- * A table row's actions for admins: a pencil to edit (when the record has an edit form) and
- * archive (the row then leaves the list).
+ * A table row's actions for admins: a pencil to edit (when the record has an edit form), the
+ * record's own act (`lead`), and archive when it can be archived now (the row then leaves
+ * the list).
  */
-export function RowActions({ kind, id, name, editHref }: Target) {
+export function RowActions({ kind, id, name, editHref, archivable = true, lead }: Target) {
   const t = useTranslations('common')
   return (
     <div className="flex justify-end gap-1">
@@ -62,7 +71,8 @@ export function RowActions({ kind, id, name, editHref }: Target) {
           </Link>
         </IconButton>
       )}
-      <ConfirmArchiveButton kind={kind} id={id} name={name} compact />
+      {lead}
+      {archivable && <ConfirmArchiveButton kind={kind} id={id} name={name} compact />}
     </div>
   )
 }

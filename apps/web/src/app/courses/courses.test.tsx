@@ -213,7 +213,7 @@ describe('course detail', () => {
     )
   })
 
-  it('lets admins edit and archive the course and its sessions', async () => {
+  it('lets admins edit and archive the course, and edit or cancel its sessions', async () => {
     signInAs('ADMIN')
     await renderServer(CoursePage(props))
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
@@ -223,9 +223,13 @@ describe('course detail', () => {
     expect(
       screen.getByRole('link', { name: 'Edit T016 · BOZP – základní školení' }).getAttribute('href')
     ).toBe('/sessions/T016/edit')
+    // A session still to start is cancelled from its row, not archived.
     expect(
-      screen.getByRole('button', { name: 'Archive T016 · BOZP – základní školení' })
+      screen.getByRole('button', { name: 'Cancel T016 · BOZP – základní školení' })
     ).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: 'Archive T016 · BOZP – základní školení' })
+    ).toBeNull()
     // Each recent completion can be corrected or archived from here too.
     expect(
       screen
@@ -352,7 +356,7 @@ describe('compliance matrix', () => {
     await renderServer(CompliancePage())
     expect(screen.getByText(/Share of required trainings held.*16.10.2026/)).toBeTruthy()
     const lab = screen.getByRole('row', { name: /^Laboratoře/ })
-    expect(within(lab).getByText('67%')).toBeTruthy()
+    expect(within(lab).getByText('66%')).toBeTruthy()
     // A cell says what it counts on hover.
     await user.hover(within(lab).getByText('0%'))
     expect((await screen.findByRole('tooltip')).textContent).toBe(

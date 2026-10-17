@@ -47,6 +47,7 @@
     "./toast": "./src/components/toast.tsx",
     "./toolbar": "./src/components/toolbar.tsx",
     "./tooltip": "./src/components/tooltip.tsx",
+    "./unavailable-button": "./src/components/unavailable-button.tsx",
     "./charts/heat-cell": "./src/charts/heat-cell.tsx",
     "./charts/legend": "./src/charts/legend.tsx",
     "./charts/stacked-bar": "./src/charts/stacked-bar.tsx",

@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { ASSIGNMENT_FAILURES } from '@muni/db/repositories'
-import { REMEDIATIONS } from '@muni/domain/advisor'
+import { BOOKING_BLOCKS, PERSON_BOOKING_BLOCKS, REMEDIATIONS } from '@muni/domain/advisor'
 import {
   CAPABILITIES,
   COMPLIANCE_STATUSES,
@@ -68,6 +68,8 @@ const FAMILIES: Record<string, readonly string[]> = {
   'users.detail.roleGrants': ROLES,
   'footer.access': ['VISITOR', ...ROLES],
   'advisor.remediation': REMEDIATIONS,
+  'bookings.blocked': BOOKING_BLOCKS,
+  'bookings.blockedAll': PERSON_BOOKING_BLOCKS,
   // A booking's refusals, and why a whole request was turned away (the action guard's).
   'advisor.outcome.reasons': [
     ...ASSIGNMENT_FAILURES,

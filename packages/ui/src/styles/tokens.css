@@ -37,8 +37,10 @@
   --ramp-neutral-600: #52514e;
   --ramp-neutral-650: #4a4945;
   --ramp-neutral-700: #383835;
+  --ramp-neutral-725: #33332f;
   --ramp-neutral-750: #2f2f2c;
   --ramp-neutral-800: #242422;
+  --ramp-neutral-825: #20201e;
   --ramp-neutral-850: #1a1a19;
   --ramp-neutral-900: #131312;
   --ramp-neutral-950: #0d0d0d;
@@ -159,8 +161,8 @@
   --p-surface-base: light-dark(var(--ramp-neutral-100), var(--ramp-neutral-950));
   --p-surface-elevated: light-dark(var(--ramp-neutral-50), var(--ramp-neutral-850));
   --p-surface-sunken: light-dark(var(--ramp-neutral-100), var(--ramp-neutral-900));
-  --p-surface-overlay: light-dark(var(--ramp-neutral-50), var(--ramp-neutral-800));
-  --p-control: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-750));
+  --p-surface-overlay: light-dark(var(--ramp-neutral-50), var(--ramp-neutral-825));
+  --p-control: light-dark(var(--ramp-neutral-0), var(--ramp-neutral-725));
   --p-tint: light-dark(rgb(11 11 11 / 0.06), rgb(255 255 255 / 0.08));
 
   --p-fg: light-dark(var(--ramp-neutral-1000), var(--ramp-neutral-75));

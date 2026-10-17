@@ -18,6 +18,7 @@ import {
   applyAssignments,
   archiveImpact,
   archiveRecord,
+  cancelSession,
   createProvider,
   createRoom,
   createSession,
@@ -347,7 +348,6 @@ describe('archived records leave every list and count', () => {
           endTime: '10:00',
           capacity: 5,
           pricePerPerson: null,
-          status: 'PLANNED',
           roomId: room,
         },
         options
@@ -374,9 +374,10 @@ describe('what may be archived', () => {
       reason: 'HAS_UPCOMING_SESSIONS',
       count: 2,
     })
+    // A session still to start is cancelled, not archived, with seats taken or not.
     expect(await archiveImpact('session', await idOf('courseSession', 'T009'), options)).toEqual({
       ok: false,
-      reason: 'HAS_BOOKINGS',
+      reason: 'UPCOMING',
       count: 5,
     })
     const lab = await db.department.findFirstOrThrow({ where: { name: 'Laboratoře' } })
@@ -452,12 +453,17 @@ describe('what may be archived', () => {
       roomId,
       capacity: 10,
       pricePerPerson: null,
-      status: 'PLANNED' as const,
     }
     const first = await createSession(slot, options)
     if (!first.ok) throw new Error('first session refused')
     const firstId = await idOf('courseSession', first.externalId)
-    expect(await archive('session', firstId)).toMatchObject({ ok: true })
+    // Planned and still to start, it is cancelled, never archived; one archived before that
+    // rule (or under way) can still come back while planned, so the check stays.
+    expect(await archive('session', firstId)).toEqual({ ok: false, reason: 'UPCOMING', count: 0 })
+    await db.courseSession.update({
+      where: { id: firstId },
+      data: { archivedAt: now, archivedById: TEST_USER },
+    })
     // Its slot is free again, and another session takes it.
     const second = await createSession(slot, options)
     if (!second.ok) throw new Error('second session refused')
@@ -466,6 +472,8 @@ describe('what may be archived', () => {
       reason: 'SESSION',
       problem: 'ROOM_BUSY',
     })
+    // Cancelled, the second holds the room no more, and is archived.
+    expect(await cancelSession(second.externalId, options)).toMatchObject({ ok: true })
     expect(await archive('session', await idOf('courseSession', second.externalId))).toMatchObject({
       ok: true,
     })
@@ -612,7 +620,7 @@ describe('archived people are anonymised everywhere but on their own admin page'
         planner: () => getPlannerInput(options),
         personName: () => getPersonName(ID, options),
         reference: () => loadReferenceSnapshot(db),
-        bookings: () => listUpcomingBookings({ employee: ID }, options),
+        bookings: () => listUpcomingBookings({ department: department.id }, options),
         archived: () => listArchived('employee', 'ADMIN', options),
       }
       for (const [name, read] of Object.entries(reads)) {

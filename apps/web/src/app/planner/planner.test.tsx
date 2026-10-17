@@ -118,7 +118,6 @@ describe('session planner', () => {
         roomId: 'room_aula_a',
         capacity: 40,
         pricePerPerson: 380,
-        status: 'PLANNED',
       },
       people: ['E0002'],
       dryRun: true,

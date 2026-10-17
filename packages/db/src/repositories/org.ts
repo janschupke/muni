@@ -18,7 +18,7 @@ import { compareNames, sortEmployees } from './employee-sort'
 import { type EmployeeListItem, employeeRecord } from './employees'
 import { stillEmployed } from './employment'
 import { activeDepartments } from './lookups'
-import { loadNextBookings } from './requirements'
+import { loadBookingContext } from './requirements'
 import { upcomingSessionWhere } from './sessions'
 
 // Departments and positions as the register sees them: who is in them, who leads them,
@@ -94,7 +94,7 @@ interface Member {
 async function loadOrg(options?: RepoOptions & { now?: Date }) {
   const db = dbOf(options)
   const now = options?.now ?? new Date()
-  const [compliance, people, bookings, courses, nextBookings, pairs] = await Promise.all([
+  const [compliance, people, bookings, courses, booking, pairs] = await Promise.all([
     loadCompliance(options),
     db.employee.findMany({
       where: { ...ACTIVE, ...stillEmployed(options?.asOf) },
@@ -123,7 +123,7 @@ async function loadOrg(options?: RepoOptions & { now?: Date }) {
       select: { id: true, code: true, name: true, requiredForAll: true, ...audienceInclude },
       orderBy: { code: 'asc' },
     }),
-    loadNextBookings(db, now),
+    loadBookingContext(db, now),
     db.departmentPosition.findMany({
       where: { department: ACTIVE, position: ACTIVE },
       select: {
@@ -142,7 +142,7 @@ async function loadOrg(options?: RepoOptions & { now?: Date }) {
     context: {
       courses: new Map(courses.map(c => [c.id, c])),
       asOf: compliance.options.asOf,
-      bookings: nextBookings,
+      ...booking,
     },
   }
 }

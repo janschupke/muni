@@ -132,7 +132,6 @@ const sessionTimes = {
   endTime: time,
   capacity: z.int().min(0).max(10_000),
   pricePerPerson: money,
-  status: z.enum(SESSION_STATUSES),
 }
 
 /**
@@ -144,6 +143,8 @@ const sessionBase = z.object({
   externalId: externalIdSchema,
   courseCode: courseCodeSchema,
   ...sessionTimes,
+  /** The source's state; in the app a session changes it only by being cancelled or reinstated. */
+  status: z.enum(SESSION_STATUSES),
   location: trimmed(200),
   bookedCount: z.int().min(0).max(10_000),
 })
@@ -201,8 +202,9 @@ export type CourseCreate = z.infer<typeof courseCreateSchema>
 
 /**
  * Editing a session sets its course, room, times and anonymous seats; named bookings are
- * assignment rows and are managed separately, so the form never overwrites them. The server
- * also checks the seats against the named bookings.
+ * assignment rows and are managed separately, so the form never overwrites them, and so is its
+ * status (cancelling and reinstating are their own acts). The server also checks the seats
+ * against the named bookings.
  */
 export const sessionEditSchema = z
   .object({
@@ -224,9 +226,9 @@ export const sessionCreateSchema = z
     roomId: entityId,
   })
   .refine(endAfterStart, endAfterStartIssue)
-  // A session planned now is ahead: one on an earlier day is a typo (record a completion for
+  // A new session is planned, so ahead: one on an earlier day is a typo (record a completion for
   // what already took place). Checked against today wherever it is parsed, form or server.
-  .refine(s => s.status !== 'PLANNED' || s.date >= todayIn(), {
+  .refine(s => s.date >= todayIn(), {
     path: ['date'],
     error: 'in_past',
   })

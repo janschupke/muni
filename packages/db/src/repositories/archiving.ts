@@ -1,6 +1,7 @@
 import { type Archivable, archiveTag, type UserRef } from '@muni/domain/archive'
 import { canWrite, type Role } from '@muni/domain/enums'
 import { sortName } from '@muni/domain/names'
+import { sessionPhase } from '@muni/domain/sessions'
 import { isoDateFromUtc } from '@muni/utils/dates'
 
 import type { Tx } from '../client'
@@ -10,6 +11,7 @@ import { stateOf } from './employment'
 import { isPrismaCode } from './errors'
 import { type SessionProblem, storedSessionProblem } from './mutations'
 import { lockSessionWrites } from './session-fit'
+import { upcomingSessionWhere } from './sessions'
 
 // Archiving and unarchiving. Nothing in the app deletes a record: archiving hides it from every
 // list and count, keeps its history, and frees its unique keys for a new record. Each rule below
@@ -22,8 +24,8 @@ export type ArchiveRefusal =
   | 'IN_USE'
   /** A course with sessions still ahead. */
   | 'HAS_UPCOMING_SESSIONS'
-  /** A session ahead with seats taken: cancel it first. */
-  | 'HAS_BOOKINGS'
+  /** A session still to start: it is cancelled, not archived. */
+  | 'UPCOMING'
   /** Admins cannot archive themselves. */
   | 'SELF'
   /** The last active admin stays. */
@@ -128,9 +130,6 @@ async function lockRow(tx: Tx, kind: Archivable, id: string) {
   return row ?? null
 }
 
-/** Upcoming means planned and not yet ended, as everywhere else. */
-const upcoming = (now: Date) => ({ ...ACTIVE, status: 'PLANNED' as const, endsAt: { gte: now } })
-
 /**
  * Whether the active record may be archived, and what goes with it. Run under the row lock
  * (and the session lock for rooms and courses), so the answer holds until the write.
@@ -160,13 +159,17 @@ async function impactOf(
       }
     }
     case 'course': {
-      const count = await tx.courseSession.count({ where: { courseId: id, ...upcoming(now) } })
+      const count = await tx.courseSession.count({
+        where: { courseId: id, ...upcomingSessionWhere(now) },
+      })
       return count > 0
         ? { ok: false, reason: 'HAS_UPCOMING_SESSIONS', count }
         : { ok: true, removesBookings: 0 }
     }
     case 'room': {
-      const count = await tx.courseSession.count({ where: { roomId: id, ...upcoming(now) } })
+      const count = await tx.courseSession.count({
+        where: { roomId: id, ...upcomingSessionWhere(now) },
+      })
       return count > 0 ? { ok: false, reason: 'IN_USE', count } : { ok: true, removesBookings: 0 }
     }
     case 'session': {
@@ -175,14 +178,19 @@ async function impactOf(
         select: {
           status: true,
           startsAt: true,
+          endsAt: true,
           unnamedBookings: true,
           _count: { select: { assignments: true } },
         },
       })
-      const seats = session.unnamedBookings + session._count.assignments
-      const ahead = session.status === 'PLANNED' && session.startsAt > now
-      return ahead && seats > 0
-        ? { ok: false, reason: 'HAS_BOOKINGS', count: seats }
+      // One still to start is cancelled instead (its bookings stay as history); once under
+      // way, over or cancelled, it can go.
+      return sessionPhase(session, now) === 'AHEAD'
+        ? {
+            ok: false,
+            reason: 'UPCOMING',
+            count: session.unnamedBookings + session._count.assignments,
+          }
         : { ok: true, removesBookings: 0 }
     }
     case 'department':

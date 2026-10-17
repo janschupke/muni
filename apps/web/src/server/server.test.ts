@@ -4,6 +4,7 @@ import {
   applyAssignments,
   archiveImpact,
   archiveRecord,
+  cancelSession,
   checkSessionSlot,
   createCompletion,
   createCourse,
@@ -15,6 +16,7 @@ import {
   findUserByClerkId,
   moveSeatsMany,
   raiseCapacity,
+  reinstateSession,
   removeAssignment,
   revertUserRole,
   saveDepartment,
@@ -59,8 +61,10 @@ import { setLocale } from './actions/locale'
 import { saveProvider } from './actions/providers'
 import { saveRoom } from './actions/rooms'
 import {
+  cancelSessionAction,
   checkSessionSlotAction,
   createPlannedSessionAction,
+  reinstateSessionAction,
   saveNewSession,
 } from './actions/sessions'
 import { saveUserRole } from './actions/users'
@@ -84,6 +88,8 @@ vi.mock('@muni/db/repositories', () => ({
     (error as { code?: unknown } | null)?.code === code,
   applyAssignments: vi.fn(),
   archiveImpact: vi.fn(),
+  cancelSession: vi.fn(),
+  reinstateSession: vi.fn(),
   archiveRecord: vi.fn(),
   unarchiveRecord: vi.fn(),
   revertUserRole: vi.fn(),
@@ -504,7 +510,6 @@ describe('edit actions', () => {
     roomId: 'room_aula_a',
     capacity: '30',
     pricePerPerson: '450,50 Kč',
-    status: 'PLANNED',
   }
 
   it('save a session and show it', async () => {
@@ -1212,6 +1217,29 @@ describe('provider actions', () => {
   })
 })
 
+describe('cancelling and reinstating a session', () => {
+  it('changes the status by the act, says why not, and answers nonsense and readers', async () => {
+    vi.mocked(cancelSession).mockResolvedValueOnce({
+      ok: true,
+      externalId: 'T016',
+      courseCode: 'BOZP-Z',
+    })
+    expect(await cancelSessionAction('T016')).toEqual({ ok: true })
+    expect(cancelSession).toHaveBeenCalledWith('T016')
+    vi.mocked(cancelSession).mockResolvedValueOnce({ ok: false, problem: 'STARTED' })
+    expect(await cancelSessionAction('T016')).toEqual({ ok: false, reason: 'STARTED' })
+    vi.mocked(reinstateSession).mockResolvedValueOnce({ ok: false, problem: 'ROOM_BUSY' })
+    expect(await reinstateSessionAction('T017')).toEqual({ ok: false, reason: 'ROOM_BUSY' })
+    expect(await cancelSessionAction({ id: 'T016' })).toEqual({ ok: false, reason: 'invalid' })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(reinstateSession).mockRejectedValueOnce(new Error('deadlock'))
+    expect(await reinstateSessionAction('T017')).toEqual({ ok: false, reason: 'failed' })
+    expect(cancelSession).toHaveBeenCalledTimes(2)
+    signedIn('user_1', 'FULL')
+    expect(await cancelSessionAction('T016')).toEqual({ ok: false, reason: 'unauthorized' })
+  })
+})
+
 describe('session creation', () => {
   const create = {
     courseId: 'course_poz',
@@ -1221,7 +1249,6 @@ describe('session creation', () => {
     roomId: 'room_aula_a',
     capacity: 40,
     pricePerPerson: null,
-    status: 'PLANNED' as const,
   }
 
   it('checks, then creates a planned session with its people, or says why not', async () => {
@@ -1277,7 +1304,6 @@ describe('session creation', () => {
       roomId: 'room_aula_a',
       capacity: '40',
       pricePerPerson: '380,- Kč',
-      status: 'PLANNED',
     }
     expect(await redirectOf(saveNewSession(idle, form(fields)))).toBe('/sessions/S002')
     expect(createSession).toHaveBeenLastCalledWith(

@@ -144,7 +144,7 @@ describe('departments', () => {
       '/employees/E0001'
     )
     expect(within(lab).getByText('+2 on leave')).toBeTruthy()
-    expect(within(lab).getByText('89%')).toBeTruthy()
+    expect(within(lab).getByText('88%')).toBeTruthy()
     expect(within(lab).getByText('9').className).toContain('danger')
     // Nobody works in the library: nothing to open.
     const library = screen.getByRole('row', { name: /Knihovna/ })
@@ -198,12 +198,13 @@ describe('departments', () => {
       '/employees/E0001'
     )
     // One bar for its compliance, the breakdown, with the share and the count over it.
-    expect(screen.getByText('89% · 128 of 144')).toBeTruthy()
+    // 128 of 144 is 88.9 %: shown as 88 %, the band it is coloured by.
+    expect(screen.getByText('88% · 128 of 144')).toBeTruthy()
     const lab = screen.getByRole('row', { name: /Bezpečná práce/ })
     expect(within(lab).getByRole('link', { name: 'Laboratoře' }).getAttribute('href')).toBe(
       '/departments/dep_lab'
     )
-    expect(within(lab).getByText('43% · 12 of 28')).toBeTruthy()
+    expect(within(lab).getByText('42% · 12 of 28')).toBeTruthy()
     expect(within(lab).getAllByRole('img')).toHaveLength(1)
     // Its people: every member, not a first page of them.
     expect(screen.getByRole('link', { name: 'Adámek Petr' }).getAttribute('href')).toBe(

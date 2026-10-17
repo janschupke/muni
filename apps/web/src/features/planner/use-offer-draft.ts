@@ -136,7 +136,6 @@ export function useOfferDraft(
         roomId,
         capacity: seats ?? 0,
         pricePerPerson: pricePerPerson ?? null,
-        status: 'PLANNED' as const,
       },
       people: [...people],
       dryRun,

@@ -298,8 +298,8 @@ export interface EmployeeBooking {
   source: 'ADVISOR' | 'MANUAL'
 }
 
-/** Whose upcoming bookings: one person's, or a department's or a position's people. */
-export type BookingsOf = { employee: string } | { department: string } | { position: string }
+/** Whose upcoming bookings: a department's or a position's people. */
+export type BookingsOf = { department: string } | { position: string }
 
 /** A booking on a session still ahead, with whom it is for. */
 export interface UpcomingBooking extends EmployeeBooking {
@@ -308,21 +308,19 @@ export interface UpcomingBooking extends EmployeeBooking {
 
 /**
  * Named bookings on sessions still ahead (planned, not yet ended: `upcomingSessionWhere`, as
- * every count of them), soonest first: one person's, or those of the people a department or a
- * position has now (not left), as its "upcoming bookings" counts them.
+ * every count of them), soonest first: those of the people a department or a position has now
+ * (not left), as its "upcoming bookings" counts them. (A person's own show on their
+ * requirements.)
  */
 export async function listUpcomingBookings(
   of: BookingsOf,
   options?: RepoOptions & { now?: Date; asOf?: IsoDate }
 ): Promise<UpcomingBooking[]> {
-  const employee =
-    'employee' in of
-      ? { ...ACTIVE, externalId: of.employee }
-      : {
-          ...ACTIVE,
-          ...stillEmployed(options?.asOf),
-          ...('department' in of ? { departmentId: of.department } : { positionId: of.position }),
-        }
+  const employee = {
+    ...ACTIVE,
+    ...stillEmployed(options?.asOf),
+    ...('department' in of ? { departmentId: of.department } : { positionId: of.position }),
+  }
   const rows = await dbOf(options).sessionAssignment.findMany({
     where: { employee, session: upcomingSessionWhere(options?.now ?? new Date()) },
     select: {

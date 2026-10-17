@@ -6,10 +6,10 @@ import { DetailGrid, DetailPanel } from '@muni/ui/detail-panel'
 import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { TextLink } from '@muni/ui/text-link'
-import { formatPercent } from '@muni/utils/format'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { formatRate } from '@/lib/format-rate'
 import { useOfTotal } from '@/lib/use-of-total'
 
 import { CapabilityList } from './room-badges'
@@ -96,7 +96,7 @@ export function CourseByDepartment({
               tooltip={t('departmentTitle', { department: d.name, held, total: d.counts.total })}
               className="h-6 w-12 min-w-12 flex-none text-xs"
             >
-              {formatPercent(d.rate, locale)}
+              {formatRate(d.rate, locale)}
             </HeatCell>
             <TextLink asChild>
               <Link href={`/departments/${d.id}`} className="min-w-0 truncate">

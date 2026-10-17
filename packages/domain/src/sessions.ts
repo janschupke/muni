@@ -15,6 +15,48 @@ export function occupancy(booked: number, capacity: number): Occupancy {
   return 'OPEN'
 }
 
+/**
+ * Where a session stands: still to start (it can be booked, or cancelled), under way, over, or
+ * cancelled. The one rule every screen and the server use; a cancelled session is cancelled
+ * whenever it was meant to run.
+ */
+export type SessionPhase = 'AHEAD' | 'RUNNING' | 'ENDED' | 'CANCELLED'
+
+export function sessionPhase(
+  session: { status: 'PLANNED' | 'CANCELLED'; startsAt: string | Date; endsAt: string | Date },
+  now: Date
+): SessionPhase {
+  if (session.status === 'CANCELLED') return 'CANCELLED'
+  if (new Date(session.startsAt) > now) return 'AHEAD'
+  // Up to and including its last moment, as "upcoming" counts it.
+  return new Date(session.endsAt) >= now ? 'RUNNING' : 'ENDED'
+}
+
+/** Whether a session is still to start, whatever its status (a cancelled one can come back). */
+export const startsLater = (session: { startsAt: string | Date }, now: Date): boolean =>
+  new Date(session.startsAt) > now
+
+/** Seats a session has free: its capacity less every booking, named or not. */
+export function seatsLeft(session: {
+  capacity: number
+  unnamedBookings: number
+  named: number
+}): number {
+  return session.capacity - session.unnamedBookings - session.named
+}
+
+/**
+ * Whether a course can be booked now: a planned session still to start has a free seat
+ * (`OPEN`), every such session is full (`FULL`), or none is scheduled (`NONE`).
+ */
+export type SessionOpening = 'OPEN' | 'FULL' | 'NONE'
+
+/** The opening the course's planned sessions still to start (and their free seats) give. */
+export function openingOf(freeSeats: readonly number[]): SessionOpening {
+  if (freeSeats.length === 0) return 'NONE'
+  return freeSeats.some(n => n > 0) ? 'OPEN' : 'FULL'
+}
+
 /** Why a planned session cannot be saved as it is, as far as its own facts tell. */
 export type SessionIssue =
   | { kind: 'END_BEFORE_START' }

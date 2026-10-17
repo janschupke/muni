@@ -9,7 +9,7 @@ import * as z from 'zod'
 import { fieldErrors, type FormState } from '@/lib/form'
 import { checkSessionSlotAction } from '@/server/actions/sessions'
 import { expectNoAxeViolations } from '@/test/axe'
-import { ONLINE, session } from '@/test/fixtures'
+import { AULA_A, ONLINE, session } from '@/test/fixtures'
 import { navigate, route, router } from '@/test/next'
 import { renderClient } from '@/test/render'
 
@@ -20,7 +20,7 @@ import { CompletionForm } from './form/completion-form'
 import { CourseForm } from './form/course-form'
 import { EmployeeForm } from './form/employee-form'
 import { DepartmentForm, PositionForm } from './form/group-forms'
-import { SessionForm } from './form/session-form'
+import { type SessionDefaults, SessionForm } from './form/session-form'
 import { NavigationHistory, parseHistory, readHistory } from './navigation-history'
 import { RequirementPanel } from './requirement-panel'
 import { SessionTable } from './session-table'
@@ -560,7 +560,7 @@ describe('the session form checks itself as the user types', () => {
   })
 })
 
-function defaultsOf(roomId: string) {
+function defaultsOf(roomId: string): SessionDefaults {
   return {
     courseId: 'course_bozp',
     date: '2027-03-01',
@@ -920,6 +920,7 @@ describe('badges and small panels', () => {
             validUntil: null,
             daysLeft: null,
             booked: null,
+            opening: 'OPEN' as const,
           },
           {
             courseCode: 'BOZP-Z',
@@ -929,6 +930,7 @@ describe('badges and small panels', () => {
             validUntil: '2026-11-01',
             daysLeft: null,
             booked: null,
+            opening: 'OPEN' as const,
           },
         ]}
       />
@@ -942,7 +944,7 @@ describe('badges and small panels', () => {
     ).toEqual(['Book…', 'Book…'])
   })
 
-  it('offer no booking to someone on leave, for a booked or valid training, or to a reader', () => {
+  it('say why a needed training cannot be booked, offer to cancel a booking, and nothing for a valid one', () => {
     const requirement = {
       courseCode: 'GDPR',
       courseName: 'Ochrana osobních údajů',
@@ -951,30 +953,60 @@ describe('badges and small panels', () => {
       validUntil: '2025-01-01',
       daysLeft: -300,
       booked: null,
+      opening: 'OPEN' as const,
     }
+    const reasonOf = (button: HTMLElement) =>
+      document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent
+    const book = () => screen.getByRole('button', { name: /^Book .+ for Černá Marie…$/ })
+    // On leave, no session, every one full: in its place, dimmed, saying why.
+    for (const [status, opening, reason] of [
+      ['PARENTAL_LEAVE', 'OPEN', 'On parental leave: nothing to book until they are back'],
+      ['ACTIVE', 'NONE', 'No session of this course is scheduled'],
+      ['ACTIVE', 'FULL', 'Every session of this course is full'],
+    ] as const) {
+      const { unmount } = renderClient(
+        <RequirementPanel
+          person={{ ...PERSON, status }}
+          canBook
+          requirements={[{ ...requirement, opening }]}
+        />
+      )
+      expect(book().getAttribute('aria-disabled')).toBe('true')
+      expect(reasonOf(book())).toBe(reason)
+      unmount()
+    }
+    // Booked: when and where, and the way to cancel it; valid: nothing to do.
     const { unmount } = renderClient(
-      <RequirementPanel
-        person={{ ...PERSON, status: 'PARENTAL_LEAVE' }}
-        canBook
-        requirements={[requirement]}
-      />
-    )
-    expect(screen.queryByRole('button', { name: /^Book / })).toBeNull()
-    unmount()
-    renderClient(
       <RequirementPanel
         person={PERSON}
         canBook
         requirements={[
           {
             ...requirement,
-            booked: { sessionExternalId: 'T016', startsAt: '2026-11-04T08:00:00Z' },
+            booked: {
+              sessionExternalId: 'T016',
+              startsAt: '2026-11-04T08:00:00Z',
+              endsAt: '2026-11-04T11:00:00Z',
+              room: AULA_A,
+            },
           },
           { ...requirement, courseCode: 'X', status: 'VALID' },
         ]}
       />
     )
     expect(screen.queryByRole('button', { name: /^Book / })).toBeNull()
+    expect(
+      screen.getByRole('button', {
+        name: 'Cancel the booking of Ochrana osobních údajů for Černá Marie',
+      })
+    ).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Aula A' }).getAttribute('href')).toBe(
+      '/rooms/room_aula_a'
+    )
+    unmount()
+    // A reader is offered nothing.
+    renderClient(<RequirementPanel person={PERSON} canBook={false} requirements={[requirement]} />)
+    expect(screen.queryByRole('button')).toBeNull()
   })
 })
 
@@ -1204,49 +1236,35 @@ describe('saving and deciding', () => {
     })
   })
 
-  it('asks before cancelling a session with people on it, and saves only when told', async () => {
+  it('never changes a session’s status: a cancelled one is edited as it is, its room unchecked', async () => {
     const user = userEvent.setup()
-    vi.mocked(checkSessionSlotAction).mockResolvedValue(null)
+    vi.mocked(checkSessionSlotAction).mockResolvedValue('ROOM_BUSY')
     const action = vi.fn(() =>
-      Promise.resolve<FormState>({ status: 'saved', href: '/sessions/T016' })
+      Promise.resolve<FormState>({ status: 'saved', href: '/sessions/T017' })
     )
     renderClient(
       <SessionForm
         action={action}
-        cancelHref="/sessions/T016"
-        heading={{ title: 'Edit T016' }}
+        cancelHref="/sessions/T017"
+        heading={{ title: 'Edit T017' }}
         rooms={[ROOMS.aula]}
         courses={[COURSES.bozp]}
         named={2}
-        defaults={{
-          courseId: 'course_bozp',
-          date: '2026-11-04',
-          startTime: '08:00',
-          endTime: '11:00',
-          roomId: 'room_aula_a',
-          capacity: 30,
-          unnamedBookings: 0,
-          pricePerPerson: null,
-          status: 'PLANNED',
-        }}
+        defaults={{ ...defaultsOf('room_aula_a'), status: 'CANCELLED' }}
       />
     )
-    await user.click(screen.getByRole('combobox', { name: /Status/ }))
-    await user.click(screen.getByRole('option', { name: 'Cancelled' }))
+    // Cancelling and reinstating are the session page's acts, not a field.
+    expect(screen.queryByRole('combobox', { name: /Status/ })).toBeNull()
+    const seats = screen.getByRole('textbox', { name: /Capacity/ })
+    await user.clear(seats)
+    await user.type(seats, '12')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Cancel this session?' })
-    expect(within(dialog).getByText(/The 2 people booked stay listed on it/)).toBeTruthy()
-    expect(action).not.toHaveBeenCalled()
-    await user.click(within(dialog).getByRole('button', { name: 'Keep editing' }))
-    expect(action).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: 'Save changes' }))
-    await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel session' })
-    )
     await waitFor(() => {
       expect(action).toHaveBeenCalled()
     })
-    expect(await screen.findByText('Session saved')).toBeTruthy()
+    // Cancelled, it holds no room: nobody asked whether the room is free.
+    expect(checkSessionSlotAction).not.toHaveBeenCalled()
+    expect((action.mock.calls[0] as unknown as [unknown, FormData])[1].has('status')).toBe(false)
   })
 })
 

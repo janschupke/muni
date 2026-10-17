@@ -9,7 +9,7 @@ import { compareNames } from './employee-sort'
 import type { EmployeeListRequirement } from './employees'
 import { stillEmployed } from './employment'
 import { activeDepartments } from './lookups'
-import { loadNextBookings, requirementOf } from './requirements'
+import { loadBookingContext, type RequirementContext, requirementOf } from './requirements'
 import { listSessions } from './sessions'
 
 export interface DashboardData {
@@ -96,7 +96,7 @@ export interface ComplianceMatrixPerson {
  */
 export async function getComplianceMatrix(options?: RepoOptions): Promise<ComplianceMatrix> {
   const db = dbOf(options)
-  const [compliance, departments, courses, people, bookings] = await Promise.all([
+  const [compliance, departments, courses, people, booking] = await Promise.all([
     loadCompliance(options),
     activeDepartments(options),
     db.course.findMany({
@@ -116,7 +116,7 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
         position: { select: { name: true } },
       },
     }),
-    loadNextBookings(db),
+    loadBookingContext(db),
   ])
   const active = compliance.employees.filter(e => e.status === 'ACTIVE')
   const activeIds = new Set(active.map(e => e.id))
@@ -125,10 +125,10 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
   const byPair = Map.groupBy(cells, c => `${departmentOf.get(c.employeeId) ?? ''}|${c.courseId}`)
   const cellsByPerson = Map.groupBy(cells, c => c.employeeId)
   const peopleByDepartment = Map.groupBy(people.toSorted(compareNames), p => p.departmentId)
-  const context = {
+  const context: RequirementContext = {
     courses: new Map(courses.map(c => [c.id, c])),
     asOf: compliance.options.asOf,
-    bookings,
+    ...booking,
   }
 
   return {

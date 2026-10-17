@@ -3,7 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import { matrix } from '@/test/fixtures'
+import { counts, matrix } from '@/test/fixtures'
 import { renderClient } from '@/test/render'
 
 import { ComplianceMatrixTable } from './compliance-matrix'
@@ -17,7 +17,7 @@ describe('compliance matrix', () => {
       )
     ).toEqual(['100%', '90%–99%', '75%–89%', '50%–74%', 'Under 50%'])
     const lab = screen.getByRole('row', { name: /^Laboratoře/ })
-    expect(within(lab).getByRole('button', { name: /BOZP.*67%/ }).className).toContain(
+    expect(within(lab).getByRole('button', { name: /BOZP.*66%/ }).className).toContain(
       'bg-heat-low'
     )
     expect(within(lab).getByRole('button', { name: /Bezpečná.*0%/ }).className).toContain(
@@ -134,7 +134,7 @@ describe('compliance matrix', () => {
     const user = userEvent.setup()
     renderClient(<ComplianceMatrixTable matrix={matrix()} canBook={false} />)
     const cell = screen.getByRole('button', {
-      name: 'Laboratoře, BOZP – základní školení: 67%, show people',
+      name: 'Laboratoře, BOZP – základní školení: 66%, show people',
     })
     expect(cell.getAttribute('aria-haspopup')).toBe('dialog')
     await user.click(cell)
@@ -142,7 +142,7 @@ describe('compliance matrix', () => {
     const dialog = await screen.findByRole('dialog', {
       name: 'Laboratoře · BOZP – základní školení',
     })
-    expect(within(dialog).getByText('2 of 3 people hold it (67%)')).toBeTruthy()
+    expect(within(dialog).getByText('2 of 3 people hold it (66%)')).toBeTruthy()
     const rows = within(dialog).getAllByRole('row').slice(1)
     expect(rows.map(r => within(r).getAllByRole('cell')[0]?.textContent)).toEqual([
       'Černá Marie',
@@ -201,14 +201,43 @@ describe('compliance matrix', () => {
       }).textContent
     ).toBe(`Book all needed (${String(books.length)})`)
     await user.click(within(dialog).getByRole('button', { name: 'Close' }))
-    // A training already booked offers nothing more to book.
+    // A training already booked offers nothing more to book: only to cancel the booking.
     await user.click(
-      screen.getByRole('button', { name: 'Laboratoře, BOZP – základní školení: 67%, show people' })
+      screen.getByRole('button', { name: 'Laboratoře, BOZP – základní školení: 66%, show people' })
     )
     const bozp = await screen.findByRole('dialog')
     expect(
-      within(within(bozp).getByRole('row', { name: /Černá Marie/ })).queryByRole('button')
-    ).toBeNull()
+      within(within(bozp).getByRole('row', { name: /Černá Marie/ }))
+        .getAllByRole('button')
+        .map(b => b.getAttribute('aria-label'))
+    ).toEqual(['Cancel the booking of BOZP – základní školení for Černá Marie'])
+  })
+
+  it('colours a cell by the percent it prints: 26 of 29 reads 89 %, never 90 % in yellow', () => {
+    const base = matrix()
+    const [first, ...rest] = base.rows
+    if (!first) throw new Error('fixture')
+    const near = {
+      counts: counts({ VALID: 26, EXPIRING: 0, EXPIRED: 0, MISSING: 3 }),
+      rate: 26 / 29,
+    }
+    const exact = { counts: counts({ VALID: 27, EXPIRING: 0, EXPIRED: 0, MISSING: 3 }), rate: 0.9 }
+    renderClient(
+      <ComplianceMatrixTable
+        matrix={{
+          ...base,
+          rows: [
+            { ...first, cells: { ...first.cells, 'BOZP-Z': near, 'LAB-BEZ': exact } },
+            ...rest,
+          ],
+        }}
+        canBook={false}
+      />
+    )
+    const lab = screen.getByRole('row', { name: /^Laboratoře/ })
+    const cell = (name: RegExp) => within(lab).getByRole('button', { name })
+    expect(cell(/BOZP.*: 89%/).className).toContain('bg-heat-fair')
+    expect(cell(/Bezpečná.*: 90%/).className).toContain('bg-heat-high')
   })
 
   it('does not open a cell that is not required', () => {

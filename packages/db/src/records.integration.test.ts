@@ -621,7 +621,6 @@ describe('sessions keep fitting their rooms', () => {
         roomId: withProjector.id,
         capacity: 8,
         pricePerPerson: null,
-        status: 'PLANNED',
       },
       options
     )
@@ -643,7 +642,6 @@ describe('sessions keep fitting their rooms', () => {
       capacity: 8,
       unnamedBookings: 0,
       pricePerPerson: null,
-      status: 'PLANNED' as const,
     }
     // Seats never drop below the bookings, named and unnamed together.
     expect(await updateSession(created.externalId, { ...edit, capacity: 1 }, options)).toEqual({
@@ -707,7 +705,6 @@ describe('sessions keep fitting their rooms', () => {
           roomId: online.id,
           capacity: 50,
           pricePerPerson: null,
-          status: 'PLANNED',
         },
         options
       )
@@ -721,7 +718,6 @@ describe('sessions keep fitting their rooms', () => {
           roomId: online.id,
           capacity: 50,
           pricePerPerson: null,
-          status: 'PLANNED',
         },
         options
       )
@@ -752,7 +748,6 @@ describe('sessions keep fitting their rooms', () => {
         roomId: tight.id,
         capacity: 3,
         pricePerPerson: null,
-        status: 'PLANNED',
       },
       options
     )
@@ -776,7 +771,6 @@ describe('sessions keep fitting their rooms', () => {
           capacity: 2,
           unnamedBookings: 0,
           pricePerPerson: null,
-          status: 'PLANNED',
         },
         options
       ),

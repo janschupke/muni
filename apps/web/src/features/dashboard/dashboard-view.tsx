@@ -9,7 +9,7 @@ import { PageHeader } from '@muni/ui/page-header'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { StatCard } from '@muni/ui/stat-card'
 import { TextLink } from '@muni/ui/text-link'
-import { formatDate, formatInteger, formatPercent } from '@muni/utils/format'
+import { formatDate, formatInteger } from '@muni/utils/format'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -19,6 +19,7 @@ import { ReadView } from '@/components/read-view'
 import { SessionTable } from '@/components/session-table'
 import { DashboardSkeleton } from '@/components/skeletons'
 import { rateTone } from '@/components/status-badges'
+import { formatRate } from '@/lib/format-rate'
 import { readQuery } from '@/lib/query/queries'
 import type { ReadOutput } from '@/server/reads/registry'
 
@@ -69,7 +70,7 @@ function Dashboard({ data, advisor, canEdit }: ReadOutput<'dashboard'> & { canEd
           href="/compliance"
           linkAs={Link}
           label={t('kpi.complianceRate')}
-          value={formatPercent(data.rate, locale)}
+          value={formatRate(data.rate, locale)}
           hint={t('kpi.complianceHint', { held, total: data.counts.total })}
           tone={rateTone(data.rate)}
         />
@@ -120,7 +121,7 @@ function Dashboard({ data, advisor, canEdit }: ReadOutput<'dashboard'> & { canEd
                             <Link href={`/departments/${d.id}`}>{d.department}</Link>
                           </TextLink>
                         }
-                        value={formatPercent(d.rate, locale)}
+                        value={formatRate(d.rate, locale)}
                         bar={<ComplianceBar counts={d.counts} label={d.department} />}
                       />
                     </li>

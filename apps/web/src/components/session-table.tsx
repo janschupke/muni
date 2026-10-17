@@ -9,6 +9,8 @@ import { formatCurrency } from '@muni/utils/format'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { sessionTarget } from '@/features/sessions/session-target'
+
 import { RecordLink } from './archived'
 import { usePaginationLabels } from './pagination-labels'
 import { SeatMeter } from './seat-meter'
@@ -130,14 +132,7 @@ export function SessionTable({
               }),
             ]),
         ...(canEdit && !compact
-          ? [
-              rowActionsColumn(col, tc('actions'), r => ({
-                kind: 'session',
-                id: r.id,
-                name: `${r.externalId} · ${r.courseName}`,
-                editHref: `/sessions/${r.externalId}/edit`,
-              })),
-            ]
+          ? [rowActionsColumn(col, tc('actions'), r => sessionTarget(r, { row: true }))]
           : []),
       ]),
     [canEdit, compact, showCourse, t, tc]

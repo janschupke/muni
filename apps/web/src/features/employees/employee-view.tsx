@@ -1,18 +1,15 @@
 'use client'
 
-import { needsBooking } from '@muni/domain/advisor'
+import { canBookNow } from '@muni/domain/advisor'
 import { displayName } from '@muni/domain/names'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import type { TablePaging } from '@muni/ui/data-table'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
-import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { SplitLayout } from '@muni/ui/layout'
 import { SectionHeading } from '@muni/ui/section-heading'
-import { CellStack } from '@muni/ui/table'
-import { TextLink } from '@muni/ui/text-link'
-import { formatDate, formatOptional, formatPercent, PLACEHOLDER } from '@muni/utils/format'
+import { formatDate, formatOptional, PLACEHOLDER } from '@muni/utils/format'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -24,18 +21,20 @@ import { EmailLink } from '@/components/email-link'
 import { OrgLink } from '@/components/org-links'
 import { ReadView } from '@/components/read-view'
 import { RecordHeader, useRecordRead } from '@/components/record-view'
-import { RemoveBookingButton } from '@/components/remove-booking-button'
 import { RequirementTable } from '@/components/requirement-panel'
-import { RoomLink, SessionDateLink } from '@/components/session-links'
 import { DetailSkeleton } from '@/components/skeletons'
 import { EmploymentBadge } from '@/components/status-badges'
 import { TeamCard } from '@/components/team-card'
 import { BookNeedButton } from '@/features/bookings/book-button'
+import { formatRate } from '@/lib/format-rate'
 import { HISTORY_SORT } from '@/lib/list-keys'
 import { type PageInfo, useListUrl } from '@/lib/use-list-url'
 import type { ReadOutput } from '@/server/reads/registry'
 
-/** A person's page: profile, bookings, requirements and history, read for the signed-in role. */
+/**
+ * A person's page: profile, requirements (with their bookings) and history, read for the
+ * signed-in role.
+ */
 export function EmployeeView({ externalId, canEdit }: { externalId: string; canEdit: boolean }) {
   const completions = useListUrl(HISTORY_SORT, { id: 'completedOn', desc: true }, 'completions')
   const read = useRecordRead('employee', { externalId, ...completions.input }, data =>
@@ -50,7 +49,6 @@ export function EmployeeView({ externalId, canEdit }: { externalId: string; canE
 
 function EmployeeDetail({
   employee,
-  bookings,
   showNotes,
   canEdit,
   paging,
@@ -61,7 +59,7 @@ function EmployeeDetail({
   const locale = useLocale()
   const name = displayName(employee)
   const date = (value: string | null) => formatOptional(value, v => formatDate(v))
-  const toBook = employee.requirements.filter(r => needsBooking(r, employee.status)).length
+  const toBook = employee.requirements.filter(r => canBookNow(r, employee.status)).length
   const person = { externalId: employee.externalId, name, status: employee.status }
 
   return (
@@ -134,49 +132,6 @@ function EmployeeDetail({
               </CardBody>
             </Card>
             {employee.reports.length > 0 && <TeamCard employee={employee} />}
-            <Card>
-              <CardHeader title={t('bookings')} />
-              <CardBody>
-                {bookings.length === 0 ? (
-                  <EmptyState variant="inline" title={t('noBookings')} />
-                ) : (
-                  <ItemList>
-                    {bookings.map(b => (
-                      <ItemListRow key={b.sessionExternalId}>
-                        <CellStack
-                          title={
-                            <TextLink asChild emphasis>
-                              <Link href={`/courses/${b.courseCode}`}>{b.courseName}</Link>
-                            </TextLink>
-                          }
-                          meta={
-                            <>
-                              <SessionDateLink
-                                session={{
-                                  externalId: b.sessionExternalId,
-                                  startsAt: b.startsAt,
-                                  endsAt: b.endsAt,
-                                }}
-                              />
-                              {' · '}
-                              <RoomLink room={b.room} />
-                            </>
-                          }
-                        />
-                        {canEdit && (
-                          <RemoveBookingButton
-                            sessionExternalId={b.sessionExternalId}
-                            employeeExternalId={employee.externalId}
-                            label={t('cancelBooking', { course: b.courseName })}
-                            confirmTitle={t('cancelBookingConfirm', { course: b.courseName })}
-                          />
-                        )}
-                      </ItemListRow>
-                    ))}
-                  </ItemList>
-                )}
-              </CardBody>
-            </Card>
           </div>
         }
         main={
@@ -185,7 +140,7 @@ function EmployeeDetail({
               title={t('requirements')}
               description={
                 employee.requirements.length > 0
-                  ? t('rate', { rate: formatPercent(employee.completionRate, locale) })
+                  ? t('rate', { rate: formatRate(employee.completionRate, locale) })
                   : t('requirementsDescription')
               }
               actions={

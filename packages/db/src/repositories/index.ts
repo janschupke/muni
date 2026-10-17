@@ -92,6 +92,7 @@ export {
   type RoomOption,
 } from './lookups'
 export {
+  cancelSession,
   checkSessionSlot,
   createRoom,
   createSession,
@@ -99,8 +100,11 @@ export {
   type PlannedSessionWrite,
   raiseCapacity,
   type RaiseProblem,
+  reinstateSession,
   type RoomWrite,
   type SessionProblem,
+  type SessionStatusRefusal,
+  type SessionStatusWrite,
   type SessionWrite,
   updateRoom,
   updateSession,

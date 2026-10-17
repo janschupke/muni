@@ -12,6 +12,7 @@ import { getDb } from './client'
 import { createDb } from './connect'
 import {
   applyAssignments,
+  cancelSession,
   createCompletion,
   createCourse,
   createRoom,
@@ -32,9 +33,9 @@ import {
   listRoomOptions,
   listRooms,
   listSessions,
-  listUpcomingBookings,
   moveSeatsMany,
   raiseCapacity,
+  reinstateSession,
   removeAssignment,
   savePosition,
   updateCourse,
@@ -357,15 +358,27 @@ describe('bookings the main suite does not reach', () => {
       opts
     )
     expect(made.map(m => m.ok)).toEqual([true, true])
-    const bookings = await listUpcomingBookings({ employee: person }, opts)
-    expect(bookings.map(b => [b.sessionExternalId, b.courseCode, b.source])).toEqual([
-      ['T020', 'GDPR', 'MANUAL'],
-      ['T018', 'BOZP-Z', 'MANUAL'],
+    const rows = await db.sessionAssignment.findMany({
+      where: { employee: { externalId: person } },
+      select: { source: true, session: { select: { externalId: true } } },
+      orderBy: { session: { startsAt: 'asc' } },
+    })
+    expect(rows.map(r => [r.session.externalId, r.source])).toEqual([
+      ['T020', 'MANUAL'],
+      ['T018', 'MANUAL'],
     ])
-    // Without an explicit clock, "upcoming" is relative to now; the 2027 session still is.
-    expect(
-      (await listUpcomingBookings({ employee: person }, options)).map(b => b.sessionExternalId)
-    ).toContain('T018')
+    // Their page shows each on its requirement; without an explicit clock, "upcoming" is
+    // relative to now, and the 2027 session still is.
+    const booked = (await getEmployee(person, 'ADMIN', options))?.requirements.map(r => [
+      r.courseCode,
+      r.booked?.sessionExternalId,
+    ])
+    expect(booked).toEqual(
+      expect.arrayContaining([
+        ['BOZP-Z', 'T018'],
+        ['GDPR', 'T020'],
+      ])
+    )
     expect(await removeAssignment('T018', person, options)).toBe(true)
     expect(await removeAssignment('T018', person, options)).toBe(false)
     await removeAssignment('T020', person, options)
@@ -538,7 +551,6 @@ describe('rooms', () => {
       roomId: id,
       capacity: 16,
       pricePerPerson: 1500,
-      status: 'PLANNED' as const,
     }
     // The app's own numbering, which imports refuse, so an export never overwrites it.
     expect(await createSession(create, options)).toEqual({
@@ -551,13 +563,31 @@ describe('rooms', () => {
       room: { id, name: CREATED.room, kind: 'LAB' },
       bookedCount: 0,
     })
-    // The room is taken then, unless the clash is cancelled; it seats 18, and it is not online.
+    // The room is taken then; it seats 18, and it is not online.
     const overlapping = { ...create, startTime: '12:00', endTime: '15:00' }
     expect(await createSession(overlapping, options)).toEqual({ ok: false, problem: 'ROOM_BUSY' })
-    expect(await createSession({ ...overlapping, status: 'CANCELLED' }, options)).toMatchObject({
+    // Cancelled, a session holds the room no more: it can be moved onto a taken time, and is
+    // not planned there again while the room is taken.
+    expect(
+      await createSession({ ...create, startTime: '15:00', endTime: '17:00' }, options)
+    ).toMatchObject({ ok: true, externalId: 'S002' })
+    expect(await cancelSession('S002', options)).toEqual({
       ok: true,
       externalId: 'S002',
+      courseCode: 'LAB-BEZ',
     })
+    expect(
+      await updateSession('S002', { ...overlapping, unnamedBookings: 0 }, options)
+    ).toMatchObject({ ok: true })
+    expect(await reinstateSession('S002', options)).toEqual({ ok: false, problem: 'ROOM_BUSY' })
+    expect(await cancelSession('S002', options)).toEqual({ ok: false, problem: 'UNCHANGED' })
+    // Once it has started, what happened stays: neither cancelled nor planned again.
+    const started = { ...options, now: new Date('2027-03-03T16:00:00Z') }
+    expect(await cancelSession('S001', started)).toEqual({ ok: false, problem: 'STARTED' })
+    expect(await reinstateSession('S002', started)).toEqual({ ok: false, problem: 'STARTED' })
+    expect(await reinstateSession('S001', options)).toEqual({ ok: false, problem: 'UNCHANGED' })
+    expect(await cancelSession('NOPE', options)).toEqual({ ok: false, problem: 'NOT_FOUND' })
+    expect(await getSession('S002', options)).toMatchObject({ status: 'CANCELLED' })
     expect(await createSession({ ...create, date: '2027-03-04', capacity: 20 }, options)).toEqual({
       ok: false,
       problem: 'ROOM_TOO_SMALL',
@@ -574,10 +604,11 @@ describe('rooms', () => {
       externalId: 'S001',
       courseCode: 'LAB-BEZ',
     })
-    expect(await updateSession('S002', { ...edit, status: 'PLANNED' }, options)).toEqual({
-      ok: false,
-      problem: 'ROOM_BUSY',
-    })
+    // Editing a cancelled one keeps it cancelled: the form never plans it again.
+    expect(
+      await updateSession('S002', { ...overlapping, unnamedBookings: 1 }, options)
+    ).toMatchObject({ ok: true })
+    expect(await getSession('S002', options)).toMatchObject({ status: 'CANCELLED' })
   })
 
   it('refuses to move a session onto a time its booked people are elsewhere', async () => {
@@ -593,7 +624,6 @@ describe('rooms', () => {
       roomId: first.room.id,
       capacity: 5,
       pricePerPerson: null,
-      status: 'PLANNED' as const,
     }
     const created = await createSession(later, options)
     if (!created.ok) throw new Error('second session refused')
@@ -623,14 +653,23 @@ describe('rooms', () => {
         options
       )
     ).toEqual({ ok: false, problem: 'ATTENDEE_CONFLICT' })
-    // Cancelled, it holds nobody anywhere.
+    // Cancelled, it holds nobody anywhere; planned again there, it would.
+    expect(await cancelSession(created.externalId, options)).toMatchObject({ ok: true })
     expect(
       await updateSession(
         created.externalId,
-        { ...onto, status: 'CANCELLED', unnamedBookings: 0 },
+        { ...onto, roomId: other.id, unnamedBookings: 0 },
         options
       )
     ).toMatchObject({ ok: true })
+    expect(await reinstateSession(created.externalId, options)).toEqual({
+      ok: false,
+      problem: 'ATTENDEE_CONFLICT',
+    })
+    // Its bookings stay with it, cancelled, as the record of who was to come.
+    expect(
+      await db.sessionAssignment.count({ where: { session: { externalId: created.externalId } } })
+    ).toBe(1)
     await db.sessionAssignment.deleteMany({ where: { employee: { externalId: person } } })
   })
 

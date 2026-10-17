@@ -173,7 +173,17 @@ export const COMPLIANCE_BANDS = [
 
 export type ComplianceBand = (typeof COMPLIANCE_BANDS)[number]['band']
 
+/**
+ * The whole percent a rate is printed as, rounded down: 89.6 % reads 89 %, and only a full
+ * rate reads 100 %. The band is taken from it, so a cell's colour and its number agree. (The
+ * nudge absorbs float error: 0.29 × 100 is 28.999….)
+ */
+export function compliancePercent(rate: number): number {
+  return Math.floor(rate * 100 + 1e-9)
+}
+
 export function complianceBand(rate: number): ComplianceBand {
-  for (const { band, min } of COMPLIANCE_BANDS) if (rate >= min) return band
+  const percent = compliancePercent(rate)
+  for (const { band, min } of COMPLIANCE_BANDS) if (percent >= Math.round(min * 100)) return band
   return 'POOR'
 }

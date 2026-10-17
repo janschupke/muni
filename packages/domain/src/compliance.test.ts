@@ -6,6 +6,7 @@ import {
   type ComplianceCompletion,
   type ComplianceEmployee,
   complianceOf,
+  compliancePercent,
   complianceRate,
   type ComplianceRequirement,
   computeCompliance,
@@ -147,5 +148,26 @@ describe('complianceBand', () => {
     [Number.NaN, 'POOR'],
   ])('%f is %s', (rate, band) => {
     expect(complianceBand(rate)).toBe(band)
+  })
+
+  it('agrees with the percent printed for it, for every count up to 300', () => {
+    for (let total = 1; total <= 300; total++) {
+      for (let held = 0; held <= total; held++) {
+        const rate = held / total
+        const shown = compliancePercent(rate)
+        // The colour is the printed value's: two cells that read the same are the same colour.
+        expect(complianceBand(shown / 100), `${held}/${total}`).toBe(complianceBand(rate))
+        // 100 % only when everyone holds it.
+        expect(shown === 100, `${held}/${total}`).toBe(held === total)
+      }
+    }
+  })
+
+  it('prints whole percents, rounded down', () => {
+    expect(compliancePercent(0.896)).toBe(89)
+    expect(compliancePercent(0.29)).toBe(29)
+    expect(compliancePercent(0.999)).toBe(99)
+    expect(compliancePercent(1)).toBe(100)
+    expect(compliancePercent(0)).toBe(0)
   })
 })

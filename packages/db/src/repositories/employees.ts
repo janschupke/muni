@@ -8,6 +8,7 @@ import {
 import type { ComplianceStatus, EmployeeSortKey, EmploymentState, Role } from '@muni/domain/enums'
 import { sortName } from '@muni/domain/names'
 import { sanitizeRecord } from '@muni/domain/sanitize'
+import type { SessionOpening } from '@muni/domain/sessions'
 import { type IsoDate, isoDateFromUtc, todayIn } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 
@@ -23,7 +24,12 @@ import {
 import { compareNames, pageEmployees, sortEmployees } from './employee-sort'
 import { stateOf, stateWhere, stillEmployed } from './employment'
 import type { Page } from './paging'
-import { loadNextBookings, type RequirementContext, requirementOf } from './requirements'
+import {
+  loadBookingContext,
+  type NextBooking,
+  type RequirementContext,
+  requirementOf,
+} from './requirements'
 
 export interface EmployeeListItem {
   /** Internal id (archiving acts on it). */
@@ -51,8 +57,10 @@ export interface EmployeeListRequirement {
   validUntil: IsoDate | null
   /** Days from today to `validUntil` (negative once expired); null without an expiry. */
   daysLeft: number | null
-  /** The person's next named booking for this course, if any. */
-  booked: { sessionExternalId: string; startsAt: string } | null
+  /** The person's next named booking for this course (on a session not yet over), if any. */
+  booked: NextBooking | null
+  /** Whether a session of the course still to start has a seat (see `bookingState`). */
+  opening: SessionOpening
 }
 
 /** What a person's record is built from: the person as stored, with their place. */
@@ -114,7 +122,7 @@ export async function listEmployees(
 ): Promise<Page<EmployeeListItem>> {
   const db = dbOf(options)
   const asOf = options?.asOf ?? todayIn()
-  const [employees, compliance, courses, bookings] = await Promise.all([
+  const [employees, compliance, courses, booking] = await Promise.all([
     db.employee.findMany({
       where: {
         ...ACTIVE,
@@ -140,13 +148,13 @@ export async function listEmployees(
     }),
     loadCompliance(options),
     db.course.findMany({ where: ACTIVE, select: { id: true, code: true, name: true } }),
-    loadNextBookings(db),
+    loadBookingContext(db),
   ])
 
-  const context = {
+  const context: RequirementContext = {
     courses: new Map(courses.map(c => [c.id, c])),
     asOf: compliance.options.asOf,
-    bookings,
+    ...booking,
   }
   const cellsByEmployee = Map.groupBy(compliance.cells, c => c.employeeId)
   const q = filters.q ? fold(filters.q) : ''
@@ -275,17 +283,17 @@ export async function getEmployee(
       counts: countStatuses(own),
     }
   })
-  const [courses, bookings] = await Promise.all([
+  const [courses, booking] = await Promise.all([
     db.course.findMany({
       where: { id: { in: cells.map(c => c.courseId) } },
       select: { id: true, code: true, name: true },
     }),
-    loadNextBookings(db, undefined, [employee.id]),
+    loadBookingContext(db, undefined, [employee.id]),
   ])
   const context: RequirementContext = {
     courses: new Map(courses.map(c => [c.id, c])),
     asOf: compliance.options.asOf,
-    bookings,
+    ...booking,
   }
   const policy = getPolicy()
 

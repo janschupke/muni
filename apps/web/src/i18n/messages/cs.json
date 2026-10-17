@@ -185,16 +185,12 @@
       "noHistory": "Žádné absolvované školení.",
       "recordCompletion": "Zapsat absolvování",
       "rate": "Splněno {rate} povinných školení",
-      "bookings": "Nadcházející termíny",
-      "noBookings": "Žádné nadcházející rezervace.",
-      "cancelBooking": "Zrušit rezervaci na {course}",
       "team": {
         "title": "Tým",
         "description": "{count, plural, one {# přímý podřízený, který neodešel} few {# přímí podřízení, kteří neodešli} other {# přímých podřízených, kteří neodešli}}",
         "inList": "Všichni přímí podřízení v seznamu",
         "held": "Splněno"
       },
-      "cancelBookingConfirm": "Zrušit rezervaci na {course}?",
       "leftNothing": "Pracovní poměr skončil {date}; nic už není povinné."
     },
     "panel": {
@@ -329,7 +325,34 @@
     "allRooms": "Všechny místnosti",
     "titleOf": "Termíny – {course}",
     "courseFilter": "Kurz: {course}",
-    "clearCourse": "Odebrat filtr kurzu"
+    "clearCourse": "Odebrat filtr kurzu",
+    "cancel": {
+      "action": "Zrušit termín…",
+      "actionLabel": "Zrušit {name}",
+      "title": "Zrušit {name}?",
+      "after": "V seznamu zůstane jako zrušený; potom ho lze archivovat.",
+      "confirm": "Zrušit termín",
+      "keep": "Ponechat termín",
+      "done": "Termín zrušen: {name}",
+      "refused": {
+        "UNCHANGED": "Termín už je zrušený.",
+        "STARTED": "Termín už začal: co proběhlo, zůstává, jak bylo."
+      },
+      "body": "{count, plural, =0 {Nikdo na něm nemá rezervaci jménem.} one {# osoba s rezervací na něm zůstane uvedena, ale zrušený termín se jí jako školení nepočítá: poradce ji znovu ukáže jako vyžadující akci.} few {# osoby s rezervací na něm zůstanou uvedeny, ale zrušený termín se jim jako školení nepočítá: poradce je znovu ukáže jako vyžadující akci.} other {# osob s rezervací na něm zůstane uvedeno, ale zrušený termín se jim jako školení nepočítá: poradce je znovu ukáže jako vyžadující akci.}}"
+    },
+    "reinstate": {
+      "action": "Obnovit…",
+      "actionLabel": "Obnovit {name}",
+      "title": "Znovu naplánovat {name}?",
+      "body": "Termín se znovu naplánuje na svůj čas a do své místnosti, pokud je místnost tehdy volná a nikdo s rezervací nemá v tu dobu jiný termín. Jeho rezervace se opět počítají.",
+      "confirm": "Obnovit",
+      "keep": "Ponechat zrušený",
+      "done": "Termín znovu naplánován: {name}",
+      "refused": {
+        "UNCHANGED": "Termín už je naplánovaný.",
+        "STARTED": "Termín už začal: zůstává zrušený."
+      }
+    }
   },
   "compliance": {
     "title": "Matice plnění",
@@ -467,7 +490,6 @@
       "endTime": "Konec",
       "capacity": "Kapacita",
       "pricePerPerson": "Cena za osobu ({currency})",
-      "status": "Stav",
       "unnamedBookings": "Další obsazená místa (bez jména)",
       "unnamedHelp": "{count, plural, =0 {Nikdo nemá rezervaci jménem.} one {A # rezervace jménem.} few {A # rezervace jménem.} other {A # rezervací jménem.}}",
       "room": "Místnost",
@@ -483,13 +505,9 @@
       "bookedSeats": "{count, plural, one {Obsazené je # místo.} few {Obsazená jsou # místa.} other {Obsazeno je # míst.}}",
       "courseKeepsBookings": "{count, plural, one {# rezervace jménem zůstane} few {# rezervace jménem zůstanou} other {# rezervací jménem zůstane}}, i když se kurz změní.",
       "confirm": {
-        "cancelTitle": "Zrušit tento termín?",
-        "cancelBody": "{count, plural, =0 {Nikdo na něm nemá rezervaci jménem.} one {# osoba s rezervací na něm zůstane uvedena, ale zrušený termín se jí jako školení nepočítá: poradce ji znovu ukáže jako vyžadující akci.} few {# osoby s rezervací na něm zůstanou uvedeny, ale zrušený termín se jim jako školení nepočítá: poradce je znovu ukáže jako vyžadující akci.} other {# osob s rezervací na něm zůstane uvedeno, ale zrušený termín se jim jako školení nepočítá: poradce je znovu ukáže jako vyžadující akci.}}",
-        "cancelConfirm": "Zrušit termín",
         "courseTitle": "Změnit kurz?",
         "courseBody": "{count, plural, one {# rezervace zůstává} few {# rezervace zůstávají} other {# rezervací zůstává}}, nyní na {course}. Ověřte, že jde o školení, které lidé potřebují.",
-        "courseConfirm": "Změnit kurz",
-        "bothConfirm": "Uložit a zrušit termín"
+        "courseConfirm": "Změnit kurz"
       }
     },
     "employee": {
@@ -1398,7 +1416,7 @@
       "not_found": "Záznam už neexistuje, nebo je už archivovaný.",
       "in_use": "{kind, select, room {{count, plural, one {Koná se tu # budoucí termín.} few {Konají se tu # budoucí termíny.} other {Koná se tu # budoucích termínů.}} Nejdřív je přesuňte nebo zrušte.} other {{count, plural, one {Patří sem # člověk.} few {Patří sem # lidé.} other {Patří sem # lidí.}} Nejdřív je přesuňte jinam.}}",
       "has_upcoming_sessions": "{count, plural, one {Čeká jej # termín.} few {Čekají jej # termíny.} other {Čeká jej # termínů.}} Nejdřív je zrušte nebo archivujte.",
-      "has_bookings": "{count, plural, one {Na termínu je obsazené # místo.} few {Na termínu jsou obsazená # místa.} other {Na termínu je obsazeno # míst.}} Nejdřív termín zrušte; rezervace pak zůstanou jako historie.",
+      "upcoming": "Termín teprve začne: místo archivace ho zrušte; rezervace pak zůstanou jako historie a termín lze archivovat.",
       "self": "Sami sebe archivovat nemůžete.",
       "last_admin": "Je to poslední správce. Nejdřív udělejte správcem někoho jiného.",
       "taken": "Aktivní záznam teď používá stejné pole: {fields}. Nejdřív jej přejmenujte nebo archivujte.",
@@ -1553,6 +1571,19 @@
       "done": "Rezervováno: {count, plural, one {# školení} few {# školení} other {# školení}}",
       "partial": "Přihlášeno {applied}; {failed, plural, one {# odmítnuta} few {# odmítnuty} other {# odmítnuto}}:",
       "refused": "Žádná rezervace nevznikla:"
-    }
+    },
+    "blocked": {
+      "ON_LEAVE": "Na rodičovské dovolené: rezervovat lze až po návratu",
+      "NO_SESSION": "Žádný termín tohoto kurzu není vypsán",
+      "NO_SEATS": "Všechny termíny tohoto kurzu jsou plné"
+    },
+    "blockedAll": {
+      "ON_LEAVE": "Na rodičovské dovolené: rezervovat lze až po návratu",
+      "NO_SESSION": "Pro potřebná školení není vypsán žádný termín",
+      "NO_SEATS": "Všechny termíny potřebných školení jsou plné",
+      "MIXED": "Pro potřebná školení není žádný termín s volným místem"
+    },
+    "cancelFor": "Zrušit rezervaci {course} pro {name}",
+    "cancelForConfirm": "Zrušit rezervaci {course} pro {name}?"
   }
 }

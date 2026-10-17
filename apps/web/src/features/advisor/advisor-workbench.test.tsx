@@ -74,6 +74,7 @@ const need = (
 
 const INPUT: AdvisorInput = {
   asOf: '2026-10-16',
+  now: '2026-10-15T22:00:00.000Z',
   needs: [
     need('E0001', 'Adámek Petr', 'EXPIRED', '2026-09-01'),
     need('E0002', 'Bílá Jana', 'MISSING', null),
@@ -499,7 +500,7 @@ describe('AdvisorWorkbench', () => {
   })
 
   it('says when there is nothing in a view', () => {
-    const empty = planAssignments({ asOf: INPUT.asOf, needs: [], sessions: [] })
+    const empty = planAssignments({ ...INPUT, needs: [], sessions: [] })
     renderWorkbench({ plan: empty, view: 'action' })
     expect(screen.getByText('Every training in scope has a booking.')).toBeTruthy()
     renderWorkbench({ plan: empty, view: 'planned' })

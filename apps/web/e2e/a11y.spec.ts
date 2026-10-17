@@ -152,8 +152,13 @@ for (const theme of ['light', 'dark'] as const) {
           .getByRole('button', { name: /^Book / })
           .first()
       ).toBeVisible()
-      // The pointer off the rows: a hovered row is the scan's subject only in its own test.
-      await page.mouse.move(0, 0)
+      // A hovered row with its Book button: the button still stands apart from the row.
+      await page
+        .getByRole('dialog')
+        .getByRole('row')
+        .filter({ has: page.getByRole('button', { name: /^Book / }) })
+        .first()
+        .hover({ position: { x: 4, y: 4 } })
       await expectNoViolations(page, 'compliance cell with booking', '[role="dialog"]')
       await page.keyboard.press('Escape')
 
@@ -170,6 +175,26 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(archive.getByText(/^It leaves every list and count/)).toBeVisible()
       await expectNoViolations(page, 'archive dialog', '[role="dialog"]')
       await page.keyboard.press('Escape')
+
+      // Cancelling a session still to start asks first, saying what happens to its people.
+      await page.goto('/sessions/T018')
+      await loaded(page)
+      await page.getByRole('main').getByRole('button', { name: 'Cancel session…' }).click()
+      await expect(page.getByRole('dialog').getByText(/stay listed on it|by name/)).toBeVisible()
+      await expectNoViolations(page, 'cancel session dialog', '[role="dialog"]')
+      await page.keyboard.press('Escape')
+
+      // A Book… that cannot book (a person on leave) stays in place, saying why.
+      await page.goto('/employees?status=PARENTAL_LEAVE')
+      await loaded(page)
+      const unavailable = page
+        .getByRole('button', { name: /^Book every training .+ needs…$/ })
+        .first()
+      await unavailable.hover()
+      await expect(page.getByRole('tooltip', { includeHidden: true })).toHaveText(
+        'On parental leave: nothing to book until they are back'
+      )
+      await expectNoViolations(page, 'unavailable book button')
 
       await page.goto('/advisor?view=overbooked')
       await loaded(page)

@@ -57,6 +57,14 @@ export function logFailure(error: unknown): void {
   console.error(error)
 }
 
+/** An `Outcomes.failed` that logs the error and answers `answer`. */
+export const failedWith =
+  <T>(answer: T) =>
+  (error: unknown): T => {
+    logFailure(error)
+    return answer
+  }
+
 /**
  * A form's save for the signed-in admin: a refusal or failure is the form's own message (a
  * record gone meanwhile, P2025, is "not found"). `bound` is false when an id bound into the

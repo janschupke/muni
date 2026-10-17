@@ -1,5 +1,6 @@
 'use client'
 
+import { sessionPhase } from '@muni/domain/sessions'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
@@ -14,6 +15,8 @@ import { DetailSkeleton } from '@/components/skeletons'
 import { AddBookingForm } from '@/features/bookings/add-booking'
 import { sessionTitle } from '@/lib/titles'
 import type { ReadOutput } from '@/server/reads/registry'
+
+import { sessionTarget } from './session-target'
 
 /**
  * A session's page: everything its opened row shows (when, the room against what the course
@@ -47,8 +50,7 @@ function SessionDetail({
   const tb = useTranslations('bookings')
   const attendees = session.bookings.map(b => b.person)
   // Booking by hand is for planned sessions that have not started.
-  const bookable =
-    canEdit && session.status === 'PLANNED' && new Date(session.startsAt) > new Date()
+  const bookable = canEdit && sessionPhase(session, new Date()) === 'AHEAD'
 
   return (
     <>
@@ -56,14 +58,7 @@ function SessionDetail({
         list={{ href: '/sessions', label: t('title') }}
         title={session.courseName}
         description={formatTimeRange(session.startsAt, session.endsAt)}
-        record={
-          canEdit && {
-            kind: 'session',
-            id: session.id,
-            name: `${session.externalId} · ${session.courseName}`,
-            editHref: `/sessions/${session.externalId}/edit`,
-          }
-        }
+        record={canEdit && sessionTarget(session)}
       />
       <SplitLayout
         side={

@@ -1,6 +1,7 @@
 import { addDays, addMonths, diffInDays, type IsoDate, toZonedParts } from '@muni/utils/dates'
 
 import type { RoomRef } from './rooms'
+import { seatsLeft, type SessionOpening } from './sessions'
 
 /*
  * The advisor: what is non-compliant now, what becomes non-compliant month by month, what is
@@ -57,9 +58,14 @@ export interface AdvisorSession {
 
 export interface AdvisorInput {
   asOf: IsoDate
+  /** The moment the plan is made (ISO): a session that has started takes no new bookings. */
+  now: string
   /** Non-compliant now, or lapsing before `forecastEnd(asOf)`. */
   needs: AdvisorNeed[]
-  /** Upcoming sessions (any status; cancelled ones are ignored). */
+  /**
+   * Sessions not yet over (any status; cancelled ones are ignored). One under way still counts
+   * as its people's booking; only those still to start are proposed or take moved seats.
+   */
   sessions: AdvisorSession[]
 }
 
@@ -96,7 +102,7 @@ export const MAX_ALTERNATIVES = 5
 
 /** Seats a session has free now: its capacity less every booking, named or not. */
 export function seatsFree(session: AdvisorSession): number {
-  return session.capacity - session.unnamedBookings - session.assigned.length
+  return seatsLeft({ ...session, named: session.assigned.length })
 }
 
 export type Proposal =
@@ -142,16 +148,59 @@ export const choicesOf = (item: ProposedItem): SessionChoice[] => [
   ...item.proposal.alternatives,
 ]
 
+/** Why a training that needs booking cannot be booked from where it is shown. */
+export const BOOKING_BLOCKS = ['ON_LEAVE', 'NO_SESSION', 'NO_SEATS'] as const
+export type BookingBlock = (typeof BOOKING_BLOCKS)[number]
+
+/** What a screen offers for a required training: book it, or say why it cannot. */
+export type BookingState = { kind: 'BOOK' } | { kind: 'BLOCKED'; reason: BookingBlock }
+
 /**
- * Whether a requirement a screen shows is one to book now: not held (missing, expired) or
- * expiring soon, with nothing booked, for someone at work (not on leave, not gone). Each of
- * these is a training the advisor's plan needs action on (`itemsToBook` finds it).
+ * What a requirement a screen shows comes to, booking-wise. Null: nothing to do, because it is
+ * held (valid), already booked, or the person has left. Otherwise, for a training not held
+ * (missing, expired) or expiring soon: `BOOK` when the person is at work and a session of the
+ * course still to start has a seat (`opening`), else `BLOCKED` with the reason. Each `BOOK` is
+ * a training the advisor's plan needs action on (`itemsToBook` finds it); the plan may still
+ * find no seat for it, having handed the last ones to more urgent people, and the dialog says so.
  */
-export function needsBooking(
-  requirement: { status: NeedStatus; booked: unknown },
+export function bookingState(
+  requirement: { status: NeedStatus; booked: unknown; opening: SessionOpening },
   employment: 'ACTIVE' | 'PARENTAL_LEAVE' | 'LEFT'
-): boolean {
-  return employment === 'ACTIVE' && requirement.status !== 'VALID' && requirement.booked === null
+): BookingState | null {
+  if (requirement.status === 'VALID' || requirement.booked !== null || employment === 'LEFT')
+    return null
+  if (employment === 'PARENTAL_LEAVE') return { kind: 'BLOCKED', reason: 'ON_LEAVE' }
+  if (requirement.opening === 'NONE') return { kind: 'BLOCKED', reason: 'NO_SESSION' }
+  if (requirement.opening === 'FULL') return { kind: 'BLOCKED', reason: 'NO_SEATS' }
+  return { kind: 'BOOK' }
+}
+
+/** Whether a requirement is one to book now (`bookingState` is `BOOK`). */
+export const canBookNow = (...args: Parameters<typeof bookingState>): boolean =>
+  bookingState(...args)?.kind === 'BOOK'
+
+/** Why none of a person's needed trainings can be booked: one reason, or several. */
+export const PERSON_BOOKING_BLOCKS = [...BOOKING_BLOCKS, 'MIXED'] as const
+export type PersonBookingBlock = (typeof PERSON_BOOKING_BLOCKS)[number]
+
+/**
+ * What a person's row offers: book the trainings that can be (`count` of them), or, when some
+ * need booking but none can be, why. Null when none needs it.
+ */
+export function personBookingState(
+  requirements: readonly Parameters<typeof bookingState>[0][],
+  employment: Parameters<typeof bookingState>[1]
+): { kind: 'BOOK'; count: number } | { kind: 'BLOCKED'; reason: PersonBookingBlock } | null {
+  const states = requirements.flatMap(r => {
+    const state = bookingState(r, employment)
+    return state ? [state] : []
+  })
+  const count = states.filter(s => s.kind === 'BOOK').length
+  if (count > 0) return { kind: 'BOOK', count }
+  const reasons = new Set(states.flatMap(s => (s.kind === 'BLOCKED' ? [s.reason] : [])))
+  const [only] = reasons
+  if (only === undefined) return null
+  return { kind: 'BLOCKED', reason: reasons.size === 1 ? only : 'MIXED' }
 }
 
 /** Whose trainings to book: a person, a course, a department, a position, or a mix. */
@@ -163,7 +212,7 @@ export interface BookingQuery {
 }
 
 /**
- * The trainings `needsBooking` stands for, as the plan has them (with the proposed session and
+ * The trainings `bookingState` offers to book, as the plan has them (with the proposed session and
  * the alternatives, or why there is none), matching the query: the ones a "Book…" opens.
  */
 export function itemsToBook(plan: AdvisorPlan, query: BookingQuery): PlanItem[] {
@@ -224,7 +273,6 @@ export interface AdvisorPlan {
 
 const collator = new Intl.Collator('cs', { sensitivity: 'base', numeric: true })
 
-const startDay = (s: AdvisorSession) => toZonedParts(s.startsAt).date
 const endDay = (s: AdvisorSession) => toZonedParts(s.endsAt).date
 const overlaps = (a: AdvisorSession, b: AdvisorSession) =>
   Date.parse(a.startsAt) < Date.parse(b.endsAt) && Date.parse(b.startsAt) < Date.parse(a.endsAt)
@@ -259,10 +307,12 @@ function compareQueue(a: AdvisorNeed, b: AdvisorNeed): number {
 export function planAssignments(input: AdvisorInput): AdvisorPlan {
   const { asOf } = input
   const end = forecastEnd(asOf)
-  // Each upcoming session with its seats taken, updated as moves and proposals fill it.
-  const upcoming = input.sessions
-    .filter(s => s.status === 'PLANNED' && startDay(s) >= asOf)
-    .toSorted(byStart)
+  const now = new Date(input.now)
+  // Planned sessions not yet over: each one's people count as booked on it.
+  const planned = input.sessions.filter(s => s.status === 'PLANNED').toSorted(byStart)
+  // Each session still to start with its seats taken, updated as moves and proposals fill it.
+  const upcoming = planned
+    .filter(s => new Date(s.startsAt) > now)
     .map(session => ({ session, taken: session.unnamedBookings + session.assigned.length }))
 
   // 1. Overbooking first: moving anonymous seats out takes room the plan must not reuse.
@@ -311,10 +361,9 @@ export function planAssignments(input: AdvisorInput): AdvisorPlan {
     if (need.employee.status === 'PARENTAL_LEAVE') continue
     const lapses = lapsesOn(need)
     if (!isNonCompliant(need) && (lapses === null || lapses > end)) continue
-    const booking = upcoming.find(
-      ({ session: s }) =>
-        s.courseCode === need.course.code && s.assigned.includes(need.employee.externalId)
-    )?.session
+    const booking = planned.find(
+      s => s.courseCode === need.course.code && s.assigned.includes(need.employee.externalId)
+    )
     if (!booking) {
       queue.push(need)
       continue
@@ -333,7 +382,7 @@ export function planAssignments(input: AdvisorInput): AdvisorPlan {
 
   // 3. The queue, most overdue first; each takes a session or says why it cannot.
   const busy = new Map<string, AdvisorSession[]>()
-  for (const { session } of upcoming)
+  for (const session of planned)
     for (const id of session.assigned) busy.set(id, [...(busy.get(id) ?? []), session])
 
   const queued: PlanItem[] = queue.toSorted(compareQueue).map((need, index) => {

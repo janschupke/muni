@@ -280,7 +280,9 @@ describe('session detail', () => {
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(
       '/sessions/T016/edit'
     )
-    expect(screen.getByRole('button', { name: 'Archive' })).toBeTruthy()
+    // Still to start: cancelled, not archived.
+    expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Cancel session…' })).toBeTruthy()
     // Only who needs the course and has nothing booked: not the booked one, not the valid one.
     await user.click(screen.getByRole('combobox', { name: 'Person to book' }))
     expect(screen.getAllByRole('option').map(o => o.textContent)).toEqual([

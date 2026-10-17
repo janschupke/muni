@@ -88,7 +88,13 @@ export const employeeRow = (over: Partial<EmployeeListItem> = {}): EmployeeListI
       completedOn: '2024-09-01',
       validUntil: '2026-09-01',
       daysLeft: -45,
-      booked: { sessionExternalId: 'T016', startsAt: '2026-11-04T07:00:00.000Z' },
+      booked: {
+        sessionExternalId: 'T016',
+        startsAt: '2026-11-04T07:00:00.000Z',
+        endsAt: '2026-11-04T10:00:00.000Z',
+        room: AULA_A,
+      },
+      opening: 'OPEN',
     },
     {
       courseCode: 'GDPR',
@@ -98,6 +104,7 @@ export const employeeRow = (over: Partial<EmployeeListItem> = {}): EmployeeListI
       validUntil: '2027-11-05',
       daysLeft: 385,
       booked: null,
+      opening: 'OPEN',
     },
     {
       courseCode: 'LEAD',
@@ -107,6 +114,7 @@ export const employeeRow = (over: Partial<EmployeeListItem> = {}): EmployeeListI
       validUntil: null,
       daysLeft: null,
       booked: null,
+      opening: 'OPEN',
     },
   ],
   ...over,
@@ -149,7 +157,13 @@ export const employeeDetail = (over: Partial<EmployeeDetail> = {}): EmployeeDeta
       completedOn: '2024-09-01',
       validUntil: '2026-09-01',
       daysLeft: -45,
-      booked: { sessionExternalId: 'T016', startsAt: '2026-11-04T08:00:00.000Z' },
+      booked: {
+        sessionExternalId: 'T016',
+        startsAt: '2026-11-04T08:00:00.000Z',
+        endsAt: '2026-11-04T11:00:00.000Z',
+        room: AULA_A,
+      },
+      opening: 'OPEN',
     },
     {
       courseCode: 'GDPR',
@@ -159,6 +173,7 @@ export const employeeDetail = (over: Partial<EmployeeDetail> = {}): EmployeeDeta
       validUntil: '2027-11-05',
       daysLeft: 385,
       booked: null,
+      opening: 'OPEN',
     },
   ],
   counts: counts({ VALID: 1, EXPIRING: 0, EXPIRED: 1, MISSING: 0 }),
@@ -267,6 +282,7 @@ const requirement = (over: Partial<EmployeeListRequirement> = {}): EmployeeListR
   validUntil: '2027-05-01',
   daysLeft: 197,
   booked: null,
+  opening: 'OPEN',
   ...over,
 })
 
@@ -316,7 +332,13 @@ export const matrix = (over: Partial<ComplianceMatrix> = {}): ComplianceMatrix =
               completedOn: '2024-09-01',
               validUntil: '2026-09-01',
               daysLeft: -45,
-              booked: { sessionExternalId: 'T016', startsAt: '2026-11-04T07:00:00.000Z' },
+              booked: {
+                sessionExternalId: 'T016',
+                startsAt: '2026-11-04T07:00:00.000Z',
+                endsAt: '2026-11-04T10:00:00.000Z',
+                room: AULA_A,
+              },
+              opening: 'OPEN',
             }),
             'LAB-BEZ': requirement({
               ...LAB_BEZ,
@@ -369,6 +391,8 @@ export const matrix = (over: Partial<ComplianceMatrix> = {}): ComplianceMatrix =
 
 export const advisorInput = (over: Partial<AdvisorInput> = {}): AdvisorInput => ({
   asOf: AS_OF,
+  // Midnight of AS_OF in Prague: every session that day is still to start.
+  now: '2026-10-15T22:00:00.000Z',
   needs: [
     {
       employee: {
@@ -572,6 +596,7 @@ export const members = (): EmployeeListItem[] => [
         validUntil: '2027-11-05',
         daysLeft: 385,
         booked: null,
+        opening: 'OPEN',
       },
     ],
   }),

@@ -10,7 +10,7 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
-import { formatInteger, formatPercent } from '@muni/utils/format'
+import { formatInteger } from '@muni/utils/format'
 import { CalendarPlus } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
@@ -23,6 +23,7 @@ import { RecordHeader, useRecordRead } from '@/components/record-view'
 import { RequirementList } from '@/components/requirement-list'
 import { SessionTable } from '@/components/session-table'
 import { DetailSkeleton } from '@/components/skeletons'
+import { formatRate } from '@/lib/format-rate'
 import { COMPLETION_SORT, SESSION_SORT } from '@/lib/list-keys'
 import { type PageInfo, useListUrl } from '@/lib/use-list-url'
 import type { ReadOutput } from '@/server/reads/registry'
@@ -126,7 +127,7 @@ function CourseDetail({
                   <>
                     <BarRow
                       label={<ComplianceLegend />}
-                      value={formatPercent(course.rate, locale)}
+                      value={formatRate(course.rate, locale)}
                       bar={<ComplianceBar counts={course.counts} label={course.name} />}
                     />
                     <StatList className="mt-3">

@@ -83,6 +83,12 @@ const PAIRINGS: Pairing[] = [
   { kind: 'separation', fg: 'surface-elevated', on: [CANVAS], why: 'cards on the page' },
   { kind: 'separation', fg: 'surface-sunken', on: [RAISED], why: 'wells in cards' },
   { kind: 'separation', fg: 'control', on: CONTAINERS, why: 'fields and buttons' },
+  {
+    kind: 'separation',
+    fg: 'control',
+    on: SURFACES.map(s => [...s, 'state-hover']),
+    why: 'buttons and fields in a hovered row, a dialog’s included',
+  },
   { kind: 'separation', fg: 'chart-track', on: SURFACES, why: 'bar tracks' },
   { kind: 'separation', fg: 'tint', on: SURFACES, why: 'skeletons, neutral badges' },
   {

@@ -1,6 +1,8 @@
 import { DEFAULT_SESSION_MINUTES, DEFAULT_START } from '@muni/domain/planner'
 import { addDays, todayIn, toZonedParts, zonedTimeToUtc } from '@muni/utils/dates'
 
+import type { SessionDefaults } from '@/components/form/session-form'
+
 /**
  * What a new session form starts with: tomorrow at the planner's default start, for the
  * course's usual length and group (or the defaults, when the course is chosen in the form).
@@ -8,7 +10,7 @@ import { addDays, todayIn, toZonedParts, zonedTimeToUtc } from '@muni/utils/date
  */
 export function newSessionDefaults(
   course: { id: string; needs: { sessionMinutes?: number | null; groupSize: number | null } } | null
-) {
+): SessionDefaults {
   const date = addDays(todayIn(), 1)
   const ends = new Date(
     zonedTimeToUtc(date, DEFAULT_START).getTime() +
