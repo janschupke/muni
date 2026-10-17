@@ -840,13 +840,13 @@
   },
   "advisor": {
     "title": "Advisor",
-    "description": "What is non-compliant now and what lapses over the next {months} months, what is already booked, and which sessions would cover the rest.",
+    "description": "What is non-compliant now and what lapses in the coming months, what is already booked, and which sessions would cover the rest.",
     "kpi": {
       "now": "Non-compliant now",
-      "upcoming": "Lapsing in the next {months} months",
-      "split": "{planned} remediation planned · {action} action required",
+      "upcoming": "Lapsing by {date}",
+      "split": "{action} action required · {planned} planned",
       "action": "Action required",
-      "actionHint": "A session is proposed for {proposed}",
+      "actionHint": "{now} now · {upcoming} lapsing; a session is proposed for {proposed}",
       "overbooked": "Overbooked sessions",
       "overbookedHint": "{count, plural, =0 {No session has more bookings than seats} other {More bookings than seats}}"
     },
@@ -864,13 +864,15 @@
     },
     "breakdown": {
       "title": "Non-compliance by month",
-      "description": "Trainings that are non-compliant now, then those lapsing in each month, by what is being done about them. Select a row to list its trainings.",
+      "description": "Trainings that are non-compliant now, then those lapsing by {date}, all together and month by month, by what is being done about them. Select a row to list its trainings.",
       "now": "Non-compliant now",
       "trainings": "{count, plural, one {# training} other {# trainings}}",
-      "counts": "{planned} planned in time · {late} with a gap · {action} action required",
+      "counts": "{planned} planned in time · {late} planned with a gap · {action} action required",
       "rowsNow": "Each row is one person's training that is non-compliant today, and what is being done about it.",
       "rowsMonth": "Each row is one person's training that lapses in {month}, and what is being done about it.",
-      "empty": "Nothing lapses in this month."
+      "empty": "Nothing lapses in this month.",
+      "upcoming": "Lapsing by {date}",
+      "rowsUpcoming": "Each row is one person's training that lapses by {date}, and what is being done about it."
     },
     "columns": {
       "rank": "Order",

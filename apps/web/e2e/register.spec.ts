@@ -262,6 +262,36 @@ test.describe('register (viewer)', () => {
       await expect(page.locator(`a[href="/sessions/${id}"]`).first()).toBeVisible()
   })
 
+  test('the advisor’s counts and rows agree, and its pages live in the address', async ({
+    page,
+  }) => {
+    await setLocale(page, 'en')
+    await page.goto('/advisor')
+    // The forecast card opens the row that lists exactly what it counts.
+    const card = page.getByRole('link', { name: /^Lapsing by / }).first()
+    await card.click()
+    await expect(page).toHaveURL(/\/advisor\?bucket=upcoming$/)
+    const heading = page.getByRole('heading', { name: /^Lapsing by .+: \d+ trainings?$/ })
+    const total = /: (\d+) /.exec((await heading.textContent()) ?? '')?.[1] ?? 'none'
+    await expect(card).toContainText(total)
+    await expect(page.locator('a[data-slot=choice][aria-current=true]')).toContainText(
+      `${total} trainings`
+    )
+
+    // A page is an address: next goes to ?page=2, a new row starts again from the first.
+    await page.goto('/advisor')
+    await page.getByRole('link', { name: /^Next/ }).click()
+    await expect(page).toHaveURL(/\/advisor\?page=2$/)
+    await expect(page.getByText(/^Page 2 of \d+$/)).toBeVisible()
+    await page.getByRole('link', { name: /^November 2026/ }).click()
+    await expect(page).toHaveURL(/\/advisor\?bucket=2026-11$/)
+    await expect(page.locator('tbody tr').first()).toBeVisible()
+    // A page past the end shows the last one, with its rows.
+    await page.goto('/advisor?bucket=2026-11&page=9')
+    await expect(page.getByText(/^Page (\d+) of \1$/)).toBeVisible()
+    await expect(page.locator('tbody tr').first()).toBeVisible()
+  })
+
   test('planner proposes sessions with a room for training nothing else can take', async ({
     page,
   }) => {

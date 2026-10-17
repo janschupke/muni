@@ -840,13 +840,13 @@
   },
   "advisor": {
     "title": "Poradce",
-    "description": "Co je teď v nesouladu a co propadne během {months, plural, one {# měsíce} few {# měsíců} other {# měsíců}}, co už je zarezervované a které termíny by pokryly zbytek.",
+    "description": "Co je teď v nesouladu a co propadne v příštích měsících, co už je zarezervované a které termíny by pokryly zbytek.",
     "kpi": {
       "now": "Teď v nesouladu",
-      "upcoming": "Propadne do {months, plural, one {# měsíce} other {# měsíců}}",
-      "split": "{planned} náprava naplánována · {action} vyžaduje akci",
+      "upcoming": "Propadne do {date}",
+      "split": "{action} vyžaduje akci · {planned} naplánováno",
       "action": "Vyžaduje akci",
-      "actionHint": "Termín navržen pro {proposed}",
+      "actionHint": "{now} teď · {upcoming} propadne; termín navržen pro {proposed}",
       "overbooked": "Přeplněné termíny",
       "overbookedHint": "{count, plural, =0 {Žádný termín nemá víc rezervací než míst} other {Víc rezervací než míst}}"
     },
@@ -864,13 +864,15 @@
     },
     "breakdown": {
       "title": "Nesoulad po měsících",
-      "description": "Školení, která jsou teď v nesouladu, a pak ta, která propadnou v jednotlivých měsících, podle toho, co se s nimi děje. Výběrem řádku zobrazíte jeho školení.",
+      "description": "Školení, která jsou teď v nesouladu, a pak ta, která propadnou do {date}, dohromady i po měsících, podle toho, co se s nimi děje. Výběrem řádku zobrazíte jeho školení.",
       "now": "Teď v nesouladu",
       "trainings": "{count, plural, one {# školení} few {# školení} other {# školení}}",
-      "counts": "{planned} včas · {late} s mezerou · {action} vyžaduje akci",
+      "counts": "{planned} naplánováno včas · {late} naplánováno s mezerou · {action} vyžaduje akci",
       "rowsNow": "Každý řádek je jedno školení jedné osoby, které je dnes v nesouladu, a co se s ním děje.",
       "rowsMonth": "Každý řádek je jedno školení jedné osoby, které propadne v měsíci {month}, a co se s ním děje.",
-      "empty": "V tomto měsíci nic nepropadá."
+      "empty": "V tomto měsíci nic nepropadá.",
+      "upcoming": "Propadne do {date}",
+      "rowsUpcoming": "Každý řádek je jedno školení jedné osoby, které propadne do {date}, a co se s ním děje."
     },
     "columns": {
       "rank": "Pořadí",

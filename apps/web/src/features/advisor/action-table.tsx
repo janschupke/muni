@@ -21,10 +21,9 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useCallback, useMemo, useState } from 'react'
 
-import { usePaginationLabels } from '@/components/pagination-labels'
-
 import type { Booking } from './book-dialog'
 import { col, itemId, SessionCell, usePlanColumns } from './columns'
+import { useAdvisorPages } from './paging'
 
 // Loaded when needed: the dialog opens when rows are booked.
 const BookDialog = dynamic(() => import('./book-dialog').then(m => m.BookDialog))
@@ -50,18 +49,21 @@ export function ActionTable({
   items,
   shortfall,
   asOf,
+  page,
   canBook,
 }: {
   items: PlanItem[]
   shortfall: AdvisorPlan['shortfall']
   asOf: string
+  /** The page in the address (`?page=`). */
+  page: number
   /** Admins only: choose sessions and book. */
   canBook: boolean
 }) {
   const t = useTranslations('advisor')
   const locale = useLocale()
   const shared = usePlanColumns(asOf)
-  const paginationLabels = usePaginationLabels()
+  const pages = useAdvisorPages('action', undefined, page)
   const proposed = useMemo(() => items.filter(isProposed), [items])
   // The session each row books (its id); the proposal unless the admin chose another.
   const [chosen, setChosen] = useState<ReadonlyMap<string, string>>(new Map())
@@ -232,8 +234,7 @@ export function ActionTable({
         data={items}
         getRowId={itemId}
         initialSorting={[{ id: 'rank', desc: false }]}
-        pageSize={25}
-        paginationLabels={paginationLabels}
+        {...pages}
         selection={
           canBook
             ? {

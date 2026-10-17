@@ -1,8 +1,14 @@
-import { type Bucket, type NonComplianceWindow, NOW, type Remediation } from '@muni/domain/advisor'
+import {
+  type Bucket,
+  forecastEnd,
+  type NonComplianceWindow,
+  NOW,
+  type Remediation,
+} from '@muni/domain/advisor'
 import { Badge, type BadgeTone } from '@muni/ui/badge'
 import { CellStack } from '@muni/ui/table'
-import { diffInDays } from '@muni/utils/dates'
-import { formatDate, formatMonth, formatRelativeDays } from '@muni/utils/format'
+import { addDays, addMonths, diffInDays } from '@muni/utils/dates'
+import { formatDate, formatDateRange, formatMonth, formatRelativeDays } from '@muni/utils/format'
 import {
   ArrowRightLeft,
   CalendarCheck,
@@ -25,14 +31,21 @@ export const VIEW_ICON: Record<AdvisorView, LucideIcon> = {
   overbooked: ArrowRightLeft,
 }
 
-/** `/advisor` with a view and (breakdown only) a bucket; defaults are left out of the URL. */
-export function advisorHref(view: AdvisorView, bucket?: Bucket): string {
+/** The breakdown's row for everything that lapses in the forecast, all months together. */
+export const UPCOMING: Bucket = 'upcoming'
+
+/**
+ * `/advisor` with a view, (breakdown only) a bucket, and a page; defaults are left out of
+ * the URL. A new view or bucket starts from the first page.
+ */
+export function advisorHref(view: AdvisorView, bucket?: Bucket, page = 1): string {
   return withParams(
     '/advisor',
     {},
     {
       view: view === 'breakdown' ? undefined : view,
       bucket: view === 'breakdown' && bucket !== NOW ? bucket : undefined,
+      page: page > 1 ? page : undefined,
     }
   )
 }
@@ -61,10 +74,23 @@ export function RemediationBadge({ remediation }: { remediation: Remediation }) 
   )
 }
 
-export function useBucketName(): (bucket: Bucket) => string {
+/**
+ * A bucket's name: now, the whole forecast ("Lapsing by March 31, 2027"), or a month. The
+ * current month holds only what lapses after today, so it is named by those days.
+ */
+export function useBucketName(asOf: string): (bucket: Bucket) => string {
   const t = useTranslations('advisor.breakdown')
   const locale = useLocale()
-  return bucket => (bucket === NOW ? t('now') : formatMonth(bucket, locale))
+  return bucket => {
+    if (bucket === NOW) return t('now')
+    if (bucket === UPCOMING) return t('upcoming', { date: formatDate(forecastEnd(asOf), locale) })
+    const tomorrow = addDays(asOf, 1)
+    if (tomorrow.startsWith(bucket) && !tomorrow.endsWith('-01')) {
+      const last = addDays(addMonths(`${bucket}-01`, 1), -1)
+      return formatDateRange(tomorrow, last, locale)
+    }
+    return formatMonth(bucket, locale)
+  }
 }
 
 /** The first day without the training, and how far that is from today. */

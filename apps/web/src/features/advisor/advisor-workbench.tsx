@@ -1,17 +1,23 @@
 'use client'
 
-import { type AdvisorPlan, type BreakdownRow, type Bucket, NOW } from '@muni/domain/advisor'
+import {
+  type AdvisorPlan,
+  type BreakdownRow,
+  type Bucket,
+  forecastEnd,
+  NOW,
+} from '@muni/domain/advisor'
 import { Badge } from '@muni/ui/badge'
 import { LinkTab, LinkTabs } from '@muni/ui/nav'
 import { StatCard } from '@muni/ui/stat-card'
-import { formatInteger } from '@muni/utils/format'
+import { formatDate, formatInteger } from '@muni/utils/format'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { ActionTable } from './action-table'
-import { BreakdownChart } from './breakdown-chart'
+import { BreakdownChart, upcomingRow } from './breakdown-chart'
 import { BreakdownTable } from './breakdown-table'
-import { advisorHref, type AdvisorView, VIEW_ICON } from './labels'
+import { advisorHref, type AdvisorView, UPCOMING, VIEW_ICON } from './labels'
 import { OverbookedList } from './overbooked-list'
 import { PlannedTable } from './planned-table'
 import { AdvisorRules } from './rules'
@@ -19,19 +25,24 @@ import { AdvisorRules } from './rules'
 /**
  * The advisor: counts that link to their view, the view itself (breakdown by month, the
  * trainings that need action, the ones already booked, overbooked sessions) and the rule.
- * The plan is computed on the server; booking and resolving re-check everything there.
+ * Each count has a row in the breakdown that lists exactly those trainings. The plan is
+ * computed on the server; booking and resolving re-check everything there.
  */
 export function AdvisorWorkbench({
   plan,
   asOf,
   view,
   bucket,
+  page,
   canApply,
 }: {
   plan: AdvisorPlan
   asOf: string
   view: AdvisorView
+  /** The breakdown's row: now, everything upcoming, or a month. */
   bucket: Bucket
+  /** The table's page, from the address. */
+  page: number
   canApply: boolean
 }) {
   const t = useTranslations('advisor')
@@ -39,11 +50,16 @@ export function AdvisorWorkbench({
   const n = (value: number) => formatInteger(value, locale)
 
   const [nowRow, ...months] = plan.breakdown
-  const split = (rows: BreakdownRow[]) => ({
-    planned: rows.reduce((total, r) => total + r.counts.PLANNED + r.counts.PLANNED_LATE, 0),
-    action: rows.reduce((total, r) => total + r.counts.ACTION_REQUIRED, 0),
+  const upcoming = upcomingRow(months)
+  const split = (row: BreakdownRow | undefined) => ({
+    planned: n((row?.counts.PLANNED ?? 0) + (row?.counts.PLANNED_LATE ?? 0)),
+    action: n(row?.counts.ACTION_REQUIRED ?? 0),
   })
-  const firstMonth = months.find(r => r.total > 0)?.bucket
+  const end = formatDate(forecastEnd(asOf), locale)
+  const bucketItems =
+    bucket === UPCOMING
+      ? plan.items.filter(i => i.bucket !== NOW)
+      : plan.items.filter(i => i.bucket === bucket)
   const actionItems = plan.items.filter(i => i.remediation === 'ACTION_REQUIRED')
   const plannedItems = plan.items.filter(i => i.remediation !== 'ACTION_REQUIRED')
 
@@ -70,15 +86,15 @@ export function AdvisorWorkbench({
           linkAs={Link}
           label={t('kpi.now')}
           value={n(plan.totals.now)}
-          hint={t('kpi.split', split(nowRow ? [nowRow] : []))}
+          hint={t('kpi.split', split(nowRow))}
           tone={plan.totals.now > 0 ? 'danger' : 'success'}
         />
         <StatCard
-          href={advisorHref('breakdown', firstMonth ?? NOW)}
+          href={advisorHref('breakdown', UPCOMING)}
           linkAs={Link}
-          label={t('kpi.upcoming', { months: months.length })}
+          label={t('kpi.upcoming', { date: end })}
           value={n(plan.totals.upcoming)}
-          hint={t('kpi.split', split(months))}
+          hint={t('kpi.split', split(upcoming))}
           tone="warning"
         />
         <StatCard
@@ -86,7 +102,11 @@ export function AdvisorWorkbench({
           linkAs={Link}
           label={t('kpi.action')}
           value={n(plan.totals.actionRequired)}
-          hint={t('kpi.actionHint', { proposed: plan.totals.proposed })}
+          hint={t('kpi.actionHint', {
+            now: n(nowRow?.counts.ACTION_REQUIRED ?? 0),
+            upcoming: n(upcoming.counts.ACTION_REQUIRED),
+            proposed: n(plan.totals.proposed),
+          })}
           tone="serious"
         />
         <StatCard
@@ -117,11 +137,14 @@ export function AdvisorWorkbench({
 
         {view === 'breakdown' && (
           <div className="flex flex-col gap-6">
-            <BreakdownChart breakdown={plan.breakdown} selected={bucket} />
+            <BreakdownChart breakdown={plan.breakdown} selected={bucket} asOf={asOf} end={end} />
+            {/* A new row is a new table: its sorting starts afresh. */}
             <BreakdownTable
-              items={plan.items.filter(i => i.bucket === bucket)}
+              key={bucket}
+              items={bucketItems}
               bucket={bucket}
               asOf={asOf}
+              page={page}
             />
           </div>
         )}
@@ -130,10 +153,13 @@ export function AdvisorWorkbench({
             items={actionItems}
             shortfall={plan.shortfall}
             asOf={asOf}
+            page={page}
             canBook={canApply}
           />
         )}
-        {view === 'planned' && <PlannedTable items={plannedItems} asOf={asOf} canEdit={canApply} />}
+        {view === 'planned' && (
+          <PlannedTable items={plannedItems} asOf={asOf} page={page} canEdit={canApply} />
+        )}
         {view === 'overbooked' && (
           <OverbookedList overbooked={plan.overbooked} canResolve={canApply} />
         )}

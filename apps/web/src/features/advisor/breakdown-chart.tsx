@@ -8,27 +8,47 @@ import { cn } from '@muni/ui/cn'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
-import { advisorHref, REMEDIATION_FILL, useBucketName } from './labels'
+import { advisorHref, REMEDIATION_FILL, UPCOMING, useBucketName } from './labels'
+
+/** Every forecast month's trainings in one row: what the "lapsing" count adds up. */
+export function upcomingRow(months: readonly BreakdownRow[]): BreakdownRow {
+  const counts = { PLANNED: 0, PLANNED_LATE: 0, ACTION_REQUIRED: 0 }
+  for (const row of months) for (const r of REMEDIATIONS) counts[r] += row.counts[r]
+  return { bucket: UPCOMING, counts, total: months.reduce((total, r) => total + r.total, 0) }
+}
 
 /**
- * Non-compliant now, then each forecast month, split by remediation. Bars share one scale
- * (the largest bucket is full width), so months compare by length; each row selects its bucket.
+ * Non-compliant now, then everything lapsing in the forecast, then each of its months under
+ * it, split by remediation: one row for each count the advisor's cards show. Bars share one
+ * scale (the largest row is full width), so rows compare by length; each row selects its
+ * trainings.
  */
 export function BreakdownChart({
   breakdown,
   selected,
+  asOf,
+  end,
 }: {
   breakdown: BreakdownRow[]
   selected: Bucket
+  asOf: string
+  /** The forecast's last day, as the page writes it. */
+  end: string
 }) {
   const t = useTranslations('advisor.breakdown')
   const tr = useTranslations('advisor.remediation')
-  const bucketName = useBucketName()
-  const max = Math.max(1, ...breakdown.map(r => r.total))
+  const bucketName = useBucketName(asOf)
+  const [now, ...months] = breakdown
+  const rows = [
+    ...(now ? [{ row: now, month: false }] : []),
+    { row: upcomingRow(months), month: false },
+    ...months.map(row => ({ row, month: true })),
+  ]
+  const max = Math.max(1, ...rows.map(r => r.row.total))
 
   return (
     <Card>
-      <CardHeader title={t('title')} description={t('description')} />
+      <CardHeader title={t('title')} description={t('description', { date: end })} />
       <CardBody className="flex flex-col gap-3">
         <Legend
           items={REMEDIATIONS.map(r => ({
@@ -38,11 +58,12 @@ export function BreakdownChart({
           }))}
         />
         <ul className="-mx-2 flex flex-col">
-          {breakdown.map(row => {
+          {rows.map(({ row, month }) => {
             const active = row.bucket === selected
             const name = bucketName(row.bucket)
             return (
-              <li key={row.bucket}>
+              // The months make up the row above them: set in under it.
+              <li key={row.bucket} className={cn(month && 'ml-4 border-l border-border-default')}>
                 {/* A choice in a list, like a tab: its name in the link colour, the chosen one
                     filled; judged as a choice, not as a link in text (data-slot). */}
                 <Link

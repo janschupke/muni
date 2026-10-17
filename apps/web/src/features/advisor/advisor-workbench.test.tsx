@@ -83,11 +83,13 @@ const PLAN = planAssignments(INPUT)
 function renderWorkbench({
   view = 'breakdown',
   bucket = 'now',
+  page = 1,
   canApply = false,
   plan = PLAN,
 }: {
   view?: 'breakdown' | 'action' | 'planned' | 'overbooked'
   bucket?: string
+  page?: number
   canApply?: boolean
   plan?: ReturnType<typeof planAssignments>
 } = {}) {
@@ -97,6 +99,7 @@ function renderWorkbench({
       asOf={INPUT.asOf}
       view={view}
       bucket={bucket}
+      page={page}
       canApply={canApply}
     />
   )
@@ -117,6 +120,8 @@ describe('AdvisorWorkbench', () => {
     const nowLinks = screen.getAllByRole('link', { name: /^Non-compliant now/ })
     expect(nowLinks.map(a => a.getAttribute('href'))).toEqual(['/advisor', '/advisor'])
     expect(hrefOf(/^December 2026/)).toBe('/advisor?bucket=2026-12')
+    // The current month holds only what lapses after today, and says so.
+    expect(hrefOf(/^October 17\s–\s31, 2026/)).toBe('/advisor?bucket=2026-10')
     expect(
       screen.getByRole('img', {
         name: /^Non-compliant now: Planned in time 0, Planned, with a gap 0, Action required 2/,
@@ -225,7 +230,32 @@ describe('AdvisorWorkbench', () => {
     const tabs = screen.getByRole('navigation', { name: 'Advisor views' })
     expect(hrefOf(/^Action required/, tabs)).toBe('/advisor?view=action')
     expect(hrefOf(/^Remediation planned/, tabs)).toBe('/advisor?view=planned')
-    expect(hrefOf(/^Lapsing in the next 6 months/)).toBe('/advisor?bucket=2026-12')
+    // The forecast's card and its row in the breakdown open the same list.
+    const forecast = screen.getAllByRole('link', { name: /^Lapsing by Mar 31, 2027/ })
+    expect(forecast.map(a => a.getAttribute('href'))).toEqual([
+      '/advisor?bucket=upcoming',
+      '/advisor?bucket=upcoming',
+    ])
+  })
+
+  it('lists everything the forecast card counts, in one table, a page in the address', () => {
+    renderWorkbench({ bucket: 'upcoming' })
+    const upcoming = PLAN.items.filter(i => i.bucket !== 'now').length
+    expect(upcoming).toBe(PLAN.totals.upcoming)
+    const card = screen.getAllByRole('link', { name: /^Lapsing by Mar 31, 2027/ })[0]
+    expect(card?.textContent).toContain(String(upcoming))
+    expect(
+      screen.getByRole('table', {
+        name: `Lapsing by Mar 31, 2027: ${String(upcoming)} ${upcoming === 1 ? 'training' : 'trainings'}`,
+      })
+    ).toBeTruthy()
+    expect(screen.getByText(/lapses by Mar 31, 2027/)).toBeTruthy()
+    // The selected row is the forecast's.
+    expect(
+      screen
+        .getAllByRole('link', { name: /^Lapsing by Mar 31, 2027/ })
+        .some(a => a.getAttribute('aria-current') === 'true')
+    ).toBe(true)
   })
 
   it('shows overbooked sessions and where the advisor suggests their seats go', () => {
@@ -403,9 +433,11 @@ describe('AdvisorWorkbench', () => {
     expect(screen.getByText('No session is overbooked.')).toBeTruthy()
     renderWorkbench({ plan: empty, view: 'breakdown', bucket: '2026-11' })
     expect(screen.getByText('Nothing lapses in this month.')).toBeTruthy()
-    // With nothing lapsing, the forecast card points at "now".
-    const forecast = screen.getAllByRole('link', { name: /^Lapsing in the next/ })
-    expect(new Set(forecast.map(a => a.getAttribute('href')))).toEqual(new Set(['/advisor']))
+    // With nothing lapsing, the forecast card still opens its own (empty) row.
+    const forecast = screen.getAllByRole('link', { name: /^Lapsing by/ })
+    expect(new Set(forecast.map(a => a.getAttribute('href')))).toEqual(
+      new Set(['/advisor?bucket=upcoming'])
+    )
   })
 
   it('shows the window of a training never held, booked or not', () => {

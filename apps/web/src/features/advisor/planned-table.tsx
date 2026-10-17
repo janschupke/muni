@@ -6,25 +6,28 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
-import { usePaginationLabels } from '@/components/pagination-labels'
 import { RemoveBookingButton } from '@/components/remove-booking-button'
 
 import { col, itemId, SessionCell, usePlanColumns } from './columns'
 import { RemediationBadge } from './labels'
+import { useAdvisorPages } from './paging'
 
 /** Trainings that already have a named booking, and the gap each booking still leaves. */
 export function PlannedTable({
   items,
   asOf,
+  page,
   canEdit,
 }: {
   items: PlanItem[]
   asOf: string
+  /** The page in the address (`?page=`). */
+  page: number
   canEdit: boolean
 }) {
   const t = useTranslations('advisor')
   const shared = usePlanColumns(asOf)
-  const paginationLabels = usePaginationLabels()
+  const pages = useAdvisorPages('planned', undefined, page)
 
   const columns = useMemo(
     () =>
@@ -85,8 +88,7 @@ export function PlannedTable({
         columns={columns}
         data={items}
         getRowId={itemId}
-        pageSize={25}
-        paginationLabels={paginationLabels}
+        {...pages}
       />
     </div>
   )

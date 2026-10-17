@@ -1,34 +1,39 @@
 'use client'
 
-import { type Bucket, NOW, type PlanItem } from '@muni/domain/advisor'
+import { type Bucket, forecastEnd, NOW, type PlanItem } from '@muni/domain/advisor'
 import { DataTable } from '@muni/ui/data-table'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SectionHeading } from '@muni/ui/section-heading'
-import { formatMonth } from '@muni/utils/format'
+import { formatDate, formatMonth } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
 import { useId, useMemo } from 'react'
 
-import { usePaginationLabels } from '@/components/pagination-labels'
 import { RoomLink, SessionDateLink } from '@/components/session-links'
 
 import { col, itemId, usePlanColumns } from './columns'
-import { RemediationBadge, useBucketName } from './labels'
+import { RemediationBadge, UPCOMING, useBucketName } from './labels'
+import { useAdvisorPages } from './paging'
 
-/** One bucket's trainings: who, which, when it lapses, what is being done, and the gap. */
+/**
+ * One bucket's trainings (or the whole forecast's): who, which, when it lapses, what is being
+ * done, and the gap. A page at a time, the page in the address.
+ */
 export function BreakdownTable({
   items,
   bucket,
   asOf,
+  page,
 }: {
   items: PlanItem[]
   bucket: Bucket
   asOf: string
+  page: number
 }) {
   const t = useTranslations('advisor')
   const locale = useLocale()
-  const bucketName = useBucketName()
+  const bucketName = useBucketName(asOf)
+  const pages = useAdvisorPages('breakdown', bucket, page)
   const shared = usePlanColumns(asOf)
-  const paginationLabels = usePaginationLabels()
 
   const columns = useMemo(
     () =>
@@ -57,20 +62,15 @@ export function BreakdownTable({
         <p className="text-sm text-fg-muted">
           {bucket === NOW
             ? t('breakdown.rowsNow')
-            : t('breakdown.rowsMonth', { month: formatMonth(bucket, locale) })}
+            : bucket === UPCOMING
+              ? t('breakdown.rowsUpcoming', { date: formatDate(forecastEnd(asOf), locale) })
+              : t('breakdown.rowsMonth', { month: formatMonth(bucket, locale) })}
         </p>
       </div>
       {items.length === 0 ? (
         <EmptyState title={t('breakdown.empty')} />
       ) : (
-        <DataTable
-          caption={title}
-          columns={columns}
-          data={items}
-          getRowId={itemId}
-          pageSize={25}
-          paginationLabels={paginationLabels}
-        />
+        <DataTable caption={title} columns={columns} data={items} getRowId={itemId} {...pages} />
       )}
     </section>
   )

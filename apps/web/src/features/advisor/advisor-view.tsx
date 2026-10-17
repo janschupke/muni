@@ -1,6 +1,6 @@
 'use client'
 
-import { FORECAST_MONTHS, NOW, unpackPlan } from '@muni/domain/advisor'
+import { NOW, unpackPlan } from '@muni/domain/advisor'
 import { PageHeader } from '@muni/ui/page-header'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
@@ -11,33 +11,43 @@ import { readQuery } from '@/lib/query/queries'
 import type { ReadOutput } from '@/server/reads/registry'
 
 import { AdvisorWorkbench } from './advisor-workbench'
-import type { AdvisorView as View } from './labels'
+import { type AdvisorView as View, UPCOMING } from './labels'
 
 /** The plan arrives packed (each session once); the views take it whole. */
 const unpacked = ({ plan, asOf }: ReadOutput<'advisor'>) => ({ plan: unpackPlan(plan), asOf })
 
-/** The advisor: its plan, in the view and month the address asks for (`?view=`, `?bucket=`). */
+/**
+ * The advisor: its plan, in the view, row and page the address asks for (`?view=`,
+ * `?bucket=`, `?page=`).
+ */
 export function AdvisorView({
   view,
   bucket,
+  page,
   canApply,
 }: {
   view: View
   bucket: string | undefined
+  page: number
   canApply: boolean
 }) {
   const t = useTranslations('advisor')
   const read = useQuery({ ...readQuery('advisor', {}), select: unpacked })
   return (
     <>
-      <PageHeader title={t('title')} description={t('description', { months: FORECAST_MONTHS })} />
+      <PageHeader title={t('title')} description={t('description')} />
       <ReadView titled query={read} skeleton={<AdvisorSkeleton />}>
         {({ plan, asOf }) => (
           <AdvisorWorkbench
             plan={plan}
             asOf={asOf}
             view={view}
-            bucket={plan.breakdown.find(r => r.bucket === bucket)?.bucket ?? NOW}
+            bucket={
+              bucket === UPCOMING
+                ? UPCOMING
+                : (plan.breakdown.find(r => r.bucket === bucket)?.bucket ?? NOW)
+            }
+            page={page}
             canApply={canApply}
           />
         )}

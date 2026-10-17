@@ -21,6 +21,7 @@ export default async function AdvisorPage({ searchParams }: { searchParams: Sear
     <AdvisorView
       view={oneOf(param(params, 'view'), ADVISOR_VIEWS) ?? 'breakdown'}
       bucket={param(params, 'bucket')}
+      page={Math.max(1, Math.trunc(Number(param(params, 'page') ?? 1)) || 1)}
       canApply={canWrite(user.role)}
     />
   )

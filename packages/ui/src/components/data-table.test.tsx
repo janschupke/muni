@@ -112,6 +112,49 @@ describe('DataTable sorting', () => {
     expect(priceColumn()[0]).toBe('59')
   })
 
+  it('pages by address, and shows the last page for one past the end', () => {
+    const many = Array.from({ length: 60 }, (_, i) => ({
+      id: String(i),
+      name: `Person ${String(i)}`,
+      price: i,
+    }))
+    const labels = {
+      nav: 'Pages',
+      previous: 'Previous',
+      next: 'Next',
+      status: (page: number, count: number) => `Page ${String(page)} of ${String(count)}`,
+    }
+    const Anchor = ({ href, children }: { href: string; children: React.ReactNode }) => (
+      <a href={href}>{children}</a>
+    )
+    const { rerender } = render(
+      <DataTable
+        caption="People"
+        columns={columns}
+        data={many}
+        getRowId={p => p.id}
+        pagination={{ pageIndex: 0, pageSize: 25 }}
+        pageLinks={{ hrefFor: page => `/people?page=${String(page)}`, linkAs: Anchor }}
+        paginationLabels={labels}
+      />
+    )
+    expect(screen.getByRole('link', { name: /Next/ }).getAttribute('href')).toBe('/people?page=2')
+    // Page 5 of a list that has 3: the last one, with its rows.
+    rerender(
+      <DataTable
+        caption="People"
+        columns={columns}
+        data={many}
+        getRowId={p => p.id}
+        pagination={{ pageIndex: 4, pageSize: 25 }}
+        pageLinks={{ hrefFor: page => `/people?page=${String(page)}`, linkAs: Anchor }}
+        paginationLabels={labels}
+      />
+    )
+    expect(screen.getByText('Page 3 of 3')).toBeTruthy()
+    expect(firstColumn()).toHaveLength(10)
+  })
+
   it('leaves the order to the caller in manual mode', async () => {
     const user = userEvent.setup()
     const onSortingChange = vi.fn<(sorting: SortingState) => void>()

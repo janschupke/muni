@@ -45,6 +45,16 @@ export function formatMonth(month: string, locale: string): string {
     .toLocaleString({ month: 'long', year: 'numeric' })
 }
 
+/** Two days as one range, the shared month and year said once: "October 18 – 31, 2026". */
+export function formatDateRange(from: IsoDate, to: IsoDate, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).formatRange(isoDateToUtc(from), isoDateToUtc(to))
+}
+
 export function formatDateTime(
   instant: Date | string,
   locale: string,

@@ -18,7 +18,7 @@ import {
   useTable,
 } from '@tanstack/react-table'
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
-import { Fragment, type ReactNode, useId, useState } from 'react'
+import { type ComponentProps, Fragment, type ReactNode, useId, useState } from 'react'
 
 import { cn } from '../cn'
 import { SelectBox } from './checkbox'
@@ -100,6 +100,7 @@ export function DataTable<TData extends RowData>({
   pageSize,
   pagination: controlledPagination,
   onPaginationChange,
+  pageLinks,
   paginationLabels,
   rowClassName,
   cellClassName,
@@ -126,6 +127,13 @@ export function DataTable<TData extends RowData>({
   pageSize?: number | undefined
   pagination?: PaginationState | undefined
   onPaginationChange?: ((pagination: PaginationState) => void) | undefined
+  /**
+   * The page lives in the address (`?page=`): the pager's steps are links, rendered with
+   * `linkAs`, and `pagination` comes from the address too.
+   */
+  pageLinks?:
+    | { hrefFor: (page: number) => string; linkAs: ComponentProps<typeof Pagination>['linkAs'] }
+    | undefined
   paginationLabels?: {
     nav: string
     previous: string
@@ -155,8 +163,12 @@ export function DataTable<TData extends RowData>({
     pageSize: pageSize ?? 50,
   })
   const sorting = controlledSorting ?? innerSorting
-  const pagination = controlledPagination ?? innerPagination
+  const asked = controlledPagination ?? innerPagination
   const paginated = pageSize !== undefined || controlledPagination !== undefined
+  // A page past the end (fewer rows than before, an old address) shows the last page, never
+  // an empty table under "Page 3 of 2".
+  const lastIndex = Math.max(0, Math.ceil(data.length / asked.pageSize) - 1)
+  const pagination = asked.pageIndex > lastIndex ? { ...asked, pageIndex: lastIndex } : asked
 
   const setPagination = (next: PaginationState) => {
     if (controlledPagination === undefined) setInnerPagination(next)
@@ -361,9 +373,13 @@ export function DataTable<TData extends RowData>({
         <Pagination
           page={pagination.pageIndex + 1}
           pageCount={pageCount}
-          onPageChange={page => {
-            setPagination({ ...pagination, pageIndex: page - 1 })
-          }}
+          {...(pageLinks
+            ? { hrefFor: pageLinks.hrefFor, linkAs: pageLinks.linkAs }
+            : {
+                onPageChange: (page: number) => {
+                  setPagination({ ...pagination, pageIndex: page - 1 })
+                },
+              })}
           labels={{
             nav: paginationLabels.nav,
             previous: paginationLabels.previous,
