@@ -48,6 +48,7 @@ export type FieldErrorKey =
   | 'below_booked'
   | 'room_too_small_live'
   | 'room_missing_live'
+  | 'position_not_in_department'
 
 /** What can go wrong with the whole form: i18n keys under forms.errors. */
 export type FormErrorKey = 'not_found' | 'generic' | 'unauthorized' | 'rate_limited'

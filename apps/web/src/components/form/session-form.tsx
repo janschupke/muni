@@ -38,22 +38,12 @@ export interface SessionDefaults {
   status: string
 }
 
-/** Which of the linked fields the user touched last: an error goes on that one. */
-type Blame = 'roomId' | 'capacity' | 'courseId' | 'unnamedBookings'
-
-/** Seats a room suggests for the course: its group size where the room holds it, else the room. */
-function suggestedSeats(room: RoomOption, course: CourseOption | undefined): number | null {
-  const group = course?.needs.groupSize ?? null
-  if (room.capacity === null) return group
-  return group === null ? room.capacity : Math.min(group, room.capacity)
-}
-
 /**
  * A session's form. The course, room and seats check each other as the user types, with the
  * same rules the server applies on save (`sessionIssues`): a room too small for the seats, one
  * lacking what the course needs, seats below the bookings. Whether the room is free then is
- * asked from the server as the user picks. Until the user types the seats, they follow the
- * room: a new session takes the room's suggestion, an edited one shrinks to fit a smaller room.
+ * asked from the server as the user picks. A field never changes another: a conflict marks
+ * every field that can settle it, and the form is not sent until one does.
  */
 export function SessionForm({
   action,
@@ -89,18 +79,17 @@ export function SessionForm({
   const [courseId, setCourseId] = useState(defaults.courseId)
   const [roomId, setRoomId] = useState(defaults.roomId)
   const [capacity, setCapacity] = useState(defaults.capacity?.toString() ?? '')
-  const [capacityTyped, setCapacityTyped] = useState(false)
   const [unnamed, setUnnamed] = useState(String(defaults.unnamedBookings))
   const [date, setDate] = useState(defaults.date)
   const [startTime, setStartTime] = useState(defaults.startTime)
   const [endTime, setEndTime] = useState(defaults.endTime)
   const [status, setStatus] = useState(defaults.status)
-  const [blame, setBlame] = useState<Blame>('roomId')
 
   const course = courses.find(c => c.id === courseId)
   const room = rooms.find(r => r.id === roomId)
   const seats = parseCount(capacity)
-  const booked = (mode === 'edit' ? (parseCount(unnamed) ?? 0) : 0) + named
+  const unnamedSeats = mode === 'edit' ? (parseCount(unnamed) ?? 0) : 0
+  const booked = unnamedSeats + named
   const planned = status === 'PLANNED'
 
   const busy = useRoomBusy(
@@ -124,44 +113,24 @@ export function SessionForm({
   for (const issue of issues) Object.assign(clientErrors, errorOf(issue))
   if (busy) clientErrors['roomId'] ??= { key: 'room_busy' }
 
+  /** Each field that can settle the issue, with what it says. */
   function errorOf(issue: SessionIssue): Partial<Record<string, ClientError>> {
     switch (issue.kind) {
       case 'END_BEFORE_START':
         return { endTime: { key: 'before_start' } }
-      case 'BELOW_BOOKED':
-        return {
-          [blame === 'unnamedBookings' ? 'unnamedBookings' : 'capacity']: {
-            key: 'below_booked',
-            values: { booked: issue.booked },
-          },
-        }
-      case 'ROOM': {
-        const m = issue.mismatch
-        // Too few seats is the seats' fault if the user just typed them, otherwise the room's;
-        // anything else the room lacks is the room's, or the course's if that just changed.
-        const field =
-          m.kind === 'TOO_SMALL'
-            ? blame === 'capacity'
-              ? 'capacity'
-              : 'roomId'
-            : blame === 'courseId'
-              ? 'courseId'
-              : 'roomId'
-        return { [field]: mismatchError(m, room?.name ?? '') }
+      case 'BELOW_BOOKED': {
+        const error: ClientError = { key: 'below_booked', values: { booked: issue.booked } }
+        // Fewer unnamed seats settle it only where there are some.
+        return unnamedSeats > 0 ? { capacity: error, unnamedBookings: error } : { capacity: error }
       }
-    }
-  }
-
-  function chooseRoom(id: string) {
-    setRoomId(id)
-    setBlame('roomId')
-    const next = rooms.find(r => r.id === id)
-    if (!next || capacityTyped) return
-    if (mode === 'create') {
-      const suggested = suggestedSeats(next, course)
-      if (suggested !== null) setCapacity(String(suggested))
-    } else if (next.capacity !== null && seats !== null && seats > next.capacity) {
-      setCapacity(String(Math.max(next.capacity, booked)))
+      case 'ROOM': {
+        const error = mismatchError(issue.mismatch, room?.name ?? '')
+        // Too few seats: a bigger room or fewer seats. Anything else the room lacks: another
+        // room, or a course that does not need it.
+        return issue.mismatch.kind === 'TOO_SMALL'
+          ? { roomId: error, capacity: error }
+          : { roomId: error, courseId: error }
+      }
     }
   }
 
@@ -218,10 +187,7 @@ export function SessionForm({
         label={t('course')}
         required
         value={courseId}
-        onValueChange={id => {
-          setCourseId(id)
-          setBlame('courseId')
-        }}
+        onValueChange={setCourseId}
         help={named > 0 ? t('courseKeepsBookings', { count: named }) : undefined}
         options={courses.map(c => ({ value: c.id, label: `${c.code} · ${c.name}` }))}
       />
@@ -248,7 +214,7 @@ export function SessionForm({
           label={t('room')}
           required
           value={roomId}
-          onValueChange={chooseRoom}
+          onValueChange={setRoomId}
           options={rooms.map(r => ({ value: r.id, label: roomLabel(r) }))}
         />
         <SelectField
@@ -270,8 +236,6 @@ export function SessionForm({
           value={capacity}
           onChange={event => {
             setCapacity(event.target.value)
-            setCapacityTyped(true)
-            setBlame('capacity')
           }}
         />
         {mode === 'edit' && (
@@ -283,7 +247,6 @@ export function SessionForm({
             value={unnamed}
             onChange={event => {
               setUnnamed(event.target.value)
-              setBlame('unnamedBookings')
             }}
           />
         )}

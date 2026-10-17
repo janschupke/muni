@@ -449,39 +449,54 @@ describe('the session form checks itself as the user types', () => {
     )
   const capacity = () => screen.getByRole('textbox', { name: /Capacity/ })
 
-  it('lets the seats follow the room until the user types them, then checks them', async () => {
+  it('never changes the seats for a room: a room too small marks both fields', async () => {
     vi.mocked(checkSessionSlotAction).mockResolvedValue(null)
     const user = userEvent.setup()
     renderForm()
-    // A room's option says what it holds; the seats follow the course's group in the room.
+    const room = () => screen.getByRole('combobox', { name: /Room/ })
+    // A room's option says what it holds; the seats stay as the course set them.
     await choose(user, /Room/, /Aula A · 30 seats/)
     expect(capacity()).toHaveProperty('value', '20')
     expect(screen.getByText('The room holds 30 seats.')).toBeTruthy()
     await choose(user, /Room/, /Malá · 12 seats/)
-    expect(capacity()).toHaveProperty('value', '12')
-    // Typed seats stay; the room that cannot hold them says so, and the option too.
-    await user.clear(capacity())
-    await user.type(capacity(), '25')
-    expect(await screen.findByText('Malá holds 12; this session opens 25.')).toBeTruthy()
+    expect(capacity()).toHaveProperty('value', '20')
+    // Either a bigger room or fewer seats settles it: both say so.
+    expect(screen.getAllByText('Malá holds 12; this session opens 20.')).toHaveLength(2)
     expect(capacity().getAttribute('aria-invalid')).toBe('true')
-    await choose(user, /Room/, /Aula A/)
-    expect(capacity()).toHaveProperty('value', '25')
-    expect(screen.queryByText(/this session opens/)).toBeNull()
-    await user.click(screen.getByRole('combobox', { name: /Room/ }))
+    expect(room().getAttribute('aria-invalid')).toBe('true')
+    await user.click(room())
     expect(screen.getByRole('option', { name: /Malá · 12 seats · too small/ })).toBeTruthy()
     await user.keyboard('{Escape}')
-    // Picked last, the room carries the error.
-    await choose(user, /Room/, /Malá/)
-    expect(screen.getByRole('combobox', { name: /Room/ }).getAttribute('aria-invalid')).toBe('true')
+    await user.clear(capacity())
+    await user.type(capacity(), '12')
+    expect(screen.queryByText(/this session opens/)).toBeNull()
+    expect(room().getAttribute('aria-invalid')).toBeNull()
+    // Typed seats stay through a change of room, too.
+    await choose(user, /Room/, /Aula A/)
+    expect(capacity()).toHaveProperty('value', '12')
+  })
+
+  it('does not send a form with a conflict: the first field at odds gets the focus', async () => {
+    vi.mocked(checkSessionSlotAction).mockResolvedValue(null)
+    const action = vi.fn()
+    const user = userEvent.setup()
+    renderForm({ action, defaults: { ...defaultsOf('room_small'), capacity: 20 } })
+    await user.click(screen.getByRole('button', { name: 'Schedule session' }))
+    expect(action).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(screen.getByRole('combobox', { name: /Room/ }))
   })
 
   it('checks the room against the course, the end against the start, and asks if the room is free', async () => {
     vi.mocked(checkSessionSlotAction).mockResolvedValue('ROOM_BUSY')
     const user = userEvent.setup()
     renderForm({ defaults: { ...defaultsOf('room_lab'), courseId: 'course_poz' } })
-    expect(screen.getByText('Lab lacks: Projector.')).toBeTruthy()
+    // Another room or another course settles it: both fields say so.
+    expect(screen.getAllByText('Lab lacks: Projector.')).toHaveLength(2)
+    expect(screen.getByRole('combobox', { name: /Course/ }).getAttribute('aria-invalid')).toBe(
+      'true'
+    )
     await choose(user, /Room/, /Online/)
-    expect(screen.getByText('This course is not held online.')).toBeTruthy()
+    expect(screen.getAllByText('This course is not held online.')).toHaveLength(2)
     await choose(user, /Course/, /BOZP-Z/)
     expect(screen.queryByText('This course is not held online.')).toBeNull()
     // An online room is never taken; a real one is asked about, after a pause.
@@ -518,17 +533,26 @@ describe('the session form checks itself as the user types', () => {
     await user.clear(capacity())
     await user.type(capacity(), '6')
     expect(
-      await screen.findByText('8 seats are booked; the session cannot open fewer.')
-    ).toBeTruthy()
+      await screen.findAllByText('8 seats are booked; the session cannot open fewer.')
+    ).toHaveLength(2)
     const unnamed = screen.getByRole('textbox', { name: /Other bookings/ })
     await user.clear(capacity())
     await user.type(capacity(), '10')
     await user.clear(unnamed)
     await user.type(unnamed, '9')
-    // Changed last, the unnamed seats carry the error (12 booked, 10 seats).
+    // More seats or fewer unnamed bookings settle it: both say so (12 booked, 10 seats).
     expect(unnamed.getAttribute('aria-invalid')).toBe('true')
-    expect(capacity().getAttribute('aria-invalid')).not.toBe('true')
-    expect(screen.getByText('12 seats are booked; the session cannot open fewer.')).toBeTruthy()
+    expect(capacity().getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getAllByText('12 seats are booked; the session cannot open fewer.')).toHaveLength(
+      2
+    )
+    // Only named bookings left: the unnamed field has nothing to give.
+    await user.clear(unnamed)
+    await user.type(unnamed, '0')
+    await user.clear(capacity())
+    await user.type(capacity(), '2')
+    expect(unnamed.getAttribute('aria-invalid')).toBeNull()
+    expect(capacity().getAttribute('aria-invalid')).toBe('true')
     await expectNoAxeViolations()
   })
 })
@@ -585,22 +609,39 @@ describe('the person form keeps department, position and head together', () => {
     const posted = (name: string) =>
       container.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.value
     const leads = () => screen.getByRole('checkbox', { name: 'Leads the department' })
+    const department = () => screen.getByRole('combobox', { name: /Department/ })
+    const position = () => screen.getByRole('combobox', { name: /Position/ })
     expect(leads().getAttribute('aria-checked')).toBe('true')
-    // The library has no "Laborantka": the position clears, and so does the lead.
+    // The library has no "Laborantka": nothing changes by itself, both fields say why.
     await choose(user, /Department/, /Knihovna/)
-    expect(posted('positionId')).toBe('')
-    expect(screen.getByText(/does not have the previous position/)).toBeTruthy()
-    expect(leads().getAttribute('aria-checked')).toBe('false')
-    expect(screen.getByText('Led by Malá Dana.')).toBeTruthy()
-    await user.click(screen.getByRole('combobox', { name: /Position/ }))
-    expect(screen.getAllByRole('option').map(o => o.textContent)).toEqual(['—', 'Referent'])
-    await user.keyboard('{Escape}')
-    await user.click(leads())
+    expect(posted('positionId')).toBe('pos_lab')
+    expect(leads().getAttribute('aria-checked')).toBe('true')
+    expect(
+      screen.getAllByText(
+        'Knihovna does not have the position Laborantka; choose one of its positions.'
+      )
+    ).toHaveLength(2)
+    expect(department().getAttribute('aria-invalid')).toBe('true')
+    expect(position().getAttribute('aria-invalid')).toBe('true')
+    // Leading the library replaces its head, and the form says so.
     expect(
       screen.getByText(/Malá Dana leads it now; saving makes this person the head/)
     ).toBeTruthy()
-    // No department, no lead.
+    await user.click(position())
+    expect(screen.getAllByRole('option').map(o => o.textContent)).toEqual([
+      '—',
+      'Laborantka · not in this department',
+      'Referent',
+    ])
+    await user.click(screen.getByRole('option', { name: 'Referent' }))
+    expect(position().getAttribute('aria-invalid')).toBeNull()
+    expect(department().getAttribute('aria-invalid')).toBeNull()
+    // No department while leading: the lead stays ticked and both fields say what is missing.
     await choose(user, /Department/, /—/)
+    expect(leads().getAttribute('aria-checked')).toBe('true')
+    expect(leads().hasAttribute('disabled')).toBe(false)
+    expect(screen.getAllByText('Choose the department they lead.')).toHaveLength(2)
+    await user.click(leads())
     expect(leads().hasAttribute('disabled')).toBe(true)
     expect(screen.getByText('Choose a department first.')).toBeTruthy()
   })
@@ -615,13 +656,16 @@ describe('the completion form names a new provider only on purpose', () => {
         cancelHref="/employees/E0153"
         heading={{ title: 'Record completion' }}
         employees={[{ id: 'emp_E0153', name: 'Černá Marie' }]}
-        courses={[{ id: 'course_lead', code: 'LEAD', name: 'Vedení', validityMonths: null }]}
+        courses={[
+          { id: 'course_lead', code: 'LEAD', name: 'Vedení', validityMonths: null },
+          { id: 'course_bozp', code: 'BOZP-Z', name: 'BOZP', validityMonths: 24 },
+        ]}
         providers={[{ id: 'prov_1', name: 'Bezpečná firma s.r.o.' }]}
         defaults={{
           employeeId: 'emp_E0153',
           courseId: 'course_lead',
           completedOn: '2026-10-16',
-          validUntil: null,
+          validUntil: '2027-10-16',
           providerId: 'prov_1',
           price: null,
           note: null,
@@ -631,6 +675,12 @@ describe('the completion form names a new provider only on purpose', () => {
     )
     expect(screen.queryByRole('textbox', { name: /New provider/ })).toBeNull()
     expect(screen.getByText('Leave empty: the course never expires.')).toBeTruthy()
+    // Another course changes nothing else: the dates stay as they were.
+    const form = container.querySelector('form')
+    const posted = () => Object.fromEntries(form ? new FormData(form) : [])
+    const before = posted()
+    await choose(user, /^Course/, /BOZP-Z/)
+    expect(posted()).toEqual({ ...before, courseId: 'course_bozp' })
     await choose(user, /Provider/, /New provider…/)
     expect(screen.getByRole('textbox', { name: /New provider's name/ })).toBeTruthy()
     expect(container.querySelector<HTMLInputElement>('input[name="providerId"]')?.value).toBe('new')

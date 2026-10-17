@@ -10,6 +10,7 @@ import { employeeSpec } from '@/lib/form-inputs'
 import type { FormProps, Option } from './form-props'
 import {
   CheckboxField,
+  type ClientError,
   DateField,
   FormSection,
   FormShell,
@@ -34,8 +35,9 @@ export interface EmployeeDefaults {
 }
 
 /**
- * A person. The position is one of the chosen department's (a department change clears a
- * position it does not have, and the person no longer leads the department they left).
+ * A person. The position must be one of the chosen department's, and only someone in a
+ * department can lead it. A field never changes another: a department without the chosen
+ * position, or a lead with no department, marks the fields at odds until the user settles it.
  */
 export function EmployeeForm({
   defaults,
@@ -63,17 +65,33 @@ export function EmployeeForm({
   const [departmentId, setDepartmentId] = useState(defaults.departmentId ?? '')
   const [positionId, setPositionId] = useState(defaults.positionId ?? '')
   const [leads, setLeads] = useState(defaults.leadsDepartment)
-  const [cleared, setCleared] = useState(false)
-  const offered = departmentId
-    ? positions.filter(p => positionsByDepartment[departmentId]?.includes(p.id))
-    : positions
+  const has = (id: string) => !departmentId || !!positionsByDepartment[departmentId]?.includes(id)
+  // The chosen position stays listed even where the department lacks it, marked so.
+  const offered = positions.filter(p => has(p.id) || p.id === positionId)
+  const department = departments.find(d => d.id === departmentId)
+  const position = positions.find(p => p.id === positionId)
   const head = departmentId ? heads[departmentId] : undefined
   const otherHead = head && !(defaults.leadsDepartment && departmentId === defaults.departmentId)
+
+  const clientErrors: Partial<Record<string, ClientError>> = {}
+  if (department && position && !has(position.id)) {
+    const error: ClientError = {
+      key: 'position_not_in_department',
+      values: { department: department.name, position: position.name },
+    }
+    clientErrors['departmentId'] = error
+    clientErrors['positionId'] = error
+  }
+  if (leads && !departmentId) {
+    clientErrors['departmentId'] = { key: 'no_department' }
+    clientErrors['leadsDepartment'] = { key: 'no_department' }
+  }
   return (
     <FormShell
       writes="person"
       {...shell}
       spec={employeeSpec}
+      clientErrors={clientErrors}
       submitLabel={shell.isNew ? tsave('employee') : tsave('changes')}
       savedMessage={shell.isNew ? tsave('employeeCreated') : tsave('employeeSaved')}
     >
@@ -120,26 +138,20 @@ export function EmployeeForm({
             label={t('department')}
             allowEmpty
             value={departmentId}
-            onValueChange={id => {
-              setDepartmentId(id)
-              if (id !== defaults.departmentId) setLeads(false)
-              const kept = !id || !positionId || positionsByDepartment[id]?.includes(positionId)
-              if (!kept) setPositionId('')
-              setCleared(!kept)
-            }}
+            onValueChange={setDepartmentId}
             options={departments.map(d => ({ value: d.id, label: d.name }))}
           />
           <SelectField
             name="positionId"
             label={t('position')}
             allowEmpty
-            help={cleared ? t('positionCleared') : departmentId ? t('positionHelp') : undefined}
+            help={departmentId ? t('positionHelp') : undefined}
             value={positionId}
-            onValueChange={id => {
-              setPositionId(id)
-              setCleared(false)
-            }}
-            options={offered.map(p => ({ value: p.id, label: p.name }))}
+            onValueChange={setPositionId}
+            options={offered.map(p => ({
+              value: p.id,
+              label: has(p.id) ? p.name : t('positionElsewhere', { name: p.name }),
+            }))}
           />
           <SelectField
             name="managerId"
@@ -152,12 +164,14 @@ export function EmployeeForm({
         <CheckboxField
           name="leadsDepartment"
           label={t('leadsDepartment')}
-          disabled={!departmentId}
-          checked={leads && !!departmentId}
+          disabled={!departmentId && !leads}
+          checked={leads}
           onCheckedChange={setLeads}
           help={
             !departmentId
-              ? t('leadsNeedsDepartment')
+              ? leads
+                ? undefined
+                : t('leadsNeedsDepartment')
               : otherHead && leads
                 ? t('leadsReplaces', { name: head })
                 : otherHead

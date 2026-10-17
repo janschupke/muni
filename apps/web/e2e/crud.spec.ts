@@ -205,24 +205,26 @@ test('checks a session’s room and seats as they are typed, and changes its cou
   const date = page.getByRole('textbox', { name: /Date/ })
   await date.fill('4/12/2027')
   await date.blur()
-  // The seats follow the room: the course's group of 30 fits Aula A, Učebna 2 holds 15.
+  // A room never changes the seats: they are the user's to type.
   await page.getByRole('combobox', { name: /Room/ }).click()
   await page.getByRole('option', { name: /^Aula A · 40 seats/ }).click()
   const seats = page.getByRole('textbox', { name: /Capacity/ })
-  await expect(seats).toHaveValue('30')
+  await expect(seats).toHaveValue('')
+  await seats.fill('30')
+  // A room too small marks both fields, before anything is sent, and keeps the seats.
   await page.getByRole('combobox', { name: /Room/ }).click()
   await page.getByRole('option', { name: /^Učebna 2 · 15 seats/ }).click()
-  await expect(seats).toHaveValue('15')
-  // Typed seats stay, and the room that cannot hold them says so before anything is sent.
-  await seats.fill('35')
-  await expect(page.getByText('Učebna 2 holds 15; this session opens 35.')).toBeVisible()
+  await expect(seats).toHaveValue('30')
+  await expect(page.getByText('Učebna 2 holds 15; this session opens 30.')).toHaveCount(2)
+  await expect(seats).toHaveAttribute('aria-invalid', 'true')
+  await expect(page.getByRole('combobox', { name: /Room/ })).toHaveAttribute('aria-invalid', 'true')
   await page.getByRole('combobox', { name: /Room/ }).click()
   await expect(
     page.getByRole('option', { name: /^Seminární místnost · 12 seats · too small/ })
   ).toBeVisible()
   await page.getByRole('option', { name: /^Učebna 1 · 40 seats/ }).click()
   await expect(page.getByText(/this session opens/)).toHaveCount(0)
-  await expect(seats).toHaveValue('35')
+  await expect(seats).toHaveValue('30')
   await save(page).click()
   await expect(page).toHaveURL(/\/sessions\/S\d{3}$/)
 

@@ -31,6 +31,13 @@ const ROOMS = [
   { ...AULA_A, capacity: 40, capabilities: ['PROJECTOR' as const] },
   { ...ONLINE, capacity: null, capabilities: [] },
   { id: 'room_small', name: 'Kabinet', kind: 'CLASSROOM' as const, capacity: 4, capabilities: [] },
+  {
+    id: 'room_tiny',
+    name: 'Učebna 9',
+    kind: 'CLASSROOM' as const,
+    capacity: 1,
+    capabilities: ['PROJECTOR' as const],
+  },
 ]
 
 const OFFER: SessionOffer = {
@@ -104,6 +111,17 @@ describe('OfferReview', () => {
     // The same words as the session form's, for the same rule.
     expect(within(dialog).getByText(/^Kabinet lacks: /)).toBeTruthy()
     expect(check).toHaveProperty('disabled', true)
+  })
+
+  it('never changes the seats for a room: a room too small marks both fields', async () => {
+    const user = userEvent.setup()
+    const { dialog } = renderReview()
+    const capacity = within(dialog).getByRole('textbox', { name: /Capacity/ })
+    await user.click(within(dialog).getByRole('combobox', { name: /Room/ }))
+    await user.click(screen.getByRole('option', { name: /Učebna 9/ }))
+    expect(capacity).toHaveProperty('value', '2')
+    expect(within(dialog).getAllByText('Učebna 9 holds 1; this session opens 2.')).toHaveLength(2)
+    expect(capacity.getAttribute('aria-invalid')).toBe('true')
   })
 
   it('warns about a day off and a date after the due date, and says why the server refused', async () => {

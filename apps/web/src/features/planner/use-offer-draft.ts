@@ -69,12 +69,15 @@ export function useOfferDraft(
     date: date !== '' && date < todayIn() ? te('in_past') : undefined,
     endTime: issues.some(i => i.kind === 'END_BEFORE_START') ? te('before_start') : undefined,
     roomId: unfit ? te(unfit.key, unfit.values) : busy ? te('room_busy') : undefined,
+    // Too few seats in the room: fewer seats settle it as well as another room.
     capacity:
       seats === null || seats < 1
         ? te('not_a_number')
         : issues.some(i => i.kind === 'BELOW_BOOKED')
           ? t('capacityLow', { count: people.size })
-          : undefined,
+          : unfit && mismatch?.kind === 'ROOM' && mismatch.mismatch.kind === 'TOO_SMALL'
+            ? te(unfit.key, unfit.values)
+            : undefined,
     price: pricePerPerson === undefined ? te('not_a_number') : undefined,
   }
   const valid = date !== '' && room !== undefined && Object.values(errors).every(e => !e)
