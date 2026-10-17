@@ -11,7 +11,10 @@ const toDate = (iso: string) => {
 
 export const isoOf = (date: Date) => date.toISOString().slice(0, 10)
 
-/** The date itself when it is a real calendar date (`2026-02-30` is not), otherwise null. */
+/**
+ * The date itself when it is a real calendar date (`2026-02-30` is not), otherwise null.
+ * @internal Exported for its tests.
+ */
 export function validIso(text: string): string | null {
   const match = ISO.exec(text)
   if (!match) return null

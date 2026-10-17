@@ -20,10 +20,11 @@ import {
   listProviderOptions,
 } from '@muni/db/repositories'
 import { canWrite, COMPLIANCE_STATUSES, EMPLOYMENT_STATES } from '@muni/domain/enums'
+import { displayName, sortName } from '@muni/domain/names'
 import { isVisible } from '@muni/domain/sanitize'
 import * as z from 'zod'
 
-import { read } from './define'
+import { byExternalId, read } from './define'
 
 const text = z.string().min(1).max(200).optional()
 
@@ -55,8 +56,6 @@ export const employeesList = read({
     return { result, departments, positions, managerName }
   },
 })
-
-const byExternalId = z.object({ externalId: z.string().min(1).max(32) })
 
 /** A person's page: the record (as the role may see it), their bookings, what can be booked. */
 export const employee = read({
@@ -122,10 +121,10 @@ export const completionForm = read({
     if (id && completion?.employee.externalId !== externalId) return null
     const own = completion?.employee ?? {
       id: person.id,
-      name: `${person.lastName} ${person.firstName}`,
+      name: sortName(person),
     }
     return {
-      person: { id: person.id, name: `${person.firstName} ${person.lastName}` },
+      person: { id: person.id, name: displayName(person) },
       completion,
       employees: employees.some(e => e.id === own.id) ? employees : [...employees, own],
       courses:

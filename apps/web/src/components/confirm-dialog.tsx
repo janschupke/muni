@@ -13,9 +13,12 @@ import { type ToastMessage, useToast } from './toasts'
  * - `done`: it went through; the dialog closes and the toast says so;
  * - `refused`: nothing was written; the reason shows in the dialog, which stays open;
  * - `partial`: some of it was written and some refused; the dialog stays open to list what
- *   was refused, and offers only Close (there is nothing left to confirm).
+ *   was refused, and offers only Close (there is nothing left to confirm);
+ * - `go`: the decision is taken and the caller goes on to write and report (a form's save,
+ *   whose answer shows on the form); the dialog just closes.
  */
 export type ConfirmOutcome =
+  | { kind: 'go' }
   | { kind: 'done'; toast: ToastMessage }
   | { kind: 'refused'; message: ReactNode }
   | { kind: 'partial'; toast: ToastMessage; message: ReactNode }
@@ -76,6 +79,10 @@ export function ConfirmDialog({
         const outcome = await onConfirm()
         if (outcome.kind === 'refused') {
           setProblem(outcome.message)
+          return
+        }
+        if (outcome.kind === 'go') {
+          onOpenChange(false)
           return
         }
         toast(outcome.toast)

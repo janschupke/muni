@@ -407,7 +407,9 @@
       "not_a_number": "Enter a number.",
       "too_small_number": "Enter at least {min}.",
       "too_big_number": "Enter at most {max}.",
-      "too_long": "Use at most {max} characters."
+      "too_long": "Use at most {max} characters.",
+      "unauthorized": "Your account may no longer make changes. Sign in again.",
+      "rate_limited": "Too many changes in a short time. Wait a minute, then save again."
     },
     "placeholders": {
       "code": "KURZ-01",
@@ -657,7 +659,8 @@
         "room_busy": "a session planned in the app holds that room then; move one of them first",
         "room_unfit": "upcoming sessions in that room would no longer fit; move them first",
         "failed": "the database refused the write",
-        "network": "the server could not be reached"
+        "network": "the server could not be reached",
+        "rate_limited": "too many writes in a short time; wait a minute and import again"
       }
     },
     "fields": {
@@ -985,7 +988,10 @@
         "ROOM_ARCHIVED": "The room was archived.",
         "COURSE_ARCHIVED": "The course was archived.",
         "OVER_CAPACITY": "More people are booked than that capacity holds.",
-        "ATTENDEE_CONFLICT": "Someone booked on the session has another session at that time."
+        "ATTENDEE_CONFLICT": "Someone booked on the session has another session at that time.",
+        "unauthorized": "Your account may no longer make changes. Sign in again.",
+        "rate_limited": "Too many changes in a short time. Wait a minute and try again.",
+        "failed": "The change could not be saved. Try again."
       }
     },
     "outcome": {
@@ -1000,7 +1006,11 @@
         "ALREADY_ASSIGNED": "already booked",
         "CONFLICT": "clashes with another booking",
         "NOT_REQUIRED": "the training is not required of this person",
-        "NOT_NEEDED": "the training is already valid"
+        "NOT_NEEDED": "the training is already valid",
+        "unauthorized": "your account may no longer make changes; sign in again",
+        "rate_limited": "too many changes in a short time; wait a minute",
+        "failed": "the server could not save it; try again",
+        "invalid": "the request was not valid; reload the page and try again"
       }
     }
   },
@@ -1235,7 +1245,8 @@
       "ROOM_ARCHIVED": "The room has been archived meanwhile. Choose another room.",
       "COURSE_ARCHIVED": "The course has been archived meanwhile. Reload the planner.",
       "OVER_CAPACITY": "The capacity is below the people to book. Raise it, or book fewer people.",
-      "ATTENDEE_CONFLICT": "Someone booked on the session has another session at that time."
+      "ATTENDEE_CONFLICT": "Someone booked on the session has another session at that time.",
+      "rate_limited": "Too many changes in a short time. Wait a minute and try again."
     },
     "problems": {
       "NO_ROOM_WITH": "Even the best-equipped room lacks {missing}.",
@@ -1386,7 +1397,9 @@
       "parent_archived": "It belongs to something that is archived. Bring that back first.",
       "room_busy": "Another planned session holds its room at that time. Move one of them first.",
       "room_unfit": "Its room no longer suits it. Edit the room first.",
-      "generic": "That did not work. Please try again."
+      "generic": "That did not work. Please try again.",
+      "unauthorized": "Your account may no longer make changes. Sign in again.",
+      "rate_limited": "Too many changes in a short time. Wait a minute and try again."
     },
     "fields": {
       "name": "name",

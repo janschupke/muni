@@ -12,7 +12,7 @@ import {
 import { bookingSchema } from '@muni/domain/schemas'
 import * as z from 'zod'
 
-import { requireAdmin } from '@/server/auth'
+import { asAdmin, type Denied, logFailure } from './guard'
 
 const externalId = z.string().trim().min(1).max(32)
 const applyInput = z
@@ -26,41 +26,61 @@ const applyInput = z
   .min(1)
   .max(500)
 
-export interface ApplyResult {
-  applied: number
-  /** Refused pairs with the reason; the rest were saved. */
-  failed: { sessionExternalId: string; employeeExternalId: string; reason: AssignmentFailure }[]
-}
+export type ApplyResult =
+  | {
+      ok: true
+      applied: number
+      /** Refused pairs with the reason; the rest were saved. */
+      failed: { sessionExternalId: string; employeeExternalId: string; reason: AssignmentFailure }[]
+    }
+  /** Nothing was saved: turned away, a request that does not parse, or the write failed. */
+  | { ok: false; problem: Denied | 'invalid' | 'failed' }
+
+const failedWith =
+  <T>(answer: T) =>
+  (error: unknown): T => {
+    logFailure(error)
+    return answer
+  }
 
 /**
  * Saves advisor (or manual) bookings. Each pair is re-checked on the server against the locked
  * session row: seats, status, clashes and, for advisor pairs, whether the training is still due.
  */
 export async function applyAssignmentsAction(input: unknown): Promise<ApplyResult> {
-  const user = await requireAdmin()
-  const requests = applyInput.parse(input)
-  const outcomes = await applyAssignments(requests, user.id)
-  return {
-    applied: outcomes.filter(o => o.ok).length,
-    failed: outcomes.flatMap(o =>
-      o.ok
-        ? []
-        : [
-            {
-              sessionExternalId: o.request.sessionExternalId,
-              employeeExternalId: o.request.employeeExternalId,
-              reason: o.reason,
-            },
-          ]
-    ),
-  }
+  return asAdmin<ApplyResult>(
+    async admin => {
+      const requests = applyInput.safeParse(input)
+      if (!requests.success) return { ok: false, problem: 'invalid' }
+      const outcomes = await applyAssignments(requests.data, admin.id)
+      return {
+        ok: true,
+        applied: outcomes.filter(o => o.ok).length,
+        failed: outcomes.flatMap(o =>
+          o.ok
+            ? []
+            : [
+                {
+                  sessionExternalId: o.request.sessionExternalId,
+                  employeeExternalId: o.request.employeeExternalId,
+                  reason: o.reason,
+                },
+              ]
+        ),
+      }
+    },
+    {
+      denied: problem => ({ ok: false, problem }),
+      failed: failedWith({ ok: false, problem: 'failed' }),
+    }
+  )
 }
 
 /** What booking someone by hand says: done, or why not (the same reasons as the advisor's). */
 export type BookingState =
   | { status: 'idle' }
   | { status: 'done' }
-  | { status: 'refused'; reason: AssignmentFailure | 'invalid' }
+  | { status: 'refused'; reason: AssignmentFailure | Denied | 'invalid' | 'failed' }
 
 /**
  * Books one person on one session by hand (the session page adds a person, a person's page
@@ -71,21 +91,43 @@ export async function addBookingAction(
   _state: BookingState,
   form: FormData
 ): Promise<BookingState> {
-  const user = await requireAdmin()
-  const parsed = bookingSchema.safeParse({
-    sessionExternalId: fixed.sessionExternalId ?? form.get('sessionExternalId'),
-    employeeExternalId: fixed.employeeExternalId ?? form.get('employeeExternalId'),
-  })
-  if (!parsed.success) return { status: 'refused', reason: 'invalid' }
-  const [outcome] = await applyAssignments([{ ...parsed.data, source: 'MANUAL' }], user.id)
-  return !outcome || outcome.ok ? { status: 'done' } : { status: 'refused', reason: outcome.reason }
+  return asAdmin<BookingState>(
+    async admin => {
+      const parsed = bookingSchema.safeParse({
+        sessionExternalId: fixed.sessionExternalId ?? form.get('sessionExternalId'),
+        employeeExternalId: fixed.employeeExternalId ?? form.get('employeeExternalId'),
+      })
+      if (!parsed.success) return { status: 'refused', reason: 'invalid' }
+      const [outcome] = await applyAssignments([{ ...parsed.data, source: 'MANUAL' }], admin.id)
+      if (!outcome) return { status: 'refused', reason: 'failed' }
+      return outcome.ok ? { status: 'done' } : { status: 'refused', reason: outcome.reason }
+    },
+    {
+      denied: reason => ({ status: 'refused', reason }),
+      failed: failedWith({ status: 'refused', reason: 'failed' }),
+    }
+  )
 }
 
-export async function removeAssignmentAction(input: unknown): Promise<boolean> {
-  await requireAdmin()
-  const { sessionExternalId, employeeExternalId } = bookingSchema.parse(input)
-  const removed = await removeAssignment(sessionExternalId, employeeExternalId)
-  return removed
+/** What cancelling a booking came to: done, already gone, or why not. */
+export type RemoveOutcome =
+  { ok: true } | { ok: false; reason: 'gone' | Denied | 'invalid' | 'failed' }
+
+export async function removeAssignmentAction(input: unknown): Promise<RemoveOutcome> {
+  return asAdmin<RemoveOutcome>(
+    async () => {
+      const parsed = bookingSchema.safeParse(input)
+      if (!parsed.success) return { ok: false, reason: 'invalid' }
+      const { sessionExternalId, employeeExternalId } = parsed.data
+      return (await removeAssignment(sessionExternalId, employeeExternalId))
+        ? { ok: true }
+        : { ok: false, reason: 'gone' }
+    },
+    {
+      denied: reason => ({ ok: false, reason }),
+      failed: failedWith({ ok: false, reason: 'failed' }),
+    }
+  )
 }
 
 const resolveInput = z.object({
@@ -104,7 +146,8 @@ const resolveInput = z.object({
 
 /** What resolving an overbooked session came to. */
 export type ResolveOutcome =
-  { ok: true } | { ok: false; reason: MoveFailure | RaiseProblem | 'invalid'; to?: string }
+  | { ok: true }
+  | { ok: false; reason: MoveFailure | RaiseProblem | Denied | 'invalid' | 'failed'; to?: string }
 
 /**
  * Resolves an overbooked session the way the admin chose, in one transaction: anonymous seats
@@ -112,16 +155,23 @@ export type ResolveOutcome =
  * when the room has the seats.
  */
 export async function resolveOverbookingAction(input: unknown): Promise<ResolveOutcome> {
-  await requireAdmin()
-  const parsed = resolveInput.safeParse(input)
-  if (!parsed.success) return { ok: false, reason: 'invalid' }
-  const { from, resolution } = parsed.data
-  if (resolution.kind === 'raise') {
-    const raised = await raiseCapacity(from, resolution.capacity)
-    return raised.ok ? { ok: true } : { ok: false, reason: raised.problem }
-  }
-  const moved = await moveSeatsMany(from, resolution.moves)
-  return moved.ok
-    ? { ok: true }
-    : { ok: false, reason: moved.reason, ...(moved.to && { to: moved.to }) }
+  return asAdmin<ResolveOutcome>(
+    async () => {
+      const parsed = resolveInput.safeParse(input)
+      if (!parsed.success) return { ok: false, reason: 'invalid' }
+      const { from, resolution } = parsed.data
+      if (resolution.kind === 'raise') {
+        const raised = await raiseCapacity(from, resolution.capacity)
+        return raised.ok ? { ok: true } : { ok: false, reason: raised.problem }
+      }
+      const moved = await moveSeatsMany(from, resolution.moves)
+      return moved.ok
+        ? { ok: true }
+        : { ok: false, reason: moved.reason, ...(moved.to && { to: moved.to }) }
+    },
+    {
+      denied: reason => ({ ok: false, reason }),
+      failed: failedWith({ ok: false, reason: 'failed' }),
+    }
+  )
 }

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { PlanItem, UnplacedReason } from './advisor'
 import {
   DEFAULT_SESSION_MINUTES,
+  groupOffers,
   type PlannerCourse,
   type PlannerInput,
   type PlannerSession,
@@ -103,6 +104,11 @@ describe('planSessions: demand', () => {
       // Due the day before the first of them lapses.
       ['BOZP-Z|2026-12|1', '2026-12-02', 2, ['Eliáš Karel', 'Cibulka Ota'], '2026-10-21'],
     ])
+    // One group per course, holding its offers in order.
+    expect(groupOffers(offers).map(g => [g.course.code, g.offers.map(o => o.id)])).toEqual([
+      ['BOZP-Z', ['BOZP-Z|now|1', 'BOZP-Z|now|2', 'BOZP-Z|2026-12|1']],
+    ])
+    expect(groupOffers([])).toEqual([])
     expect(offers[0]).toMatchObject({
       slot: {
         startTime: '08:00',

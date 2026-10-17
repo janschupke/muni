@@ -5,14 +5,13 @@ import {
   createCourse,
   createEmployee,
   type RecordProblem,
-  type SessionWrite,
   updateCompletion,
   updateCourse,
   updateEmployee,
   updateSession,
 } from '@muni/db/repositories'
 
-import { formError, type FormState, refusedField, sessionProblem } from '@/lib/form'
+import { type FormState, refusedField, sessionProblem } from '@/lib/form'
 import {
   completionSpec,
   courseCreateSpec,
@@ -21,15 +20,8 @@ import {
   parseForm,
   sessionEditSpec,
 } from '@/lib/form-inputs'
-import { requireAdmin } from '@/server/auth'
 
-/** Prisma "record not found" (P2025) vs. anything else. */
-function failure(error: unknown): FormState {
-  const code = (error as { code?: unknown } | null)?.code
-  if (code === 'P2025') return formError('not_found')
-  console.error(error)
-  return formError('generic')
-}
+import { isBoundId, isBoundIdOrNull, saveForm } from './guard'
 
 /** A refused write, on the field to change. */
 function refused(problem: RecordProblem): FormState {
@@ -49,27 +41,20 @@ export async function saveCourse(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireAdmin()
-  let saved: Awaited<ReturnType<typeof updateCourse>>
-  if (code === null) {
-    const parsed = parseForm(courseCreateSpec, form)
-    if (!parsed.ok) return parsed.state
-    try {
+  return saveForm(isBoundIdOrNull(code), async () => {
+    let saved: Awaited<ReturnType<typeof updateCourse>>
+    if (code === null) {
+      const parsed = parseForm(courseCreateSpec, form)
+      if (!parsed.ok) return parsed.state
       saved = await createCourse(parsed.data)
-    } catch (error) {
-      return failure(error)
-    }
-  } else {
-    const parsed = parseForm(courseEditSpec, form)
-    if (!parsed.ok) return parsed.state
-    try {
+    } else {
+      const parsed = parseForm(courseEditSpec, form)
+      if (!parsed.ok) return parsed.state
       saved = await updateCourse(code, parsed.data)
-    } catch (error) {
-      return failure(error)
     }
-  }
-  if (!saved.ok) return refused(saved)
-  return { status: 'saved', href: `/courses/${saved.code}` }
+    if (!saved.ok) return refused(saved)
+    return { status: 'saved', href: `/courses/${saved.code}` }
+  })
 }
 
 export async function saveSession(
@@ -77,17 +62,13 @@ export async function saveSession(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireAdmin()
-  const parsed = parseForm(sessionEditSpec, form)
-  if (!parsed.ok) return parsed.state
-  let result: SessionWrite
-  try {
-    result = await updateSession(externalId, parsed.data)
-  } catch (error) {
-    return failure(error)
-  }
-  if (!result.ok) return sessionProblem(result.problem)
-  return { status: 'saved', href: `/sessions/${externalId}` }
+  return saveForm(isBoundId(externalId), async () => {
+    const parsed = parseForm(sessionEditSpec, form)
+    if (!parsed.ok) return parsed.state
+    const result = await updateSession(externalId, parsed.data)
+    if (!result.ok) return sessionProblem(result.problem)
+    return { status: 'saved', href: `/sessions/${externalId}` }
+  })
 }
 
 /** Saves a person (or, with `externalId` null, adds one with an app ID), then shows them. */
@@ -96,20 +77,16 @@ export async function saveEmployee(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireAdmin()
-  const parsed = parseForm(employeeSpec, form)
-  if (!parsed.ok) return parsed.state
-  let saved: Awaited<ReturnType<typeof updateEmployee>>
-  try {
-    saved =
+  return saveForm(isBoundIdOrNull(externalId), async () => {
+    const parsed = parseForm(employeeSpec, form)
+    if (!parsed.ok) return parsed.state
+    const saved =
       externalId === null
         ? await createEmployee(parsed.data)
         : await updateEmployee(externalId, parsed.data)
-  } catch (error) {
-    return failure(error)
-  }
-  if (!saved.ok) return refused(saved)
-  return { status: 'saved', href: `/employees/${saved.externalId}` }
+    if (!saved.ok) return refused(saved)
+    return { status: 'saved', href: `/employees/${saved.externalId}` }
+  })
 }
 
 /**
@@ -121,18 +98,14 @@ export async function saveCompletion(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireAdmin()
-  const parsed = parseForm(completionSpec, form)
-  if (!parsed.ok) return parsed.state
-  let saved: Awaited<ReturnType<typeof createCompletion>>
-  try {
-    saved =
+  return saveForm(isBoundIdOrNull(completionId), async () => {
+    const parsed = parseForm(completionSpec, form)
+    if (!parsed.ok) return parsed.state
+    const saved =
       completionId === null
         ? await createCompletion(parsed.data)
         : await updateCompletion(completionId, parsed.data)
-  } catch (error) {
-    return failure(error)
-  }
-  if (!saved.ok) return refused(saved)
-  return { status: 'saved', href: `/employees/${saved.employeeExternalId}` }
+    if (!saved.ok) return refused(saved)
+    return { status: 'saved', href: `/employees/${saved.employeeExternalId}` }
+  })
 }

@@ -4,16 +4,16 @@ import type { ArchiveImpact } from '@muni/db/repositories'
 import type { Archivable } from '@muni/domain/archive'
 import { Alert } from '@muni/ui/alert'
 import { Button } from '@muni/ui/button'
-import { Dialog } from '@muni/ui/dialog'
 import { IconButton } from '@muni/ui/icon-button'
 import { Archive } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useActionState, useRef, useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 
-import { ARCHIVE_IDLE, archiveRefused, type ArchiveState } from '@/lib/form'
-import { useWhenWritten } from '@/lib/query/use-after-write'
+import { ARCHIVE_IDLE, archiveRefused } from '@/lib/form'
+import { useAfterWrite } from '@/lib/query/use-after-write'
 import { archiveAction, previewArchive } from '@/server/actions/archive'
 
+import { ConfirmDialog } from './confirm-dialog'
 import { useRefusalText } from './use-refusal-text'
 
 /**
@@ -37,25 +37,18 @@ export function ConfirmArchiveButton({
 }) {
   const t = useTranslations()
   const refusal = useRefusalText(kind)
+  const afterWrite = useAfterWrite()
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [impact, setImpact] = useState<ArchiveImpact | null | 'loading'>('loading')
   const [, startTransition] = useTransition()
-  const [state, formAction, pending] = useActionState(async (previous: ArchiveState) => {
-    // Archived from a list row, the row leaves the list: close. (With `then`, the page leaves.)
-    const next = await archiveAction(kind, id, then, previous)
-    if (next.status === 'done') setOpen(false)
-    return next
-  }, ARCHIVE_IDLE)
-  useWhenWritten(state, state.status === 'done', state.status === 'done' ? state.href : undefined, {
-    title: t('archive.archivedToast', { name }),
-  })
 
   const show = () => {
     setOpen(true)
     setImpact('loading')
     startTransition(async () => {
-      setImpact(await previewArchive(kind, id))
+      // Unreachable server: no preview, so nothing to confirm; the dialog says so.
+      setImpact(await previewArchive(kind, id).catch(() => null))
     })
   }
 
@@ -76,51 +69,38 @@ export function ConfirmArchiveButton({
           {t('archive.action')}
         </Button>
       )}
-      <Dialog
+      <ConfirmDialog
         open={open}
         onOpenChange={setOpen}
         title={t('archive.confirmTitle', { name })}
         description={t('archive.confirmBody')}
-        closeLabel={t('common.close')}
+        confirmLabel={t('archive.confirm')}
+        tone="danger"
+        disabled={impact === 'loading' || impact === null || refused !== null}
         returnFocusTo={() => trigger.current}
+        onConfirm={async () => {
+          const next = await archiveAction(kind, id, then, ARCHIVE_IDLE)
+          if (next.status === 'refused') return { kind: 'refused', message: refusal(next) }
+          afterWrite(next.status === 'done' ? next.href : undefined)
+          return { kind: 'done', toast: { title: t('archive.archivedToast', { name }) } }
+        }}
       >
-        <form action={formAction} className="flex flex-col gap-4">
-          {impact === 'loading' && (
-            <p className="text-sm text-fg-muted" role="status">
-              {t('archive.checking')}
-            </p>
-          )}
-          {impact !== 'loading' && impact?.ok && impact.removesBookings > 0 && (
-            <Alert tone="warning">
-              {t('archive.removesBookings', { count: impact.removesBookings })}
-            </Alert>
-          )}
-          {impact !== 'loading' && impact?.ok && impact.leaves && (
-            <Alert tone="warning">{t('archive.leaves', { department: impact.leaves })}</Alert>
-          )}
-          {refused?.status === 'refused' && <Alert tone="danger">{refusal(refused)}</Alert>}
-          {state.status === 'refused' && <Alert tone="danger">{refusal(state)}</Alert>}
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setOpen(false)
-              }}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button
-              type="submit"
-              variant="danger"
-              disabled={pending || impact === 'loading' || refused !== null}
-            >
-              <Archive aria-hidden />
-              {t('archive.confirm')}
-            </Button>
-          </div>
-        </form>
-      </Dialog>
+        {impact === 'loading' && (
+          <p className="text-sm text-fg-muted" role="status">
+            {t('archive.checking')}
+          </p>
+        )}
+        {impact === null && <Alert tone="danger">{t('common.failed')}</Alert>}
+        {impact !== 'loading' && impact?.ok && impact.removesBookings > 0 && (
+          <Alert tone="warning">
+            {t('archive.removesBookings', { count: impact.removesBookings })}
+          </Alert>
+        )}
+        {impact !== 'loading' && impact?.ok && impact.leaves && (
+          <Alert tone="warning">{t('archive.leaves', { department: impact.leaves })}</Alert>
+        )}
+        {refused?.status === 'refused' && <Alert tone="danger">{refusal(refused)}</Alert>}
+      </ConfirmDialog>
     </>
   )
 }

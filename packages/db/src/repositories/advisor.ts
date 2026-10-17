@@ -1,4 +1,5 @@
 import { type AdvisorInput, type AdvisorNeed, forecastEnd } from '@muni/domain/advisor'
+import { sortName } from '@muni/domain/names'
 
 import { ACTIVE } from './archive'
 import { dbOf, loadCompliance, type RepoOptions, toAmount } from './context'
@@ -63,7 +64,7 @@ export async function getAdvisorInput(
     needs.push({
       employee: {
         externalId: employee.externalId,
-        name: `${employee.lastName} ${employee.firstName}`,
+        name: sortName(employee),
         department: employee.department?.name ?? null,
         status: employee.status,
       },

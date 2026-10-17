@@ -15,13 +15,10 @@ import { renderClient } from '@/test/render'
 import { BackLink } from './back-link'
 import { CompletionHistoryTable } from './completion-tables'
 import { ConfirmDialog, type ConfirmOutcome } from './confirm-dialog'
-import {
-  CompletionForm,
-  CourseForm,
-  DepartmentForm,
-  EmployeeForm,
-  PositionForm,
-} from './form/entity-forms'
+import { CompletionForm } from './form/completion-form'
+import { CourseForm } from './form/course-form'
+import { EmployeeForm } from './form/employee-form'
+import { DepartmentForm, PositionForm } from './form/group-forms'
 import { SessionForm } from './form/session-form'
 import { NavigationHistory, parseHistory, readHistory } from './navigation-history'
 import { RequirementPanel } from './requirement-panel'

@@ -26,7 +26,6 @@ export {
   type AssignmentRequest,
   type EmployeeBooking,
   listEmployeeBookings,
-  MOVE_FAILURES,
   type MoveFailure,
   type MoveOutcome,
   moveSeatsMany,
@@ -66,9 +65,9 @@ export {
   type Page,
   type TeamMember,
 } from './employees'
+export { isPrismaCode } from './errors'
 export { recordExists } from './exists'
 export {
-  fillDepartmentHeads,
   getDepartmentForEdit,
   getPositionForEdit,
   type GroupKind,

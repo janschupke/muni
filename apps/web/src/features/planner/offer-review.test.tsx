@@ -93,7 +93,7 @@ describe('OfferReview', () => {
     expect(within(dialog).getByText(/1 person ticked/)).toBeTruthy()
     // A price that is not one.
     const price = within(dialog).getByRole('textbox', { name: /Price per person/ })
-    await user.type(price, 'free')
+    await user.type(price, 'a lot')
     expect(check).toHaveProperty('disabled', true)
     await user.clear(price)
     await user.type(price, '450,50')
@@ -101,7 +101,8 @@ describe('OfferReview', () => {
     // A room that does not suit the course says why.
     await user.click(within(dialog).getByRole('combobox', { name: /Room/ }))
     await user.click(screen.getByRole('option', { name: /Kabinet/ }))
-    expect(within(dialog).getByText(/Kabinet: lacks equipment/)).toBeTruthy()
+    // The same words as the session form's, for the same rule.
+    expect(within(dialog).getByText(/^Kabinet lacks: /)).toBeTruthy()
     expect(check).toHaveProperty('disabled', true)
   })
 

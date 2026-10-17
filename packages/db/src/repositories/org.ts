@@ -17,6 +17,7 @@ import { dbOf, loadCompliance, type RepoOptions } from './context'
 import { compareNames, sortEmployees } from './employee-sort'
 import { type EmployeeListItem, employeeRecord } from './employees'
 import { stillEmployed } from './employment'
+import { activeDepartments } from './lookups'
 import { loadNextBookings } from './requirements'
 import { upcomingSessionWhere } from './sessions'
 
@@ -273,14 +274,7 @@ function positionSummary(org: Org, position: { id: string; name: string }): Posi
 export async function listDepartmentSummaries(
   options?: RepoOptions & { now?: Date }
 ): Promise<DepartmentSummary[]> {
-  const [org, departments] = await Promise.all([
-    loadOrg(options),
-    dbOf(options).department.findMany({
-      where: ACTIVE,
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    }),
-  ])
+  const [org, departments] = await Promise.all([loadOrg(options), activeDepartments(options)])
   return departments.map(d => departmentSummary(org, d))
 }
 

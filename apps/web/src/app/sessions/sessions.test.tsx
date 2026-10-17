@@ -47,7 +47,7 @@ vi.mock('@/server/actions/assignments', () => ({
   addBookingAction: vi.fn(),
   applyAssignmentsAction: vi.fn(),
   moveSeatsAction: vi.fn(),
-  removeAssignmentAction: vi.fn(() => Promise.resolve(true)),
+  removeAssignmentAction: vi.fn(() => Promise.resolve({ ok: true })),
 }))
 
 const online = session({
@@ -267,7 +267,29 @@ describe('session edit', () => {
         courseArchived: true,
       })
     )
+    // The database adds the session's own course, archived as it is, with what it needs.
+    vi.mocked(listCourseOptions).mockImplementationOnce(options =>
+      Promise.resolve(
+        options?.keep === 'course_old'
+          ? [
+              {
+                id: 'course_old',
+                code: 'OLD-1',
+                name: 'Starý',
+                validityMonths: null,
+                needs: {
+                  sessionMinutes: 60,
+                  groupSize: 10,
+                  onlineAllowed: false,
+                  capabilities: [],
+                },
+              },
+            ]
+          : []
+      )
+    )
     await renderServer(EditSessionPage(props))
+    expect(listCourseOptions).toHaveBeenCalledWith({ keep: 'course_old' })
     expect(screen.getByRole('combobox', { name: /Course/ }).textContent).toContain('OLD-1')
   })
 

@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
 import { BackLink } from '@/components/back-link'
-import { CompletionForm } from '@/components/form/entity-forms'
+import { CompletionForm } from '@/components/form/completion-form'
 import { ReadView } from '@/components/read-view'
 import { FormSkeleton } from '@/components/skeletons'
 import { FORM_READ, readQuery } from '@/lib/query/queries'

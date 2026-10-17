@@ -7,9 +7,10 @@ import {
   savePosition,
 } from '@muni/db/repositories'
 
-import { formError, type FormState, refusedField } from '@/lib/form'
+import { type FormState, refusedField } from '@/lib/form'
 import { departmentSpec, parseForm, positionSpec } from '@/lib/form-inputs'
-import { requireAdmin } from '@/server/auth'
+
+import { isBoundIdOrNull, saveForm } from './guard'
 
 /** A refused group write, on the field to change. */
 function refused(problem: GroupProblem): FormState {
@@ -23,15 +24,7 @@ function refused(problem: GroupProblem): FormState {
   }
 }
 
-async function finish(save: () => Promise<GroupWrite>, path: string): Promise<FormState> {
-  let saved: GroupWrite
-  try {
-    saved = await save()
-  } catch (error) {
-    if ((error as { code?: unknown } | null)?.code === 'P2025') return formError('not_found')
-    console.error(error)
-    return formError('generic')
-  }
+function finish(saved: GroupWrite, path: string): FormState {
   if (!saved.ok) return refused(saved)
   return { status: 'saved', href: `${path}/${saved.id}` }
 }
@@ -42,10 +35,11 @@ export async function saveDepartmentAction(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireAdmin()
-  const parsed = parseForm(departmentSpec, form)
-  if (!parsed.ok) return parsed.state
-  return finish(() => saveDepartment(id, parsed.data), '/departments')
+  return saveForm(isBoundIdOrNull(id), async () => {
+    const parsed = parseForm(departmentSpec, form)
+    if (!parsed.ok) return parsed.state
+    return finish(await saveDepartment(id, parsed.data), '/departments')
+  })
 }
 
 /** Creates a position (`id` null) or saves one (its name and departments), then shows it. */
@@ -54,8 +48,9 @@ export async function savePositionAction(
   _state: FormState,
   form: FormData
 ): Promise<FormState> {
-  await requireAdmin()
-  const parsed = parseForm(positionSpec, form)
-  if (!parsed.ok) return parsed.state
-  return finish(() => savePosition(id, parsed.data), '/positions')
+  return saveForm(isBoundIdOrNull(id), async () => {
+    const parsed = parseForm(positionSpec, form)
+    if (!parsed.ok) return parsed.state
+    return finish(await savePosition(id, parsed.data), '/positions')
+  })
 }

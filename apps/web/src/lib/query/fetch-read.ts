@@ -11,7 +11,10 @@ export class ReadError extends Error {
   }
 }
 
-/** A read's input as its query string; empty values (and anything not a value) are left out. */
+/**
+ * A read's input as its query string; empty values (and anything not a value) are left out.
+ * @internal Exported for its tests.
+ */
 export function readSearch(input: Record<string, unknown>): string {
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries(input)) {

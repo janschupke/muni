@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { BackLink } from '@/components/back-link'
-import { DepartmentForm } from '@/components/form/entity-forms'
+import { DepartmentForm } from '@/components/form/group-forms'
 import { saveDepartmentAction } from '@/server/actions/groups'
 import { requireAdminPage } from '@/server/auth'
 

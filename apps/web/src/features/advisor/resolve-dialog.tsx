@@ -5,6 +5,7 @@ import { Alert } from '@muni/ui/alert'
 import { ChoiceGroup } from '@muni/ui/choice-group'
 import { Field, Input } from '@muni/ui/field'
 import { formatTimeRange } from '@muni/utils/format'
+import { parseCount } from '@muni/utils/money'
 import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
 
@@ -14,12 +15,8 @@ import { resolveOverbookingAction } from '@/server/actions/assignments'
 
 type Way = 'move' | 'raise'
 
-/** A typed count: a whole number from 0, or null while it is not one. */
-const countOf = (text: string): number | null => {
-  const trimmed = text.trim()
-  if (trimmed === '') return 0
-  return /^\d+$/.test(trimmed) ? Number(trimmed) : null
-}
+/** A typed count: empty is none moved; null while it is not a whole number. */
+const countOf = (text: string): number | null => (text.trim() === '' ? 0 : parseCount(text))
 
 /**
  * How to resolve one overbooked session, chosen by the admin: move seats booked without a

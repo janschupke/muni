@@ -72,6 +72,7 @@ import {
   requireReader,
   SYNC_INTERVAL_MS,
 } from './auth'
+import { RateLimitedError, spendRequest } from './rate-limit'
 
 vi.mock('@clerk/nextjs/server', () => ({
   auth: Object.assign(vi.fn(), { protect: vi.fn() }),
@@ -79,6 +80,8 @@ vi.mock('@clerk/nextjs/server', () => ({
   clerkMiddleware: vi.fn((handler: unknown) => handler),
 }))
 vi.mock('@muni/db/repositories', () => ({
+  isPrismaCode: (error: unknown, code: string) =>
+    (error as { code?: unknown } | null)?.code === code,
   applyAssignments: vi.fn(),
   archiveImpact: vi.fn(),
   archiveRecord: vi.fn(),
@@ -469,13 +472,28 @@ describe('edit actions', () => {
     expect(log).toHaveBeenCalled()
   })
 
-  it('refuse visitors and readers before reading the form', async () => {
+  it('refuse visitors and readers before reading the form, without throwing', async () => {
     for (const user of [null, 'user_2'] as const) {
       signedIn(user, 'FULL')
-      await expect(saveCourse('BOZP-Z', idle, form({ name: 'BOZP' }))).rejects.toMatchObject({
-        name: 'UnauthorizedError',
+      expect(await saveCourse('BOZP-Z', idle, form({ name: 'BOZP' }))).toEqual({
+        status: 'error',
+        fieldErrors: {},
+        formError: 'unauthorized',
       })
     }
+    expect(updateCourse).not.toHaveBeenCalled()
+  })
+
+  it('refuse past the write limit, and an id that did not come back as one', async () => {
+    vi.mocked(spendRequest).mockRejectedValueOnce(new RateLimitedError(30))
+    expect(await saveCourse('BOZP-Z', idle, form({ name: 'BOZP' }))).toMatchObject({
+      formError: 'rate_limited',
+    })
+    // A bound id is the browser's to send back: an object is no id.
+    expect(
+      await saveSession({ contains: '' } as never, idle, form({ name: 'BOZP' }))
+    ).toMatchObject({ formError: 'not_found' })
+    expect(updateSession).not.toHaveBeenCalled()
   })
 
   const sessionForm = {
@@ -840,20 +858,37 @@ describe('booking actions', () => {
       },
     ])
     expect(await applyAssignmentsAction([pair, { ...pair, employeeExternalId: 'E0002' }])).toEqual({
+      ok: true,
       applied: 1,
       failed: [{ sessionExternalId: 'T018', employeeExternalId: 'E0002', reason: 'SESSION_FULL' }],
     })
     // The users-table id, not the Clerk id.
     expect(applyAssignments).toHaveBeenCalledWith(expect.any(Array), 'usr_1')
-    await expect(applyAssignmentsAction([])).rejects.toThrow()
-    await expect(applyAssignmentsAction([{ ...pair, score: 1, source: 'GUESS' }])).rejects.toThrow()
+    // Nonsense is answered, never thrown, and never reaches the database.
+    expect(await applyAssignmentsAction([])).toEqual({ ok: false, problem: 'invalid' })
+    expect(await applyAssignmentsAction([{ ...pair, score: 1, source: 'GUESS' }])).toEqual({
+      ok: false,
+      problem: 'invalid',
+    })
+    expect(applyAssignments).toHaveBeenCalledTimes(1)
+    // A write that fails says so.
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.mocked(applyAssignments).mockRejectedValueOnce(new Error('deadlock'))
+    expect(await applyAssignmentsAction([pair])).toEqual({ ok: false, problem: 'failed' })
+    signedIn('user_1', 'FULL')
+    expect(await applyAssignmentsAction([pair])).toEqual({ ok: false, problem: 'unauthorized' })
   })
 
   it('cancel a booking, and resolve overbooking the way the admin chose', async () => {
-    vi.mocked(removeAssignment).mockResolvedValue(true)
-    expect(
-      await removeAssignmentAction({ sessionExternalId: 'T018', employeeExternalId: 'E0153' })
-    ).toBe(true)
+    vi.mocked(removeAssignment).mockResolvedValueOnce(true)
+    const booking = { sessionExternalId: 'T018', employeeExternalId: 'E0153' }
+    expect(await removeAssignmentAction(booking)).toEqual({ ok: true })
+    vi.mocked(removeAssignment).mockResolvedValueOnce(false)
+    expect(await removeAssignmentAction(booking)).toEqual({ ok: false, reason: 'gone' })
+    expect(await removeAssignmentAction({ sessionExternalId: 'T018' })).toEqual({
+      ok: false,
+      reason: 'invalid',
+    })
     // Seats moved to the sessions picked, all at once, or why not and where.
     vi.mocked(moveSeatsMany).mockResolvedValueOnce({ ok: false, reason: 'TARGET_FULL', to: 'T018' })
     const moves = [{ to: 'T018', count: 1 }]
@@ -911,9 +946,9 @@ describe('booking actions', () => {
     ).toEqual({ status: 'refused', reason: 'invalid' })
     expect(applyAssignments).toHaveBeenCalledTimes(2)
     signedIn('user_1', 'VIEWER')
-    await expect(
-      addBookingAction({ sessionExternalId: 'T018' }, { status: 'idle' }, form({}))
-    ).rejects.toMatchObject({ name: 'UnauthorizedError' })
+    expect(
+      await addBookingAction({ sessionExternalId: 'T018' }, { status: 'idle' }, form({}))
+    ).toEqual({ status: 'refused', reason: 'unauthorized' })
   })
 })
 
@@ -1177,8 +1212,8 @@ describe('provider actions', () => {
 
   it('save providers for admins only', async () => {
     signedIn(null)
-    await expect(saveProvider(null, idle, form(providerForm))).rejects.toMatchObject({
-      name: 'UnauthorizedError',
+    expect(await saveProvider(null, idle, form(providerForm))).toMatchObject({
+      formError: 'unauthorized',
     })
   })
 })
@@ -1390,14 +1425,60 @@ describe('archive actions', () => {
     for (const role of ['VIEWER', 'FULL'] as const) {
       signedIn('user_1', role)
       expect(await previewArchive('employee', 'e1')).toBeNull()
-      await expect(archiveAction('employee', 'e1', null, idle)).rejects.toMatchObject({
-        name: 'UnauthorizedError',
+      expect(await archiveAction('employee', 'e1', null, idle)).toEqual({
+        status: 'refused',
+        reason: 'unauthorized',
       })
-      await expect(unarchiveAction('employee', 'e1', null, idle)).rejects.toMatchObject({
-        name: 'UnauthorizedError',
+      expect(await unarchiveAction('employee', 'e1', null, idle)).toEqual({
+        status: 'refused',
+        reason: 'unauthorized',
       })
     }
     expect(archiveImpact).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the write guard', () => {
+  it('answers every failure with the write’s own outcome, never a throw', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    // The rate limit itself failing (the database is down) is a failure, not a refusal.
+    vi.mocked(spendRequest).mockRejectedValueOnce(new Error('db down'))
+    expect(await saveCourse('BOZP-Z', idle, form({ name: 'BOZP' }))).toMatchObject({
+      formError: 'generic',
+    })
+    // Two rooms named alike at once: the index refused the second.
+    vi.mocked(createRoom).mockRejectedValueOnce({ code: 'P2002' })
+    expect(
+      await saveRoom(
+        null,
+        idle,
+        form({ name: 'Aula A', kind: 'CLASSROOM', capacity: '20', note: '' })
+      )
+    ).toEqual({ status: 'error', fieldErrors: { name: 'taken' } })
+    vi.mocked(archiveImpact).mockRejectedValueOnce(new Error('timeout'))
+    expect(await previewArchive('employee', 'e1')).toBeNull()
+    vi.mocked(findArchivedKeys).mockRejectedValueOnce(new Error('timeout'))
+    expect(await findArchived(NO_ARCHIVED)).toEqual(NO_ARCHIVED)
+    vi.mocked(removeAssignment).mockRejectedValueOnce(new Error('timeout'))
+    expect(
+      await removeAssignmentAction({ sessionExternalId: 'T018', employeeExternalId: 'E0153' })
+    ).toEqual({ ok: false, reason: 'failed' })
+    vi.mocked(moveSeatsMany).mockRejectedValueOnce(new Error('timeout'))
+    expect(
+      await resolveOverbookingAction({
+        from: 'T016',
+        resolution: { kind: 'move', moves: [{ to: 'T018', count: 1 }] },
+      })
+    ).toEqual({ ok: false, reason: 'failed' })
+    vi.mocked(applyAssignments).mockResolvedValueOnce([])
+    expect(
+      await addBookingAction(
+        { sessionExternalId: 'T018' },
+        { status: 'idle' },
+        form({ employeeExternalId: 'E0153' })
+      )
+    ).toEqual({ status: 'refused', reason: 'failed' })
+    expect(log).toHaveBeenCalled()
   })
 })
 

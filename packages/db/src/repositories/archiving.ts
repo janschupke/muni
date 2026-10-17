@@ -1,13 +1,15 @@
 import { type Archivable, archiveTag, type UserRef } from '@muni/domain/archive'
 import { canWrite, type Role } from '@muni/domain/enums'
+import { sortName } from '@muni/domain/names'
 import { isoDateFromUtc } from '@muni/utils/dates'
 
 import type { Tx } from '../client'
 import { ACTIVE, toUserRef, userSelect } from './archive'
 import { dbOf, type RepoOptions } from './context'
 import { stateOf } from './employment'
+import { isPrismaCode } from './errors'
 import { type SessionProblem, storedSessionProblem } from './mutations'
-import { lockSessions } from './session-fit'
+import { lockSessionWrites } from './session-fit'
 
 // Archiving and unarchiving. Nothing in the app deletes a record: archiving hides it from every
 // list and count, keeps its history, and frees its unique keys for a new record. Each rule below
@@ -214,7 +216,7 @@ async function locked<T>(
   run: () => Promise<T>
 ): Promise<T | 'NOT_FOUND'> {
   // Session writes and archiving a room or course take turns.
-  if (kind === 'room' || kind === 'course') await lockSessions(tx)
+  if (kind === 'room' || kind === 'course') await lockSessionWrites(tx)
   const row = await lockRow(tx, kind, id)
   if (row?.archived_at !== null) return 'NOT_FOUND'
   return run()
@@ -284,7 +286,7 @@ export async function unarchiveRecord(
     return await dbOf(options).$transaction(async tx => {
       // A session comes back into a room and a course: it takes turns with session writes and
       // with archiving either of them, as they take the same lock.
-      if (kind === 'session') await lockSessions(tx)
+      if (kind === 'session') await lockSessionWrites(tx)
       const lock = await lockRow(tx, kind, id)
       if (!lock?.archived_at) return { ok: false, reason: 'NOT_FOUND' }
       const row = await delegate(tx, kind).findUnique({ where: { id } })
@@ -311,7 +313,7 @@ export async function unarchiveRecord(
     })
   } catch (error) {
     // Another record took the key between the check and the write (the index refused it).
-    if ((error as { code?: unknown }).code !== 'P2002') throw error
+    if (!isPrismaCode(error, 'P2002')) throw error
     return { ok: false, reason: 'TAKEN', fields: [...config.unique] }
   }
 }
@@ -558,7 +560,7 @@ export async function getArchivedRecord(
         e &&
         record(
           e,
-          `${e.lastName} ${e.firstName}`,
+          sortName(e),
           [
             text('externalId', e.externalId),
             text('email', e.email),

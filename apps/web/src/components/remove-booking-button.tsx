@@ -28,6 +28,7 @@ export function RemoveBookingButton({
   confirmTitle: string
 }) {
   const t = useTranslations('bookings')
+  const reasons = useTranslations('advisor.outcome.reasons')
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const afterWrite = useAfterWrite()
@@ -52,10 +53,16 @@ export function RemoveBookingButton({
         returnFocusTo={() => trigger.current}
         onConfirm={async () => {
           const removed = await removeAssignmentAction({ sessionExternalId, employeeExternalId })
-          afterWrite()
-          return removed
-            ? { kind: 'done', toast: { title: t('cancelled') } }
-            : { kind: 'refused', message: t('alreadyGone') }
+          if (removed.ok) {
+            afterWrite()
+            return { kind: 'done', toast: { title: t('cancelled') } }
+          }
+          // Gone already: the page is behind, so it catches up.
+          if (removed.reason === 'gone') {
+            afterWrite()
+            return { kind: 'refused', message: t('alreadyGone') }
+          }
+          return { kind: 'refused', message: reasons(removed.reason) }
         }}
       >
         <p className="text-sm text-fg-muted">{t('removeBody')}</p>

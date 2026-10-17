@@ -1,3 +1,4 @@
+import { sortName } from '@muni/domain/names'
 import { type ArchivedKeys, NO_ARCHIVED, type ReferenceSnapshot } from '@muni/importer'
 import { toZonedParts } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
@@ -67,7 +68,7 @@ export async function loadReferenceSnapshot(db: Db): Promise<ReferenceSnapshot> 
     employees: employees.map(e => ({
       externalId: e.externalId,
       email: e.email,
-      fullName: `${e.lastName} ${e.firstName}`,
+      fullName: sortName(e),
     })),
     departments: departments.map(d => d.name),
     positions: positions.map(p => p.name),

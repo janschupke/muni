@@ -81,7 +81,8 @@ export function ImportWizard({
         })
     }
     const parsed = batchFrom(next)
-    const keys = await findArchived(archivedCandidates(parsed))
+    // Unreachable: no row is marked archived here; the server still skips them when writing.
+    const keys = await findArchived(archivedCandidates(parsed)).catch(() => NO_ARCHIVED)
     setArchived(keys)
     setFiles(next)
     setRejected(failed)

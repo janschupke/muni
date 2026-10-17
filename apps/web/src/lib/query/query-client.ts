@@ -2,7 +2,10 @@ import { QueryClient } from '@tanstack/react-query'
 
 import { ReadError } from './fetch-read'
 
-/** How long read data counts as fresh: a revisit or refocus inside it asks nothing. */
+/**
+ * How long read data counts as fresh: a revisit or refocus inside it asks nothing.
+ * @internal Exported for its tests.
+ */
 export const STALE_MS = 5 * 60_000
 
 /**

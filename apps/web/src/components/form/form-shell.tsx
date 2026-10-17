@@ -5,7 +5,6 @@ import { Button } from '@muni/ui/button'
 import { Card, CardBody } from '@muni/ui/card'
 import { Checkbox } from '@muni/ui/checkbox'
 import { DatePicker } from '@muni/ui/date-picker'
-import { Dialog } from '@muni/ui/dialog'
 import { Field, Input, Textarea } from '@muni/ui/field'
 import { PageHeader } from '@muni/ui/page-header'
 import { Select } from '@muni/ui/select'
@@ -35,6 +34,7 @@ import { type FieldErrorKey, type FormState, IDLE } from '@/lib/form'
 import { type FormSpec, parseForm } from '@/lib/form-inputs'
 import { useWhenWritten } from '@/lib/query/use-after-write'
 
+import { ConfirmDialog } from '../confirm-dialog'
 import { useDateLabels, useTimeLabels } from './session-fields'
 
 /** An error the form knows before it is sent (a key under forms.errors, and its values). */
@@ -159,6 +159,7 @@ export function FormShell({
 }) {
   const t = useTranslations()
   const formRef = useRef<HTMLFormElement>(null)
+  const submitRef = useRef<HTMLButtonElement>(null)
   const [state, formAction, pending] = useActionState(action, IDLE)
   useWhenWritten(
     state,
@@ -305,7 +306,12 @@ export function FormShell({
                 {t('common.cancel')}
               </Link>
             </Button>
-            <Button type="submit" variant="primary" disabled={busy || (!isNew && clean)}>
+            <Button
+              ref={submitRef}
+              type="submit"
+              variant="primary"
+              disabled={busy || (!isNew && clean)}
+            >
               <Save aria-hidden />
               {busy ? t('common.saving') : submitLabel}
             </Button>
@@ -323,38 +329,24 @@ export function FormShell({
         </CardBody>
       </Card>
       {asking && (
-        <Dialog
+        <ConfirmDialog
           open
           onOpenChange={open => {
             if (!open) setAsking(null)
           }}
           title={asking.question.title}
-          closeLabel={t('common.close')}
-          footer={
-            <>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setAsking(null)
-                }}
-              >
-                {t('common.keepEditing')}
-              </Button>
-              <Button
-                variant={asking.question.tone === 'danger' ? 'danger' : 'primary'}
-                onClick={() => {
-                  const form = formRef.current
-                  setAsking(null)
-                  if (form) send(form, asking.data)
-                }}
-              >
-                {asking.question.confirmLabel}
-              </Button>
-            </>
-          }
+          confirmLabel={asking.question.confirmLabel}
+          cancelLabel={t('common.keepEditing')}
+          tone={asking.question.tone}
+          returnFocusTo={() => submitRef.current}
+          onConfirm={() => {
+            const form = formRef.current
+            if (form) send(form, asking.data)
+            return Promise.resolve({ kind: 'go' })
+          }}
         >
           <div className="flex flex-col gap-3 text-sm">{asking.question.body}</div>
-        </Dialog>
+        </ConfirmDialog>
       )}
     </form>
   )

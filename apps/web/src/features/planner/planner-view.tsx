@@ -5,6 +5,7 @@ import {
   DEFAULT_SESSION_MINUTES,
   type OfferCourse,
   PLAN_HORIZON_DAYS,
+  type PlannerGroup,
   type SessionOffer,
 } from '@muni/domain/planner'
 import { Alert } from '@muni/ui/alert'
@@ -32,11 +33,6 @@ import { useMemo, useState } from 'react'
 import { RoomLink } from '@/components/session-links'
 
 import { OfferReview } from './offer-review'
-
-export interface PlannerGroup {
-  course: OfferCourse
-  offers: SessionOffer[]
-}
 
 const col = createDataColumns<SessionOffer>()
 

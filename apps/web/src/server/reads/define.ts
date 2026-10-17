@@ -1,6 +1,6 @@
 import 'server-only'
 
-import type * as z from 'zod'
+import * as z from 'zod'
 
 import type { SessionUser } from '@/server/auth'
 
@@ -35,3 +35,9 @@ export function read<S extends z.ZodType<Record<string, unknown>>, O>(
 ): Read<S, O> {
   return definition
 }
+
+/** The addresses reads take: nothing, a record's id, its external ID, a course's code. */
+export const none = z.object({})
+export const byId = z.object({ id: z.string().min(1).max(64) })
+export const byExternalId = z.object({ externalId: z.string().min(1).max(32) })
+export const byCode = z.object({ code: z.string().min(1).max(32) })

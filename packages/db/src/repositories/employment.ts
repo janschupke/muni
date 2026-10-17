@@ -9,7 +9,10 @@ export const stillEmployed = (asOf: string = todayIn()) => ({
   OR: [{ leftOn: null }, { leftOn: { gt: isoDateToUtc(asOf) } }],
 })
 
-/** People who have left by `asOf`. */
+/**
+ * People who have left by `asOf`.
+ * @internal Exported for its tests.
+ */
 export const hasLeft = (asOf: string = todayIn()) => ({ leftOn: { lte: isoDateToUtc(asOf) } })
 
 /** Where a stored person stands on `asOf` (LEFT from their leaving date on). */

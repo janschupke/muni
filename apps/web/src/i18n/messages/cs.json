@@ -407,7 +407,9 @@
       "not_a_number": "Zadejte číslo.",
       "too_small_number": "Zadejte alespoň {min}.",
       "too_big_number": "Zadejte nejvýše {max}.",
-      "too_long": "Nejvýše {max, plural, one {# znak} few {# znaky} other {# znaků}}."
+      "too_long": "Nejvýše {max, plural, one {# znak} few {# znaky} other {# znaků}}.",
+      "unauthorized": "Váš účet už nemůže provádět změny. Přihlaste se znovu.",
+      "rate_limited": "Příliš mnoho změn v krátké době. Chvíli počkejte a uložte znovu."
     },
     "placeholders": {
       "code": "KURZ-01",
@@ -657,7 +659,8 @@
         "room_busy": "místnost je v tu dobu obsazená termínem naplánovaným v aplikaci; nejdřív jeden z nich přesuňte",
         "room_unfit": "nadcházející termíny v této místnosti by se do ní nevešly; nejdřív je přesuňte",
         "failed": "databáze zápis odmítla",
-        "network": "server nebyl dostupný"
+        "network": "server nebyl dostupný",
+        "rate_limited": "příliš mnoho zápisů v krátké době; chvíli počkejte a importujte znovu"
       }
     },
     "fields": {
@@ -985,7 +988,10 @@
         "ROOM_ARCHIVED": "Místnost byla archivována.",
         "COURSE_ARCHIVED": "Kurz byl archivován.",
         "OVER_CAPACITY": "Přihlášeno je víc lidí, než tato kapacita pojme.",
-        "ATTENDEE_CONFLICT": "Někdo s rezervací na termínu má v tu dobu jiný termín."
+        "ATTENDEE_CONFLICT": "Někdo s rezervací na termínu má v tu dobu jiný termín.",
+        "unauthorized": "Váš účet už nemůže provádět změny. Přihlaste se znovu.",
+        "rate_limited": "Příliš mnoho změn v krátké době. Chvíli počkejte a zkuste to znovu.",
+        "failed": "Změnu se nepodařilo uložit. Zkuste to znovu."
       }
     },
     "outcome": {
@@ -1000,7 +1006,11 @@
         "ALREADY_ASSIGNED": "už přihlášen",
         "CONFLICT": "koliduje s jinou přihláškou",
         "NOT_REQUIRED": "školení pro tuto osobu není povinné",
-        "NOT_NEEDED": "školení je už platné"
+        "NOT_NEEDED": "školení je už platné",
+        "unauthorized": "váš účet už nemůže provádět změny; přihlaste se znovu",
+        "rate_limited": "příliš mnoho změn v krátké době; chvíli počkejte",
+        "failed": "server to nedokázal uložit; zkuste to znovu",
+        "invalid": "požadavek nebyl platný; načtěte stránku znovu a zkuste to znovu"
       }
     }
   },
@@ -1235,7 +1245,8 @@
       "ROOM_ARCHIVED": "Místnost byla mezitím archivována. Zvolte jinou místnost.",
       "COURSE_ARCHIVED": "Kurz byl mezitím archivován. Načtěte plánovač znovu.",
       "OVER_CAPACITY": "Kapacita je nižší než počet lidí k přihlášení. Zvyšte ji, nebo přihlaste méně lidí.",
-      "ATTENDEE_CONFLICT": "Někdo s rezervací na termínu má v tu dobu jiný termín."
+      "ATTENDEE_CONFLICT": "Někdo s rezervací na termínu má v tu dobu jiný termín.",
+      "rate_limited": "Příliš mnoho změn v krátké době. Chvíli počkejte a zkuste to znovu."
     },
     "problems": {
       "NO_ROOM_WITH": "I nejlépe vybavené místnosti chybí {missing}.",
@@ -1386,7 +1397,9 @@
       "parent_archived": "Patří k něčemu, co je archivované. Nejdřív obnovte to.",
       "room_busy": "Místnost je v tu dobu obsazená jiným plánovaným termínem. Nejdřív jeden z nich přesuňte.",
       "room_unfit": "Místnost mu už nevyhovuje. Nejdřív místnost upravte.",
-      "generic": "Nepovedlo se to. Zkuste to znovu."
+      "generic": "Nepovedlo se to. Zkuste to znovu.",
+      "unauthorized": "Váš účet už nemůže provádět změny. Přihlaste se znovu.",
+      "rate_limited": "Příliš mnoho změn v krátké době. Chvíli počkejte a zkuste to znovu."
     },
     "fields": {
       "name": "název",

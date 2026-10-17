@@ -1,6 +1,7 @@
 'use client'
 
 import type { EmployeeListItem } from '@muni/db/repositories'
+import { sortName } from '@muni/domain/names'
 import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable, type SortingState } from '@muni/ui/data-table'
 import { Meter } from '@muni/ui/meter'
@@ -56,7 +57,7 @@ export function EmployeesTable({
     () =>
       col.columns([
         // Accessors only make the columns sortable here; the server does the ordering.
-        col.accessor(e => `${e.lastName} ${e.firstName}`, {
+        col.accessor(e => sortName(e), {
           id: 'name',
           header: t('columns.name'),
           cell: ({ row }) => (
@@ -148,7 +149,7 @@ export function EmployeesTable({
                   <RowActions
                     kind="employee"
                     id={row.original.id}
-                    name={`${row.original.lastName} ${row.original.firstName}`}
+                    name={sortName(row.original)}
                     editHref={`/employees/${row.original.externalId}/edit`}
                   />
                 ),
@@ -170,7 +171,7 @@ export function EmployeesTable({
           : { initialSorting: [{ id: 'name', desc: false }] })}
         renderExpanded={e => <RequirementPanel requirements={e.requirements} />}
         getRowCanExpand={e => e.requirements.length > 0}
-        expandLabel={e => t('panel.toggle', { name: `${e.lastName} ${e.firstName}` })}
+        expandLabel={e => t('panel.toggle', { name: sortName(e) })}
         expandHeader={t('panel.header')}
         onSortingChange={next => {
           if (!query) return

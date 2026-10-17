@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
 import { BackLink } from '@/components/back-link'
-import { DepartmentForm, PositionForm } from '@/components/form/entity-forms'
+import { DepartmentForm, PositionForm } from '@/components/form/group-forms'
 import { ReadView } from '@/components/read-view'
 import { FormSkeleton } from '@/components/skeletons'
 import { FORM_READ, readQuery } from '@/lib/query/queries'

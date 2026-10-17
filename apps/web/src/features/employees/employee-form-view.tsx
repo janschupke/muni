@@ -1,11 +1,12 @@
 'use client'
 
+import { displayName } from '@muni/domain/names'
 import { todayIn } from '@muni/utils/dates'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
 import { BackLink } from '@/components/back-link'
-import { EmployeeForm } from '@/components/form/entity-forms'
+import { EmployeeForm } from '@/components/form/employee-form'
 import { ReadView } from '@/components/read-view'
 import { FormSkeleton } from '@/components/skeletons'
 import { FORM_READ, readQuery } from '@/lib/query/queries'
@@ -58,7 +59,7 @@ export function EmployeeFormView({ externalId }: { externalId?: string | undefin
               {...choices}
             />
           )
-        const name = `${employee.firstName} ${employee.lastName}`
+        const name = displayName(employee)
         const href = `/employees/${employee.externalId}`
         return (
           <EmployeeForm

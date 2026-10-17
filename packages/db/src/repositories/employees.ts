@@ -6,6 +6,7 @@ import {
   worstStatus,
 } from '@muni/domain/compliance'
 import type { ComplianceStatus, EmploymentState, Role } from '@muni/domain/enums'
+import { sortName } from '@muni/domain/names'
 import { sanitizeRecord } from '@muni/domain/sanitize'
 import { type IsoDate, isoDateFromUtc, todayIn } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
@@ -287,7 +288,7 @@ export async function getEmployee(
     const own = cellsByPerson.get(r.id) ?? []
     return {
       externalId: r.externalId,
-      name: `${r.lastName} ${r.firstName}`,
+      name: sortName(r),
       position: r.position?.name ?? null,
       status: stateOf(r, options?.asOf),
       compliance: worstStatus(own.map(c => c.status)),
@@ -387,7 +388,7 @@ export async function getEmployeeForEdit(externalId: string, options?: RepoOptio
     positionId: employee.positionId,
     managerId: manager?.id ?? null,
     /** The current manager as an option, whether or not the pickers list them. */
-    manager: manager && { id: manager.id, name: `${manager.lastName} ${manager.firstName}` },
+    manager: manager && { id: manager.id, name: sortName(manager) },
     leadsDepartment: employee.leadsDepartment,
     hiredOn: isoDateFromUtc(employee.hiredOn),
     leftOn: employee.leftOn ? isoDateFromUtc(employee.leftOn) : null,

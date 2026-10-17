@@ -1,9 +1,19 @@
+import { sortName } from '@muni/domain/names'
 import type { RoomFacts } from '@muni/domain/rooms'
 
 import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions } from './context'
 import { stillEmployed } from './employment'
 import { roomFactsOf, roomFactsSelect } from './session-fit'
+
+/** Every active department's id and name, by name: what breakdowns by department list. */
+export function activeDepartments(options?: RepoOptions): Promise<{ id: string; name: string }[]> {
+  return dbOf(options).department.findMany({
+    where: ACTIVE,
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  })
+}
 
 export async function listDepartments(options?: RepoOptions): Promise<string[]> {
   const rows = await dbOf(options).department.findMany({
@@ -53,7 +63,7 @@ export async function getPersonName(externalId: string, options?: RepoOptions) {
     where: { externalId, ...ACTIVE },
     select: { firstName: true, lastName: true },
   })
-  return person && `${person.lastName} ${person.firstName}`
+  return person && sortName(person)
 }
 
 export interface PersonOption {
@@ -74,7 +84,7 @@ export async function listEmployeeOptions(options?: RepoOptions): Promise<Person
     .map(p => ({
       id: p.id,
       externalId: p.externalId,
-      name: `${p.lastName} ${p.firstName}`,
+      name: sortName(p),
       departmentId: p.departmentId,
     }))
     .sort((a, b) => a.name.localeCompare(b.name, 'cs'))

@@ -9,12 +9,8 @@ import {
   listGroupOptions,
   listPositionSummaries,
 } from '@muni/db/repositories'
-import * as z from 'zod'
 
-import { read } from './define'
-
-const none = z.object({})
-const byId = z.object({ id: z.string().min(1).max(64) })
+import { byId, none, read } from './define'
 
 /** Every department, with its people and compliance. */
 export const departmentsList = read({

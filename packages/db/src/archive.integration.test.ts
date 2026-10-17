@@ -33,6 +33,7 @@ import {
   getProvider,
   getSession,
   listArchived,
+  listCourseOptions,
   listCourses,
   listDepartmentSummaries,
   listEmployeeBookings,
@@ -313,6 +314,9 @@ describe('archived records leave every list and count', () => {
     expect(await archive('course', id)).toMatchObject({ ok: true })
     expect((await listCourses(options)).map(c => c.code)).not.toContain('ANGL')
     expect(await getCourse('ANGL', options)).toBeNull()
+    // Offered to no form, but kept by a record that has it.
+    expect((await listCourseOptions(options)).map(c => c.code)).not.toContain('ANGL')
+    expect((await listCourseOptions({ ...options, keep: id })).map(c => c.code)).toContain('ANGL')
     expect(await unarchiveRecord('course', id, options)).toEqual({ ok: true })
     expect((await listCourses(options)).map(c => c.code)).toContain('ANGL')
   })

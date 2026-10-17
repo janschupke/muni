@@ -1,5 +1,6 @@
 'use client'
 
+import { displayName } from '@muni/domain/names'
 import { BarRow } from '@muni/ui/bar-row'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
@@ -44,7 +45,7 @@ import type { ReadOutput } from '@/server/reads/registry'
 export function EmployeeView({ externalId, canEdit }: { externalId: string; canEdit: boolean }) {
   const read = useQuery(readQuery('employee', { externalId }))
   const data = read.data
-  useDocumentTitle(data && `${data.employee.firstName} ${data.employee.lastName}`)
+  useDocumentTitle(data && displayName(data.employee))
   return (
     <ReadView query={read} skeleton={<DetailSkeleton />} entity="employees">
       {data => <EmployeeDetail {...data} canEdit={canEdit} />}
@@ -64,7 +65,7 @@ function EmployeeDetail({
   const tc = useTranslations('courses')
   const tb = useTranslations('bookings')
   const locale = useLocale()
-  const name = `${employee.firstName} ${employee.lastName}`
+  const name = displayName(employee)
   const date = (value: string | null) => formatOptional(value, v => formatDate(v, locale))
   const held = employee.requirements.filter(
     r => r.status === 'VALID' || r.status === 'EXPIRING'

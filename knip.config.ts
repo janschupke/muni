@@ -7,22 +7,27 @@ const config: KnipConfig = {
     },
     'apps/web': {
       entry: [
-        'src/app/**/{page,layout,not-found,error,loading,route}.tsx',
-        'src/proxy.ts',
+        'src/app/**/{page,layout,not-found,error,loading,route,template,global-error}.{ts,tsx}!',
+        'src/proxy.ts!',
+        'src/i18n/request.ts!',
+        'next.config.ts!',
         'e2e/**/*.ts',
       ],
-      project: ['src/**/*.{ts,tsx}', 'e2e/**/*.ts'],
+      // The test helpers are not production code.
+      project: ['src/**/*.{ts,tsx}!', '!src/test/**!', 'e2e/**/*.ts'],
       ignoreDependencies: ['tailwindcss'],
     },
     'packages/db': {
-      entry: ['src/seed.ts', 'prisma.config.ts', 'src/**/*.test.ts'],
-      project: ['src/**/*.ts', 'prisma.config.ts'],
+      entry: ['src/seed.ts!', 'scripts/*.ts!', 'prisma.config.ts!', 'src/**/*.test.ts'],
+      project: ['src/**/*.ts!', 'scripts/*.ts!', 'prisma.config.ts!'],
+      // Development tools the migration scripts run.
+      ignoreBinaries: ['tsx', 'prisma'],
       ignore: ['src/generated/**'],
       // Imported by the generated client in src/generated, which knip does not scan.
       ignoreDependencies: ['@prisma/client'],
     },
     'packages/*': {
-      project: ['src/**/*.{ts,tsx}'],
+      project: ['src/**/*.{ts,tsx}!', '!src/test/**!'],
     },
   },
 }

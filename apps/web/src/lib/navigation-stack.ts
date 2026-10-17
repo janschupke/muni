@@ -11,7 +11,10 @@ export interface HistoryEntry {
 
 const MAX_ENTRIES = 30
 
-/** Forms are passed through, never returned to: after saving, "back" skips them. */
+/**
+ * Forms are passed through, never returned to: after saving, "back" skips them.
+ * @internal Exported for its tests.
+ */
 export function isTransient(href: string): boolean {
   return /\/(edit|new)$/.test(href.split('?')[0] ?? '')
 }

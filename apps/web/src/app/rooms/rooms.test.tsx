@@ -229,7 +229,7 @@ describe('archiving a room', () => {
       true
     )
     await expectNoAxeViolations()
-    await user.click(within(confirm).getByRole('button', { name: 'Cancel' }))
+    await user.click(within(confirm).getByRole('button', { name: 'Keep as is' }))
     expect(archiveAction).not.toHaveBeenCalled()
   })
 

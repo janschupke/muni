@@ -10,18 +10,13 @@ import {
   listRoomOptions,
 } from '@muni/db/repositories'
 import { planAssignments } from '@muni/domain/advisor'
-import { planSessions } from '@muni/domain/planner'
+import { groupOffers, planSessions } from '@muni/domain/planner'
 import { todayIn } from '@muni/utils/dates'
-import * as z from 'zod'
 
-import type { PlannerGroup } from '@/features/planner/planner-view'
-
-import { read } from './define'
+import { none, read } from './define'
 
 // The overview and the planning pages. Their plans follow one fixed rule from the current
 // data, the same for every visitor, so they are worked out here and sent ready.
-
-const none = z.object({})
 
 /** The overview: the figures, and what the advisor has waiting. */
 export const dashboard = read({
@@ -62,14 +57,8 @@ export const planner = read({
       items: planAssignments(advisorInput).items,
       ...plannerInput,
     })
-    const groups = [...Map.groupBy(offers, o => o.course.code).values()].map(
-      (courseOffers): PlannerGroup => ({
-        course: (courseOffers[0] as (typeof offers)[number]).course,
-        offers: courseOffers,
-      })
-    )
     // Every room, so a review can move an offer to another one (with its fit shown).
-    return { groups, rooms: await listRoomOptions() }
+    return { groups: groupOffers(offers), rooms: await listRoomOptions() }
   },
 })
 

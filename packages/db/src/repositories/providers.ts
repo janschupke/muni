@@ -6,6 +6,7 @@ import { cleanFreeText } from '@muni/utils/text'
 import { Prisma } from '../generated/prisma/client'
 import { ACTIVE, isArchived, type PersonRef, personSelect, toPersonRef } from './archive'
 import { dbOf, getPolicy, type RepoOptions, toAmount } from './context'
+import { isPrismaCode } from './errors'
 
 // Training providers: who delivered the completions on record, with their contact details
 // and what was done with them. Prices follow the sanitisation policy for `completion.price`:
@@ -219,7 +220,7 @@ async function writeProvider(
       : await db.provider.create({ data, select: { id: true } })
     return { ok: true, id: saved.id }
   } catch (error) {
-    if ((error as { code?: unknown }).code !== 'P2002') throw error
+    if (!isPrismaCode(error, 'P2002')) throw error
     // Name and IČO are the unique fields: the IČO is taken when someone else holds it.
     const holder =
       data.companyId &&

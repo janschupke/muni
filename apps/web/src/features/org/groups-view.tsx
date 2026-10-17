@@ -2,8 +2,9 @@
 
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
+import type { ReactNode } from 'react'
 
 import { ListActions } from '@/components/list-actions'
 import { ReadView } from '@/components/read-view'
@@ -20,10 +21,43 @@ export function GroupsView({
   kind: 'departments' | 'positions'
   canEdit: boolean
 }) {
-  const t = useTranslations(kind)
-  const read = useQuery(
-    readQuery(kind === 'departments' ? 'departments-list' : 'positions-list', {})
+  return kind === 'departments' ? (
+    <DepartmentsList canEdit={canEdit} />
+  ) : (
+    <PositionsList canEdit={canEdit} />
   )
+}
+
+function DepartmentsList({ canEdit }: { canEdit: boolean }) {
+  const read = useQuery(readQuery('departments-list', {}))
+  return (
+    <GroupsPage kind="departments" canEdit={canEdit} read={read}>
+      {groups => <GroupsTable kind="departments" groups={groups} canEdit={canEdit} />}
+    </GroupsPage>
+  )
+}
+
+function PositionsList({ canEdit }: { canEdit: boolean }) {
+  const read = useQuery(readQuery('positions-list', {}))
+  return (
+    <GroupsPage kind="positions" canEdit={canEdit} read={read}>
+      {groups => <GroupsTable kind="positions" groups={groups} canEdit={canEdit} />}
+    </GroupsPage>
+  )
+}
+
+function GroupsPage<G>({
+  kind,
+  canEdit,
+  read,
+  children,
+}: {
+  kind: 'departments' | 'positions'
+  canEdit: boolean
+  read: UseQueryResult<G[]>
+  children: (groups: G[]) => ReactNode
+}) {
+  const t = useTranslations(kind)
   return (
     <>
       <PageHeader
@@ -39,17 +73,7 @@ export function GroupsView({
         }
       />
       <ReadView query={read} skeleton={<TableSkeleton columns={4} />}>
-        {groups =>
-          groups.length === 0 ? (
-            <EmptyState title={t('empty')} />
-          ) : (
-            // The read is the kind's own list (departments-list or positions-list).
-            <GroupsTable
-              {...({ kind, groups } as Parameters<typeof GroupsTable>[0])}
-              canEdit={canEdit}
-            />
-          )
-        }
+        {groups => (groups.length === 0 ? <EmptyState title={t('empty')} /> : children(groups))}
       </ReadView>
     </>
   )

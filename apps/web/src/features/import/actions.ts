@@ -11,13 +11,13 @@ import {
 import { type ArchivedKeys, DATASET_KINDS, type DatasetKind, NO_ARCHIVED } from '@muni/importer'
 import * as z from 'zod'
 
-import { requireAdmin } from '@/server/auth'
+import { asAdmin, type Denied, logFailure } from '@/server/actions/guard'
 
 export type CommitChunkResult =
   | { ok: true; created: number; updated: number; skipped: number }
   | {
       ok: false
-      error: 'unauthorized' | 'invalid' | 'room_busy' | 'room_unfit' | 'failed'
+      error: Denied | 'invalid' | 'room_busy' | 'room_unfit' | 'failed'
       detail?: string
     }
 
@@ -29,11 +29,6 @@ export async function commitImportChunk(
   kind: DatasetKind,
   records: unknown[]
 ): Promise<CommitChunkResult> {
-  try {
-    await requireAdmin()
-  } catch {
-    return { ok: false, error: 'unauthorized' }
-  }
   if (
     !DATASET_KINDS.includes(kind) ||
     !Array.isArray(records) ||
@@ -41,27 +36,30 @@ export async function commitImportChunk(
   ) {
     return { ok: false, error: 'invalid' }
   }
-  try {
-    const result = await commitChunk(getDb(), kind, records)
-    return { ok: true, ...result }
-  } catch (error) {
-    if (error instanceof CommitValidationError) {
-      return {
-        ok: false,
-        error: 'invalid',
-        detail: `#${error.index}: ${error.issues.map(i => i.message).join(', ')}`,
-      }
+  return asAdmin<CommitChunkResult>(
+    async () => ({ ok: true, ...(await commitChunk(getDb(), kind, records)) }),
+    {
+      denied: error => ({ ok: false, error }),
+      failed: error => {
+        if (error instanceof CommitValidationError) {
+          return {
+            ok: false,
+            error: 'invalid',
+            detail: `#${error.index}: ${error.issues.map(i => i.message).join(', ')}`,
+          }
+        }
+        if (error instanceof CommitRefusedError) {
+          return {
+            ok: false,
+            error: error.reason === 'ROOM_BUSY' ? 'room_busy' : 'room_unfit',
+            detail: `#${error.index}: ${error.key}`,
+          }
+        }
+        logFailure(error)
+        return { ok: false, error: 'failed' }
+      },
     }
-    if (error instanceof CommitRefusedError) {
-      return {
-        ok: false,
-        error: error.reason === 'ROOM_BUSY' ? 'room_busy' : 'room_unfit',
-        detail: `#${error.index}: ${error.key}`,
-      }
-    }
-    console.error(error)
-    return { ok: false, error: 'failed' }
-  }
+  )
 }
 
 const keys = z.array(z.string().max(500)).max(50_000)
@@ -82,11 +80,17 @@ const candidatesSchema = z.object({
  * as skipped. Nothing else about archived records is sent back.
  */
 export async function findArchived(candidates: ArchivedKeys): Promise<ArchivedKeys> {
-  try {
-    await requireAdmin()
-  } catch {
-    return NO_ARCHIVED
-  }
-  const parsed = candidatesSchema.safeParse(candidates)
-  return parsed.success ? findArchivedKeys(getDb(), parsed.data) : NO_ARCHIVED
+  return asAdmin(
+    async () => {
+      const parsed = candidatesSchema.safeParse(candidates)
+      return parsed.success ? findArchivedKeys(getDb(), parsed.data) : NO_ARCHIVED
+    },
+    {
+      denied: () => NO_ARCHIVED,
+      failed: error => {
+        logFailure(error)
+        return NO_ARCHIVED
+      },
+    }
+  )
 }

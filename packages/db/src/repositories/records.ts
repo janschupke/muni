@@ -1,3 +1,4 @@
+import { sortName } from '@muni/domain/names'
 import { effectiveNeeds } from '@muni/domain/rooms'
 import {
   APP_ID_PREFIX,
@@ -17,7 +18,8 @@ import { cleanFreeText } from '@muni/utils/text'
 import type { Tx } from '../client'
 import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions, toAmount } from './context'
-import { lockSessions, needsSelect, newlyUnfit } from './session-fit'
+import { isPrismaCode } from './errors'
+import { lockSessionWrites, needsSelect, newlyUnfit } from './session-fit'
 
 // Creating and editing courses, people and completions. Callers (server actions) have
 // checked for an admin; the input is parsed again here whatever they checked. Everything a
@@ -48,7 +50,7 @@ export type RecordProblem =
 
 export type RecordWrite<T> = ({ ok: true } & T) | ({ ok: false } & RecordProblem)
 
-const isUnique = (error: unknown) => (error as { code?: unknown } | null)?.code === 'P2002'
+const isUnique = (error: unknown) => isPrismaCode(error, 'P2002')
 
 /** The ids among `ids` that name active rows of the table, locked against archiving. */
 async function activeIds(tx: Tx, table: 'departments' | 'positions', ids: string[]) {
@@ -157,7 +159,7 @@ export async function updateCourse(
   const data = courseEditSchema.parse(input)
   return refusable(() =>
     dbOf(options).$transaction(async tx => {
-      await lockSessions(tx)
+      await lockSessionWrites(tx)
       const current = await tx.course.findFirstOrThrow({
         where: { code, ...ACTIVE },
         select: { id: true, ...needsSelect },
@@ -520,7 +522,7 @@ export async function getCompletionForEdit(id: string, options?: RepoOptions) {
     employee: {
       id: completion.employee.id,
       externalId: completion.employee.externalId,
-      name: `${completion.employee.lastName} ${completion.employee.firstName}`,
+      name: sortName(completion.employee),
     },
   }
 }

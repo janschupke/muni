@@ -5,15 +5,16 @@ import {
   createSession,
   createSessionWithBookings,
   type PlannedSessionWrite,
-  type SessionWrite,
 } from '@muni/db/repositories'
 import { canWrite } from '@muni/domain/enums'
 import { sessionCreateSchema } from '@muni/domain/schemas'
 import * as z from 'zod'
 
-import { formError, type FormState, sessionProblem } from '@/lib/form'
+import { type FormState, sessionProblem } from '@/lib/form'
 import { parseForm, sessionCreateSpec } from '@/lib/form-inputs'
-import { getSessionUser, requireAdmin } from '@/server/auth'
+import { getSessionUser } from '@/server/auth'
+
+import { asAdmin, type Denied, isBoundIdOrNull, logFailure, saveForm } from './guard'
 
 const plannedInput = z.object({
   session: sessionCreateSchema,
@@ -23,7 +24,7 @@ const plannedInput = z.object({
 
 /** What creating a planned session came to, or why the server would not take it at all. */
 export type PlannedOutcome =
-  PlannedSessionWrite | { ok: false; problem: 'unauthorized' | 'invalid' | 'failed'; refusals: [] }
+  PlannedSessionWrite | { ok: false; problem: Denied | 'invalid' | 'failed'; refusals: [] }
 
 /**
  * Creates the session a planner offer turned into, and books the people chosen on it, all or
@@ -31,19 +32,21 @@ export type PlannedOutcome =
  * Every way it can fail comes back as an answer the review shows.
  */
 export async function createPlannedSessionAction(input: unknown): Promise<PlannedOutcome> {
-  // Signed out meanwhile (an expired session) or no longer an admin: say so, rather than
-  // throwing into the page.
-  const user = await getSessionUser()
-  if (!user || !canWrite(user.role)) return { ok: false, problem: 'unauthorized', refusals: [] }
-  const parsed = plannedInput.safeParse(input)
-  if (!parsed.success) return { ok: false, problem: 'invalid', refusals: [] }
-  const { session, people, dryRun } = parsed.data
-  try {
-    return await createSessionWithBookings(session, people, user.id, { dryRun })
-  } catch (error) {
-    console.error(error)
-    return { ok: false, problem: 'failed', refusals: [] }
-  }
+  return asAdmin<PlannedOutcome>(
+    async admin => {
+      const parsed = plannedInput.safeParse(input)
+      if (!parsed.success) return { ok: false, problem: 'invalid', refusals: [] }
+      const { session, people, dryRun } = parsed.data
+      return createSessionWithBookings(session, people, admin.id, { dryRun })
+    },
+    {
+      denied: problem => ({ ok: false, problem, refusals: [] }),
+      failed: error => {
+        logFailure(error)
+        return { ok: false, problem: 'failed', refusals: [] }
+      },
+    }
+  )
 }
 
 /**
@@ -51,18 +54,13 @@ export async function createPlannedSessionAction(input: unknown): Promise<Planne
  * sessions list; opens the new session.
  */
 export async function saveNewSession(_state: FormState, form: FormData): Promise<FormState> {
-  await requireAdmin()
-  const parsed = parseForm(sessionCreateSpec, form)
-  if (!parsed.ok) return parsed.state
-  let result: SessionWrite
-  try {
-    result = await createSession(parsed.data)
-  } catch (error) {
-    console.error(error)
-    return formError('generic')
-  }
-  if (!result.ok) return sessionProblem(result.problem)
-  return { status: 'saved', href: `/sessions/${result.externalId}` }
+  return saveForm(true, async () => {
+    const parsed = parseForm(sessionCreateSpec, form)
+    if (!parsed.ok) return parsed.state
+    const result = await createSession(parsed.data)
+    if (!result.ok) return sessionProblem(result.problem)
+    return { status: 'saved', href: `/sessions/${result.externalId}` }
+  })
 }
 
 const slotSchema = z.object({
@@ -84,11 +82,11 @@ export async function checkSessionSlotAction(
   const user = await getSessionUser()
   if (!user || !canWrite(user.role)) return null
   const parsed = slotSchema.safeParse(slot)
-  if (!parsed.success || (self !== null && typeof self !== 'string')) return null
+  if (!parsed.success || !isBoundIdOrNull(self)) return null
   try {
     return await checkSessionSlot(parsed.data, self)
   } catch (error) {
-    console.error(error)
+    logFailure(error)
     return null
   }
 }

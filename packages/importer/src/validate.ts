@@ -1,3 +1,4 @@
+import { sortName } from '@muni/domain/names'
 import { type RoomFacts, roomKindOfName, roomMismatch } from '@muni/domain/rooms'
 import type {
   CompletionInput,
@@ -289,7 +290,7 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
   for (const row of out.employees) {
     if (!row.isValid || row.isSkipped || row.isRemoved || !row.data) continue
     validEmployeeIds.add(row.data.externalId)
-    nameById.set(row.data.externalId, `${row.data.lastName} ${row.data.firstName}`)
+    nameById.set(row.data.externalId, sortName(row.data))
     if (row.data.email) validEmails.add(row.data.email)
   }
   out.employees = out.employees.map(row => {

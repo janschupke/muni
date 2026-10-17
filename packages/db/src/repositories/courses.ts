@@ -18,6 +18,7 @@ import {
   loadCompliance,
   type RepoOptions,
 } from './context'
+import { activeDepartments } from './lookups'
 import { needsOf, needsSelect } from './session-fit'
 import { isUpcoming, sessionInclude, toSessionItem, upcomingSessionWhere } from './sessions'
 
@@ -77,11 +78,7 @@ export async function listCourses(options?: RepoOptions): Promise<CourseListItem
       orderBy: { code: 'asc' },
     }),
     loadCompliance(options),
-    db.department.findMany({
-      where: ACTIVE,
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    }),
+    activeDepartments(options),
   ])
   const cellsByCourse = Map.groupBy(countedCells(compliance), c => c.courseId)
   return courses.map(course => {
@@ -190,11 +187,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
   if (!course) return null
   const [compliance, departments] = await Promise.all([
     loadCompliance(options),
-    db.department.findMany({
-      where: ACTIVE,
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    }),
+    activeDepartments(options),
   ])
   const cells = countedCells(compliance).filter(c => c.courseId === course.id)
   const counts = countStatuses(cells)
@@ -276,17 +269,42 @@ export interface CourseOption {
 }
 
 /** Every active course, for pickers. */
-export async function listCourseOptions(options?: RepoOptions): Promise<CourseOption[]> {
+const courseOptionSelect = {
+  id: true,
+  code: true,
+  name: true,
+  validityMonths: true,
+  ...needsSelect,
+} as const
+
+const toCourseOption = (
+  c: {
+    id: string
+    code: string
+    name: string
+    validityMonths: number | null
+  } & Parameters<typeof needsOf>[0]
+): CourseOption => ({
+  id: c.id,
+  code: c.code,
+  name: c.name,
+  validityMonths: c.validityMonths,
+  needs: needsOf(c),
+})
+
+/**
+ * The courses a form offers, active ones by code. `keep` adds a record's own course when it
+ * has since been archived: the record keeps it (with what it really needs), though it is
+ * offered to no other.
+ */
+export async function listCourseOptions(
+  options?: RepoOptions & { keep?: string | null | undefined }
+): Promise<CourseOption[]> {
+  const keep = options?.keep
   const courses = await dbOf(options).course.findMany({
-    where: ACTIVE,
-    select: { id: true, code: true, name: true, validityMonths: true, ...needsSelect },
+    where: keep ? { OR: [ACTIVE, { id: keep }] } : ACTIVE,
+    select: courseOptionSelect,
     orderBy: { code: 'asc' },
   })
-  return courses.map(c => ({
-    id: c.id,
-    code: c.code,
-    name: c.name,
-    validityMonths: c.validityMonths,
-    needs: needsOf(c),
-  }))
+  return courses.map(toCourseOption)
 }

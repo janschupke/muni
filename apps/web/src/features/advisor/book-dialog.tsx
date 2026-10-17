@@ -59,6 +59,8 @@ export function BookDialog({
         source: 'ADVISOR' as const,
       }))
     )
+    // Nothing written: turned away, or the server failed.
+    if (!result.ok) return { kind: 'refused', message: tr(`reasons.${result.problem}`) }
     if (result.applied > 0) {
       afterWrite()
       onBooked()

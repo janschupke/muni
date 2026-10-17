@@ -50,7 +50,7 @@ interface LockedSession {
  * Locks the (active) session rows for the rest of the transaction; concurrent writers queue
  * behind them. Archiving a session takes the same lock.
  */
-async function lockSessions(tx: Tx, externalIds: string[]): Promise<Map<string, LockedSession>> {
+async function lockSessionRows(tx: Tx, externalIds: string[]): Promise<Map<string, LockedSession>> {
   // Id order is the lock order everywhere, so two movers in opposite directions cannot deadlock.
   const rows = await tx.$queryRaw<(LockedSession & { external_id: string })[]>`
     SELECT id, external_id, course_id, capacity, unnamed_bookings, status::text AS status,
@@ -94,7 +94,7 @@ export async function applyAssignments(
 ): Promise<AssignmentOutcome[]> {
   const now = options?.now ?? new Date()
   return dbOf(options).$transaction(async tx => {
-    await lockSessions(
+    await lockSessionRows(
       tx,
       requests.map(r => r.sessionExternalId)
     )
@@ -122,7 +122,7 @@ export async function applyOne(
   now: Date,
   asOf: IsoDate | undefined
 ): Promise<AssignmentFailure | null> {
-  const session = (await lockSessions(tx, [request.sessionExternalId])).get(
+  const session = (await lockSessionRows(tx, [request.sessionExternalId])).get(
     request.sessionExternalId
   )
   if (!session) return 'SESSION_NOT_FOUND'
@@ -213,16 +213,14 @@ export async function removeAssignment(
   return count > 0
 }
 
-export const MOVE_FAILURES = [
-  'SESSION_NOT_FOUND',
-  'SAME_SESSION',
-  'DIFFERENT_COURSE',
-  'NOT_PLANNED',
-  'PAST',
-  'NOT_ENOUGH_UNNAMED',
-  'TARGET_FULL',
-] as const
-export type MoveFailure = (typeof MOVE_FAILURES)[number]
+export type MoveFailure =
+  | 'SESSION_NOT_FOUND'
+  | 'SAME_SESSION'
+  | 'DIFFERENT_COURSE'
+  | 'NOT_PLANNED'
+  | 'PAST'
+  | 'NOT_ENOUGH_UNNAMED'
+  | 'TARGET_FULL'
 
 /** One destination of anonymous seats. */
 export interface SeatMoveRequest {
@@ -252,7 +250,7 @@ export async function moveSeatsMany(
   const total = [...wanted.values()].reduce((n, c) => n + c, 0)
   const now = options?.now ?? new Date()
   return dbOf(options).$transaction(async (tx): Promise<MoveOutcome> => {
-    const locked = await lockSessions(tx, [fromExternalId, ...wanted.keys()])
+    const locked = await lockSessionRows(tx, [fromExternalId, ...wanted.keys()])
     const from = locked.get(fromExternalId)
     if (!from) return { ok: false, reason: 'SESSION_NOT_FOUND' }
     // Seats leave only a session still ahead: a past or cancelled one keeps its history.

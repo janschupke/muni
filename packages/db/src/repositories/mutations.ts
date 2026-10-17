@@ -17,7 +17,7 @@ import { ACTIVE, isArchived } from './archive'
 import { applyOne, type AssignmentFailure, BATCH_TX, lockPeople } from './assignments'
 import { dbOf, type RepoOptions } from './context'
 import {
-  lockSessions,
+  lockSessionWrites,
   needsOf,
   needsSelect,
   newlyUnfit,
@@ -213,7 +213,7 @@ export async function updateSession(
 ): Promise<SessionWrite> {
   const data = sessionEditSchema.parse(input)
   return dbOf(options).$transaction(async tx => {
-    await lockSessions(tx)
+    await lockSessionWrites(tx)
     const found = await tx.courseSession.findFirstOrThrow({
       where: { externalId, ...ACTIVE },
       select: { id: true },
@@ -277,7 +277,7 @@ export async function createSession(
 
 /** Creates the session inside the caller's transaction, after the same checks. */
 async function insertSession(tx: Tx, data: SessionCreate): Promise<SessionWrite> {
-  await lockSessions(tx)
+  await lockSessionWrites(tx)
   const course = await tx.course.findUniqueOrThrow({
     where: { id: data.courseId },
     select: { id: true, code: true },
@@ -397,7 +397,7 @@ export async function raiseCapacity(
   options?: RepoOptions
 ): Promise<{ ok: true } | { ok: false; problem: RaiseProblem }> {
   return dbOf(options).$transaction(async tx => {
-    await lockSessions(tx)
+    await lockSessionWrites(tx)
     const session = await tx.courseSession.findFirst({
       where: { externalId, ...ACTIVE },
       select: {
@@ -464,7 +464,7 @@ async function writeRoom(
       note: cleanFreeText(data.note),
     }
     if (id) {
-      await lockSessions(tx)
+      await lockSessionWrites(tx)
       const current = await tx.room.findFirstOrThrow({
         where: { id, ...ACTIVE },
         select: roomFactsSelect,

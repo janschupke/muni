@@ -15,13 +15,14 @@ import { renderClient } from '@/test/render'
 import { AdvisorWorkbench } from './advisor-workbench'
 
 const actions = vi.hoisted(() => ({
-  applyAssignmentsAction: vi.fn((pairs: unknown[]) =>
-    Promise.resolve({ applied: pairs.length, failed: [] as unknown[] })
+  applyAssignmentsAction: vi.fn(
+    (pairs: unknown[]): Promise<{ ok: true; applied: number; failed: unknown[] } | object> =>
+      Promise.resolve({ ok: true, applied: pairs.length, failed: [] as unknown[] })
   ),
   resolveOverbookingAction: vi.fn((): Promise<{ ok: true } | { ok: false; reason: string }> =>
     Promise.resolve({ ok: true })
   ),
-  removeAssignmentAction: vi.fn(() => Promise.resolve(true)),
+  removeAssignmentAction: vi.fn(() => Promise.resolve({ ok: true })),
 }))
 vi.mock('@/server/actions/assignments', () => actions)
 const { applyAssignmentsAction, resolveOverbookingAction, removeAssignmentAction } = actions
@@ -308,6 +309,7 @@ describe('AdvisorWorkbench', () => {
   it('books every selected proposal and names each refusal', async () => {
     const user = userEvent.setup()
     applyAssignmentsAction.mockResolvedValueOnce({
+      ok: true,
       applied: 0,
       failed: [{ sessionExternalId: 'T018', employeeExternalId: 'E0001', reason: 'SESSION_FULL' }],
     })
@@ -330,6 +332,15 @@ describe('AdvisorWorkbench', () => {
     expect(
       await within(dialog).findByText('That did not go through. Check the page and try again.')
     ).toBeTruthy()
+    // Turned away by the server (signed out meanwhile): nothing booked, and why.
+    applyAssignmentsAction.mockResolvedValueOnce({ ok: false, problem: 'unauthorized' })
+    await waitFor(() => {
+      expect(book).toHaveProperty('disabled', false)
+    })
+    await user.click(book)
+    expect(
+      await within(dialog).findByText('your account may no longer make changes; sign in again')
+    ).toBeTruthy()
   })
 
   it('books what it can and lists what was refused, then offers only Close', async () => {
@@ -343,6 +354,7 @@ describe('AdvisorWorkbench', () => {
       sessions: [session('T018', '2026-11-20', { capacity: 5 })],
     })
     applyAssignmentsAction.mockResolvedValueOnce({
+      ok: true,
       applied: 1,
       failed: [{ sessionExternalId: 'T018', employeeExternalId: 'E0002', reason: 'CONFLICT' }],
     })

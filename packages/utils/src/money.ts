@@ -32,3 +32,13 @@ export function parseCount(raw: string | null | undefined): number | null {
   if (!/^\d+$/.test(value)) return null
   return Number(value)
 }
+
+/**
+ * An amount typed into a field, read as the imports read it (`1 200,50 Kč`, `450,-`,
+ * `zdarma`): null when empty, undefined while it is not an amount (or is negative).
+ */
+export function parseAmount(raw: string | null | undefined): number | null | undefined {
+  const parsed = parseCzk(raw)
+  if (parsed.ok) return parsed.value
+  return parsed.reason === 'empty' ? null : undefined
+}

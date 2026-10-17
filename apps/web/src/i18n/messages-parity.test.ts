@@ -68,7 +68,14 @@ const FAMILIES: Record<string, readonly string[]> = {
   'users.detail.roleGrants': ROLES,
   'footer.access': ['VISITOR', ...ROLES],
   'advisor.remediation': REMEDIATIONS,
-  'advisor.outcome.reasons': ASSIGNMENT_FAILURES,
+  // A booking's refusals, and why a whole request was turned away (the action guard's).
+  'advisor.outcome.reasons': [
+    ...ASSIGNMENT_FAILURES,
+    'unauthorized',
+    'rate_limited',
+    'invalid',
+    'failed',
+  ],
   'import.issues': ISSUE_CODES,
   'import.kinds': DATASET_KINDS,
   // Issues name a column, or the whole row.

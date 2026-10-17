@@ -3,7 +3,7 @@ import 'server-only'
 import { getCourse, getCourseForEdit, listCourses, listGroupOptions } from '@muni/db/repositories'
 import * as z from 'zod'
 
-import { read } from './define'
+import { byCode, read } from './define'
 
 /** The course catalogue. */
 export const coursesList = read({
@@ -11,8 +11,6 @@ export const coursesList = read({
   input: z.object({}),
   load: () => listCourses(),
 })
-
-const byCode = z.object({ code: z.string().min(1).max(32) })
 
 /** A course's page: requirements, compliance, sessions and recent completions. */
 export const course = read({

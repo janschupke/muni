@@ -5,12 +5,12 @@ import { SESSION_STATUSES } from '@muni/domain/enums'
 import { type SessionIssue, sessionIssues } from '@muni/domain/sessions'
 import { FieldRow } from '@muni/ui/field'
 import { currencySymbol } from '@muni/utils/format'
+import { parseCount } from '@muni/utils/money'
 import { useLocale, useTranslations } from 'next-intl'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import type { FormState } from '@/lib/form'
 import { sessionCreateSpec, sessionEditSpec } from '@/lib/form-inputs'
-import { checkSessionSlotAction } from '@/server/actions/sessions'
 
 import {
   type ClientError,
@@ -22,6 +22,7 @@ import {
   TextField,
   TimeField,
 } from './form-shell'
+import { useRoomBusy, useRoomMismatchError } from './session-checks'
 import { useRoomLabel } from './session-fields'
 
 export interface SessionDefaults {
@@ -39,8 +40,6 @@ export interface SessionDefaults {
 
 /** Which of the linked fields the user touched last: an error goes on that one. */
 type Blame = 'roomId' | 'capacity' | 'courseId' | 'unnamedBookings'
-
-const asCount = (value: string) => (/^\d+$/.test(value.trim()) ? Number(value) : null)
 
 /** Seats a room suggests for the course: its group size where the room holds it, else the room. */
 function suggestedSeats(room: RoomOption, course: CourseOption | undefined): number | null {
@@ -100,26 +99,17 @@ export function SessionForm({
 
   const course = courses.find(c => c.id === courseId)
   const room = rooms.find(r => r.id === roomId)
-  const seats = asCount(capacity)
-  const booked = (mode === 'edit' ? (asCount(unnamed) ?? 0) : 0) + named
+  const seats = parseCount(capacity)
+  const booked = (mode === 'edit' ? (parseCount(unnamed) ?? 0) : 0) + named
   const planned = status === 'PLANNED'
 
-  // Whether another session holds the room then: asked as the user picks, kept per question,
-  // so an answer to an older question is never shown for a newer one.
-  const slot = `${roomId}|${date}|${startTime}|${endTime}`
-  const [busy, setBusy] = useState<{ slot: string; busy: boolean } | null>(null)
-  const asks = planned && room !== undefined && room.kind !== 'ONLINE' && !!date
-  useEffect(() => {
-    if (!asks || !(endTime > startTime)) return
-    const timer = setTimeout(() => {
-      void checkSessionSlotAction({ roomId, date, startTime, endTime }, self).then(answer => {
-        setBusy({ slot, busy: answer === 'ROOM_BUSY' })
-      })
-    }, 400)
-    return () => {
-      clearTimeout(timer)
-    }
-  }, [asks, slot, roomId, date, startTime, endTime, self])
+  const busy = useRoomBusy(
+    planned && room !== undefined && room.kind !== 'ONLINE' && !!date && endTime > startTime
+      ? { roomId, date, startTime, endTime }
+      : null,
+    self
+  )
+  const mismatchError = useRoomMismatchError()
 
   const issues = sessionIssues({
     startTime,
@@ -132,7 +122,7 @@ export function SessionForm({
   })
   const clientErrors: Partial<Record<string, ClientError>> = {}
   for (const issue of issues) Object.assign(clientErrors, errorOf(issue))
-  if (busy?.slot === slot && busy.busy && asks) clientErrors['roomId'] ??= { key: 'room_busy' }
+  if (busy) clientErrors['roomId'] ??= { key: 'room_busy' }
 
   function errorOf(issue: SessionIssue): Partial<Record<string, ClientError>> {
     switch (issue.kind) {
@@ -147,25 +137,17 @@ export function SessionForm({
         }
       case 'ROOM': {
         const m = issue.mismatch
-        const name = room?.name ?? ''
-        if (m.kind === 'TOO_SMALL')
-          return {
-            [blame === 'capacity' ? 'capacity' : 'roomId']: {
-              key: 'room_too_small_live',
-              values: { room: name, capacity: m.capacity, seats: m.needed },
-            },
-          }
-        const field = blame === 'courseId' ? 'courseId' : 'roomId'
-        if (m.kind === 'ONLINE_NOT_ALLOWED') return { [field]: { key: 'room_online_not_allowed' } }
-        return {
-          [field]: {
-            key: 'room_missing_live',
-            values: {
-              room: name,
-              missing: m.missing.map(c => ts(`capability.${c}`)).join(', '),
-            },
-          },
-        }
+        // Too few seats is the seats' fault if the user just typed them, otherwise the room's;
+        // anything else the room lacks is the room's, or the course's if that just changed.
+        const field =
+          m.kind === 'TOO_SMALL'
+            ? blame === 'capacity'
+              ? 'capacity'
+              : 'roomId'
+            : blame === 'courseId'
+              ? 'courseId'
+              : 'roomId'
+        return { [field]: mismatchError(m, room?.name ?? '') }
       }
     }
   }

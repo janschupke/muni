@@ -13,7 +13,8 @@
     "./sanitize": "./src/sanitize/policy.ts",
     "./sessions": "./src/sessions.ts",
     "./rooms": "./src/rooms.ts",
-    "./planner": "./src/planner.ts"
+    "./planner": "./src/planner.ts",
+    "./names": "./src/names.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

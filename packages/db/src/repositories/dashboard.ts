@@ -1,4 +1,5 @@
 import { type ComplianceCounts, complianceRate, countStatuses } from '@muni/domain/compliance'
+import { sortName } from '@muni/domain/names'
 
 import { ACTIVE } from './archive'
 import { mandatoryCourse } from './audience'
@@ -7,6 +8,7 @@ import type { SessionListItem } from './courses'
 import { compareNames } from './employee-sort'
 import type { EmployeeListRequirement } from './employees'
 import { stillEmployed } from './employment'
+import { activeDepartments } from './lookups'
 import { loadNextBookings, requirementOf } from './requirements'
 import { listSessions } from './sessions'
 
@@ -24,14 +26,9 @@ export interface DashboardData {
 }
 
 export async function getDashboard(options?: RepoOptions): Promise<DashboardData> {
-  const db = dbOf(options)
   const [compliance, departments, upcomingSessions] = await Promise.all([
     loadCompliance(options),
-    db.department.findMany({
-      where: ACTIVE,
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    }),
+    activeDepartments(options),
     listSessions({ window: 'upcoming', limit: 6 }, options),
   ])
   const active = new Set(compliance.employees.filter(e => e.status === 'ACTIVE').map(e => e.id))
@@ -95,11 +92,7 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
   const db = dbOf(options)
   const [compliance, departments, courses, people, bookings] = await Promise.all([
     loadCompliance(options),
-    db.department.findMany({
-      where: ACTIVE,
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    }),
+    activeDepartments(options),
     db.course.findMany({
       where: { ...mandatoryCourse, ...ACTIVE },
       select: { id: true, code: true, name: true },
@@ -151,7 +144,7 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
           const own = new Map((cellsByPerson.get(p.id) ?? []).map(c => [c.courseId, c]))
           return {
             externalId: p.externalId,
-            name: `${p.lastName} ${p.firstName}`,
+            name: sortName(p),
             position: p.position?.name ?? null,
             cells: Object.fromEntries(
               courses.map(course => {

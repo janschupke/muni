@@ -1,3 +1,4 @@
+import { sortName } from '@muni/domain/names'
 import {
   type DepartmentInput,
   departmentSchema,
@@ -9,6 +10,7 @@ import type { Tx } from '../client'
 import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions } from './context'
 import { stillEmployed } from './employment'
+import { isPrismaCode } from './errors'
 import { headOf } from './org'
 
 // Departments and positions as records. A position exists in departments (the pairs), and a
@@ -27,7 +29,7 @@ export type GroupProblem =
 
 export type GroupWrite = { ok: true; id: string } | ({ ok: false } & GroupProblem)
 
-const isUnique = (error: unknown) => (error as { code?: unknown } | null)?.code === 'P2002'
+const isUnique = (error: unknown) => isPrismaCode(error, 'P2002')
 
 class Refused extends Error {
   constructor(readonly problem: GroupProblem) {
@@ -163,7 +165,7 @@ export async function getDepartmentForEdit(id: string, options?: RepoOptions) {
   })
   if (!department) return null
   const members = department.employees
-    .map(e => ({ id: e.id, name: `${e.lastName} ${e.firstName}` }))
+    .map(e => ({ id: e.id, name: sortName(e) }))
     .sort((a, b) => a.name.localeCompare(b.name, 'cs'))
   return {
     id: department.id,
@@ -261,6 +263,6 @@ export async function listDepartmentHeads(options?: RepoOptions): Promise<Record
     select: { departmentId: true, firstName: true, lastName: true },
   })
   return Object.fromEntries(
-    heads.flatMap(h => (h.departmentId ? [[h.departmentId, `${h.lastName} ${h.firstName}`]] : []))
+    heads.flatMap(h => (h.departmentId ? [[h.departmentId, sortName(h)]] : []))
   )
 }

@@ -2,6 +2,7 @@ import type { Role } from '@muni/domain/enums'
 
 import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions } from './context'
+import { isPrismaCode } from './errors'
 
 // Users mirrored from Clerk. Clerk owns sign-in and the role (`publicMetadata.role`); this
 // table holds the copy the app reads on every request, refreshed by the web app's auth layer.
@@ -122,7 +123,7 @@ export async function upsertUserFromClerk(
     return toRecord(await db.user.create({ data: { clerkId, role, ...data }, select: RECORD }))
   } catch (error) {
     // Two first requests at once: the other created the row; refresh that one.
-    if ((error as { code?: unknown }).code !== 'P2002') throw error
+    if (!isPrismaCode(error, 'P2002')) throw error
     return upsertUserFromClerk(sync, options)
   }
 }

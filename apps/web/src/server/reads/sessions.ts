@@ -10,7 +10,7 @@ import {
 import { canWrite } from '@muni/domain/enums'
 import * as z from 'zod'
 
-import { read } from './define'
+import { byExternalId, read } from './define'
 
 /** Upcoming or past sessions, everywhere or in one room. */
 export const sessionsList = read({
@@ -25,8 +25,6 @@ export const sessionsList = read({
     return { sessions, room }
   },
 })
-
-const byExternalId = z.object({ externalId: z.string().min(1).max(32) })
 
 /** A session's page, and for admins the people who can be booked on it. */
 export const session = read({
@@ -49,21 +47,12 @@ export const sessionForm = read({
   guard: 'admin',
   input: byExternalId.partial(),
   load: async ({ externalId }) => {
-    const [edited, courses, rooms] = await Promise.all([
+    const [edited, rooms] = await Promise.all([
       externalId ? getSession(externalId) : null,
-      listCourseOptions(),
       listRoomOptions(),
     ])
     if (externalId && !edited) return null
-    if (!edited || courses.some(c => c.id === edited.courseId))
-      return { session: edited, courses, rooms }
-    const own = {
-      id: edited.courseId,
-      code: edited.courseCode,
-      name: edited.courseName,
-      validityMonths: null,
-      needs: { sessionMinutes: null, groupSize: null, onlineAllowed: true, capabilities: [] },
-    }
-    return { session: edited, courses: [...courses, own], rooms }
+    const courses = await listCourseOptions({ keep: edited?.courseId })
+    return { session: edited, courses, rooms }
   },
 })

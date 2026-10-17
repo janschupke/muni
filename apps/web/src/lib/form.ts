@@ -50,7 +50,7 @@ export type FieldErrorKey =
   | 'room_missing_live'
 
 /** What can go wrong with the whole form: i18n keys under forms.errors. */
-export type FormErrorKey = 'not_found' | 'generic'
+export type FormErrorKey = 'not_found' | 'generic' | 'unauthorized' | 'rate_limited'
 
 /** What a form action returns: saved (and where to go next), or what is wrong. */
 export type FormState =
@@ -77,6 +77,8 @@ type ArchiveRefusalKey =
   | 'parent_archived'
   | 'room_busy'
   | 'room_unfit'
+  | 'unauthorized'
+  | 'rate_limited'
   | 'generic'
 
 /**

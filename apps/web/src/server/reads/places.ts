@@ -10,14 +10,10 @@ import {
   listRooms,
   listUsers,
 } from '@muni/db/repositories'
-import * as z from 'zod'
 
-import { read } from './define'
+import { byId, none, read } from './define'
 
 // Providers, rooms and users: plain lists, a page each, and the edit forms.
-
-const none = z.object({})
-const byId = z.object({ id: z.string().min(1).max(64) })
 
 /** Every provider; prices only for the roles that may see them. */
 export const providersList = read({

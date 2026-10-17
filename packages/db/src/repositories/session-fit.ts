@@ -14,7 +14,7 @@ import { upcomingSessionWhere } from './sessions'
 // of it) stop fitting.
 
 /** Session writes take turns, so two cannot both find a room free and both take it. */
-export const lockSessions = (tx: Tx) =>
+export const lockSessionWrites = (tx: Tx) =>
   tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('course_sessions'))`
 
 export { needsOf, needsSelect, roomFactsOf, roomFactsSelect } from './fit-selects'

@@ -20,7 +20,10 @@ export interface SessionUser {
   email: string | null
 }
 
-/** How long a synced role is trusted before Clerk is asked again. */
+/**
+ * How long a synced role is trusted before Clerk is asked again.
+ * @internal Exported for its tests.
+ */
 export const SYNC_INTERVAL_MS = 5 * 60 * 1000
 
 const toSessionUser = ({ id, clerkId, role, name, email }: UserRecord): SessionUser => ({
@@ -116,7 +119,7 @@ export async function requireAdminPage(): Promise<SessionUser> {
   return user
 }
 
-class UnauthorizedError extends Error {
+export class UnauthorizedError extends Error {
   override name = 'UnauthorizedError'
 }
 

@@ -1,3 +1,5 @@
+import { sortName } from './names'
+
 // Archiving replaces deleting: an archived record keeps its history but leaves every list and
 // count. Archived PEOPLE (employees, users) are also anonymised wherever they are referenced,
 // for every role; only an admin opening that archived record's own page sees who it was.
@@ -54,7 +56,7 @@ const storedTag = (row: { archiveTag: string | null }) => row.archiveTag ?? 'Â·Â
  */
 export function personRef(row: PersonRow): PersonRef {
   if (row.archivedAt !== null) return { archived: true, tag: storedTag(row) }
-  return { archived: false, externalId: row.externalId, name: `${row.lastName} ${row.firstName}` }
+  return { archived: false, externalId: row.externalId, name: sortName(row) }
 }
 
 /** An app user as another record refers to them (who archived it, who booked a seat). */

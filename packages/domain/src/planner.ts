@@ -294,3 +294,17 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
   }
   return offers
 }
+
+/** A course's offers, as the planner lists them: one group per course. */
+export interface PlannerGroup {
+  course: OfferCourse
+  offers: SessionOffer[]
+}
+
+/** The offers grouped by course, in the order the courses first appear (most urgent first). */
+export function groupOffers(offers: readonly SessionOffer[]): PlannerGroup[] {
+  return [...Map.groupBy(offers, o => o.course.code).values()].flatMap(courseOffers => {
+    const [first] = courseOffers
+    return first ? [{ course: first.course, offers: courseOffers }] : []
+  })
+}
