@@ -93,13 +93,17 @@ describe('session planner', () => {
     await user.click(screen.getByRole('button', { name: 'Review session 1 of Požární ochrana' }))
     const dialog = await screen.findByRole('dialog', { name: 'New session: Požární ochrana' })
     // The offer, ready to change: its seats, and its people ticked.
-    expect(within(dialog).getByRole('textbox', { name: /Capacity/ })).toHaveProperty('value', '40')
+    expect(within(dialog).getByRole('textbox', { name: /^Seats/ })).toHaveProperty('value', '40')
     expect(
       within(dialog)
         .getByRole('checkbox', { name: /Adámek Petr/ })
         .getAttribute('aria-checked')
     ).toBe('true')
-    await user.type(within(dialog).getByRole('textbox', { name: /Price per person/ }), '380')
+    // The provider is proposed (the default one), its price with it; the end follows the length.
+    expect(within(dialog).getByRole('combobox', { name: /Provider/ }).textContent).toContain(
+      'Interní školitel'
+    )
+    expect(within(dialog).getByRole('status', { name: /^End/ }).textContent).toBe('12:00')
     await expectNoAxeViolations()
 
     // The check runs everything on the server and writes nothing; a refusal names the person.
@@ -112,12 +116,11 @@ describe('session planner', () => {
     expect(createPlannedSessionAction).toHaveBeenLastCalledWith({
       session: {
         courseId: 'course_poz',
+        providerId: 'prv_internal',
         date: '2026-10-19',
         startTime: '10:00',
-        endTime: '12:00',
         roomId: 'room_aula_a',
         capacity: 40,
-        pricePerPerson: 380,
       },
       people: ['E0002'],
       dryRun: true,
@@ -141,7 +144,7 @@ describe('session planner', () => {
     await user.click(check)
     expect(await within(dialog).findByText('What will be created')).toBeTruthy()
     // Price per person, and the cost of the one booking.
-    expect(within(dialog).getAllByText('380,00 Kč')).toHaveLength(2)
+    expect(within(dialog).getAllByText(/^450,00\sKč$/)).toHaveLength(2)
     vi.mocked(createPlannedSessionAction).mockResolvedValueOnce({
       ok: true,
       externalId: 'S001',
@@ -187,9 +190,10 @@ describe('planner offers', () => {
       code: 'GDPR',
       name: 'Ochrana osobních údajů',
       sessionMinutes: null,
-      groupSize: null,
+      seats: null,
       onlineAllowed: true,
       capabilities: [],
+      offerings: [],
     },
     bucket: '2026-12',
     deadline: '2026-12-02',
@@ -199,6 +203,7 @@ describe('planner offers', () => {
     slot: null,
     room: null,
     alternatives: [],
+    offering: null,
     late: false,
     problem: null,
     ...over,
@@ -217,9 +222,10 @@ describe('planner offers', () => {
               code: 'GDPR',
               name: 'Ochrana osobních údajů',
               sessionMinutes: null,
-              groupSize: null,
+              seats: null,
               onlineAllowed: true,
               capabilities: [],
+              offerings: [],
             },
             offers: [
               offer({
@@ -250,7 +256,7 @@ describe('planner offers', () => {
         ]}
       />
     )
-    expect(screen.getByText('180 min · as many as the room seats · can be online')).toBeTruthy()
+    expect(screen.getByText('Length not set · can be online')).toBeTruthy()
     expect(screen.getAllByText('Lapsing in December 2026')).toHaveLength(5)
     expect(screen.getByText('After the due date')).toBeTruthy()
     expect(screen.getByText('or A, B')).toBeTruthy()

@@ -33,7 +33,7 @@ import {
   importReference,
   planner,
 } from './planning'
-import { session, sessionForm, sessionsList } from './sessions'
+import { session, sessionCandidates, sessionForm, sessionsList } from './sessions'
 
 /** Every read a page can make, by the name in its address (`/api/read/<name>`). */
 export const reads = {
@@ -47,6 +47,7 @@ export const reads = {
   'sessions-list': sessionsList,
   session,
   'session-form': sessionForm,
+  'session-candidates': sessionCandidates,
   'departments-list': departmentsList,
   'positions-list': positionsList,
   'group-members': groupMembers,

@@ -9,15 +9,24 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { CapabilityFitList } from '@/components/room-badges'
+import { ScheduleSessionButton } from '@/features/sessions/schedule-button'
 
 /**
  * Every course beside this room: what a session of it needs next to what the room provides,
  * then whether it fits and, when not, the first reason in numbers. An online room is judged
  * only on whether the course may be held online, which the verdict says: it has no seats or
- * equipment to set beside the needs.
+ * equipment to set beside the needs. Admins schedule a session of a course here from its row.
  */
-export function RoomFitTable({ room }: { room: Pick<RoomDetail, 'name' | 'kind' | 'courses'> }) {
+export function RoomFitTable({
+  room,
+  canEdit = false,
+}: {
+  room: Pick<RoomDetail, 'id' | 'name' | 'kind' | 'courses'>
+  /** Admins schedule a session of a course here, from its row. */
+  canEdit?: boolean | undefined
+}) {
   const t = useTranslations('rooms.detail.fit')
+  const ts = useTranslations('sessions.schedule')
   const online = room.kind === 'ONLINE'
   return (
     <TableContainer paging="one row per course: bounded by the catalogue">
@@ -33,6 +42,11 @@ export function RoomFitTable({ room }: { room: Pick<RoomDetail, 'name' | 'kind' 
               </>
             )}
             <Th>{t('verdict')}</Th>
+            {canEdit && (
+              <Th className="w-0">
+                <span className="sr-only">{ts('action')}</span>
+              </Th>
+            )}
           </tr>
         </THead>
         <TBody>
@@ -66,6 +80,16 @@ export function RoomFitTable({ room }: { room: Pick<RoomDetail, 'name' | 'kind' 
               <Td>
                 <Verdict mismatch={c.fit.mismatch} />
               </Td>
+              {canEdit && (
+                <Td align="right" nowrap>
+                  <ScheduleSessionButton
+                    course={c.code}
+                    room={room.id}
+                    block={c.block}
+                    label={ts('actionIn', { course: c.name, room: room.name })}
+                  />
+                </Td>
+              )}
             </Tr>
           ))}
         </TBody>

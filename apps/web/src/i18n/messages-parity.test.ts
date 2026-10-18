@@ -12,6 +12,7 @@ import {
   ROOM_KINDS,
   SESSION_STATUSES,
 } from '@muni/domain/enums'
+import { SCHEDULE_BLOCKS } from '@muni/domain/sessions'
 import { COLUMNS, DATASET_KINDS, ISSUE_CODES } from '@muni/importer'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
@@ -70,6 +71,7 @@ const FAMILIES: Record<string, readonly string[]> = {
   'advisor.remediation': REMEDIATIONS,
   'bookings.blocked': BOOKING_BLOCKS,
   'bookings.blockedAll': PERSON_BOOKING_BLOCKS,
+  'sessions.schedule.blocked': SCHEDULE_BLOCKS,
   // A booking's refusals, and why a whole request was turned away (the action guard's).
   'advisor.outcome.reasons': [
     ...ASSIGNMENT_FAILURES,
@@ -126,11 +128,12 @@ function sourceLiterals(): Set<string> {
 /**
  * One word per thing (the README's glossary). Each pattern is a word that lost: a booking is
  * a rezervace, never a přihláška (přihlásit se is signing in); a department is an oddělení;
- * a provider is a poskytovatel; a room is a Room, never a location.
+ * a provider is a poskytovatel; a room is a Room, never a location; what a provider offers is
+ * an offering, never a contract.
  */
 const LOSING_TERMS: Record<'cs' | 'en', readonly RegExp[]> = {
   cs: [/přihlášk/i, /útvar/i, /dodavatel/i],
-  en: [/\blocations?\b/i, /\bIČO\b(?! *\))/],
+  en: [/\blocations?\b/i, /\bIČO\b(?! *\))/, /\bcontracts?\b/i],
 }
 
 describe('message catalogs', () => {

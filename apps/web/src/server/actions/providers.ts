@@ -2,7 +2,7 @@
 
 import { createProvider, updateProvider } from '@muni/db/repositories'
 
-import type { FormState } from '@/lib/form'
+import { type FormState, refusedField } from '@/lib/form'
 import { parseForm, providerSpec } from '@/lib/form-inputs'
 
 import { isBoundIdOrNull, saveForm } from './guard'
@@ -17,7 +17,10 @@ export async function saveProvider(
     const parsed = parseForm(providerSpec, form)
     if (!parsed.ok) return parsed.state
     const saved = id ? await updateProvider(id, parsed.data) : await createProvider(parsed.data)
-    if (!saved.ok) return { status: 'error', fieldErrors: { [saved.taken]: 'taken' } }
+    if (!saved.ok)
+      return 'taken' in saved
+        ? refusedField(saved.taken, 'taken')
+        : refusedField('offerings', 'offering_in_use', saved.offeringInUse)
     return { status: 'saved', href: `/providers/${saved.id}` }
   })
 }

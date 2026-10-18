@@ -5,6 +5,7 @@ import {
   countStatuses,
 } from '@muni/domain/compliance'
 import type { Capability, SessionStatus } from '@muni/domain/enums'
+import type { CourseOffering } from '@muni/domain/planner'
 import type { SessionNeeds } from '@muni/domain/rooms'
 import type { RoomRef } from '@muni/domain/rooms'
 import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
@@ -19,6 +20,7 @@ import {
   type RepoOptions,
 } from './context'
 import { activeDepartments } from './lookups'
+import { offeringsInclude, toOffering } from './offerings'
 import { needsOf, needsSelect } from './session-fit'
 import {
   countSessions,
@@ -36,7 +38,7 @@ const sessionNeedsOf = (course: Parameters<typeof needsOf>[0]) => {
   const needs = needsOf(course)
   return {
     minutes: needs.sessionMinutes,
-    groupSize: needs.groupSize,
+    seats: needs.seats,
     onlineAllowed: needs.onlineAllowed,
     capabilities: [...needs.capabilities],
   }
@@ -58,10 +60,12 @@ export interface CourseListItem {
   /** What one session needs, as the planner takes it (null where not known). */
   sessionNeeds: {
     minutes: number | null
-    groupSize: number | null
+    seats: number | null
     onlineAllowed: boolean
     capabilities: Capability[]
   }
+  /** Who offers it, at what price, by provider name. */
+  offerings: CourseOffering[]
   /** Planned sessions still ahead, soonest first. */
   upcoming: SessionSummary[]
   /** Per department where the course applies to someone active. */
@@ -77,6 +81,7 @@ export async function listCourses(options?: RepoOptions): Promise<CourseListItem
       include: {
         ...audienceInclude,
         capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
+        offerings: offeringsInclude,
         sessions: {
           where: upcomingSessionWhere(now),
           select: sessionSummarySelect,
@@ -104,6 +109,7 @@ export async function listCourses(options?: RepoOptions): Promise<CourseListItem
       counts,
       rate: complianceRate(counts),
       sessionNeeds: sessionNeedsOf(course),
+      offerings: course.offerings.map(toOffering),
       upcoming: course.sessions.map(toSessionSummary),
       byDepartment: byDepartment(cells, compliance, departments),
     }
@@ -147,6 +153,8 @@ export interface SessionListItem {
   courseName: string
   /** The course is archived (a past session of it): shown muted, not linked. */
   courseArchived: boolean
+  /** Who holds it (an archived provider is shown muted, not linked). */
+  provider: { id: string; name: string; archived: boolean }
   startsAt: string
   endsAt: string
   room: RoomRef
@@ -156,7 +164,7 @@ export interface SessionListItem {
   /** Seats the room has (null: online), and its equipment. */
   roomSeats: number | null
   roomCapabilities: Capability[]
-  /** What a session of the course needs (its length, group size, online, equipment). */
+  /** What a session of the course is (its length, seats, online, equipment). */
   needs: SessionNeeds & { sessionMinutes: number | null }
   /** Named bookings, oldest first, with who each person is (archived people anonymised)
    * and how they were booked. */
@@ -191,6 +199,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     include: {
       ...audienceInclude,
       capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
+      offerings: offeringsInclude,
       sessions: {
         where: { ...ACTIVE, endsAt: { gte: now } },
         orderBy: { startsAt: 'asc' },
@@ -224,6 +233,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
     counts,
     rate: complianceRate(counts),
     sessionNeeds: sessionNeedsOf(course),
+    offerings: course.offerings.map(toOffering),
     byDepartment: byDepartment(cells, compliance, departments),
     sessions: course.sessions.map(toSessionItem),
     pastTotal,
@@ -246,11 +256,8 @@ export async function getCourseForEdit(code: string, options?: RepoOptions) {
       validityMonths: true,
       requiredForAll: true,
       sessionMinutes: true,
-      groupSize: true,
+      seats: true,
       onlineAllowed: true,
-      sessionMinutesOverride: true,
-      groupSizeOverride: true,
-      onlineAllowedOverride: true,
       capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
       // Active ones only: an archived department's requirement is dropped on the next save.
       departmentRequirements: { where: { department: ACTIVE }, select: { departmentId: true } },
@@ -264,16 +271,9 @@ export async function getCourseForEdit(code: string, options?: RepoOptions) {
     name: rest.name,
     validityMonths: rest.validityMonths,
     requiredForAll: rest.requiredForAll,
-    /** The app's overrides (what the form edits); null = the derived value applies. */
-    sessionMinutes: rest.sessionMinutesOverride,
-    groupSize: rest.groupSizeOverride,
-    onlineAllowed: rest.onlineAllowedOverride,
-    /** What the sessions import derived, shown next to the overrides. */
-    derived: {
-      sessionMinutes: rest.sessionMinutes,
-      groupSize: rest.groupSize,
-      onlineAllowed: rest.onlineAllowed,
-    },
+    sessionMinutes: rest.sessionMinutes,
+    seats: rest.seats,
+    onlineAllowed: rest.onlineAllowed,
     capabilities: capabilities.map(c => c.capability),
     departmentIds: departmentRequirements.map(r => r.departmentId),
     positionIds: positionRequirements.map(r => r.positionId),
@@ -285,8 +285,10 @@ export interface CourseOption {
   code: string
   name: string
   validityMonths: number | null
-  /** What a session of it needs (the session form checks rooms against it, and sizes it). */
+  /** What a session of it is (the session form checks rooms against it, and sizes it). */
   needs: SessionNeeds & { sessionMinutes: number | null }
+  /** Who offers it, at what price (the session form's providers). */
+  offerings: CourseOffering[]
 }
 
 /** Every active course, for pickers. */
@@ -296,6 +298,7 @@ const courseOptionSelect = {
   name: true,
   validityMonths: true,
   ...needsSelect,
+  offerings: offeringsInclude,
 } as const
 
 const toCourseOption = (
@@ -304,6 +307,7 @@ const toCourseOption = (
     code: string
     name: string
     validityMonths: number | null
+    offerings: Parameters<typeof toOffering>[0][]
   } & Parameters<typeof needsOf>[0]
 ): CourseOption => ({
   id: c.id,
@@ -311,6 +315,7 @@ const toCourseOption = (
   name: c.name,
   validityMonths: c.validityMonths,
   needs: needsOf(c),
+  offerings: c.offerings.map(toOffering),
 })
 
 /**

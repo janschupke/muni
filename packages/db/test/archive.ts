@@ -28,6 +28,7 @@ export async function deleteCourses(db: Db, where: { code: { startsWith: string 
   await db.sessionAssignment.deleteMany({ where: { session: { course } } })
   await db.courseSession.deleteMany({ where: { course } })
   await db.courseCompletion.deleteMany({ where: { course } })
+  await db.providerCourse.deleteMany({ where: { course } })
   await db.courseCapability.deleteMany({ where: { course } })
   await db.courseDepartmentRequirement.deleteMany({ where: { course } })
   await db.coursePositionRequirement.deleteMany({ where: { course } })
@@ -39,4 +40,16 @@ export async function deleteRooms(db: Db, name: string[] | { startsWith: string 
   const where = { name: Array.isArray(name) ? { in: name } : name }
   await db.roomCapability.deleteMany({ where: { room: where } })
   await db.room.deleteMany({ where })
+}
+
+/**
+ * Deletes providers, their offerings and sessions (and those sessions' bookings). Their
+ * completions must be gone already. Tests only.
+ */
+export async function deleteProviders(db: Db, name: { startsWith: string }) {
+  const provider = { name }
+  await db.sessionAssignment.deleteMany({ where: { session: { provider } } })
+  await db.courseSession.deleteMany({ where: { provider } })
+  await db.providerCourse.deleteMany({ where: { provider } })
+  await db.provider.deleteMany({ where: { name } })
 }

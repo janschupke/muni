@@ -26,7 +26,8 @@ export function AddBookingForm({
   initial,
 }: {
   sessionExternalId: string
-  options: { value: string; label: string }[]
+  /** Who can be booked; 'loading' while that is read (the form shows, waiting). */
+  options: { value: string; label: string }[] | 'loading'
   /**
    * The choice to start with, when a link named one; ignored when it is not on offer (already
    * booked, left) and after the first booking.
@@ -40,7 +41,9 @@ export function AddBookingForm({
   const toast = useToast()
   const [state, formAction, pending] = useActionState(
     async (previous: BookingState, form: FormData): Promise<BookingState> => {
-      const chosen = options.find(o => o.value === form.get('employeeExternalId'))?.label ?? ''
+      const chosen =
+        (options === 'loading' ? [] : options).find(o => o.value === form.get('employeeExternalId'))
+          ?.label ?? ''
       try {
         const next = await addBookingAction(sessionExternalId, previous, form)
         if (next.status === 'done') {
@@ -56,7 +59,9 @@ export function AddBookingForm({
     },
     IDLE
   )
-  if (options.length === 0) return <EmptyState variant="inline" title={t('bookings.noneNeed')} />
+  const loading = options === 'loading'
+  if (!loading && options.length === 0)
+    return <EmptyState variant="inline" title={t('bookings.noneNeed')} />
   return (
     <form action={formAction} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-end gap-2">
@@ -72,18 +77,21 @@ export function AddBookingForm({
         >
           {control => (
             <Select
-              key={round}
+              key={`${String(round)}-${String(loading)}`}
               {...control}
               name="employeeExternalId"
-              options={options}
+              options={loading ? [] : options}
+              disabled={loading}
               defaultValue={
-                round === 0 && options.some(o => o.value === initial) ? initial : undefined
+                !loading && round === 0 && options.some(o => o.value === initial)
+                  ? initial
+                  : undefined
               }
-              placeholder={t('common.choose')}
+              placeholder={loading ? t('common.loading') : t('common.choose')}
             />
           )}
         </Field>
-        <Button type="submit" variant="primary" disabled={pending}>
+        <Button type="submit" variant="primary" disabled={pending || loading}>
           <UserPlus aria-hidden />
           {pending ? t('bookings.booking') : t('bookings.add')}
         </Button>

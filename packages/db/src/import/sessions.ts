@@ -50,16 +50,17 @@ async function resolveRooms(tx: Tx, records: SessionInput[]): Promise<Map<string
 }
 
 /**
- * Derives what a session of each course needs from all its planned sessions so far: the
- * usual length, the median group size, online if ever held online. Every sessions import
- * derives them again, so they follow the history; what the app set is kept apart as
- * overrides (which win) and is never touched here.
+ * Fills in what a course's sessions are, where the app has not set it yet: a course with no
+ * length takes the usual length of its planned sessions, the median seats, and online if
+ * ever held online; a length set but no seats takes the median seats. Never overwrites.
  */
-async function deriveSessionNeeds(tx: Tx, courseIdList: string[]): Promise<void> {
+async function fillCourseDefaults(tx: Tx, courseIdList: string[]): Promise<void> {
   const courses = await tx.course.findMany({
-    where: { id: { in: courseIdList } },
+    where: { id: { in: courseIdList }, OR: [{ sessionMinutes: null }, { seats: null }] },
     select: {
       id: true,
+      sessionMinutes: true,
+      seats: true,
       sessions: {
         where: { ...ACTIVE, status: 'PLANNED', capacity: { gt: 0 } },
         select: { startsAt: true, endsAt: true, capacity: true, room: { select: { kind: true } } },
@@ -72,15 +73,72 @@ async function deriveSessionNeeds(tx: Tx, courseIdList: string[]): Promise<void>
       Math.round((s.endsAt.getTime() - s.startsAt.getTime()) / 60_000)
     )
     const sizes = course.sessions.map(s => s.capacity).sort((a, b) => a - b)
+    const seats = sizes[Math.floor((sizes.length - 1) / 2)] ?? null
     await tx.course.update({
       where: { id: course.id },
-      data: {
-        sessionMinutes: mostCommon(minutes),
-        groupSize: sizes[Math.floor((sizes.length - 1) / 2)] ?? null,
-        onlineAllowed: course.sessions.some(s => s.room.kind === 'ONLINE'),
-      },
+      data:
+        course.sessionMinutes === null
+          ? {
+              sessionMinutes: mostCommon(minutes),
+              seats: course.seats ?? seats,
+              onlineAllowed: course.sessions.some(s => s.room.kind === 'ONLINE'),
+            }
+          : { seats },
     })
   }
+}
+
+/**
+ * Who holds each session: the provider its row names (by name, folded), which must offer the
+ * course; else the default provider, which is given an offering of the course at the row's
+ * price (0 without one) where it has none. An existing session that names none keeps its own.
+ */
+async function resolveProviders(
+  tx: Tx,
+  all: SessionInput[],
+  records: SessionInput[],
+  courses: Map<string, string>
+): Promise<Map<SessionInput, string | null>> {
+  const providers = await tx.provider.findMany({
+    where: ACTIVE,
+    select: { id: true, name: true, isDefault: true },
+  })
+  const byName = new Map(providers.map(p => [fold(p.name), p.id]))
+  const fallback = providers.find(p => p.isDefault)?.id ?? null
+  const offered = new Set(
+    (
+      await tx.providerCourse.findMany({
+        where: { courseId: { in: [...courses.values()] } },
+        select: { providerId: true, courseId: true },
+      })
+    ).map(o => `${o.providerId}|${o.courseId}`)
+  )
+  const resolved = new Map<SessionInput, string | null>()
+  for (const record of records) {
+    const courseId = lookup(courses, record.courseCode, 'course')
+    if (record.providerName !== null) {
+      const id = byName.get(fold(record.providerName))
+      if (id === undefined)
+        throw new CommitRefusedError(all.indexOf(record), 'PROVIDER_UNKNOWN', record.externalId)
+      if (!offered.has(`${id}|${courseId}`))
+        throw new CommitRefusedError(
+          all.indexOf(record),
+          'PROVIDER_NOT_OFFERING',
+          record.externalId
+        )
+      resolved.set(record, id)
+      continue
+    }
+    resolved.set(record, null)
+    if (fallback === null) continue
+    if (!offered.has(`${fallback}|${courseId}`)) {
+      await tx.providerCourse.create({
+        data: { providerId: fallback, courseId, pricePerPerson: record.pricePerPerson ?? 0 },
+      })
+      offered.add(`${fallback}|${courseId}`)
+    }
+  }
+  return resolved
 }
 
 /** The most frequent value; the smallest one on a tie. */
@@ -164,6 +222,10 @@ export async function writeSessions(tx: Tx, all: SessionInput[]): Promise<Commit
   )
   const rooms = await resolveRooms(tx, records)
   await refuseAppRoomClashes(tx, all, records, rooms)
+  const providers = await resolveProviders(tx, all, records, courses)
+  const fallback = (
+    await tx.provider.findFirst({ where: { ...ACTIVE, isDefault: true }, select: { id: true } })
+  )?.id
   // The export's booked count is the session's total. Named bookings (assignments) are part of
   // it, so only the remainder is stored as unnamed seats; a total below the named count keeps
   // the named bookings and stores no unnamed ones.
@@ -197,14 +259,29 @@ export async function writeSessions(tx: Tx, all: SessionInput[]): Promise<Commit
       return found.map(f => ({ key: f.external_id, id: f.id }))
     }
   )
+  const freshProvider = (r: SessionInput) => {
+    const id = providers.get(r) ?? fallback
+    if (id === undefined)
+      throw new CommitRefusedError(all.indexOf(r), 'NO_DEFAULT_PROVIDER', r.externalId)
+    return id
+  }
   await tx.courseSession.createMany({
-    data: fresh.map(r => ({ externalId: r.externalId, ...toData(r, 0) })),
+    data: fresh.map(r => ({
+      externalId: r.externalId,
+      ...toData(r, 0),
+      providerId: freshProvider(r),
+    })),
   })
-  for (const { record, id } of existing)
+  for (const { record, id } of existing) {
+    const provider = providers.get(record) ?? null
     await tx.courseSession.update({
       where: { id },
-      data: toData(record, assignedBySession.get(id) ?? 0),
+      data: {
+        ...toData(record, assignedBySession.get(id) ?? 0),
+        ...(provider !== null && { providerId: provider }),
+      },
     })
-  await deriveSessionNeeds(tx, [...courses.values()])
+  }
+  await fillCourseDefaults(tx, [...courses.values()])
   return { created: fresh.length, updated: existing.length, skipped }
 }

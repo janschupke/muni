@@ -1,19 +1,21 @@
 'use client'
 
 import type { CourseListItem } from '@muni/db/repositories'
+import { scheduleBlock } from '@muni/domain/sessions'
 import { BarRow } from '@muni/ui/bar-row'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { formatInteger, PLACEHOLDER } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { ScheduleSessionButton } from '@/features/sessions/schedule-button'
 import { formatRate } from '@/lib/format-rate'
 
 import { ComplianceBar } from './compliance-breakdown'
 import { CoursePanel } from './course-panel'
 import { usePaginationLabels } from './pagination-labels'
 import { RequirementList } from './requirement-list'
-import { nameColumn, rowActionsColumn } from './table-columns'
+import { hiddenHeader, nameColumn, rowActionsColumn } from './table-columns'
 
 const col = createDataColumns<CourseListItem>()
 
@@ -24,11 +26,12 @@ export function CoursesTable({
 }: {
   courses: CourseListItem[]
   paging: TablePaging
-  /** Admins get a pencil and archive on each row. */
+  /** Admins get a way to schedule a session of each, a pencil and archive. */
   canEdit?: boolean | undefined
 }) {
   const t = useTranslations('courses')
   const tc = useTranslations('common')
+  const ts = useTranslations('sessions.schedule')
   const paginationLabels = usePaginationLabels()
   const locale = useLocale()
 
@@ -89,6 +92,23 @@ export function CoursesTable({
         }),
         ...(canEdit
           ? [
+              // Scheduling a session of it: the same button as on its page, a room's or a
+              // provider's, dimmed with the reason when it cannot be.
+              col.display({
+                id: 'schedule',
+                header: hiddenHeader(ts('action')),
+                meta: { headerClassName: 'w-0', nowrap: true },
+                cell: ({ row }) => (
+                  <ScheduleSessionButton
+                    course={row.original.code}
+                    label={ts('actionFor', { course: row.original.name })}
+                    block={scheduleBlock({
+                      sessionMinutes: row.original.sessionNeeds.minutes,
+                      offerings: row.original.offerings.length,
+                    })}
+                  />
+                ),
+              }),
               rowActionsColumn(col, tc('actions'), r => ({
                 kind: 'course',
                 id: r.id,
@@ -98,7 +118,7 @@ export function CoursesTable({
             ]
           : []),
       ]),
-    [canEdit, locale, t, tc]
+    [canEdit, locale, t, tc, ts]
   )
 
   return (

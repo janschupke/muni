@@ -233,28 +233,30 @@
       "nobodyRequired": "Nobody must hold this course yet. Add who it is required for on its edit page.",
       "allPast": "All {count, plural, one {# past session} other {# past sessions}}"
     },
-    "newSession": "New session",
     "newTitle": "New session of {course}",
     "panel": {
       "toggle": "Details for {name}",
       "header": "Details",
       "sessions": "Planned sessions",
       "noSessions": "Nothing is planned.",
-      "needs": "A session needs",
+      "needs": "Its sessions",
       "minutes": "{minutes} min",
       "noMinutes": "Length not set",
-      "group": "Groups of {size}",
-      "noGroup": "No group size set",
+      "group": "{size, plural, one {# seat} other {# seats}}",
+      "noGroup": "Seats not set",
       "byDepartment": "Compliance by department",
       "noDepartments": "Nobody active must hold it.",
       "departmentTitle": "{department}: {held} of {total} held",
       "length": "Length",
-      "groupSize": "Group size",
+      "seats": "Seats",
       "onlineLabel": "Online",
       "onlineYes": "Can be held online",
       "onlineNo": "On site only",
       "equipment": "Equipment",
-      "noEquipment": "Nothing special"
+      "noEquipment": "Nothing special",
+      "offeredBy": "Offered by",
+      "noOfferings": "No provider offers it yet.",
+      "defaultProvider": "default"
     },
     "new": "New course"
   },
@@ -269,7 +271,8 @@
       "capacity": "Booked",
       "price": "Price per person",
       "status": "Status",
-      "room": "Room"
+      "room": "Room",
+      "provider": "Provider"
     },
     "overbooked": "Overbooked",
     "full": "Full",
@@ -299,12 +302,11 @@
       "roomOnline": "online",
       "needs": "The course needs",
       "minutes": "{count, plural, other {# min}}",
-      "groupSize": "groups of {count}",
+      "seats": "Seats",
       "canBeOnline": "can be online",
       "equipment": "needs {list}",
       "fits": "The room suits it.",
       "unfit": "The room does not suit it: {reason}.",
-      "seats": "Seats",
       "seatsText": "{named} by name · {unnamed} without a name · {free, plural, =0 {none free} other {# free}}",
       "over": "{count, plural, one {# over capacity} other {# over capacity}}",
       "price": "Price",
@@ -319,7 +321,9 @@
       "viaAdvisor": "Advisor",
       "viaManual": "By hand",
       "bookedOn": "Booked on",
-      "id": "ID"
+      "id": "ID",
+      "provider": "Provider",
+      "courseSeats": "{count, plural, one {# seat} other {# seats}}"
     },
     "roomFilter": "Room",
     "allRooms": "All rooms",
@@ -351,6 +355,16 @@
       "refused": {
         "UNCHANGED": "It is planned already.",
         "STARTED": "It has started: it stays cancelled."
+      }
+    },
+    "schedule": {
+      "action": "Schedule session",
+      "actionFor": "Schedule a session of {course}",
+      "actionIn": "Schedule a session of {course} in {room}",
+      "blocked": {
+        "NO_LENGTH": "The course has no length set: set it on the course first",
+        "NO_PROVIDER": "No provider offers the course: add it to a provider’s offered courses first",
+        "ROOM_UNSUITABLE": "This room does not suit the course"
       }
     }
   },
@@ -438,7 +452,11 @@
       "too_big_number": "Enter at most {max}.",
       "too_long": "Use at most {max} characters.",
       "unauthorized": "Your account may no longer make changes. Sign in again.",
-      "rate_limited": "Too many changes in a short time. Wait a minute, then save again."
+      "rate_limited": "Too many changes in a short time. Wait a minute, then save again.",
+      "no_length": "The course has no length set: set it on the course first.",
+      "not_offered": "That provider does not offer the course. Choose one that does, or add the course to its offerings.",
+      "provider_archived": "That provider is archived.",
+      "offering_in_use": "Upcoming sessions of {course} are held by this provider ({count}). Cancel them, or schedule them with another provider, before it stops offering the course."
     },
     "placeholders": {
       "code": "KURZ-01",
@@ -457,18 +475,19 @@
       "price": "0",
       "note": "Optional",
       "departmentName": "Finance",
-      "positionName": "Accountant"
+      "positionName": "Accountant",
+      "minutes": "180",
+      "seats": "20"
     },
     "course": {
-      "title": "Edit {name}",
       "name": "Name",
       "validityMonths": "Valid for (months)",
       "validityHelp": "Leave empty if the course never expires.",
-      "sessionNeeds": "What a session needs",
-      "sessionNeedsHelp": "Used by the session planner to size sessions and pick rooms. Each sessions import works them out from past sessions; a value set here wins.",
-      "sessionMinutes": "Session length (minutes)",
-      "groupSize": "Group size",
-      "onlineAllowed": "Can be held online",
+      "sessionNeeds": "Its sessions",
+      "sessionNeedsHelp": "What every session of the course is. A new session takes these; the room is checked against them.",
+      "sessionMinutes": "Length (minutes)",
+      "seats": "Seats",
+      "onlineAllowed": "May be held online",
       "capabilities": "The room must have",
       "newTitle": "New course",
       "code": "Code",
@@ -478,18 +497,15 @@
       "requiredForAll": "Everyone",
       "departments": "Departments",
       "positions": "Positions",
-      "derivedNone": "Empty: not known from sessions yet.",
-      "derivedValue": "Empty: {value}, from past sessions.",
-      "onlineDerived": "From sessions ({value, select, true {yes} other {no}})",
-      "onlineYes": "Yes",
-      "onlineNo": "No"
+      "sessionMinutesHelp": "A session ends this long after it starts. Without it, nothing can be scheduled. Sessions already scheduled keep their times.",
+      "seatsHelp": "What a new session opens; it can set its own.",
+      "editTitle": "Edit {name}"
     },
     "session": {
       "date": "Date",
       "startTime": "Start",
       "endTime": "End",
-      "capacity": "Capacity",
-      "pricePerPerson": "Price per person ({currency})",
+      "capacity": "Seats",
       "unnamedBookings": "Other bookings (not named)",
       "unnamedHelp": "{count, plural, =0 {Nobody is booked by name.} one {Plus # person booked by name.} other {Plus # people booked by name.}}",
       "room": "Room",
@@ -507,8 +523,27 @@
       "confirm": {
         "courseTitle": "Change the course?",
         "courseBody": "{count, plural, one {The # person booked stays booked} other {The # people booked stay booked}}, now for {course}. Check that it is the training they need.",
-        "courseConfirm": "Change course"
-      }
+        "courseConfirm": "Change course",
+        "priceBody": "{count, plural, one {The # person booked is} other {The # people booked are}} now charged {price} instead of {was}.",
+        "priceTitle": "Change the price?",
+        "priceConfirm": "Change provider"
+      },
+      "provider": "Provider",
+      "providerOption": "{name} · {price}",
+      "providerOptionDefault": "{name} · {price} · default",
+      "providerGone": "{name} · no longer offers this course",
+      "providerHelp": "Only providers that offer the course.",
+      "noProviders": "No provider offers this course yet. Add it to a provider’s offered courses first.",
+      "endHelp": "The course’s length after the start ({minutes} min).",
+      "endKept": "As scheduled.",
+      "endNextDay": "{time} the next day",
+      "noLength": "The course has no length set yet.",
+      "price": "Price per person",
+      "priceHelp": "The provider’s price for the course, fixed when the session is scheduled.",
+      "priceKept": "Scheduled at this price.",
+      "priceChanged": "{price}, was {was}",
+      "priceNone": "No price",
+      "seatsDefault": "The course opens {seats, plural, one {# seat} other {# seats}}."
     },
     "employee": {
       "title": "Edit {name}",
@@ -607,6 +642,42 @@
       "session": "Schedule session",
       "sessionCreated": "Session scheduled",
       "sessionSaved": "Session saved"
+    },
+    "provider": {
+      "newTitle": "New provider",
+      "editTitle": "Edit {name}",
+      "name": "Name",
+      "nameHelp": "Renaming changes the name on every completion with this provider.",
+      "companyId": "Company ID (IČO)",
+      "companyIdHelp": "8 digits; spaces are fine.",
+      "email": "Email",
+      "phone": "Phone",
+      "website": "Website",
+      "websiteHelp": "A bare address such as www.example.cz is read as https.",
+      "note": "Note",
+      "offerings": "What it offers",
+      "offeringsHelp": "The courses it can hold, each at its price per person. A session of a course can be scheduled only with a provider that offers it, and takes its price then.",
+      "offeredCourses": "Offered courses",
+      "course": "Course",
+      "price": "Price per person ({currency})",
+      "courseOf": "Course in row {row}",
+      "priceOf": "Price per person for {course}",
+      "addOffering": "Add a course",
+      "removeOffering": "Remove {course}",
+      "newOffering": "the new course",
+      "noOfferings": "It offers no course yet.",
+      "isDefault": "Default for imported sessions",
+      "isDefaultHelp": "An imported session that names no provider goes to this one. Only one provider is the default: choosing this one takes it from the other."
+    },
+    "room": {
+      "newTitle": "New room",
+      "editTitle": "Edit {name}",
+      "name": "Name",
+      "kind": "Kind",
+      "capacity": "Seats",
+      "capacityHelp": "Sessions held here must fit in its seats.",
+      "capabilities": "Equipment",
+      "note": "Note"
     }
   },
   "import": {
@@ -692,7 +763,10 @@
         "room_unfit": "upcoming sessions in that room would no longer fit; move them first",
         "failed": "the database refused the write",
         "network": "the server could not be reached",
-        "rate_limited": "too many writes in a short time; wait a minute and import again"
+        "rate_limited": "too many writes in a short time; wait a minute and import again",
+        "provider_unknown": "a session names a provider that is not on record",
+        "provider_not_offering": "a session names a provider that does not offer its course",
+        "no_default_provider": "a session names no provider and none is the default"
       },
       "meter": "Records written"
     },
@@ -780,7 +854,11 @@
       "ROOM_TOO_SMALL": "The room holds {capacity}, fewer than the {value} seats this session opens.",
       "ROOM_UNSUITABLE": "Room “{value}” lacks what this course needs (equipment, or it is online).",
       "ROOM_BUSY": "Session {otherId} holds the room at that time.",
-      "WILL_CREATE": "“{value}” is new; the import creates it."
+      "WILL_CREATE": "“{value}” is new; the import creates it.",
+      "PROVIDER_UNKNOWN": "No provider named {value} is on record",
+      "PROVIDER_NOT_OFFERING": "{value} does not offer {course}",
+      "NO_DEFAULT_PROVIDER": "No provider is named, and none is the default for imported sessions",
+      "OFFERING_ADDED": "{value} (the default provider) will offer {course}"
     },
     "stepHeading": "Step {step} of {count}: {name}"
   },
@@ -993,7 +1071,10 @@
         "ATTENDEE_CONFLICT": "Someone booked on the session has another session at that time.",
         "unauthorized": "Your account may no longer make changes. Sign in again.",
         "rate_limited": "Too many changes in a short time. Wait a minute and try again.",
-        "failed": "The change could not be saved. Try again."
+        "failed": "The change could not be saved. Try again.",
+        "NO_LENGTH": "The course has no length set: set it on the course first.",
+        "NOT_OFFERED": "That provider does not offer the course. Choose one that does, or add the course to its offerings.",
+        "PROVIDER_ARCHIVED": "That provider is archived."
       }
     },
     "outcome": {
@@ -1062,16 +1143,6 @@
         "MISSING_CAPABILITIES": "Lacks {missing}",
         "ONLINE_NOT_ALLOWED": "Not held online"
       }
-    },
-    "form": {
-      "newTitle": "New room",
-      "editTitle": "Edit {name}",
-      "name": "Name",
-      "kind": "Kind",
-      "capacity": "Seats",
-      "capacityHelp": "An online room has no seat limit; every other room needs a seat count.",
-      "capabilities": "Equipment",
-      "note": "Note"
     }
   },
   "providers": {
@@ -1118,20 +1189,21 @@
         "validUntil": "Valid until",
         "price": "Price"
       },
-      "noRecent": "Completions recorded with this provider are listed here."
-    },
-    "form": {
-      "newTitle": "New provider",
-      "editTitle": "Edit {name}",
-      "name": "Name",
-      "nameHelp": "Renaming changes the name on every completion with this provider.",
-      "companyId": "Company ID (IČO)",
-      "companyIdHelp": "8 digits; spaces are fine.",
-      "email": "Email",
-      "phone": "Phone",
-      "website": "Website",
-      "websiteHelp": "A bare address such as www.example.cz is read as https.",
-      "note": "Note"
+      "noRecent": "Completions recorded with this provider are listed here.",
+      "isDefault": "Default for imported sessions that name no provider",
+      "offeringsDescription": "The courses it offers, each at its price per person; a session of one is scheduled with it at that price.",
+      "noOfferings": "It offers no course yet. Add courses on its edit page.",
+      "upcoming": "Upcoming sessions",
+      "upcomingDescription": "Sessions it holds that are still to come.",
+      "noUpcoming": "It holds no upcoming session.",
+      "offerings": {
+        "title": "Offered courses",
+        "course": "Course",
+        "price": "Price per person",
+        "upcoming": "Upcoming sessions",
+        "caption": "Courses {name} offers",
+        "scheduleWith": "Schedule a session of {course} with {provider}"
+      }
     }
   },
   "org": {
@@ -1265,14 +1337,19 @@
       "COURSE_ARCHIVED": "The course has been archived meanwhile. Reload the planner.",
       "OVER_CAPACITY": "The capacity is below the people to book. Raise it, or book fewer people.",
       "ATTENDEE_CONFLICT": "Someone booked on the session has another session at that time.",
-      "rate_limited": "Too many changes in a short time. Wait a minute and try again."
+      "rate_limited": "Too many changes in a short time. Wait a minute and try again.",
+      "NO_LENGTH": "The course has no length set: set it on the course first.",
+      "NOT_OFFERED": "That provider does not offer the course. Choose one that does, or add the course to its offerings.",
+      "PROVIDER_ARCHIVED": "That provider is archived."
     },
     "problems": {
       "NO_ROOM_WITH": "Even the best-equipped room lacks {missing}.",
       "NO_ROOM_LARGE_ENOUGH": "{size, plural, one {No equipped room seats # person} other {No equipped room seats # people}}; the largest takes {largest}.",
       "NO_ONLINE_OR_ROOM": "The course is held on site, and there is no room.",
       "RUNS_PAST_MIDNIGHT": "At its usual time and length a session would end after midnight.",
-      "NO_FREE_SLOT": "No free slot in the next {days} days."
+      "NO_FREE_SLOT": "No free slot in the next {days} days.",
+      "NO_LENGTH": "The course has no length set",
+      "NO_PROVIDER": "No provider offers the course"
     },
     "readOnly": "Only admins can create sessions.",
     "otherRooms": "or {rooms}",
@@ -1305,7 +1382,8 @@
       "confirm": "Create session and book {count, plural, =0 {nobody} one {# person} other {# people}}",
       "creating": "Creating…",
       "created": "Created {id} and booked {count, plural, =0 {nobody} one {# person} other {# people}}",
-      "openSession": "Open session"
+      "openSession": "Open session",
+      "pastMidnight": "Ends after midnight: start earlier."
     },
     "expanded": {
       "people": "People",
@@ -1321,7 +1399,8 @@
       "split": "Each group is split by the course's group size, or by the largest room that suits it.",
       "day": "Each session gets the first working day from tomorrow (weekends and public holidays are not) with a suitable room free at the course's usual time.",
       "room": "A suitable room is online if the course allows it, otherwise one with everything the course needs and enough seats; rooms used before come first."
-    }
+    },
+    "noLength": "Length not set"
   },
   "landing": {
     "title": "Training register",
@@ -1414,7 +1493,7 @@
     "person": "Archived employee #{tag}",
     "refused": {
       "not_found": "It no longer exists, or it is archived already.",
-      "in_use": "{kind, select, room {{count, plural, one {# session ahead is held here.} other {# sessions ahead are held here.}} Move or cancel them first.} other {{count, plural, one {# person belongs here.} other {# people belong here.}} Move them elsewhere first.}}",
+      "in_use": "{kind, select, room {{count, plural, one {# session ahead is held here.} other {# sessions ahead are held here.}} Move or cancel them first.} provider {{count, plural, one {It holds # session ahead.} other {It holds # sessions ahead.}} Cancel them, or schedule them with another provider, first.} other {{count, plural, one {# person belongs here.} other {# people belong here.}} Move them elsewhere first.}}",
       "has_upcoming_sessions": "{count, plural, one {# session of it is ahead.} other {# sessions of it are ahead.}} Cancel or archive them first.",
       "upcoming": "This session is still to start: cancel it instead; its bookings then stay as history, and it can be archived.",
       "self": "You cannot archive yourself.",
@@ -1425,7 +1504,8 @@
       "room_unfit": "Its room no longer suits it. Edit the room first.",
       "generic": "That did not work. Please try again.",
       "unauthorized": "Your account may no longer make changes. Sign in again.",
-      "rate_limited": "Too many changes in a short time. Wait a minute and try again."
+      "rate_limited": "Too many changes in a short time. Wait a minute and try again.",
+      "default_provider": "It is the default provider for imported sessions. Make another provider the default first."
     },
     "fields": {
       "name": "name",

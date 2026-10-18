@@ -5,6 +5,7 @@ import { findArchivedKeys } from '@muni/db/reference'
 import {
   COMMIT_CHUNK_SIZE,
   commitChunk,
+  type CommitRefusal,
   CommitRefusedError,
   CommitValidationError,
 } from '@muni/db/writer'
@@ -17,7 +18,7 @@ export type CommitChunkResult =
   | { ok: true; created: number; updated: number; skipped: number }
   | {
       ok: false
-      error: Denied | 'invalid' | 'room_busy' | 'room_unfit' | 'failed'
+      error: Denied | 'invalid' | Lowercase<CommitRefusal> | 'failed'
       detail?: string
     }
 
@@ -51,7 +52,7 @@ export async function commitImportChunk(
         if (error instanceof CommitRefusedError) {
           return {
             ok: false,
-            error: error.reason === 'ROOM_BUSY' ? 'room_busy' : 'room_unfit',
+            error: error.reason.toLowerCase() as Lowercase<CommitRefusal>,
             detail: `#${error.index}: ${error.key}`,
           }
         }

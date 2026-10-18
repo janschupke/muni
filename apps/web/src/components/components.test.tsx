@@ -9,7 +9,7 @@ import * as z from 'zod'
 import { fieldErrors, type FormState } from '@/lib/form'
 import { checkSessionSlotAction } from '@/server/actions/sessions'
 import { expectNoAxeViolations } from '@/test/axe'
-import { AULA_A, ONLINE, session } from '@/test/fixtures'
+import { AULA_A, EXTERNAL, INTERNAL, ONLINE, session } from '@/test/fixtures'
 import { navigate, route, router } from '@/test/next'
 import { renderClient } from '@/test/render'
 
@@ -80,9 +80,8 @@ describe('forms', () => {
           departmentIds: ['dep_lab'],
           positionIds: [],
           sessionMinutes: 180,
-          groupSize: null,
+          seats: null,
           onlineAllowed: true,
-          derived: { sessionMinutes: 120, groupSize: 25, onlineAllowed: false },
           capabilities: ['PROJECTOR'],
         }}
       />
@@ -102,11 +101,12 @@ describe('forms', () => {
     expect(screen.getByRole('checkbox', { name: 'Everyone' }).getAttribute('aria-checked')).toBe(
       'false'
     )
-    // The needs override what past sessions say, which shows beside each.
-    expect(screen.getByRole('combobox', { name: 'Can be held online' }).textContent).toBe('Yes')
-    expect(screen.getByRole('textbox', { name: 'Group size' })).toHaveProperty('value', '')
-    expect(screen.getByText('Empty: 25, from past sessions.')).toBeTruthy()
-    expect(screen.getByRole('textbox', { name: /Session length/ })).toHaveProperty('value', '180')
+    // What its sessions are: the course's own values, one each.
+    expect(
+      screen.getByRole('checkbox', { name: 'May be held online' }).getAttribute('aria-checked')
+    ).toBe('true')
+    expect(screen.getByRole('textbox', { name: 'Seats' })).toHaveProperty('value', '')
+    expect(screen.getByRole('textbox', { name: /Length/ })).toHaveProperty('value', '180')
     expect(screen.getByRole('checkbox', { name: 'Projector' }).getAttribute('aria-checked')).toBe(
       'true'
     )
@@ -145,17 +145,15 @@ describe('forms', () => {
           departmentIds: [],
           positionIds: [],
           sessionMinutes: null,
-          groupSize: null,
-          onlineAllowed: null,
-          derived: { sessionMinutes: null, groupSize: null, onlineAllowed: false },
+          seats: null,
+          onlineAllowed: false,
           capabilities: [],
         }}
       />
     )
-    expect(screen.getAllByText('Empty: not known from sessions yet.')).toHaveLength(2)
-    expect(screen.getByRole('combobox', { name: 'Can be held online' }).textContent).toBe(
-      'From sessions (no)'
-    )
+    expect(
+      screen.getByRole('checkbox', { name: 'May be held online' }).getAttribute('aria-checked')
+    ).toBe('false')
     await user.type(screen.getByRole('textbox', { name: /Code/ }), 'bozp-n')
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'BOZP')
     await user.click(screen.getByRole('button', { name: 'Create course' }))
@@ -207,6 +205,7 @@ describe('forms', () => {
           named={1}
           defaults={{
             courseId: 'course_bozp',
+            providerId: INTERNAL.providerId,
             date: '2026-11-04',
             startTime: '08:00',
             endTime: '11:00',
@@ -256,10 +255,10 @@ describe('forms', () => {
     expect(screen.getByRole('button', { name: 'Choose Start from a list' })).toBeTruthy()
     expect(posted('date')).toBe('2026-11-04')
     expect(screen.getByText('Plus 1 person booked by name.')).toBeTruthy()
-    expect(screen.getByRole('textbox', { name: 'Price per person (Kč)' })).toHaveProperty(
-      'value',
-      ''
-    )
+    // The price is the provider's, shown, never typed; the end follows the start.
+    expect(screen.getByRole('status', { name: 'Price per person' }).textContent).toBe('No price')
+    expect(screen.getByRole('status', { name: 'End' }).textContent).toBe('11:00')
+    expect(screen.queryByRole('textbox', { name: /^(End|Price per person)$/ })).toBeNull()
     expect(posted('completedOn')).toBe('2026-10-16')
     expect(posted('employeeId')).toBe('emp_E0153')
     expect(screen.getByText(/came from an import/)).toBeTruthy()
@@ -404,7 +403,8 @@ const COURSES = {
     code: 'BOZP-Z',
     name: 'BOZP – základní školení',
     validityMonths: 24,
-    needs: { sessionMinutes: 180, groupSize: 20, onlineAllowed: true, capabilities: [] },
+    needs: { sessionMinutes: 180, seats: 20, onlineAllowed: true, capabilities: [] },
+    offerings: [INTERNAL, EXTERNAL],
   },
   fire: {
     id: 'course_poz',
@@ -413,10 +413,11 @@ const COURSES = {
     validityMonths: 24,
     needs: {
       sessionMinutes: 120,
-      groupSize: null,
+      seats: null,
       onlineAllowed: false,
       capabilities: ['PROJECTOR' as const],
     },
+    offerings: [INTERNAL],
   },
 }
 
@@ -438,6 +439,7 @@ describe('the session form checks itself as the user types', () => {
         courses={[COURSES.bozp, COURSES.fire]}
         defaults={{
           courseId: 'course_bozp',
+          providerId: INTERNAL.providerId,
           date: '2027-03-01',
           startTime: '09:00',
           endTime: '12:00',
@@ -450,7 +452,7 @@ describe('the session form checks itself as the user types', () => {
         {...over}
       />
     )
-  const capacity = () => screen.getByRole('textbox', { name: /Capacity/ })
+  const capacity = () => screen.getByRole('textbox', { name: /^Seats/ })
 
   it('never changes the seats for a room: a room too small marks both fields', async () => {
     vi.mocked(checkSessionSlotAction).mockResolvedValue(null)
@@ -460,7 +462,7 @@ describe('the session form checks itself as the user types', () => {
     // A room's option says what it holds; the seats stay as the course set them.
     await choose(user, /Room/, /Aula A · 30 seats/)
     expect(capacity()).toHaveProperty('value', '20')
-    expect(screen.getByText('The room holds 30 seats.')).toBeTruthy()
+    expect(screen.getByText('The course opens 20 seats. The room holds 30 seats.')).toBeTruthy()
     await choose(user, /Room/, /Malá · 12 seats/)
     expect(capacity()).toHaveProperty('value', '20')
     // Either a bigger room or fewer seats settles it: both say so.
@@ -516,11 +518,46 @@ describe('the session form checks itself as the user types', () => {
       { roomId: 'room_aula_a', date: '2027-03-01', startTime: '09:00', endTime: '12:00' },
       null
     )
-    const end = screen.getByRole('textbox', { name: /^End/ })
-    await user.clear(end)
-    await user.type(end, '08:00')
+    // The end is the course's length after the start, shown, not typed.
+    const end = screen.getByRole('status', { name: /^End/ })
+    expect(end.textContent).toBe('12:00')
+    const start = screen.getByRole('textbox', { name: /^Start/ })
+    await user.clear(start)
+    await user.type(start, '1030')
     await user.tab()
-    expect(await screen.findByText('The end must be after the start.')).toBeTruthy()
+    expect(end.textContent).toBe('13:30')
+  })
+
+  it('offers only the providers of the course, with their prices, and marks one that does not offer it', async () => {
+    vi.mocked(checkSessionSlotAction).mockResolvedValue(null)
+    const user = userEvent.setup()
+    renderForm({ defaults: { ...defaultsOf('room_aula_a'), providerId: EXTERNAL.providerId } })
+    const spaced = (text: string | null) => text?.replace(/\s/g, ' ')
+    expect(spaced(screen.getByRole('status', { name: 'Price per person' }).textContent)).toBe(
+      '600,00 Kč'
+    )
+    await user.click(screen.getByRole('combobox', { name: /Provider/ }))
+    expect(screen.getAllByRole('option').map(o => spaced(o.textContent))).toEqual([
+      'Interní školitel · 450,00 Kč · default',
+      'Externí lektor · 600,00 Kč',
+    ])
+    await user.keyboard('{Escape}')
+    // POZ-OCH is offered by the internal one only: the external one is marked on both fields.
+    await choose(user, /Course/, /POZ-OCH/)
+    expect(
+      screen.getAllByText(
+        'That provider does not offer the course. Choose one that does, or add the course to its offerings.'
+      )
+    ).toHaveLength(2)
+    await choose(user, /Provider/, /Interní/)
+    expect(screen.queryByText(/does not offer the course/)).toBeNull()
+    // A course with no length: nothing to end by.
+    renderForm({
+      courses: [{ ...COURSES.bozp, needs: { ...COURSES.bozp.needs, sessionMinutes: null } }],
+    })
+    expect(screen.getAllByRole('status', { name: /^End/ }).at(-1)?.textContent).toBe(
+      'The course has no length set yet.'
+    )
   })
 
   it('keeps the seats at or above the bookings when editing', async () => {
@@ -563,6 +600,7 @@ describe('the session form checks itself as the user types', () => {
 function defaultsOf(roomId: string): SessionDefaults {
   return {
     courseId: 'course_bozp',
+    providerId: INTERNAL.providerId,
     date: '2027-03-01',
     startTime: '09:00',
     endTime: '12:00',
@@ -1214,6 +1252,7 @@ describe('saving and deciding', () => {
         named={1}
         defaults={{
           courseId: 'course_bozp',
+          providerId: INTERNAL.providerId,
           date: '2026-11-04',
           startTime: '08:00',
           endTime: '11:00',
@@ -1255,7 +1294,7 @@ describe('saving and deciding', () => {
     )
     // Cancelling and reinstating are the session page's acts, not a field.
     expect(screen.queryByRole('combobox', { name: /Status/ })).toBeNull()
-    const seats = screen.getByRole('textbox', { name: /Capacity/ })
+    const seats = screen.getByRole('textbox', { name: /^Seats/ })
     await user.clear(seats)
     await user.type(seats, '12')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))

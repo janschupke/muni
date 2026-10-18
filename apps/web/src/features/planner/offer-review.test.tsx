@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { checkSessionSlotAction, createPlannedSessionAction } from '@/server/actions/sessions'
-import { AULA_A, ONLINE } from '@/test/fixtures'
+import { AULA_A, EXTERNAL, INTERNAL, ONLINE } from '@/test/fixtures'
 import { renderClient } from '@/test/render'
 
 import { OfferReview } from './offer-review'
@@ -47,9 +47,10 @@ const OFFER: SessionOffer = {
     code: 'POZ-OCH',
     name: 'Požární ochrana',
     sessionMinutes: 120,
-    groupSize: 40,
+    seats: 40,
     onlineAllowed: false,
     capabilities: ['PROJECTOR'],
+    offerings: [INTERNAL, EXTERNAL],
   },
   bucket: 'now',
   deadline: '2026-10-30',
@@ -68,6 +69,7 @@ const OFFER: SessionOffer = {
   },
   room: { id: AULA_A.id, name: AULA_A.name, kind: AULA_A.kind },
   alternatives: [],
+  offering: INTERNAL,
   late: false,
   problem: null,
 }
@@ -86,7 +88,7 @@ describe('OfferReview', () => {
     const user = userEvent.setup()
     const { dialog } = renderReview()
     const check = within(dialog).getByRole('button', { name: 'Check' })
-    const capacity = within(dialog).getByRole('textbox', { name: /Capacity/ })
+    const capacity = within(dialog).getByRole('textbox', { name: /^Seats/ })
     await user.clear(capacity)
     await user.type(capacity, 'many')
     expect(within(dialog).getByText('Enter a number.')).toBeTruthy()
@@ -98,12 +100,9 @@ describe('OfferReview', () => {
     await user.click(within(dialog).getByRole('checkbox', { name: /Bílá Jana/ }))
     expect(within(dialog).queryByText(/The capacity is below/)).toBeNull()
     expect(within(dialog).getByText(/1 person ticked/)).toBeTruthy()
-    // A price that is not one.
-    const price = within(dialog).getByRole('textbox', { name: /Price per person/ })
-    await user.type(price, 'a lot')
-    expect(check).toHaveProperty('disabled', true)
-    await user.clear(price)
-    await user.type(price, '450,50')
+    // Another provider of the course, at its own price.
+    await user.click(within(dialog).getByRole('combobox', { name: /Provider/ }))
+    await user.click(screen.getByRole('option', { name: /Externí lektor/ }))
     expect(check).toHaveProperty('disabled', false)
     // A room that does not suit the course says why.
     await user.click(within(dialog).getByRole('combobox', { name: /Room/ }))
@@ -116,7 +115,7 @@ describe('OfferReview', () => {
   it('never changes the seats for a room: a room too small marks both fields', async () => {
     const user = userEvent.setup()
     const { dialog } = renderReview()
-    const capacity = within(dialog).getByRole('textbox', { name: /Capacity/ })
+    const capacity = within(dialog).getByRole('textbox', { name: /^Seats/ })
     await user.click(within(dialog).getByRole('combobox', { name: /Room/ }))
     await user.click(screen.getByRole('option', { name: /Učebna 9/ }))
     expect(capacity).toHaveProperty('value', '2')

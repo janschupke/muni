@@ -1,5 +1,4 @@
 import { sortName } from '@muni/domain/names'
-import { effectiveNeeds } from '@muni/domain/rooms'
 import {
   APP_ID_PREFIX,
   type CompletionEdit,
@@ -86,14 +85,14 @@ async function writeAudience(
   return null
 }
 
-/** The needs the form sets are overrides: what the sessions import derives stays next to them. */
+/** What the form sets: the course, who must hold it, and what its sessions are. */
 const courseFields = (data: CourseEdit) => ({
   name: data.name,
   validityMonths: data.validityMonths,
   requiredForAll: data.requiredForAll,
-  sessionMinutesOverride: data.sessionMinutes,
-  groupSizeOverride: data.groupSize,
-  onlineAllowedOverride: data.onlineAllowed,
+  sessionMinutes: data.sessionMinutes,
+  seats: data.seats,
+  onlineAllowed: data.onlineAllowed,
 })
 
 async function writeCapabilities(tx: Tx, courseId: string, data: CourseEdit) {
@@ -166,13 +165,11 @@ export async function updateCourse(
       })
       const unfit = await newlyUnfit(tx, {
         courseId: current.id,
-        needs: effectiveNeeds({
-          ...current,
-          sessionMinutesOverride: data.sessionMinutes,
-          groupSizeOverride: data.groupSize,
-          onlineAllowedOverride: data.onlineAllowed,
+        needs: {
+          seats: data.seats,
+          onlineAllowed: data.onlineAllowed,
           capabilities: data.capabilities,
-        }),
+        },
       })
       if (unfit.length > 0)
         throw new Refused({

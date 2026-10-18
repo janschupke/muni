@@ -2,7 +2,6 @@
 
 import type { RoomOption } from '@muni/db/repositories'
 import {
-  DEFAULT_SESSION_MINUTES,
   type OfferCourse,
   PLAN_HORIZON_DAYS,
   type PlannerGroup,
@@ -94,11 +93,13 @@ export function PlannerView({
 function CourseHeading({ course, id }: { course: OfferCourse; id: string }) {
   const t = useTranslations('planner')
   const tc = useTranslations('status.capability')
-  const length = course.sessionMinutes ?? DEFAULT_SESSION_MINUTES
+  const length = course.sessionMinutes
   const facts = [
-    course.groupSize === null
-      ? t('needsAny', { length })
-      : t('needs', { length, size: course.groupSize }),
+    length === null
+      ? t('noLength')
+      : course.seats === null
+        ? t('needsAny', { length })
+        : t('needs', { length, size: course.seats }),
     ...(course.onlineAllowed ? [t('online')] : []),
     ...(course.capabilities.length > 0
       ? [t('capabilities', { list: course.capabilities.map(c => tc(c)).join(', ') })]

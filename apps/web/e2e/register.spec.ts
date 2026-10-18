@@ -161,10 +161,12 @@ test.describe('register (viewer)', () => {
     const header = page.getByRole('columnheader', { name: 'Price' })
     await header.getByRole('button').click()
     await expect(header).toHaveAttribute('aria-sort', 'ascending')
-    // Column 1 is the attendee disclosure; price is the sixth cell.
-    const prices = (await page.locator('tbody tr td:nth-child(6)').allTextContents()).map(text =>
-      text === '—' ? null : Number(text.replace(/[^\d.]/g, ''))
-    )
+    // Found by its header, so another column never moves what is read.
+    const column =
+      (await page.locator('thead th').allTextContents()).findIndex(t => t.startsWith('Price')) + 1
+    const prices = (
+      await page.locator(`tbody tr td:nth-child(${String(column)})`).allTextContents()
+    ).map(text => (text === '—' ? null : Number(text.replace(/[^\d.]/g, ''))))
     const priced = prices.filter(p => p !== null)
     expect(priced).toEqual([...priced].sort((a, b) => a - b))
     expect(prices.slice(priced.length).every(p => p === null)).toBe(true)
@@ -244,9 +246,10 @@ test.describe('register (viewer)', () => {
     const name = (await room.textContent()) ?? ''
     await room.click()
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
-    const rooms = page.locator('tbody a[href^="/rooms/"]')
-    await expect(rooms.first()).toBeVisible()
-    for (const link of await rooms.all()) await expect(link).toHaveText(name)
+    // Its sessions, without a room column that would only repeat its name.
+    const held = page.getByRole('table', { name: 'Upcoming sessions' })
+    await expect(held.locator('tbody a[href^="/sessions/"]').first()).toBeVisible()
+    await expect(held.getByRole('columnheader', { name: 'Room' })).toHaveCount(0)
 
     // A date opens the session, ready to book the person it is proposed for; its back link
     // returns to the advisor view.

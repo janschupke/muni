@@ -1,18 +1,15 @@
 'use client'
 
-import { sessionPhase } from '@muni/domain/sessions'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
-import { EmptyState } from '@muni/ui/empty-state'
 import { SplitLayout } from '@muni/ui/layout'
-import { formatDate, formatTimeRange } from '@muni/utils/format'
+import { formatTimeRange } from '@muni/utils/format'
 import { useTranslations } from 'next-intl'
 
 import { ReadView } from '@/components/read-view'
 import { RecordHeader, useRecordRead } from '@/components/record-view'
-import { RemoveBookingButton } from '@/components/remove-booking-button'
-import { SessionAttendees, SessionFacts } from '@/components/session-details'
+import { SessionBookings } from '@/components/session-bookings'
+import { SessionFacts } from '@/components/session-details'
 import { DetailSkeleton } from '@/components/skeletons'
-import { AddBookingForm } from '@/features/bookings/add-booking'
 import { sessionTitle } from '@/lib/titles'
 import type { ReadOutput } from '@/server/reads/registry'
 
@@ -47,10 +44,7 @@ function SessionDetail({
   employee,
 }: ReadOutput<'session'> & { canEdit: boolean; employee?: string | undefined }) {
   const t = useTranslations('sessions')
-  const tb = useTranslations('bookings')
   const attendees = session.bookings.map(b => b.person)
-  // Booking by hand is for planned sessions that have not started.
-  const bookable = canEdit && sessionPhase(session, new Date()) === 'AHEAD'
 
   return (
     <>
@@ -78,43 +72,13 @@ function SessionDetail({
                 unnamed: session.unnamedBookings,
               })}
             />
-            <CardBody className="flex flex-col gap-4">
-              {bookable && (
-                <AddBookingForm
-                  sessionExternalId={session.externalId}
-                  initial={employee}
-                  options={needing.map(p => ({
-                    value: p.externalId,
-                    label: tb('needOption', {
-                      name: p.name,
-                      status: p.status,
-                      date: p.validUntil === null ? '' : formatDate(p.validUntil),
-                    }),
-                  }))}
-                />
-              )}
-              {attendees.length === 0 ? (
-                <EmptyState variant="inline" title={t('attendees.noneNamed')} />
-              ) : (
-                <div className="-mx-5 overflow-x-auto">
-                  <SessionAttendees
-                    session={session}
-                    action={
-                      canEdit
-                        ? ({ person: a }) =>
-                            !a.archived && (
-                              <RemoveBookingButton
-                                sessionExternalId={session.externalId}
-                                employeeExternalId={a.externalId}
-                                label={t('attendees.remove', { name: a.name })}
-                                confirmTitle={tb('removeConfirm', { name: a.name })}
-                              />
-                            )
-                        : undefined
-                    }
-                  />
-                </div>
-              )}
+            <CardBody>
+              <SessionBookings
+                session={session}
+                canEdit={canEdit}
+                needing={needing}
+                employee={employee}
+              />
             </CardBody>
           </Card>
         }

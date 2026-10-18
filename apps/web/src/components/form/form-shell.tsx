@@ -391,7 +391,7 @@ export function FormSection({
 }
 
 /** A field's state in its form, with the error translated. */
-function useField(name: string): FieldState & { changed: () => void } {
+export function useField(name: string): FieldState & { changed: () => void } {
   const t = useTranslations('forms.errors')
   const form = useContext(Context)
   const { error, ...state } = form.fieldState(name)
@@ -404,6 +404,8 @@ interface BaseProps {
   help?: string | undefined
   required?: boolean | undefined
   className?: string | undefined
+  /** The label for assistive technology only (a control in a table row). */
+  hideLabel?: boolean | undefined
 }
 
 export function TextField({
@@ -412,6 +414,7 @@ export function TextField({
   help,
   required,
   className,
+  hideLabel,
   ...input
 }: BaseProps & Omit<InputHTMLAttributes<HTMLInputElement>, 'name' | 'size'>) {
   const { changed: _, ...field } = useField(name)
@@ -419,6 +422,7 @@ export function TextField({
     <Field
       name={name}
       label={label}
+      hideLabel={hideLabel}
       help={help}
       required={required}
       className={className}
@@ -541,6 +545,7 @@ export function SelectField({
   onValueChange,
   options,
   allowEmpty,
+  hideLabel,
 }: BaseProps & {
   defaultValue?: string | undefined
   value?: string | undefined
@@ -551,7 +556,14 @@ export function SelectField({
   const { changed, ...field } = useField(name)
   const t = useTranslations('common')
   return (
-    <Field name={name} label={label} help={help} required={required} {...field}>
+    <Field
+      name={name}
+      label={label}
+      hideLabel={hideLabel}
+      help={help}
+      required={required}
+      {...field}
+    >
       {props => (
         <Select
           name={name}

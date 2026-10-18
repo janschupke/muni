@@ -31,7 +31,15 @@ export const USER_SORT = ['name', 'email', 'role', 'lastSignInAt'] as const
 
 export const ARCHIVED_SORT = ['name', 'when', 'archivedAt'] as const
 
-export const SESSION_SORT = ['course', 'date', 'room', 'capacity', 'price', 'status'] as const
+export const SESSION_SORT = [
+  'course',
+  'date',
+  'room',
+  'provider',
+  'capacity',
+  'price',
+  'status',
+] as const
 
 /** Upcoming bookings of a department's or a position's people. */
 export const BOOKING_SORT = ['person', 'course', 'date', 'room'] as const

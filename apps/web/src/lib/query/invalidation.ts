@@ -16,8 +16,9 @@ export type WriteKind =
 /**
  * The reads each write can change, or `everything`. Bookings, sessions, courses, people,
  * departments, positions, imports and archiving all reach compliance, the advisor and the
- * dashboard, which most pages show some of: those refresh everything. A role, a provider or a
- * room touches only the pages that show it.
+ * dashboard, which most pages show some of: those refresh everything. A role touches only the
+ * pages that show it; a provider and a room also reach what schedules sessions with them (the
+ * courses' offerings, the session form, the planner).
  */
 const WRITES: Record<WriteKind, readonly ReadName[] | 'everything'> = {
   booking: 'everything',
@@ -28,7 +29,21 @@ const WRITES: Record<WriteKind, readonly ReadName[] | 'everything'> = {
   import: 'everything',
   archive: 'everything',
   role: ['users-list', 'user'],
-  provider: ['providers-list', 'provider', 'provider-form', 'employee', 'completion-form'],
+  provider: [
+    'providers-list',
+    'provider',
+    'provider-form',
+    'employee',
+    'completion-form',
+    'course',
+    'courses-list',
+    'sessions-list',
+    'session',
+    'session-form',
+    'planner',
+    'advisor',
+    'booking-choices',
+  ],
   room: [
     'rooms-list',
     'room',

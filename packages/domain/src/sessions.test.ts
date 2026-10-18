@@ -5,7 +5,10 @@ import {
   NEARLY_FULL_RATIO,
   occupancy,
   openingOf,
+  scheduleBlock,
   seatsLeft,
+  sessionEnd,
+  sessionEndTime,
   sessionIssues,
   sessionPhase,
   startsLater,
@@ -39,10 +42,10 @@ describe('sessionIssues', () => {
     capacity: 20,
     capabilities: ['PROJECTOR'],
   }
-  const needs: SessionNeeds = { groupSize: 20, onlineAllowed: false, capabilities: ['PROJECTOR'] }
+  const needs: SessionNeeds = { seats: 20, onlineAllowed: false, capabilities: ['PROJECTOR'] }
   const fine = {
-    startTime: '09:00',
-    endTime: '12:00',
+    minutes: 180,
+    offered: true,
     capacity: 20,
     booked: 5,
     planned: true,
@@ -54,8 +57,9 @@ describe('sessionIssues', () => {
     expect(sessionIssues(fine)).toEqual([])
   })
 
-  it('finds an end before the start, seats below the bookings and a room that cannot hold it', () => {
-    expect(sessionIssues({ ...fine, endTime: '09:00' })).toEqual([{ kind: 'END_BEFORE_START' }])
+  it('finds a course with no length, a provider that does not offer it, seats below the bookings and a room that cannot hold it', () => {
+    expect(sessionIssues({ ...fine, minutes: null })).toEqual([{ kind: 'NO_LENGTH' }])
+    expect(sessionIssues({ ...fine, offered: false })).toEqual([{ kind: 'NOT_OFFERED' }])
     expect(sessionIssues({ ...fine, booked: 21 })).toEqual([{ kind: 'BELOW_BOOKED', booked: 21 }])
     expect(sessionIssues({ ...fine, capacity: 25 })).toEqual([
       { kind: 'ROOM', mismatch: { kind: 'TOO_SMALL', needed: 25, capacity: 20 } },
@@ -68,7 +72,34 @@ describe('sessionIssues', () => {
   it('leaves the room of a cancelled session alone, and what it does not know yet', () => {
     expect(sessionIssues({ ...fine, planned: false, capacity: 25 })).toEqual([])
     expect(sessionIssues({ ...fine, room: null, needs: null, capacity: null })).toEqual([])
-    expect(sessionIssues({ ...fine, startTime: '', endTime: '' })).toEqual([])
+    expect(sessionIssues({ ...fine, minutes: undefined, offered: undefined })).toEqual([])
+  })
+})
+
+describe('scheduleBlock', () => {
+  it('needs a length and a provider, and a room that suits the course; seats are no block', () => {
+    const course = { sessionMinutes: 180, offerings: 2 }
+    expect(scheduleBlock(course)).toBeNull()
+    expect(scheduleBlock({ ...course, sessionMinutes: null })).toBe('NO_LENGTH')
+    expect(scheduleBlock({ ...course, offerings: 0 })).toBe('NO_PROVIDER')
+    expect(scheduleBlock(course, { mismatch: { kind: 'ONLINE_NOT_ALLOWED' } })).toBe(
+      'ROOM_UNSUITABLE'
+    )
+    expect(
+      scheduleBlock(course, { mismatch: { kind: 'TOO_SMALL', needed: 30, capacity: 20 } })
+    ).toBeNull()
+    expect(scheduleBlock(course, { mismatch: null })).toBeNull()
+  })
+})
+
+describe('a session’s end', () => {
+  it('is its course’s length after its start', () => {
+    expect(sessionEnd(new Date('2026-11-02T08:00:00.000Z'), 180).toISOString()).toBe(
+      '2026-11-02T11:00:00.000Z'
+    )
+    expect(sessionEndTime('09:00', 180)).toEqual({ time: '12:00', nextDay: false })
+    expect(sessionEndTime('09:30', 45)).toEqual({ time: '10:15', nextDay: false })
+    expect(sessionEndTime('22:00', 180)).toEqual({ time: '01:00', nextDay: true })
   })
 })
 

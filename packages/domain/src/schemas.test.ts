@@ -9,6 +9,7 @@ import {
   employeeEditSchema,
   employeeSchema,
   positionSchema,
+  providerEditSchema,
   providerSchema,
   requirementScopeSchema,
   roomSchema,
@@ -51,6 +52,7 @@ const session = {
   bookedCount: 31,
   pricePerPerson: 450,
   status: 'PLANNED',
+  providerName: null,
 }
 
 const completion = {
@@ -106,14 +108,14 @@ describe('records', () => {
 
 describe('edit forms', () => {
   it('edit only what the form owns', () => {
-    // The needs are overrides: null leaves what the sessions import derived.
+    // What its sessions are; a length or seats not set yet stay null.
     const needs = {
       requiredForAll: false,
       departmentIds: [],
       positionIds: [],
       sessionMinutes: 180,
-      groupSize: null,
-      onlineAllowed: null,
+      seats: null,
+      onlineAllowed: false,
       capabilities: [],
     }
     expect(
@@ -129,16 +131,21 @@ describe('edit forms', () => {
         })
       )
     ).toHaveLength(1)
-    const {
-      externalId: _id,
-      courseCode: _code,
-      bookedCount: _booked,
-      location: _location,
-      ...edit
-    } = { ...session, courseId: 'course_bozp', roomId: 'room_aula_a' }
-    expect(sessionEditSchema.parse({ ...edit, unnamedBookings: 3 })).not.toHaveProperty(
-      'bookedCount'
-    )
+    // A session as the app edits it: course, provider, start, room and seats; no end, no price.
+    const edit = {
+      courseId: 'course_bozp',
+      providerId: 'prv_internal',
+      date: '2026-11-04',
+      startTime: '08:00',
+      roomId: 'room_aula_a',
+      capacity: 30,
+    }
+    expect(
+      sessionEditSchema.parse({ ...edit, unnamedBookings: 3, endTime: '11:00', pricePerPerson: 1 })
+    ).toEqual({ ...edit, unnamedBookings: 3 })
+    expect(
+      sessionEditSchema.safeParse({ ...edit, providerId: '', unnamedBookings: 3 }).success
+    ).toBe(false)
     // The course is a field like the room: picked by id, never left out.
     expect(sessionEditSchema.safeParse({ ...edit, courseId: '', unnamedBookings: 3 }).success).toBe(
       false
@@ -151,9 +158,6 @@ describe('edit forms', () => {
       false
     )
     expect(issues(sessionEditSchema.safeParse({ ...edit, unnamedBookings: -1 }))).toHaveLength(1)
-    expect(
-      issues(sessionEditSchema.safeParse({ ...edit, unnamedBookings: 0, endTime: '08:00' }))
-    ).toEqual(['endTime: before_start'])
   })
 
   it('apply the same date rules as the records', () => {
@@ -250,21 +254,50 @@ describe('rooms and new sessions', () => {
     expect(roomSchema.parse({ ...room, capabilities: null }).capabilities).toBeNull()
   })
 
-  it('create a session for a course in a room, ending after it starts', () => {
+  it('a provider offers each course once, at a price of zero or more', () => {
+    const provider = {
+      name: 'Externí lektor',
+      companyId: null,
+      email: null,
+      phone: null,
+      website: null,
+      note: null,
+      isDefault: false,
+      offerings: [
+        { courseId: 'course_bozp', price: 450 },
+        { courseId: 'course_gdpr', price: 0 },
+      ],
+    }
+    expect(providerEditSchema.parse(provider).offerings).toHaveLength(2)
+    expect(
+      issues(
+        providerEditSchema.safeParse({
+          ...provider,
+          offerings: [...provider.offerings, { courseId: 'course_bozp', price: 500 }],
+        })
+      )
+    ).toEqual(['offerings.2.courseId: duplicate'])
+    expect(
+      issues(
+        providerEditSchema.safeParse({
+          ...provider,
+          offerings: [{ courseId: 'course_bozp', price: -1 }],
+        })
+      )
+    ).toEqual(['offerings.0.price: Too small: expected number to be >=0'])
+  })
+
+  it('create a session of a course, by a provider, in a room', () => {
     const create = {
       courseId: 'course_bozp',
+      providerId: 'prv_internal',
       date: '2026-11-18',
       startTime: '08:00',
-      endTime: '11:00',
       roomId: 'room_aula_a',
       capacity: 30,
-      pricePerPerson: null,
-      status: 'PLANNED',
     }
-    expect(sessionCreateSchema.parse(create).roomId).toBe('room_aula_a')
-    expect(issues(sessionCreateSchema.safeParse({ ...create, endTime: '07:00' }))).toEqual([
-      'endTime: before_start',
-    ])
+    expect(sessionCreateSchema.parse(create)).toEqual(create)
+    expect(sessionCreateSchema.safeParse({ ...create, providerId: ' ' }).success).toBe(false)
     // A new session opens at least one seat.
     expect(sessionCreateSchema.safeParse({ ...create, capacity: 0 }).success).toBe(false)
   })
@@ -274,12 +307,11 @@ describe('rooms and new sessions', () => {
     try {
       const create = {
         courseId: 'course_bozp',
+        providerId: 'prv_internal',
         date: '2026-10-17',
         startTime: '14:00',
-        endTime: '16:00',
         roomId: 'room_aula_a',
         capacity: 10,
-        pricePerPerson: null,
       }
       expect(sessionCreateSchema.safeParse(create).success).toBe(true)
       expect(issues(sessionCreateSchema.safeParse({ ...create, date: '2026-10-16' }))).toEqual([

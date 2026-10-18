@@ -78,6 +78,7 @@ export const toSessionSummary = (s: {
  */
 export const sessionInclude = {
   course: { select: { id: true, code: true, name: true, archivedAt: true, ...needsSelect } },
+  provider: { select: { id: true, name: true, archivedAt: true } },
   room: {
     select: {
       ...roomRefSelect,
@@ -121,6 +122,7 @@ interface SessionRow {
   course: { id: string; code: string; name: string; archivedAt: Date | null } & Parameters<
     typeof needsOf
   >[0]
+  provider: { id: string; name: string; archivedAt: Date | null }
   assignments: {
     source: 'ADVISOR' | 'MANUAL'
     createdAt: Date
@@ -146,6 +148,7 @@ export function toSessionItem(s: SessionRow): SessionListItem {
     courseCode: s.course.code,
     courseName: s.course.name,
     courseArchived: isArchived(s.course),
+    provider: { id: s.provider.id, name: s.provider.name, archived: isArchived(s.provider) },
     startsAt: s.startsAt.toISOString(),
     endsAt: s.endsAt.toISOString(),
     room: toRoomRef(s.room),
@@ -179,12 +182,14 @@ export interface SessionFilter {
   /** A course's code. */
   course?: string | undefined
   room?: string | undefined
+  /** A provider's ID: the sessions it holds. */
+  provider?: string | undefined
   /** Only sessions in this state; both by default (the lists show cancelled ones marked). */
   status?: SessionListItem['status'] | undefined
 }
 
 function sessionWhere(
-  { window = 'upcoming', course, room, status }: SessionFilter,
+  { window = 'upcoming', course, room, provider, status }: SessionFilter,
   now: Date
 ): Prisma.CourseSessionWhereInput {
   return {
@@ -192,6 +197,7 @@ function sessionWhere(
     ...(window === 'upcoming' ? { endsAt: { gte: now } } : { endsAt: { lt: now } }),
     ...(course && { course: { code: course, ...ACTIVE } }),
     ...(room && { roomId: room }),
+    ...(provider && { providerId: provider }),
     ...(status && { status }),
   }
 }

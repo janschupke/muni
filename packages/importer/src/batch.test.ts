@@ -265,9 +265,12 @@ describe('validateBatch: the rules the forms keep', () => {
           {
             code: 'BOZP-Z',
             validityMonths: 24,
-            needs: { groupSize: null, onlineAllowed: true, capabilities: ['PROJECTOR'] },
+            needs: { seats: null, onlineAllowed: true, capabilities: ['PROJECTOR'] },
+            offeredBy: ['Interní školitel'],
           },
         ],
+        providers: ['Interní školitel'],
+        defaultProvider: 'Interní školitel',
         rooms: ['Aula A', 'Lab 1', 'Online'],
         roomFacts: [
           { name: 'Aula A', kind: 'CLASSROOM', capacity: 20, capabilities: ['PROJECTOR'] },
@@ -401,6 +404,48 @@ describe('rooms', () => {
     ).toMatchObject({ capabilities: ['VIDEO_CONFERENCE'] })
   })
 
+  it('gives each session a provider that offers its course, or the default', () => {
+    const sessions = (rows: string[]) =>
+      file('terminy.csv', ['id_terminu;kod_skoleni;datum;cas;misto;kapacita;poskytovatel', ...rows])
+        .rows as NonNullable<ImportBatch['sessions']>
+    const register: ReferenceSnapshot = {
+      ...EMPTY_REFERENCE,
+      courses: [
+        { code: 'GDPR', validityMonths: 24, offeredBy: ['Interní školitel', 'Externí lektor'] },
+        { code: 'ANGL', validityMonths: null, offeredBy: [] },
+      ],
+      providers: ['Interní školitel', 'Externí lektor'],
+      defaultProvider: 'Interní školitel',
+      rooms: ['Aula A'],
+    }
+    const out = validateBatch(
+      {
+        sessions: sessions([
+          'T101;GDPR;2026-11-04;08:00-10:00;Aula A;10;EXTERNÍ LEKTOR',
+          'T102;GDPR;2026-11-05;08:00-10:00;Aula A;10;Nikdo',
+          'T103;ANGL;2026-11-06;08:00-10:00;Aula A;10;Externí lektor',
+          'T104;ANGL;2026-11-07;08:00-10:00;Aula A;10;',
+          'T105;ANGL;2026-11-08;08:00-10:00;Aula A;10;',
+        ]),
+      },
+      register
+    )
+    const codes = (i: number) => codesOf(out.sessions?.[i])
+    expect(codes(0)).toEqual([])
+    expect(codes(1)).toEqual(['provider:PROVIDER_UNKNOWN'])
+    expect(codes(2)).toEqual(['provider:PROVIDER_NOT_OFFERING'])
+    // The default is given the course once, on the first row that needs it.
+    expect(codes(3)).toEqual(['provider:OFFERING_ADDED'])
+    expect(codes(4)).toEqual([])
+    // With no default at all, a row that names nobody cannot be placed; a completions file in
+    // the same batch makes providers (and a default) first.
+    const none = validateBatch(
+      { sessions: sessions(['T106;GDPR;2026-11-04;08:00-10:00;Aula A;10;']) },
+      { ...register, defaultProvider: null }
+    )
+    expect(codesOf(none.sessions?.[0])).toEqual(['provider:NO_DEFAULT_PROVIDER'])
+  })
+
   it('keeps the spelling of a room the register already has', () => {
     const batch = validateBatch(
       {
@@ -424,10 +469,14 @@ describe('rooms', () => {
           'T100;LAB-BEZ;2026-11-04;08:00-11:00;LABORATOŘ 3;12',
         ]).rows as NonNullable<ImportBatch['sessions']>,
       },
-      EMPTY_REFERENCE
+      { ...EMPTY_REFERENCE, providers: ['Interní školitel'], defaultProvider: 'Interní školitel' }
     )
     expect(codesOf(batch.rooms?.[3])).toEqual(['name:DUPLICATE_ID'])
-    expect(codesOf(batch.sessions?.[0])).toEqual(['location:VALUE_NORMALIZED'])
+    // The default provider holds it, and is given the new course to offer.
+    expect(codesOf(batch.sessions?.[0])).toEqual([
+      'provider:OFFERING_ADDED',
+      'location:VALUE_NORMALIZED',
+    ])
     expect(batch.sessions?.[0]?.data?.location).toBe('Laboratoř 3')
   })
 })

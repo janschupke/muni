@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { unarchiveAll } from '../test/archive'
 import { needing } from '../test/needs'
+import { defaultProviderId } from '../test/providers'
 import { completionOf, courseIdOf } from '../test/records'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { createDb } from './connect'
@@ -109,21 +110,35 @@ describe('seed', () => {
   it('derives what a session needs from the sessions held, for courses nobody configured', async () => {
     const needs = await db.course.findMany({
       orderBy: { code: 'asc' },
-      select: { code: true, sessionMinutes: true, groupSize: true, onlineAllowed: true },
+      select: { code: true, sessionMinutes: true, seats: true, onlineAllowed: true },
     })
     expect(needs.find(c => c.code === 'GDPR')).toEqual({
       code: 'GDPR',
       sessionMinutes: 120,
-      groupSize: 100,
+      seats: 100,
       onlineAllowed: true,
     })
     expect(needs.find(c => c.code === 'BOZP-Z')).toMatchObject({
       sessionMinutes: 180,
-      groupSize: 30,
+      seats: 30,
       onlineAllowed: false,
     })
     // No sessions, nothing to derive from.
     expect(needs.find(c => c.code === 'ANGL')).toMatchObject({ sessionMinutes: null })
+  })
+
+  it('offers what each provider delivered, and gives the internal one the sessions', async () => {
+    // Every provider delivered every course in the history: four offerings per course.
+    expect(await db.providerCourse.count()).toBe(40)
+    const internal = await db.provider.findFirstOrThrow({
+      where: { isDefault: true },
+      select: { id: true, name: true },
+    })
+    expect(internal.name).toBe('Interní školitel')
+    // The export names no provider: the default holds each session, at the exported price.
+    expect(await db.courseSession.count({ where: { providerId: { not: internal.id } } })).toBe(0)
+    const t001 = await db.courseSession.findFirstOrThrow({ where: { externalId: 'T001' } })
+    expect(Number(t001.pricePerPerson)).toBe(800)
   })
 
   it('is idempotent', async () => {
@@ -346,19 +361,20 @@ describe('sessions', () => {
       'T002',
       {
         courseId: await courseIdOf(db, 'KYBER'),
+        providerId: await defaultProviderId(db),
         date: '2026-10-28',
         startTime: '10:00',
-        endTime: '12:00',
         roomId: (await db.room.findUniqueOrThrow({ where: { name: 'Učebna 1' } })).id,
         capacity: 40,
         unnamedBookings: 3,
-        pricePerPerson: 800,
       },
       options
     )
     const sessions = await listSessions({ window: 'upcoming', course: 'KYBER' }, options)
+    // Moved, it ends its course's length (180 minutes) after its new start.
     expect(sessions.find(s => s.externalId === 'T002')).toMatchObject({
       startsAt: '2026-10-28T09:00:00.000Z',
+      endsAt: '2026-10-28T12:00:00.000Z',
       room: { name: 'Učebna 1', kind: 'CLASSROOM' },
       bookedCount: 3,
     })
@@ -411,7 +427,7 @@ describe('course list', () => {
     const bozp = course('BOZP-Z')
     expect(bozp?.sessionNeeds).toEqual({
       minutes: 180,
-      groupSize: 30,
+      seats: 30,
       onlineAllowed: false,
       capabilities: [],
     })
@@ -548,7 +564,7 @@ describe('planner input', () => {
     const now = new Date('2026-10-16T12:00:00Z')
     const planner = await getPlannerInput({ ...options, now })
     const bozp = planner.courses.find(c => c.code === 'BOZP-Z')
-    expect(bozp).toMatchObject({ sessionMinutes: 180, groupSize: 30, usualStart: '08:00' })
+    expect(bozp).toMatchObject({ sessionMinutes: 180, seats: 30, usualStart: '08:00' })
     const aula = planner.rooms.find(r => r.name === 'Aula A')
     expect(bozp?.heldIn).toEqual([aula?.id])
     expect(planner.courses.find(c => c.code === 'ANGL')).toMatchObject({

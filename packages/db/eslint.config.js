@@ -2,7 +2,7 @@ import { node } from '../../eslint.preset.js'
 
 const UNIQUE_KEYS = 'name|code|externalId|email|clerkId|companyId'
 const JOIN_ROWS =
-  'sessionAssignment|roomCapability|courseCapability|courseDepartmentRequirement|coursePositionRequirement|departmentPosition'
+  'sessionAssignment|roomCapability|courseCapability|courseDepartmentRequirement|coursePositionRequirement|departmentPosition|providerCourse'
 
 export default [
   ...node(import.meta.dirname),

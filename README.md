@@ -82,7 +82,8 @@ outside the app open their own client from `@muni/db/connect`; the seed runs und
 
 `Department`, `Position`, `Employee` (with a manager self-relation), `Course`,
 `CourseSession`, `CourseCompletion`, `Provider` (a name plus IČO and contact details),
-`Room` and `User` (mirrored from Clerk, see Access), all normalised:
+`ProviderCourse` (an offering), `Room` and `User` (mirrored from Clerk, see Access), all
+normalised:
 
 - **Who must hold a course:** `Course.requiredForAll`, plus one link table per audience
   (`course_department_requirements`, `course_position_requirements`). No flag and no links
@@ -100,15 +101,27 @@ outside the app open their own client from `@muni/db/connect`; the seed runs und
     against seats there, each needed piece of equipment held or lacking), then the first reason
     it fails, in numbers ("Needs 100 seats, has 40").
   - **An online room:** judged only on whether the course may be held online.
-- **What a session needs:** `Course.sessionMinutes`, `groupSize`, `onlineAllowed` (what
-  every sessions import derives from the course's sessions: usual length, median size, online
-  if ever held online) next to `…Override` columns the course form sets, which imports never
-  touch. The effective need is the override, else the derived value (`effectiveNeeds`).
-  Equipment is only set in the app.
+- **What a course's sessions are:** `Course.sessionMinutes` (the length; none set, nothing
+  can be scheduled), `seats` (what a new session opens; a session sets its own `capacity`),
+  `onlineAllowed` and its equipment, one value each, set on the course form. An import
+  fills them only where they are still unset (the first import of a course's sessions: usual
+  length, median seats, online if ever held online) and never overwrites them.
+- **Offerings:** `provider_courses` says which provider offers which course, at a price per
+  person (CHECK ≥ 0; 0 for internal training), edited as rows on the provider form. An
+  offering upcoming sessions of the provider still use cannot be dropped. One active provider
+  is the **default** (a partial unique index): imported sessions that name no provider go to
+  it, and it cannot be archived. A provider with sessions ahead cannot be archived either.
+- **A session derives from its course and provider:** it is held by a provider
+  (`CourseSession.providerId`, required) that offers its course; it ends its course's length
+  after it starts (`sessionEnd`); its price is the offering's, copied when it is scheduled or
+  its course or provider changes, so later price changes reach new sessions only. Imported
+  sessions keep their exported times and price until moved or given another course or
+  provider. The form shows the end and the price; it never types them.
 - **Sessions** are checked on the server, under the sessions lock and the session's row lock:
-  the room must suit the course (online allowed, its equipment, a seat for every place the
-  session opens), no other planned session may hold it then (online rooms never clash), and
-  the seats never drop below the bookings (unnamed plus named). `sessionIssues` in
+  the provider must offer the course and the course must have a length, the room must suit
+  the course (online allowed, its equipment, a seat for every place the session opens), no
+  other planned session may hold it then (online rooms never clash), and the seats never drop
+  below the bookings (unnamed plus named). `sessionIssues` in
   `@muni/domain/sessions` holds the rules, and the session form runs it as the user types.
   A room or course edit that would leave upcoming sessions unfit is refused with the count.
 - **Positions and departments:** a position is a title shared by departments ("Vedoucí" in
@@ -125,7 +138,8 @@ outside the app open their own client from `@muni/db/connect`; the seed runs und
   left from their `leftOn` on (`stillEmployed`, `employmentState`), and stops counting then.
 - **CHECKs** keep single-row rules whatever writes: sessions end after they start, nobody
   leaves before they were hired or manages themselves, validity never ends before the
-  completion, prices are not negative, validity and override sizes are positive.
+  completion, prices (sessions', completions', offerings') are not negative, validity,
+  lengths and seats are positive.
 - **Names** of departments, positions, providers and rooms are `citext`: unique whatever the
   case. Imports match them ignoring case and accents too.
 
@@ -204,6 +218,7 @@ One word per thing, in both locales. The message test fails on the words in the 
 | A seat a person holds on a session            | booking          | rezervace    | přihláška               |
 | A part of the organisation                    | department       | oddělení     | útvar                   |
 | Who delivered a completion                    | provider         | poskytovatel | dodavatel               |
+| A course a provider holds, at a price         | offering         | nabídka      | contract                |
 | Where a session is held                       | room             | místnost     | location                |
 | A catalogue entry (a table column naming one) | course           | kurz         | training                |
 | A required course a person has valid          | held             | splněno      | valid trainings         |
@@ -460,10 +475,20 @@ the named animations (`animate-fade-in`, `animate-pop-in`, …), and the default
 Every session has a public page (`/sessions/T016`) with its seats and who is booked by name,
 and every location links to the sessions held there (`/sessions?location=Aula A`).
 
-Providers (`/providers`) list who delivered the completions on record:
+Providers (`/providers`) list who holds sessions and who delivered the completions on record:
 
 - **Each provider shows:** its IČO, its completions, people and courses, what was spent and the last completion.
-- **Its page adds:** contact details, its courses and its completions, each a page at a time; the employee's completion history links to it.
+- **Its page adds:** contact details, whether it is the default for imported sessions, the
+  courses it offers (price, sessions ahead, a Schedule button that opens the session form
+  with the provider chosen), its upcoming sessions, and its completions by course, each a page
+  at a time; the employee's completion history links to it.
+- **Offerings:** edited on the provider form as rows (course, price per person), each course
+  once. Dropping a course its upcoming sessions use is refused with their number. A new price
+  reaches sessions scheduled from then on.
+- **Scheduling, the same everywhere:** the course list's rows, the course page, a room's
+  course fit and a provider's offerings each have one Schedule button. It opens the course's
+  session form with what the place knows (the room, the provider), or is disabled and says why:
+  the course has no length, no provider offers it, or the room does not suit it.
 - **Records:** imports create a provider by name (matched ignoring case and accents); the completion form picks one, or names a new one on purpose and is refused if that name is taken. Its details (IČO with its check digit, email, phone, website, note) are entered in the app, and imports leave them alone.
 - **Rename and archive:** renaming changes the name on every completion. An archived provider stays on its completions, shown muted.
 - **Prices:** the spend follows the `completion.price` policy. A viewer who may not see prices sees no sums of them either.
@@ -531,10 +556,13 @@ course ahead, or every one full), with one fixed rule (`packages/domain/src/plan
 
 - Demand is grouped by course and due date: everything already lapsed is due within two
   weeks; the rest is due the day before the first of a month's trainings lapses.
-- A group needs `ceil(people ÷ group size)` sessions, earliest lapse first. A course without
-  a group size fills the largest room that suits it (online: everyone at once).
+- A group needs `ceil(people ÷ seats)` sessions, earliest lapse first. A course without
+  seats set fills the largest room that suits it (online: everyone at once). A course with no
+  length or no provider offering it is not planned; the offer says which.
+- Each offer is held by the default provider if it offers the course, else by the cheapest
+  offering (ties by name), at that offering's price.
 - Each session takes the first working day (weekends and Czech public holidays are not) from
-  tomorrow on which a valid room is free at the course's usual start time, for its usual
+  tomorrow on which a valid room is free at the course's usual start time, for its
   length. Valid: online if the course allows it, otherwise every capability the course needs
   and enough seats. Rooms the course used before come first, then the smallest that fits.
   Planned sessions and earlier offers both block a physical room; an online room is never
@@ -542,11 +570,12 @@ course ahead, or every one full), with one fixed rule (`packages/domain/src/plan
 - A slot after the due date is offered and marked late. Otherwise the offer says why: what
   even the best-equipped room lacks, that the equipped rooms are too small, that a session
   would end after midnight, or that no slot is free in 120 days.
-- An offer is not created as it stands. **Review…** opens it for editing: day, start and end,
+- An offer is not created as it stands. **Review…** opens it for editing: day, start (the end
+  follows from the course's length), provider (the course's offerings, each with its price),
   room (every room, each labelled with its seats and whether it suits the course), capacity,
-  price, and the people to book (all ticked; untick to leave someone out). The dialog checks as
+  and the people to book (all ticked; untick to leave someone out). The dialog checks as
   the user types: the room taken then, a room that does not suit, fewer seats than people,
-  the end before the start; a weekend, a holiday or a date after the due date is a warning.
+  a start that would end the session after midnight; a weekend, a holiday or a date after the due date is a warning.
   **Check** runs the real transaction on the server and undoes it (`dryRun`), answering what
   would be refused and why; the review then shows exactly what will be created and what the
   bookings cost. Only **Create session and book N people** writes, all or nothing
@@ -572,7 +601,14 @@ The wizard at `/import` follows the same flow as ceum: upload, review, confirm, 
   another (`ROOM_BUSY`); a manager link that would make someone manage themselves is
   dropped (`MANAGER_CYCLE`). Each department, position and provider the import will create is
   named once (`WILL_CREATE`). Someone who left needs a leaving date (`LEFT_WITHOUT_DATE`).
-- **Commit:** in dependency order (rooms, courses, employees, sessions, completions), in
+- **Providers:** a sessions file may name each session's provider (`poskytovatel` or
+  `provider`). A named provider must exist and offer the course (`PROVIDER_UNKNOWN`,
+  `PROVIDER_NOT_OFFERING`, errors). A session that names none goes to the default provider;
+  with no default the row is refused (`NO_DEFAULT_PROVIDER`), and a course the default does
+  not offer yet is added to its offerings at the row's price (`OFFERING_ADDED`, a warning).
+  A completions file adds an offering for each provider and course it shows delivered and
+  not offered yet, at the latest price paid; it never changes an existing offering.
+- **Commit:** in dependency order (rooms, courses, employees, completions, sessions), in
   chunks of 500.
   The server re-validates every record with the domain schemas before writing.
 

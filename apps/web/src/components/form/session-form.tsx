@@ -1,9 +1,10 @@
 'use client'
 
 import type { CourseOption, RoomOption } from '@muni/db/repositories'
-import { type SessionIssue, sessionIssues } from '@muni/domain/sessions'
-import { FieldRow } from '@muni/ui/field'
-import { currencySymbol, formatAmount } from '@muni/utils/format'
+import type { CourseOffering } from '@muni/domain/planner'
+import { sessionEndTime, type SessionIssue, sessionIssues } from '@muni/domain/sessions'
+import { FieldRow, FieldValue } from '@muni/ui/field'
+import { formatCurrency } from '@muni/utils/format'
 import { parseCount } from '@muni/utils/money'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -25,13 +26,19 @@ import { useRoomLabel } from './session-fields'
 
 export interface SessionDefaults {
   courseId: string
+  /** '' on a new session with nobody chosen yet. */
+  providerId: string
+  /** The provider as stored, by name (it may no longer offer the course). */
+  providerName?: string | undefined
   date: string
   startTime: string
+  /** The stored end: kept while the course and the start stay as they are. */
   endTime: string
   roomId: string
-  /** null on a new session of a course with no group size: the seats are for the user to set. */
+  /** null on a new session of a course with no seats set: the seats are for the user to set. */
   capacity: number | null
   unnamedBookings: number
+  /** The stored price: kept while the course and the provider stay as they are. */
   pricePerPerson: number | null
   /**
    * As stored; the form never changes it (cancelling and reinstating are their own acts). A
@@ -40,12 +47,19 @@ export interface SessionDefaults {
   status: 'PLANNED' | 'CANCELLED'
 }
 
+/** A course's providers as the form offers them: the default first, then by name. */
+const byDefaultThenName = (a: CourseOffering, b: CourseOffering) =>
+  Number(b.isDefault) - Number(a.isDefault) || a.providerName.localeCompare(b.providerName, 'cs')
+
 /**
- * A session's form. The course, room and seats check each other as the user types, with the
- * same rules the server applies on save (`sessionIssues`): a room too small for the seats, one
- * lacking what the course needs, seats below the bookings. Whether the room is free then is
- * asked from the server as the user picks. A field never changes another: a conflict marks
- * every field that can settle it, and the form is not sent until one does.
+ * A session's form. What follows from the course and the provider is shown, not typed: the end
+ * (the course's length after the start) and the price (the provider's for the course, fixed
+ * when the session is scheduled). The course, provider, room and seats check each other as the
+ * user types, with the same rules the server applies on save (`sessionIssues`): a provider that
+ * does not offer the course, a course with no length, a room too small for the seats or lacking
+ * what the course needs, seats below the bookings. Whether the room is free then is asked from
+ * the server as the user picks. A field never changes another: a conflict marks every field that
+ * can settle it, and the form is not sent until one does.
  */
 export function SessionForm({
   action,
@@ -70,15 +84,14 @@ export function SessionForm({
   const t = useTranslations('forms.session')
   const tq = useTranslations('forms.session.confirm')
   const tsave = useTranslations('forms.save')
-  const tp = useTranslations('forms.placeholders')
 
   const [courseId, setCourseId] = useState(defaults.courseId)
+  const [providerId, setProviderId] = useState(defaults.providerId)
   const [roomId, setRoomId] = useState(defaults.roomId)
   const [capacity, setCapacity] = useState(defaults.capacity?.toString() ?? '')
   const [unnamed, setUnnamed] = useState(String(defaults.unnamedBookings))
   const [date, setDate] = useState(defaults.date)
   const [startTime, setStartTime] = useState(defaults.startTime)
-  const [endTime, setEndTime] = useState(defaults.endTime)
 
   const course = courses.find(c => c.id === courseId)
   const room = rooms.find(r => r.id === roomId)
@@ -87,17 +100,32 @@ export function SessionForm({
   const booked = unnamedSeats + named
   const planned = defaults.status === 'PLANNED'
 
+  // What the session keeps as stored, and what follows anew from the course and provider.
+  const sameCourse = !isNew && courseId === defaults.courseId
+  const sameOffer = sameCourse && providerId === defaults.providerId
+  const sameTime = sameCourse && date === defaults.date && startTime === defaults.startTime
+  const offerings = (course?.offerings ?? []).toSorted(byDefaultThenName)
+  const offering = offerings.find(o => o.providerId === providerId)
+  const minutes = course?.needs.sessionMinutes
+  const end =
+    sameTime || !startTime
+      ? { time: defaults.endTime, nextDay: false }
+      : minutes == null
+        ? null
+        : sessionEndTime(startTime, minutes)
+  const price = sameOffer ? defaults.pricePerPerson : (offering?.price ?? null)
+
   const busy = useRoomBusy(
-    planned && room !== undefined && room.kind !== 'ONLINE' && !!date && endTime > startTime
-      ? { roomId, date, startTime, endTime }
+    planned && room !== undefined && room.kind !== 'ONLINE' && !!date && end && !end.nextDay
+      ? { roomId, date, startTime, endTime: end.time }
       : null,
     self
   )
   const mismatchError = useRoomMismatchError()
 
   const issues = sessionIssues({
-    startTime,
-    endTime,
+    minutes: course && !sameTime ? (minutes ?? null) : undefined,
+    offered: course && providerId && !sameOffer ? offering !== undefined : undefined,
     capacity: seats,
     booked,
     planned,
@@ -111,8 +139,11 @@ export function SessionForm({
   /** Each field that can settle the issue, with what it says. */
   function errorOf(issue: SessionIssue): Partial<Record<string, ClientError>> {
     switch (issue.kind) {
-      case 'END_BEFORE_START':
-        return { endTime: { key: 'before_start' } }
+      case 'NO_LENGTH':
+        return { courseId: { key: 'no_length' } }
+      case 'NOT_OFFERED':
+        // Another provider, or another course that this provider offers.
+        return { providerId: { key: 'not_offered' }, courseId: { key: 'not_offered' } }
       case 'BELOW_BOOKED': {
         const error: ClientError = { key: 'below_booked', values: { booked: issue.booked } }
         // Fewer unnamed seats settle it only where there are some.
@@ -132,21 +163,57 @@ export function SessionForm({
   const label = useRoomLabel()
   const roomLabel = (r: RoomOption) => label(r, course?.needs ?? null, planned ? seats : null)
 
+  const providerOptions = [
+    ...offerings.map(o => ({
+      value: o.providerId,
+      label: t(o.isDefault ? 'providerOptionDefault' : 'providerOption', {
+        name: o.providerName,
+        price: formatCurrency(o.price),
+      }),
+    })),
+    // The provider it has, though it no longer offers the course: kept until changed.
+    ...(sameCourse && defaults.providerName && !offerings.some(o => o.providerId === providerId)
+      ? [
+          {
+            value: defaults.providerId,
+            label: t('providerGone', { name: defaults.providerName }),
+          },
+        ]
+      : []),
+  ]
+
   const capacityHelp = [
+    course?.needs.seats != null ? t('seatsDefault', { seats: course.needs.seats }) : null,
     room?.capacity != null ? t('roomHolds', { seats: room.capacity }) : null,
     booked > 0 ? t('bookedSeats', { count: booked }) : null,
   ]
     .filter(Boolean)
     .join(' ')
 
-  // Moving its bookings to another course does more than the form shows: ask first, saying
-  // what happens to the people on it.
+  // Moving its bookings to another course, or charging them another price, does more than the
+  // form shows: ask first, saying what happens to the people on it.
   const confirm = (): SaveConfirmation | null => {
-    if (isNew || named === 0 || courseId === defaults.courseId) return null
+    if (isNew || named === 0) return null
+    const moving = courseId !== defaults.courseId
+    const repriced = !sameOffer && price !== defaults.pricePerPerson
+    if (!moving && !repriced) return null
     return {
-      title: tq('courseTitle'),
-      body: <p>{tq('courseBody', { count: named, course: course?.name ?? '' })}</p>,
-      confirmLabel: tq('courseConfirm'),
+      title: moving ? tq('courseTitle') : tq('priceTitle'),
+      body: (
+        <>
+          {moving && <p>{tq('courseBody', { count: named, course: course?.name ?? '' })}</p>}
+          {repriced && (
+            <p>
+              {tq('priceBody', {
+                count: named,
+                price: formatCurrency(price),
+                was: formatCurrency(defaults.pricePerPerson),
+              })}
+            </p>
+          )}
+        </>
+      ),
+      confirmLabel: moving ? tq('courseConfirm') : tq('priceConfirm'),
       tone: 'primary',
     }
   }
@@ -164,15 +231,26 @@ export function SessionForm({
       savedMessage={isNew ? tsave('sessionCreated') : tsave('sessionSaved')}
       confirm={confirm}
     >
-      <SelectField
-        name="courseId"
-        label={t('course')}
-        required
-        value={courseId}
-        onValueChange={setCourseId}
-        help={named > 0 ? t('courseKeepsBookings', { count: named }) : undefined}
-        options={courses.map(c => ({ value: c.id, label: `${c.code} · ${c.name}` }))}
-      />
+      <FieldRow>
+        <SelectField
+          name="courseId"
+          label={t('course')}
+          required
+          value={courseId}
+          onValueChange={setCourseId}
+          help={named > 0 ? t('courseKeepsBookings', { count: named }) : undefined}
+          options={courses.map(c => ({ value: c.id, label: `${c.code} · ${c.name}` }))}
+        />
+        <SelectField
+          name="providerId"
+          label={t('provider')}
+          required
+          value={providerId}
+          onValueChange={setProviderId}
+          help={course && offerings.length === 0 ? t('noProviders') : t('providerHelp')}
+          options={providerOptions}
+        />
+      </FieldRow>
       <FieldRow columns={3}>
         <DateField name="date" label={t('date')} required value={date} onValueChange={setDate} />
         <TimeField
@@ -182,13 +260,16 @@ export function SessionForm({
           value={startTime}
           onValueChange={setStartTime}
         />
-        <TimeField
-          name="endTime"
+        <FieldValue
           label={t('endTime')}
-          required
-          value={endTime}
-          onValueChange={setEndTime}
-        />
+          help={sameTime ? t('endKept') : minutes != null ? t('endHelp', { minutes }) : undefined}
+        >
+          {end === null
+            ? t('noLength')
+            : end.nextDay
+              ? t('endNextDay', { time: end.time })
+              : end.time}
+        </FieldValue>
       </FieldRow>
       <SelectField
         name="roomId"
@@ -222,13 +303,16 @@ export function SessionForm({
             }}
           />
         )}
-        <TextField
-          name="pricePerPerson"
-          inputMode="decimal"
-          label={t('pricePerPerson', { currency: currencySymbol() })}
-          defaultValue={formatAmount(defaults.pricePerPerson)}
-          placeholder={tp('price')}
-        />
+        <FieldValue label={t('price')} help={sameOffer ? t('priceKept') : t('priceHelp')}>
+          {price === null
+            ? t('priceNone')
+            : !isNew && !sameOffer && price !== defaults.pricePerPerson
+              ? t('priceChanged', {
+                  price: formatCurrency(price),
+                  was: formatCurrency(defaults.pricePerPerson),
+                })
+              : formatCurrency(price)}
+        </FieldValue>
       </FieldRow>
     </FormShell>
   )

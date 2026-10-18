@@ -8,7 +8,7 @@ import {
   type SessionEdit,
   sessionEditSchema,
 } from '@muni/domain/schemas'
-import { sessionIssues, sessionPhase, startsLater } from '@muni/domain/sessions'
+import { sessionEnd, sessionIssues, sessionPhase, startsLater } from '@muni/domain/sessions'
 import { zonedTimeToUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
 
@@ -37,6 +37,11 @@ export type SessionProblem =
   | 'ROOM_MISSING_CAPABILITIES'
   | 'ROOM_ARCHIVED'
   | 'COURSE_ARCHIVED'
+  /** The course has no length set: when it would end is unknown. */
+  | 'NO_LENGTH'
+  /** The provider does not offer the course (or no longer exists). */
+  | 'NOT_OFFERED'
+  | 'PROVIDER_ARCHIVED'
   /** Fewer seats than are booked (unnamed and named together). */
   | 'OVER_CAPACITY'
   /** Someone booked by name has another planned session at the new time. */
@@ -109,8 +114,9 @@ async function sessionProblem(
   if (isArchived(room) && room.id !== current?.roomId) return 'ROOM_ARCHIVED'
   if (isArchived(course) && session.courseId !== current?.courseId) return 'COURSE_ARCHIVED'
   for (const issue of sessionIssues({
-    startTime: '',
-    endTime: '',
+    // The length and the offering are settled by `derive`, before.
+    minutes: undefined,
+    offered: undefined,
     capacity: session.capacity,
     booked: session.booked,
     planned: session.planned,
@@ -123,6 +129,65 @@ async function sessionProblem(
   if (session.planned && (await roomBusy(tx, session, current?.externalId ?? null)))
     return 'ROOM_BUSY'
   return null
+}
+
+/** A session as stored, for what `derive` keeps when nothing it follows from changed. */
+interface StoredOffer {
+  courseId: string
+  providerId: string
+  startsAt: Date
+  endsAt: Date
+  pricePerPerson: Prisma.Decimal | null
+}
+
+/**
+ * What a session's course and provider make of it: it ends its course's length after it starts,
+ * and costs the provider's price for the course. Kept as stored when what they follow from is
+ * unchanged (an imported session keeps its exported end and price until it is moved or given
+ * another course or provider). Refused when the course has no length, or the provider is
+ * archived or does not offer the course.
+ */
+async function derive(
+  tx: Tx,
+  data: { courseId: string; providerId: string; date: string; startTime: string },
+  current: StoredOffer | null
+): Promise<
+  | { ok: true; startsAt: Date; endsAt: Date; pricePerPerson: Prisma.Decimal | null }
+  | { ok: false; problem: SessionProblem }
+> {
+  const startsAt = zonedTimeToUtc(data.date, data.startTime)
+  // One after another: a transaction's queries share one connection.
+  const course = await tx.course.findUniqueOrThrow({
+    where: { id: data.courseId },
+    select: { sessionMinutes: true },
+  })
+  const provider = await tx.provider.findUnique({
+    where: { id: data.providerId },
+    select: { archivedAt: true },
+  })
+  const offering = await tx.providerCourse.findUnique({
+    where: { providerId_courseId: { providerId: data.providerId, courseId: data.courseId } },
+    select: { pricePerPerson: true },
+  })
+  const sameOffer =
+    current !== null && current.courseId === data.courseId && current.providerId === data.providerId
+  if (!provider) return { ok: false, problem: 'NOT_OFFERED' }
+  if (!sameOffer && isArchived(provider)) return { ok: false, problem: 'PROVIDER_ARCHIVED' }
+  if (!sameOffer && !offering) return { ok: false, problem: 'NOT_OFFERED' }
+  const sameTime =
+    current !== null &&
+    current.courseId === data.courseId &&
+    current.startsAt.getTime() === startsAt.getTime()
+  if (!sameTime && course.sessionMinutes === null) return { ok: false, problem: 'NO_LENGTH' }
+  return {
+    ok: true,
+    startsAt,
+    endsAt:
+      sameTime || course.sessionMinutes === null
+        ? (current?.endsAt ?? startsAt)
+        : sessionEnd(startsAt, course.sessionMinutes),
+    pricePerPerson: sameOffer ? current.pricePerPerson : (offering?.pricePerPerson ?? null),
+  }
 }
 
 const storedSelect = {
@@ -228,14 +293,24 @@ export async function updateSession(
       select: { id: true },
     })
     // The row too, as booking takes it: a seat booked meanwhile is counted below.
-    const [current] = await tx.$queryRaw<
-      { id: string; course_id: string; room_id: string; status: 'PLANNED' | 'CANCELLED' }[]
-    >`
-      SELECT id, course_id, room_id, status FROM course_sessions WHERE id = ${found.id} FOR UPDATE`
-    if (!current) throw new Error(`Session ${externalId} vanished under its lock`)
+    await tx.$queryRaw`SELECT id FROM course_sessions WHERE id = ${found.id} FOR UPDATE`
+    const current = await tx.courseSession.findUniqueOrThrow({
+      where: { id: found.id },
+      select: {
+        id: true,
+        courseId: true,
+        roomId: true,
+        providerId: true,
+        status: true,
+        startsAt: true,
+        endsAt: true,
+        pricePerPerson: true,
+      },
+    })
     const named = await tx.sessionAssignment.count({ where: { sessionId: current.id } })
-    const startsAt = zonedTimeToUtc(data.date, data.startTime)
-    const endsAt = zonedTimeToUtc(data.date, data.endTime)
+    const derived = await derive(tx, data, current)
+    if (!derived.ok) return derived
+    const { startsAt, endsAt } = derived
     const problem = await sessionProblem(
       tx,
       {
@@ -248,7 +323,7 @@ export async function updateSession(
         // Its status stays: a cancelled one holds no room, wherever it is moved.
         planned: current.status === 'PLANNED',
       },
-      { externalId, courseId: current.course_id, roomId: current.room_id }
+      { externalId, courseId: current.courseId, roomId: current.roomId }
     )
     if (problem) return { ok: false, problem }
     if (
@@ -264,9 +339,10 @@ export async function updateSession(
         endsAt,
         course: { connect: { id: data.courseId } },
         room: { connect: { id: data.roomId } },
+        provider: { connect: { id: data.providerId } },
         capacity: data.capacity,
         unnamedBookings: data.unnamedBookings,
-        pricePerPerson: data.pricePerPerson,
+        pricePerPerson: derived.pricePerPerson,
       },
       select: { course: { select: { code: true } } },
     })
@@ -364,8 +440,9 @@ async function insertSession(tx: Tx, data: SessionCreate): Promise<SessionWrite>
     where: { id: data.courseId },
     select: { id: true, code: true },
   })
-  const startsAt = zonedTimeToUtc(data.date, data.startTime)
-  const endsAt = zonedTimeToUtc(data.date, data.endTime)
+  const derived = await derive(tx, data, null)
+  if (!derived.ok) return derived
+  const { startsAt, endsAt } = derived
   const problem = await sessionProblem(
     tx,
     {
@@ -392,10 +469,11 @@ async function insertSession(tx: Tx, data: SessionCreate): Promise<SessionWrite>
       externalId,
       courseId: course.id,
       roomId: data.roomId,
+      providerId: data.providerId,
       startsAt,
       endsAt,
       capacity: data.capacity,
-      pricePerPerson: data.pricePerPerson,
+      pricePerPerson: derived.pricePerPerson,
       status: 'PLANNED',
     },
   })

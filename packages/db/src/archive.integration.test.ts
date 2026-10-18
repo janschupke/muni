@@ -11,6 +11,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { deleteCourses, deleteRooms, unarchiveAll } from '../test/archive'
+import { defaultProviderId, offer } from '../test/providers'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { createDb } from './connect'
 import { findArchivedKeys, loadReferenceSnapshot } from './reference'
@@ -108,8 +109,15 @@ const archive = (kind: Parameters<typeof archiveRecord>[0], id: string) =>
   archiveRecord(kind, id, TEST_USER, options)
 
 /** A fresh course with no sessions, people or requirements. */
-const fixtureCourse = (code: string) =>
-  db.course.create({ data: { code, name: `${NAME} kurz` }, select: { id: true } })
+/** A course two hours long, offered by the default provider (so sessions of it can be made). */
+async function fixtureCourse(code: string) {
+  const course = await db.course.create({
+    data: { code, name: `${NAME} kurz`, sessionMinutes: 120 },
+    select: { id: true },
+  })
+  await offer(db, await defaultProviderId(db), course.id)
+  return course
+}
 
 const fixtureEmployee = (externalId: string, data: { departmentId?: string } = {}) =>
   db.employee.create({
@@ -165,6 +173,8 @@ describe('unique keys among active records only', () => {
         phone: null,
         website: null,
         note: null,
+        isDefault: false,
+        offerings: [],
       },
       options
     )
@@ -177,6 +187,7 @@ describe('unique keys among active records only', () => {
         externalId: 'XA-S1',
         courseId: course.id,
         roomId: room,
+        providerId: await defaultProviderId(db),
         startsAt: new Date('2026-09-01T08:00:00Z'),
         endsAt: new Date('2026-09-01T10:00:00Z'),
         capacity: 10,
@@ -224,6 +235,7 @@ describe('unique keys among active records only', () => {
               externalId: 'XA-S1',
               courseId: course.id,
               roomId: room,
+              providerId: session.providerId,
               startsAt: session.startsAt,
               endsAt: session.endsAt,
               capacity: 10,
@@ -330,6 +342,7 @@ describe('archived records leave every list and count', () => {
         externalId: 'XA-S2',
         courseId: course.id,
         roomId: room,
+        providerId: await defaultProviderId(db),
         startsAt: new Date('2026-09-02T08:00:00Z'),
         endsAt: new Date('2026-09-02T10:00:00Z'),
         capacity: 10,
@@ -343,11 +356,10 @@ describe('archived records leave every list and count', () => {
       await createSession(
         {
           courseId: course.id,
+          providerId: await defaultProviderId(db),
           date: '2026-12-01',
           startTime: '08:00',
-          endTime: '10:00',
           capacity: 5,
-          pricePerPerson: null,
           roomId: room,
         },
         options
@@ -447,12 +459,11 @@ describe('what may be archived', () => {
     const course = await fixtureCourse('TEST-ARCH-SLOT')
     const slot = {
       courseId: course.id,
+      providerId: await defaultProviderId(db),
       date: '2027-06-01',
       startTime: '10:00',
-      endTime: '12:00',
       roomId,
       capacity: 10,
-      pricePerPerson: null,
     }
     const first = await createSession(slot, options)
     if (!first.ok) throw new Error('first session refused')
@@ -693,6 +704,7 @@ describe('archived records, for admins', () => {
         externalId: 'XA-S10',
         courseId: course.id,
         roomId: room,
+        providerId: await defaultProviderId(db),
         startsAt: new Date('2026-08-01T08:00:00Z'),
         endsAt: new Date('2026-08-01T10:00:00Z'),
         capacity: 4,
@@ -818,8 +830,9 @@ describe('integrity', () => {
         'course_completions_valid_until_check',
         'course_completions_price_check',
         'courses_validity_months_check',
-        'courses_session_minutes_override_check',
-        'courses_group_size_override_check',
+        'courses_session_minutes_check',
+        'courses_seats_check',
+        'provider_courses_price_check',
       ])
     )
     const person = await db.employee.findFirstOrThrow({ where: { externalId: 'E0153' } })
@@ -856,9 +869,10 @@ describe('integrity', () => {
         db.course.update({ where: { id: course }, data: { validityMonths: 0 } }),
         'courses_validity_months_check',
       ],
+      [db.course.update({ where: { id: course }, data: { seats: 0 } }), 'courses_seats_check'],
       [
-        db.course.update({ where: { id: course }, data: { groupSizeOverride: 0 } }),
-        'courses_group_size_override_check',
+        db.course.update({ where: { id: course }, data: { sessionMinutes: 0 } }),
+        'courses_session_minutes_check',
       ],
     ] as const)
       await expect(write, constraint).rejects.toThrow(constraint)

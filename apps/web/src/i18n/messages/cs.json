@@ -233,28 +233,30 @@
       "nobodyRequired": "Tento kurz zatím nikdo mít nemusí. Pro koho je povinný, nastavíte v jeho úpravě.",
       "allPast": "{count, plural, one {Jediný proběhlý termín} few {Všechny # proběhlé termíny} other {Všech # proběhlých termínů}}"
     },
-    "newSession": "Nový termín",
     "newTitle": "Nový termín kurzu {course}",
     "panel": {
       "toggle": "Podrobnosti: {name}",
       "header": "Podrobnosti",
       "sessions": "Naplánované termíny",
       "noSessions": "Nic není naplánováno.",
-      "needs": "Termín potřebuje",
+      "needs": "Jeho termíny",
       "minutes": "{minutes} min",
       "noMinutes": "Délka nenastavena",
-      "group": "Skupiny po {size}",
-      "noGroup": "Velikost skupiny nenastavena",
+      "group": "{size, plural, one {# místo} few {# místa} other {# míst}}",
+      "noGroup": "Místa nenastavena",
       "byDepartment": "Plnění podle oddělení",
       "noDepartments": "Nikdo aktivní ho nemusí mít.",
       "departmentTitle": "{department}: splněno {held} z {total}",
       "length": "Délka",
-      "groupSize": "Velikost skupiny",
+      "seats": "Místa",
       "onlineLabel": "Online",
       "onlineYes": "Lze vést online",
       "onlineNo": "Jen prezenčně",
       "equipment": "Vybavení",
-      "noEquipment": "Nic zvláštního"
+      "noEquipment": "Nic zvláštního",
+      "offeredBy": "Nabízí",
+      "noOfferings": "Zatím ho nikdo nenabízí.",
+      "defaultProvider": "výchozí"
     },
     "new": "Nový kurz"
   },
@@ -269,7 +271,8 @@
       "capacity": "Obsazeno",
       "price": "Cena za osobu",
       "status": "Stav",
-      "room": "Místo"
+      "room": "Místo",
+      "provider": "Poskytovatel"
     },
     "overbooked": "Přeplněno",
     "full": "Plno",
@@ -299,12 +302,11 @@
       "roomOnline": "online",
       "needs": "Kurz potřebuje",
       "minutes": "{count, plural, other {# min}}",
-      "groupSize": "skupiny po {count}",
+      "seats": "Místa",
       "canBeOnline": "lze online",
       "equipment": "potřebuje {list}",
       "fits": "Místnost kurzu vyhovuje.",
       "unfit": "Místnost kurzu nevyhovuje: {reason}.",
-      "seats": "Místa",
       "seatsText": "{named} jménem · {unnamed} bez jména · {free, plural, =0 {žádné volné} other {# volných}}",
       "over": "{count, plural, one {# nad kapacitu} other {# nad kapacitu}}",
       "price": "Cena",
@@ -319,7 +321,9 @@
       "viaAdvisor": "Poradce",
       "viaManual": "Ručně",
       "bookedOn": "Přihlášen dne",
-      "id": "ID"
+      "id": "ID",
+      "provider": "Poskytovatel",
+      "courseSeats": "{count, plural, one {# místo} few {# místa} other {# míst}}"
     },
     "roomFilter": "Místnost",
     "allRooms": "Všechny místnosti",
@@ -351,6 +355,16 @@
       "refused": {
         "UNCHANGED": "Termín už je naplánovaný.",
         "STARTED": "Termín už začal: zůstává zrušený."
+      }
+    },
+    "schedule": {
+      "action": "Naplánovat termín",
+      "actionFor": "Naplánovat termín kurzu {course}",
+      "actionIn": "Naplánovat termín kurzu {course} v místnosti {room}",
+      "blocked": {
+        "NO_LENGTH": "Kurz nemá nastavenou délku: nejdřív ji nastavte u kurzu",
+        "NO_PROVIDER": "Kurz nikdo nenabízí: nejdřív ho přidejte do nabídky poskytovatele",
+        "ROOM_UNSUITABLE": "Tato místnost kurzu nevyhovuje"
       }
     }
   },
@@ -438,7 +452,11 @@
       "too_big_number": "Zadejte nejvýše {max}.",
       "too_long": "Nejvýše {max, plural, one {# znak} few {# znaky} other {# znaků}}.",
       "unauthorized": "Váš účet už nemůže provádět změny. Přihlaste se znovu.",
-      "rate_limited": "Příliš mnoho změn v krátké době. Chvíli počkejte a uložte znovu."
+      "rate_limited": "Příliš mnoho změn v krátké době. Chvíli počkejte a uložte znovu.",
+      "no_length": "Kurz nemá nastavenou délku: nastavte ji nejdřív u kurzu.",
+      "not_offered": "Tento poskytovatel kurz nenabízí. Zvolte jiného, nebo kurz přidejte do jeho nabídky.",
+      "provider_archived": "Tento poskytovatel je archivovaný.",
+      "offering_in_use": "Tento poskytovatel má nadcházející termíny kurzu {course} ({count}). Než ho přestane nabízet, termíny zrušte nebo je přeplánujte k jinému poskytovateli."
     },
     "placeholders": {
       "code": "KURZ-01",
@@ -457,17 +475,18 @@
       "price": "0",
       "note": "Nepovinné",
       "departmentName": "Ekonomický odbor",
-      "positionName": "Účetní"
+      "positionName": "Účetní",
+      "minutes": "180",
+      "seats": "20"
     },
     "course": {
-      "title": "Upravit {name}",
       "name": "Název",
       "validityMonths": "Platnost (měsíce)",
       "validityHelp": "Nechte prázdné, pokud kurz nevyprší.",
-      "sessionNeeds": "Co potřebuje termín",
-      "sessionNeedsHelp": "Plánovač termínů podle toho určuje velikost termínů a vybírá místnosti. Každý import termínů to odvodí z dosavadních termínů; hodnota nastavená zde má přednost.",
-      "sessionMinutes": "Délka termínu (minuty)",
-      "groupSize": "Velikost skupiny",
+      "sessionNeeds": "Jeho termíny",
+      "sessionNeedsHelp": "Jaký je každý termín kurzu. Nový termín je přebírá a místnost se podle nich kontroluje.",
+      "sessionMinutes": "Délka (minuty)",
+      "seats": "Místa",
       "onlineAllowed": "Lze konat online",
       "capabilities": "Místnost musí mít",
       "newTitle": "Nový kurz",
@@ -478,18 +497,15 @@
       "requiredForAll": "Všichni",
       "departments": "Oddělení",
       "positions": "Pozice",
-      "derivedNone": "Prázdné: z termínů zatím neznámo.",
-      "derivedValue": "Prázdné: {value}, podle dosavadních termínů.",
-      "onlineDerived": "Podle termínů ({value, select, true {ano} other {ne}})",
-      "onlineYes": "Ano",
-      "onlineNo": "Ne"
+      "sessionMinutesHelp": "Termín končí tolik minut po začátku. Bez ní nelze nic naplánovat. Už naplánované termíny si časy ponechají.",
+      "seatsHelp": "Kolik míst nový termín otevře; může si nastavit vlastní počet.",
+      "editTitle": "Upravit {name}"
     },
     "session": {
       "date": "Datum",
       "startTime": "Začátek",
       "endTime": "Konec",
-      "capacity": "Kapacita",
-      "pricePerPerson": "Cena za osobu ({currency})",
+      "capacity": "Místa",
       "unnamedBookings": "Další obsazená místa (bez jména)",
       "unnamedHelp": "{count, plural, =0 {Nikdo nemá rezervaci jménem.} one {A # rezervace jménem.} few {A # rezervace jménem.} other {A # rezervací jménem.}}",
       "room": "Místnost",
@@ -507,8 +523,27 @@
       "confirm": {
         "courseTitle": "Změnit kurz?",
         "courseBody": "{count, plural, one {# rezervace zůstává} few {# rezervace zůstávají} other {# rezervací zůstává}}, nyní na {course}. Ověřte, že jde o školení, které lidé potřebují.",
-        "courseConfirm": "Změnit kurz"
-      }
+        "courseConfirm": "Změnit kurz",
+        "priceBody": "{count, plural, one {# osoba s rezervací nyní zaplatí} few {# osoby s rezervací nyní zaplatí} other {# osob s rezervací nyní zaplatí}} {price} místo {was}.",
+        "priceTitle": "Změnit cenu?",
+        "priceConfirm": "Změnit poskytovatele"
+      },
+      "provider": "Poskytovatel",
+      "providerOption": "{name} · {price}",
+      "providerOptionDefault": "{name} · {price} · výchozí",
+      "providerGone": "{name} · kurz už nenabízí",
+      "providerHelp": "Jen poskytovatelé, kteří kurz nabízejí.",
+      "noProviders": "Kurz zatím nikdo nenabízí. Nejdřív ho přidejte do nabídky některého poskytovatele.",
+      "endHelp": "Délka kurzu od začátku ({minutes} min).",
+      "endKept": "Jak bylo naplánováno.",
+      "endNextDay": "{time} následující den",
+      "noLength": "Kurz zatím nemá nastavenou délku.",
+      "price": "Cena za osobu",
+      "priceHelp": "Cena poskytovatele za kurz, pevná od naplánování termínu.",
+      "priceKept": "Naplánováno za tuto cenu.",
+      "priceChanged": "{price}, dříve {was}",
+      "priceNone": "Bez ceny",
+      "seatsDefault": "Kurz otevírá {seats, plural, one {# místo} few {# místa} other {# míst}}."
     },
     "employee": {
       "title": "Upravit: {name}",
@@ -607,6 +642,42 @@
       "session": "Naplánovat termín",
       "sessionCreated": "Termín naplánován",
       "sessionSaved": "Termín uložen"
+    },
+    "provider": {
+      "newTitle": "Nový poskytovatel",
+      "editTitle": "Upravit {name}",
+      "name": "Název",
+      "nameHelp": "Přejmenování změní název u všech absolvování s tímto poskytovatelem.",
+      "companyId": "IČO",
+      "companyIdHelp": "8 číslic; mezery nevadí.",
+      "email": "E-mail",
+      "phone": "Telefon",
+      "website": "Web",
+      "websiteHelp": "Adresa bez protokolu, např. www.example.cz, se čte jako https.",
+      "note": "Poznámka",
+      "offerings": "Co nabízí",
+      "offeringsHelp": "Kurzy, které umí uspořádat, každý s cenou za osobu. Termín kurzu lze naplánovat jen s poskytovatelem, který ho nabízí, a převezme jeho cenu.",
+      "offeredCourses": "Nabízené kurzy",
+      "course": "Kurz",
+      "price": "Cena za osobu ({currency})",
+      "courseOf": "Kurz v řádku {row}",
+      "priceOf": "Cena za osobu za {course}",
+      "addOffering": "Přidat kurz",
+      "removeOffering": "Odebrat {course}",
+      "newOffering": "nový kurz",
+      "noOfferings": "Zatím nenabízí žádný kurz.",
+      "isDefault": "Výchozí pro importované termíny",
+      "isDefaultHelp": "Importovaný termín bez uvedeného poskytovatele připadne tomuto. Výchozí je jen jeden: zvolením tohoto přestane být výchozím ten předchozí."
+    },
+    "room": {
+      "newTitle": "Nová místnost",
+      "editTitle": "Upravit {name}",
+      "name": "Název",
+      "kind": "Typ",
+      "capacity": "Místa",
+      "capacityHelp": "Termíny konané zde se musí vejít do jejích míst.",
+      "capabilities": "Vybavení",
+      "note": "Poznámka"
     }
   },
   "import": {
@@ -692,7 +763,10 @@
         "room_unfit": "nadcházející termíny v této místnosti by se do ní nevešly; nejdřív je přesuňte",
         "failed": "databáze zápis odmítla",
         "network": "server nebyl dostupný",
-        "rate_limited": "příliš mnoho zápisů v krátké době; chvíli počkejte a importujte znovu"
+        "rate_limited": "příliš mnoho zápisů v krátké době; chvíli počkejte a importujte znovu",
+        "provider_unknown": "termín uvádí poskytovatele, který není v evidenci",
+        "provider_not_offering": "termín uvádí poskytovatele, který jeho kurz nenabízí",
+        "no_default_provider": "termín neuvádí poskytovatele a žádný není výchozí"
       },
       "meter": "Zapsané záznamy"
     },
@@ -780,7 +854,11 @@
       "ROOM_TOO_SMALL": "Místnost má {capacity} míst, méně než {value}, která termín otevírá.",
       "ROOM_UNSUITABLE": "Místnost „{value}“ nesplňuje, co kurz potřebuje (vybavení, nebo je online).",
       "ROOM_BUSY": "Místnost je v tu dobu obsazená termínem {otherId}.",
-      "WILL_CREATE": "„{value}“ je nové; import jej vytvoří."
+      "WILL_CREATE": "„{value}“ je nové; import jej vytvoří.",
+      "PROVIDER_UNKNOWN": "Poskytovatel {value} není v evidenci",
+      "PROVIDER_NOT_OFFERING": "{value} nenabízí {course}",
+      "NO_DEFAULT_PROVIDER": "Poskytovatel není uveden a žádný není výchozí pro importované termíny",
+      "OFFERING_ADDED": "{value} (výchozí poskytovatel) začne nabízet {course}"
     },
     "stepHeading": "Krok {step} z {count}: {name}"
   },
@@ -993,7 +1071,10 @@
         "ATTENDEE_CONFLICT": "Někdo s rezervací na termínu má v tu dobu jiný termín.",
         "unauthorized": "Váš účet už nemůže provádět změny. Přihlaste se znovu.",
         "rate_limited": "Příliš mnoho změn v krátké době. Chvíli počkejte a zkuste to znovu.",
-        "failed": "Změnu se nepodařilo uložit. Zkuste to znovu."
+        "failed": "Změnu se nepodařilo uložit. Zkuste to znovu.",
+        "NO_LENGTH": "Kurz nemá nastavenou délku: nastavte ji nejdřív u kurzu.",
+        "NOT_OFFERED": "Tento poskytovatel kurz nenabízí. Zvolte jiného, nebo kurz přidejte do jeho nabídky.",
+        "PROVIDER_ARCHIVED": "Tento poskytovatel je archivovaný."
       }
     },
     "outcome": {
@@ -1062,16 +1143,6 @@
         "MISSING_CAPABILITIES": "Chybí {missing}",
         "ONLINE_NOT_ALLOWED": "Nekoná se online"
       }
-    },
-    "form": {
-      "newTitle": "Nová místnost",
-      "editTitle": "Upravit {name}",
-      "name": "Název",
-      "kind": "Typ",
-      "capacity": "Místa",
-      "capacityHelp": "Online místnost nemá omezení míst; každá jiná místnost potřebuje počet míst.",
-      "capabilities": "Vybavení",
-      "note": "Poznámka"
     }
   },
   "providers": {
@@ -1118,20 +1189,21 @@
         "validUntil": "Platnost do",
         "price": "Cena"
       },
-      "noRecent": "Zde budou absolvování zapsaná u tohoto poskytovatele."
-    },
-    "form": {
-      "newTitle": "Nový poskytovatel",
-      "editTitle": "Upravit {name}",
-      "name": "Název",
-      "nameHelp": "Přejmenování změní název u všech absolvování s tímto poskytovatelem.",
-      "companyId": "IČO",
-      "companyIdHelp": "8 číslic; mezery nevadí.",
-      "email": "E-mail",
-      "phone": "Telefon",
-      "website": "Web",
-      "websiteHelp": "Adresa bez protokolu, např. www.example.cz, se čte jako https.",
-      "note": "Poznámka"
+      "noRecent": "Zde budou absolvování zapsaná u tohoto poskytovatele.",
+      "isDefault": "Výchozí pro importované termíny bez uvedeného poskytovatele",
+      "offeringsDescription": "Kurzy, které nabízí, každý s cenou za osobu; termín kurzu se s ním plánuje za tuto cenu.",
+      "noOfferings": "Zatím nenabízí žádný kurz. Kurzy přidejte v jeho úpravě.",
+      "upcoming": "Nadcházející termíny",
+      "upcomingDescription": "Termíny, které pořádá a které teprve budou.",
+      "noUpcoming": "Nepořádá žádný nadcházející termín.",
+      "offerings": {
+        "title": "Nabízené kurzy",
+        "course": "Kurz",
+        "price": "Cena za osobu",
+        "upcoming": "Nadcházející termíny",
+        "caption": "Kurzy, které nabízí {name}",
+        "scheduleWith": "Naplánovat termín kurzu {course} s poskytovatelem {provider}"
+      }
     }
   },
   "org": {
@@ -1265,14 +1337,19 @@
       "COURSE_ARCHIVED": "Kurz byl mezitím archivován. Načtěte plánovač znovu.",
       "OVER_CAPACITY": "Kapacita je nižší než počet rezervací. Zvyšte ji, nebo rezervujte méně lidí.",
       "ATTENDEE_CONFLICT": "Někdo s rezervací na termínu má v tu dobu jiný termín.",
-      "rate_limited": "Příliš mnoho změn v krátké době. Chvíli počkejte a zkuste to znovu."
+      "rate_limited": "Příliš mnoho změn v krátké době. Chvíli počkejte a zkuste to znovu.",
+      "NO_LENGTH": "Kurz nemá nastavenou délku: nastavte ji nejdřív u kurzu.",
+      "NOT_OFFERED": "Tento poskytovatel kurz nenabízí. Zvolte jiného, nebo kurz přidejte do jeho nabídky.",
+      "PROVIDER_ARCHIVED": "Tento poskytovatel je archivovaný."
     },
     "problems": {
       "NO_ROOM_WITH": "I nejlépe vybavené místnosti chybí {missing}.",
       "NO_ROOM_LARGE_ENOUGH": "{size, plural, one {Žádná vybavená místnost nepojme # osobu} few {Žádná vybavená místnost nepojme # osoby} other {Žádná vybavená místnost nepojme # osob}}; největší má {largest, plural, one {# místo} few {# místa} other {# míst}}.",
       "NO_ONLINE_OR_ROOM": "Kurz se koná prezenčně a žádná místnost není.",
       "RUNS_PAST_MIDNIGHT": "V obvyklý čas a délce by termín skončil po půlnoci.",
-      "NO_FREE_SLOT": "V příštích {days} dnech není volný termín."
+      "NO_FREE_SLOT": "V příštích {days} dnech není volný termín.",
+      "NO_LENGTH": "Kurz nemá nastavenou délku",
+      "NO_PROVIDER": "Kurz nikdo nenabízí"
     },
     "readOnly": "Termíny mohou vytvářet jen správci.",
     "otherRooms": "nebo {rooms}",
@@ -1305,7 +1382,8 @@
       "confirm": "Vytvořit termín a rezervovat {count, plural, =0 {nikoho} one {# osobu} few {# osoby} other {# osob}}",
       "creating": "Vytvářím…",
       "created": "Vytvořen {id}, rezervace: {count, plural, =0 {žádná} one {# osoba} few {# osoby} other {# osob}}",
-      "openSession": "Otevřít termín"
+      "openSession": "Otevřít termín",
+      "pastMidnight": "Končí po půlnoci: začněte dřív."
     },
     "expanded": {
       "people": "Lidé",
@@ -1321,7 +1399,8 @@
       "split": "Každá skupina se rozdělí podle velikosti skupiny kurzu, případně podle největší vhodné místnosti.",
       "day": "Každý termín dostane první pracovní den od zítřka (víkendy a státní svátky se nepočítají), kdy je v obvyklý čas kurzu volná vhodná místnost.",
       "room": "Vhodná místnost je online, pokud to kurz dovoluje, jinak místnost se vším, co kurz potřebuje, a s dostatkem míst; dříve použité místnosti mají přednost."
-    }
+    },
+    "noLength": "Délka není nastavená"
   },
   "landing": {
     "title": "Registr školení",
@@ -1414,7 +1493,7 @@
     "person": "Archivovaný zaměstnanec #{tag}",
     "refused": {
       "not_found": "Záznam už neexistuje, nebo je už archivovaný.",
-      "in_use": "{kind, select, room {{count, plural, one {Koná se tu # budoucí termín.} few {Konají se tu # budoucí termíny.} other {Koná se tu # budoucích termínů.}} Nejdřív je přesuňte nebo zrušte.} other {{count, plural, one {Patří sem # člověk.} few {Patří sem # lidé.} other {Patří sem # lidí.}} Nejdřív je přesuňte jinam.}}",
+      "in_use": "{kind, select, room {{count, plural, one {Koná se tu # budoucí termín.} few {Konají se tu # budoucí termíny.} other {Koná se tu # budoucích termínů.}} Nejdřív je přesuňte nebo zrušte.} provider {{count, plural, one {Pořádá # budoucí termín.} few {Pořádá # budoucí termíny.} other {Pořádá # budoucích termínů.}} Nejdřív je zrušte nebo přeplánujte k jinému poskytovateli.} other {{count, plural, one {Patří sem # člověk.} few {Patří sem # lidé.} other {Patří sem # lidí.}} Nejdřív je přesuňte jinam.}}",
       "has_upcoming_sessions": "{count, plural, one {Čeká jej # termín.} few {Čekají jej # termíny.} other {Čeká jej # termínů.}} Nejdřív je zrušte nebo archivujte.",
       "upcoming": "Termín teprve začne: místo archivace ho zrušte; rezervace pak zůstanou jako historie a termín lze archivovat.",
       "self": "Sami sebe archivovat nemůžete.",
@@ -1425,7 +1504,8 @@
       "room_unfit": "Místnost mu už nevyhovuje. Nejdřív místnost upravte.",
       "generic": "Nepovedlo se to. Zkuste to znovu.",
       "unauthorized": "Váš účet už nemůže provádět změny. Přihlaste se znovu.",
-      "rate_limited": "Příliš mnoho změn v krátké době. Chvíli počkejte a zkuste to znovu."
+      "rate_limited": "Příliš mnoho změn v krátké době. Chvíli počkejte a zkuste to znovu.",
+      "default_provider": "Je výchozím poskytovatelem importovaných termínů. Nejdřív určete jiného výchozího."
     },
     "fields": {
       "name": "název",

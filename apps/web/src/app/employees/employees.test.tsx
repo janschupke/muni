@@ -77,7 +77,7 @@ beforeEach(() => {
   vi.mocked(listProviderOptions).mockResolvedValue([
     { id: 'prov_1', name: 'Bezpečná firma s.r.o.' },
   ])
-  const needs = { sessionMinutes: null, groupSize: null, onlineAllowed: false, capabilities: [] }
+  const needs = { sessionMinutes: null, seats: null, onlineAllowed: false, capabilities: [] }
   vi.mocked(listCourseOptions).mockResolvedValue([
     {
       id: 'course_bozp',
@@ -85,8 +85,16 @@ beforeEach(() => {
       name: 'BOZP – základní školení',
       validityMonths: 24,
       needs,
+      offerings: [],
     },
-    { id: 'course_lead', code: 'LEAD', name: 'Základy vedení lidí', validityMonths: null, needs },
+    {
+      id: 'course_lead',
+      code: 'LEAD',
+      name: 'Základy vedení lidí',
+      validityMonths: null,
+      needs,
+      offerings: [],
+    },
   ])
   vi.mocked(getEmployee).mockResolvedValue(employeeDetail())
   vi.mocked(listGroupOptions).mockImplementation(kind =>

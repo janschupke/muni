@@ -6,6 +6,7 @@ import {
   getRoom,
   getRoomForEdit,
   getUser,
+  listCourseOptions,
   listProviders,
   listRooms,
   listUsers,
@@ -49,12 +50,14 @@ export const providersList = read({
 })
 
 /**
- * A provider's page, as the role may see it: a page each of its courses (`coursesSort`…) and
- * its completions (`completionsSort`…), sorted on the server.
+ * A provider's page, as the role may see it: a page each of its sessions ahead
+ * (`sessionsSort`…), its courses (`coursesSort`…) and its completions (`completionsSort`…),
+ * sorted on the server.
  */
 export const provider = read({
   guard: 'reader',
   input: byId.extend({
+    ...listInput(SESSION_SORT, 'sessions'),
     ...listInput(PROVIDER_COURSE_SORT, 'courses'),
     ...listInput(COMPLETION_SORT, 'completions'),
   }),
@@ -63,6 +66,7 @@ export const provider = read({
     return (
       found && {
         ...found,
+        upcoming: pageOf(found.upcoming, listQuery(lists, SESSION_SORT, 'sessions'), sessionKeys),
         byCourse: pageOf(
           found.byCourse,
           listQuery(lists, PROVIDER_COURSE_SORT, 'courses'),
@@ -78,10 +82,18 @@ export const provider = read({
   },
 })
 
+/** The provider form: the provider (none for a new one) and the courses it can offer. */
 export const providerForm = read({
   guard: 'admin',
-  input: byId,
-  load: ({ id }) => getProviderForEdit(id),
+  input: byId.partial(),
+  load: async ({ id }) => {
+    const [provider, courses] = await Promise.all([
+      id ? getProviderForEdit(id) : null,
+      listCourseOptions(),
+    ])
+    if (id && !provider) return null
+    return { provider, courses: courses.map(c => ({ id: c.id, code: c.code, name: c.name })) }
+  },
 })
 
 /** Rooms, a page at a time, with their seats, equipment and use. */
@@ -109,7 +121,16 @@ export const room = read({
   },
 })
 
-export const roomForm = read({ guard: 'admin', input: byId, load: ({ id }) => getRoomForEdit(id) })
+/** The room form: the room (none for a new one). */
+export const roomForm = read({
+  guard: 'admin',
+  input: byId.partial(),
+  load: async ({ id }) => {
+    const room = id ? await getRoomForEdit(id) : null
+    if (id && !room) return null
+    return { room }
+  },
+})
 
 /** Everyone who can sign in, for admins, a page at a time; admins first without a sort. */
 export const usersList = read({

@@ -26,6 +26,8 @@ export type ArchiveRefusal =
   | 'HAS_UPCOMING_SESSIONS'
   /** A session still to start: it is cancelled, not archived. */
   | 'UPCOMING'
+  /** The provider imported sessions with none go to: make another the default first. */
+  | 'DEFAULT_PROVIDER'
   /** Admins cannot archive themselves. */
   | 'SELF'
   /** The last active admin stays. */
@@ -72,6 +74,7 @@ const KINDS = {
     parents: [
       ['course', 'courseId'],
       ['room', 'roomId'],
+      ['provider', 'providerId'],
     ],
   },
   completion: {
@@ -211,8 +214,19 @@ async function impactOf(
         ? { ok: true, removesBookings: 0 }
         : { ok: false, reason: 'LAST_ADMIN', count: 0 }
     }
+    case 'provider': {
+      const provider = await tx.provider.findUniqueOrThrow({
+        where: { id },
+        select: { isDefault: true },
+      })
+      if (provider.isDefault) return { ok: false, reason: 'DEFAULT_PROVIDER', count: 0 }
+      // Its sessions ahead are cancelled or given to another provider first.
+      const count = await tx.courseSession.count({
+        where: { providerId: id, ...upcomingSessionWhere(now) },
+      })
+      return count > 0 ? { ok: false, reason: 'IN_USE', count } : { ok: true, removesBookings: 0 }
+    }
     case 'completion':
-    case 'provider':
       return { ok: true, removesBookings: 0 }
   }
 }
@@ -223,8 +237,8 @@ async function locked<T>(
   id: string,
   run: () => Promise<T>
 ): Promise<T | 'NOT_FOUND'> {
-  // Session writes and archiving a room or course take turns.
-  if (kind === 'room' || kind === 'course') await lockSessionWrites(tx)
+  // Session writes and archiving a room, course or provider take turns.
+  if (kind === 'room' || kind === 'course' || kind === 'provider') await lockSessionWrites(tx)
   const row = await lockRow(tx, kind, id)
   if (row?.archived_at !== null) return 'NOT_FOUND'
   return run()

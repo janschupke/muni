@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from '../test/render'
 import { Checkbox } from './checkbox'
 import { Dropzone } from './dropzone'
-import { Field, FieldRow, Fieldset, Hint, Input, Textarea } from './field'
+import { Field, FieldRow, Fieldset, FieldValue, Hint, Input, Textarea } from './field'
 
 describe('Field', () => {
   it('names the control by its label alone and links help and error', () => {
@@ -22,6 +22,21 @@ describe('Field', () => {
       'Celkový počet míst.',
       'Musí být kladné číslo.',
     ])
+  })
+
+  it('shows a worked-out value in a field’s place, labelled, not to be typed in', () => {
+    render(
+      <FieldValue label="Konec" help="Délka kurzu po začátku.">
+        11:00
+      </FieldValue>
+    )
+    const value = screen.getByRole('status', { name: 'Konec' })
+    expect(value.tagName).toBe('OUTPUT')
+    expect(value.textContent).toBe('11:00')
+    expect(document.getElementById(value.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+      'Délka kurzu po začátku.'
+    )
+    expect(screen.queryByRole('textbox')).toBeNull()
   })
 
   it('marks the field it belongs to, and whether it changed or was visited', () => {

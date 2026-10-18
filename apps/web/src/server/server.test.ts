@@ -387,25 +387,19 @@ describe('edit actions', () => {
       departmentIds: ['dep_lab'],
       positionIds: ['pos_head'],
       sessionMinutes: null,
-      groupSize: null,
+      seats: null,
       // Not chosen: the needs follow what the sessions import derives.
-      onlineAllowed: null,
+      onlineAllowed: false,
       capabilities: [],
     })
     // The browser refreshes its own read cache; no server route is refreshed.
     expect(revalidatePath).not.toHaveBeenCalled()
-    // "Yes" and "No" override it; anything else leaves it to the sessions.
-    for (const [posted, value] of [
-      ['yes', true],
-      ['no', false],
-      ['derived', null],
-    ] as const) {
-      await redirectOf(saveCourse('BOZP-Z', idle, form({ name: 'BOZP', onlineAllowed: posted })))
-      expect(updateCourse).toHaveBeenLastCalledWith(
-        'BOZP-Z',
-        expect.objectContaining({ onlineAllowed: value })
-      )
-    }
+    // Online is a checkbox: ticked, it may be held online.
+    await redirectOf(saveCourse('BOZP-Z', idle, form({ name: 'BOZP', onlineAllowed: 'on' })))
+    expect(updateCourse).toHaveBeenLastCalledWith(
+      'BOZP-Z',
+      expect.objectContaining({ onlineAllowed: true })
+    )
   })
 
   it('say how many planned sessions a course change would strand', async () => {
@@ -415,7 +409,7 @@ describe('edit actions', () => {
       reason: 'sessions_unfit',
       count: 2,
     })
-    expect(await saveCourse('BOZP-Z', idle, form({ name: 'BOZP', onlineAllowed: 'no' }))).toEqual({
+    expect(await saveCourse('BOZP-Z', idle, form({ name: 'BOZP' }))).toEqual({
       status: 'error',
       fieldErrors: { onlineAllowed: 'sessions_unfit' },
       values: { onlineAllowed: { count: 2 } },
@@ -504,12 +498,11 @@ describe('edit actions', () => {
 
   const sessionForm = {
     courseId: 'course_bozp',
+    providerId: 'prv_internal',
     date: '2026-11-04',
     startTime: '08:00',
-    endTime: '11:00',
     roomId: 'room_aula_a',
     capacity: '30',
-    pricePerPerson: '450,50 Kč',
   }
 
   it('save a session and show it', async () => {
@@ -523,14 +516,14 @@ describe('edit actions', () => {
       'T016',
       expect.objectContaining({
         courseId: 'course_bozp',
+        providerId: 'prv_internal',
         roomId: 'room_aula_a',
         unnamedBookings: 0,
-        pricePerPerson: 450.5,
       })
     )
-    expect(
-      await saveSession('T016', idle, form({ ...sessionForm, endTime: '07:00' }))
-    ).toMatchObject({ fieldErrors: { endTime: 'before_start' } })
+    expect(await saveSession('T016', idle, form({ ...sessionForm, providerId: '' }))).toMatchObject(
+      { fieldErrors: { providerId: 'required' } }
+    )
     vi.mocked(updateSession).mockRejectedValueOnce({ code: 'P2025' })
     expect(await saveSession('T999', idle, form(sessionForm))).toMatchObject({
       formError: 'not_found',
@@ -552,6 +545,15 @@ describe('edit actions', () => {
     vi.mocked(updateSession).mockResolvedValueOnce({ ok: false, problem: 'COURSE_ARCHIVED' })
     expect(await saveSession('T016', idle, form(sessionForm))).toMatchObject({
       fieldErrors: { courseId: 'course_archived' },
+    })
+    // What follows from the course and the provider: a length to end by, an offering.
+    vi.mocked(updateSession).mockResolvedValueOnce({ ok: false, problem: 'NO_LENGTH' })
+    expect(await saveSession('T016', idle, form(sessionForm))).toMatchObject({
+      fieldErrors: { courseId: 'no_length' },
+    })
+    vi.mocked(updateSession).mockResolvedValueOnce({ ok: false, problem: 'NOT_OFFERED' })
+    expect(await saveSession('T016', idle, form(sessionForm))).toMatchObject({
+      fieldErrors: { providerId: 'not_offered' },
     })
     // More unnamed seats than seats: said before asking the database.
     expect(
@@ -1178,6 +1180,8 @@ describe('provider actions', () => {
       phone: '+420 549 49 1111',
       website: 'https://www.vzor.example',
       note: null,
+      isDefault: false,
+      offerings: [],
     })
     vi.mocked(updateProvider).mockResolvedValueOnce({ ok: true, id: 'prov_1' })
     expect(await redirectOf(saveProvider('prov_1', idle, form(providerForm)))).toBe(
@@ -1217,6 +1221,35 @@ describe('provider actions', () => {
   })
 })
 
+describe('provider offerings', () => {
+  it('read the courses it offers row by row, and say which one sessions still use', async () => {
+    vi.mocked(updateProvider).mockResolvedValueOnce({ ok: true, id: 'prov_1' })
+    const rows = {
+      name: 'Externí lektor',
+      'offerings.0.courseId': 'course_bozp',
+      'offerings.0.price': '450',
+      isDefault: 'on',
+    }
+    await redirectOf(saveProvider('prov_1', idle, form(rows)))
+    expect(updateProvider).toHaveBeenLastCalledWith(
+      'prov_1',
+      expect.objectContaining({
+        isDefault: true,
+        offerings: [{ courseId: 'course_bozp', price: 450 }],
+      })
+    )
+    vi.mocked(updateProvider).mockResolvedValueOnce({
+      ok: false,
+      offeringInUse: { course: 'GDPR', count: 2 },
+    })
+    expect(await saveProvider('prov_1', idle, form(rows))).toEqual({
+      status: 'error',
+      fieldErrors: { offerings: 'offering_in_use' },
+      values: { offerings: { course: 'GDPR', count: 2 } },
+    })
+  })
+})
+
 describe('cancelling and reinstating a session', () => {
   it('changes the status by the act, says why not, and answers nonsense and readers', async () => {
     vi.mocked(cancelSession).mockResolvedValueOnce({
@@ -1243,12 +1276,11 @@ describe('cancelling and reinstating a session', () => {
 describe('session creation', () => {
   const create = {
     courseId: 'course_poz',
+    providerId: 'prv_internal',
     date: '2026-10-19',
     startTime: '10:00',
-    endTime: '12:00',
     roomId: 'room_aula_a',
     capacity: 40,
-    pricePerPerson: null,
   }
 
   it('checks, then creates a planned session with its people, or says why not', async () => {
@@ -1269,7 +1301,7 @@ describe('session creation', () => {
     })
     expect(
       await createPlannedSessionAction({
-        session: { ...create, endTime: '09:00' },
+        session: { ...create, providerId: '' },
         people,
         dryRun: false,
       })
@@ -1298,16 +1330,15 @@ describe('session creation', () => {
     })
     const fields = {
       courseId: 'course_poz',
+      providerId: 'prv_internal',
       date: '2026-11-02',
       startTime: '10:00',
-      endTime: '12:00',
       roomId: 'room_aula_a',
       capacity: '40',
-      pricePerPerson: '380,- Kč',
     }
     expect(await redirectOf(saveNewSession(idle, form(fields)))).toBe('/sessions/S002')
     expect(createSession).toHaveBeenLastCalledWith(
-      expect.objectContaining({ courseId: 'course_poz', capacity: 40, pricePerPerson: 380 })
+      expect.objectContaining({ courseId: 'course_poz', providerId: 'prv_internal', capacity: 40 })
     )
     expect(await saveNewSession(idle, form({ ...fields, roomId: '' }))).toMatchObject({
       fieldErrors: { roomId: 'required' },

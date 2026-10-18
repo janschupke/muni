@@ -56,6 +56,10 @@ export const ISSUE_CODES = [
   'ROOM_TOO_SMALL',
   'ROOM_UNSUITABLE',
   'ROOM_BUSY',
+  'PROVIDER_UNKNOWN',
+  'PROVIDER_NOT_OFFERING',
+  'NO_DEFAULT_PROVIDER',
+  'OFFERING_ADDED',
   'WILL_CREATE',
   // left out (warnings that skip the row)
   'ARCHIVED',

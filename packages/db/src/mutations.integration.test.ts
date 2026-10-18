@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { deleteCourses, deleteRooms, unarchiveAll } from '../test/archive'
 import { needing } from '../test/needs'
+import { defaultProviderId, offer } from '../test/providers'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { getDb } from './client'
 import { createDb } from './connect'
@@ -75,17 +76,14 @@ const restore = async () => {
   await deleteCourses(db, { code: { startsWith: 'TEST-' } })
   await deleteRooms(db, CREATED_ROOMS)
   await unarchiveAll(db)
-  // Needs set by hand are overrides imports never touch; clear them, and the derived ones, so
-  // the seed derives them afresh.
+  // What a course's sessions are, cleared, so the seed fills it in afresh (it fills only what
+  // is unset).
   await db.courseCapability.deleteMany()
   await db.course.updateMany({
     data: {
       sessionMinutes: null,
-      groupSize: null,
+      seats: null,
       onlineAllowed: false,
-      sessionMinutesOverride: null,
-      groupSizeOverride: null,
-      onlineAllowedOverride: null,
     },
   })
   await seedFromDirectory(db, DATA_DIR, asOf)
@@ -131,10 +129,9 @@ describe('lookups and edit loaders', () => {
       departmentIds: [],
       positionIds: [],
       // Nothing set in the app: the form's fields are empty, what the sessions say beside them.
-      sessionMinutes: null,
-      groupSize: null,
-      onlineAllowed: null,
-      derived: { sessionMinutes: 180, groupSize: 30, onlineAllowed: false },
+      sessionMinutes: 180,
+      seats: 30,
+      onlineAllowed: false,
       capabilities: [],
     })
     expect(await getCourseForEdit('NOPE', options)).toBeNull()
@@ -170,7 +167,7 @@ describe('edits', () => {
   it('renames a course and sets what its sessions need', async () => {
     const needs = {
       sessionMinutes: 90,
-      groupSize: 12,
+      seats: 12,
       onlineAllowed: true,
       capabilities: ['PROJECTOR', 'VIDEO_CONFERENCE'] as const,
     }
@@ -484,7 +481,7 @@ describe('rooms', () => {
           departmentIds: [],
           positionIds: [],
           sessionMinutes: 240,
-          groupSize: 16,
+          seats: 16,
           onlineAllowed: false,
           capabilities: ['LAB_EQUIPMENT', 'PROJECTOR'],
         },
@@ -498,9 +495,9 @@ describe('rooms', () => {
           ...(await audienceOf('LAB-BEZ')),
           name: 'Bezpečná práce v laboratoři',
           validityMonths: 12,
-          sessionMinutes: null,
-          groupSize: null,
-          onlineAllowed: null,
+          sessionMinutes: 240,
+          seats: 20,
+          onlineAllowed: false,
           capabilities: ['LAB_EQUIPMENT', 'PROJECTOR', 'COMPUTERS'],
         },
         options
@@ -543,14 +540,16 @@ describe('rooms', () => {
     })
     expect(rooms.map(r => r.name)).toEqual(rooms.map(r => r.name).toSorted())
 
+    // LAB-BEZ is 240 minutes long; its default provider offers it.
+    const provider = await defaultProviderId(db)
+    await offer(db, provider, labBez.id, 1500)
     const create = {
       courseId: labBez.id,
+      providerId: provider,
       date: '2027-03-03',
       startTime: '09:00',
-      endTime: '13:00',
       roomId: id,
       capacity: 16,
-      pricePerPerson: 1500,
     }
     // The app's own numbering, which imports refuse, so an export never overwrites it.
     expect(await createSession(create, options)).toEqual({
@@ -558,19 +557,39 @@ describe('rooms', () => {
       externalId: 'S001',
       courseCode: 'LAB-BEZ',
     })
+    // It ends its course's length later, at its provider's price for the course.
     expect(await getSession('S001', options)).toMatchObject({
       startsAt: '2027-03-03T08:00:00.000Z',
+      endsAt: '2027-03-03T12:00:00.000Z',
       room: { id, name: CREATED.room, kind: 'LAB' },
+      provider: { id: provider, archived: false },
+      pricePerPerson: 1500,
       bookedCount: 0,
     })
+    // A provider that does not offer the course, or a course with no length, is refused.
+    const stranger = await db.provider.create({ data: { name: 'Test nenabízí' } })
+    expect(await createSession({ ...create, providerId: stranger.id }, options)).toEqual({
+      ok: false,
+      problem: 'NOT_OFFERED',
+    })
+    await db.provider.delete({ where: { id: stranger.id } })
+    const unset = await db.course.create({ data: { code: 'TEST-NOLEN', name: 'Bez délky' } })
+    await offer(db, provider, unset.id)
+    expect(await createSession({ ...create, courseId: unset.id }, options)).toEqual({
+      ok: false,
+      problem: 'NO_LENGTH',
+    })
+    // A new price applies to sessions scheduled from now on; S001 keeps the one it had.
+    await offer(db, provider, labBez.id, 1600)
     // The room is taken then; it seats 18, and it is not online.
-    const overlapping = { ...create, startTime: '12:00', endTime: '15:00' }
+    const overlapping = { ...create, startTime: '12:00' }
     expect(await createSession(overlapping, options)).toEqual({ ok: false, problem: 'ROOM_BUSY' })
     // Cancelled, a session holds the room no more: it can be moved onto a taken time, and is
     // not planned there again while the room is taken.
-    expect(
-      await createSession({ ...create, startTime: '15:00', endTime: '17:00' }, options)
-    ).toMatchObject({ ok: true, externalId: 'S002' })
+    expect(await createSession({ ...create, startTime: '15:00' }, options)).toMatchObject({
+      ok: true,
+      externalId: 'S002',
+    })
     expect(await cancelSession('S002', options)).toEqual({
       ok: true,
       externalId: 'S002',
@@ -604,6 +623,8 @@ describe('rooms', () => {
       externalId: 'S001',
       courseCode: 'LAB-BEZ',
     })
+    expect(await getSession('S001', options)).toMatchObject({ pricePerPerson: 1500 })
+    expect(await getSession('S002', options)).toMatchObject({ pricePerPerson: 1600 })
     // Editing a cancelled one keeps it cancelled: the form never plans it again.
     expect(
       await updateSession('S002', { ...overlapping, unnamedBookings: 1 }, options)
@@ -618,12 +639,11 @@ describe('rooms', () => {
     if (!first) throw new Error('no S001')
     const later = {
       courseId: first.courseId,
+      providerId: first.provider.id,
       date: '2027-03-10',
       startTime: '09:00',
-      endTime: '10:00',
       roomId: first.room.id,
       capacity: 5,
-      pricePerPerson: null,
     }
     const created = await createSession(later, options)
     if (!created.ok) throw new Error('second session refused')
@@ -645,7 +665,7 @@ describe('rooms', () => {
       r => r.id !== first.room.id && needs && roomMismatch(r, needs, 5) === null
     )
     if (!other) throw new Error('no other room for the course')
-    const onto = { ...later, date: '2027-03-03', startTime: '12:00', endTime: '13:00' }
+    const onto = { ...later, date: '2027-03-03', startTime: '12:00' }
     expect(
       await updateSession(
         created.externalId,
@@ -713,15 +733,16 @@ describe('rooms', () => {
       bookedCount: 0,
       pricePerPerson: null,
       status: 'PLANNED',
+      providerName: null,
     })
-    // POZ-OCH's needs were never set by hand: they follow its sessions, the new ones included.
+    // POZ-OCH's sessions are set (the first import filled them in): new sessions leave them.
     await commitChunk(db, 'sessions', [session('T901', 25), session('T902', 35)])
     expect(
       await db.course.findUniqueOrThrow({
         where: { code: 'POZ-OCH' },
-        select: { sessionMinutes: true, groupSize: true, onlineAllowed: true },
+        select: { sessionMinutes: true, seats: true, onlineAllowed: true },
       })
-    ).toEqual({ sessionMinutes: 120, groupSize: 35, onlineAllowed: false })
+    ).toEqual({ sessionMinutes: 120, seats: 40, onlineAllowed: false })
     expect(
       await db.room.findUniqueOrThrow({
         where: { name: CREATED.derivedRoom },
@@ -729,7 +750,7 @@ describe('rooms', () => {
       })
     ).toEqual({ kind: 'OUTDOOR', capacity: 35 })
 
-    // Set by hand, they are overrides the next import leaves alone (it derives its own).
+    // Set by hand, they stay through the next import.
     await updateCourse(
       'POZ-OCH',
       {
@@ -737,7 +758,7 @@ describe('rooms', () => {
         name: 'Požární ochrana',
         validityMonths: 24,
         sessionMinutes: 90,
-        groupSize: 20,
+        seats: 20,
         onlineAllowed: true,
         capabilities: [],
       },
@@ -747,13 +768,31 @@ describe('rooms', () => {
     expect(
       await db.course.findUniqueOrThrow({
         where: { code: 'POZ-OCH' },
-        select: {
-          sessionMinutesOverride: true,
-          groupSizeOverride: true,
-          onlineAllowedOverride: true,
-        },
+        select: { sessionMinutes: true, seats: true, onlineAllowed: true },
       })
-    ).toEqual({ sessionMinutesOverride: 90, groupSizeOverride: 20, onlineAllowedOverride: true })
+    ).toEqual({ sessionMinutes: 90, seats: 20, onlineAllowed: true })
+
+    // A session naming its provider gets it; the default holds those that name none.
+    const named = { ...session('T903', 20), providerName: 'externí lektor' }
+    await commitChunk(db, 'sessions', [named])
+    const held = await db.courseSession.findMany({
+      where: { externalId: { in: ['T901', 'T903'] } },
+      select: { externalId: true, provider: { select: { name: true } } },
+      orderBy: { externalId: 'asc' },
+    })
+    expect(held.map(h => [h.externalId, h.provider.name])).toEqual([
+      ['T901', 'Interní školitel'],
+      ['T903', 'Externí lektor'],
+    ])
+    // One nobody knows, or that does not offer the course, is refused.
+    await expect(
+      commitChunk(db, 'sessions', [{ ...named, providerName: 'Nikdo' }])
+    ).rejects.toMatchObject({ reason: 'PROVIDER_UNKNOWN' })
+    const lonely = await db.provider.create({ data: { name: 'Test bez nabídky' } })
+    await expect(
+      commitChunk(db, 'sessions', [{ ...named, providerName: lonely.name }])
+    ).rejects.toMatchObject({ reason: 'PROVIDER_NOT_OFFERING' })
+    await db.provider.delete({ where: { id: lonely.id } })
 
     // A rooms file without an equipment column leaves the equipment as it is.
     await commitChunk(db, 'rooms', [
@@ -799,13 +838,11 @@ describe('a planned session with the people it is for', () => {
     expect(people).toHaveLength(2)
     const session = {
       courseId: course.id,
+      providerId: await defaultProviderId(db),
       date: '2027-05-04',
       startTime: '13:00',
-      endTime: '16:00',
       roomId: room.id,
       capacity: 10,
-      pricePerPerson: 450,
-      status: 'PLANNED' as const,
     }
     const sessions = () => db.courseSession.count({ where: { externalId: { startsWith: 'S' } } })
     const before = await sessions()
@@ -889,6 +926,7 @@ describe('the writer refuses what it should never write', () => {
       bookedCount: 0,
       pricePerPerson: null,
       status: 'PLANNED',
+      providerName: null,
     }
     const reserved = await commitChunk(db, 'sessions', [session]).catch((e: unknown) => e)
     expect(reserved).toBeInstanceOf(CommitValidationError)

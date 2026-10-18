@@ -144,16 +144,16 @@ model Course {
   requiredForAll         Boolean                       @default(false) @map("required_for_all")
   departmentRequirements CourseDepartmentRequirement[]
   positionRequirements   CoursePositionRequirement[]
-  /// What one session needs (the planner's input), as the sessions import derives it from the
-  /// course's sessions. null = not known yet. The effective need is the override, else this.
+  /// What every session of the course is: its length (a session ends this long after it
+  /// starts; null = not set, nothing can be scheduled), the seats it opens unless it sets its
+  /// own, whether it may be held online, and the equipment its room needs. Set in the app; an
+  /// import fills only what is still unset (CHECKs in the migration SQL).
   sessionMinutes         Int?                          @map("session_minutes")
-  groupSize              Int?                          @map("group_size")
+  seats                  Int?
   onlineAllowed          Boolean                       @default(false) @map("online_allowed")
   capabilities           CourseCapability[]
-  /// Set in the app; imports never touch them. null = take the derived value above.
-  sessionMinutesOverride Int?                          @map("session_minutes_override")
-  groupSizeOverride      Int?                          @map("group_size_override")
-  onlineAllowedOverride  Boolean?                      @map("online_allowed_override")
+  /// Who offers the course, at what price.
+  offerings              ProviderCourse[]
   sessions               CourseSession[]
   completions            CourseCompletion[]
   createdAt              DateTime                      @default(now()) @map("created_at")
@@ -241,6 +241,11 @@ model Provider {
   phone        String?
   website      String?
   note         String?
+  /// Holds every imported session that names no provider; at most one active provider is.
+  isDefault    Boolean            @default(false) @map("is_default")
+  /// The courses it offers, each at its price.
+  offerings    ProviderCourse[]
+  sessions     CourseSession[]
   completions  CourseCompletion[]
   createdAt    DateTime           @default(now()) @map("created_at")
   updatedAt    DateTime           @updatedAt @map("updated_at")
@@ -251,7 +256,24 @@ model Provider {
 
   @@unique([name], map: "providers_name_key", where: { archivedAt: null })
   @@unique([companyId], map: "providers_company_id_key", where: { archivedAt: null })
+  @@unique([isDefault], map: "providers_default_key", where: { isDefault: true, archivedAt: null })
   @@map("providers")
+}
+
+/// A course a provider offers, at a price per person (CHECK >= 0 in the migration SQL). A
+/// session's price is copied from it when the session is scheduled.
+model ProviderCourse {
+  providerId     String   @map("provider_id")
+  provider       Provider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  courseId       String   @map("course_id")
+  course         Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  pricePerPerson Decimal  @map("price_per_person") @db.Decimal(10, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@id([providerId, courseId])
+  @@index([courseId])
+  @@map("provider_courses")
 }
 
 model CourseSession {
@@ -264,11 +286,16 @@ model CourseSession {
   endsAt          DateTime            @map("ends_at") @db.Timestamptz(3)
   roomId          String              @map("room_id")
   room            Room                @relation(fields: [roomId], references: [id], onDelete: Restrict)
-  /// CHECK (capacity >= 0) in the migration SQL; Prisma cannot model CHECK constraints.
+  /// Who holds it: a provider that offers the course when it is scheduled.
+  providerId      String              @map("provider_id")
+  provider        Provider            @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  /// Its own seats: the course's seats unless set otherwise. CHECK (capacity >= 0) in the
+  /// migration SQL; Prisma cannot model CHECK constraints.
   capacity        Int
   /// Seats booked without a name (from the source export). The booked total is derived:
   /// unnamedBookings + assignments. CHECK (unnamed_bookings >= 0) in the migration SQL.
   unnamedBookings Int                 @default(0) @map("unnamed_bookings")
+  /// The provider's price for the course when it was scheduled (or the export's).
   pricePerPerson  Decimal?            @map("price_per_person") @db.Decimal(10, 2)
   status          SessionStatus       @default(PLANNED)
   assignments     SessionAssignment[]
@@ -283,6 +310,7 @@ model CourseSession {
   @@index([startsAt])
   @@index([courseId, startsAt])
   @@index([roomId, startsAt])
+  @@index([providerId, startsAt])
   /// "Upcoming" everywhere: planned and not yet ended.
   @@index([status, endsAt])
   @@map("course_sessions")

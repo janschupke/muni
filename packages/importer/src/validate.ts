@@ -393,6 +393,28 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
   const needsByCourse = new Map(
     reference.courses.flatMap(c => (c.needs ? [[c.code, c.needs]] : []))
   )
+  // Who holds each session: the provider it names, which must offer the course (as the
+  // register says, or as this batch's completions will make it: a provider that delivered a
+  // course offers it); else the default provider, which is given the course where it lacks it.
+  // Completions commit first, so a provider they create (or a default they make) counts.
+  const deliveries = (batch.completions ?? []).filter(usable).flatMap(r => {
+    const d = r.base.data
+    return d.provider ? [{ provider: fold(d.provider), course: d.courseCode }] : []
+  })
+  const knownProviders = new Set([
+    ...reference.providers.map(fold),
+    ...deliveries.map(d => d.provider),
+  ])
+  const offers = new Set([
+    ...reference.courses.flatMap(c => (c.offeredBy ?? []).map(p => `${fold(p)}|${c.code}`)),
+    ...deliveries.map(d => `${d.provider}|${d.course}`),
+  ])
+  const defaultProvider =
+    reference.defaultProvider ?? (deliveries.length > 0 ? 'from completions' : null)
+  const firstWithoutOffer = firstRowByKey(
+    sessionRows.filter(r => usable(r) && r.base.data.providerName === null),
+    d => d.courseCode
+  )
   // Planned sessions that hold a room: the register's (unless this batch replaces them) and
   // the batch's own, in file order.
   const batchIds = new Set(sessionRows.filter(usable).map(r => r.base.data.externalId))
@@ -420,6 +442,31 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
     if (!owner && slotTwin?.base.data) {
       extra.push(
         issue('date', 'DUPLICATE_SLOT', 'warning', { otherId: slotTwin.base.data.externalId })
+      )
+    }
+    if (data.providerName !== null) {
+      const name = fold(data.providerName)
+      if (!knownProviders.has(name))
+        extra.push(issue('provider', 'PROVIDER_UNKNOWN', 'error', { value: data.providerName }))
+      else if (!offers.has(`${name}|${data.courseCode}`))
+        extra.push(
+          issue('provider', 'PROVIDER_NOT_OFFERING', 'error', {
+            value: data.providerName,
+            course: data.courseCode,
+          })
+        )
+    } else if (defaultProvider === null) {
+      extra.push(issue('provider', 'NO_DEFAULT_PROVIDER', 'error'))
+    } else if (
+      reference.defaultProvider &&
+      !offers.has(`${fold(reference.defaultProvider)}|${data.courseCode}`) &&
+      firstWithoutOffer.get(data.courseCode) === row
+    ) {
+      extra.push(
+        issue('provider', 'OFFERING_ADDED', 'warning', {
+          value: reference.defaultProvider,
+          course: data.courseCode,
+        })
       )
     }
     const location = rooms.canonical(data.location)

@@ -9,6 +9,7 @@ import {
   ROOM_KINDS,
   SESSION_STATUSES,
 } from './enums'
+import { SESSION_MINUTES } from './sessions'
 
 // Normalised records. The importer produces them; the server re-validates them on commit;
 // the edit forms use the same shapes. Validation failures surface as zod issue codes,
@@ -102,6 +103,33 @@ export const providerSchema = z.object({
 })
 export type ProviderInput = z.infer<typeof providerSchema>
 
+/** A course a provider offers, at its price per person (0 for internal training). */
+export const offeringSchema = z.object({
+  courseId: z.string().trim().min(1).max(64),
+  price: z.number().min(0).max(1_000_000).multipleOf(0.01),
+})
+export type OfferingInput = z.infer<typeof offeringSchema>
+
+/**
+ * The provider form: the record, whether it holds imported sessions that name no provider,
+ * and the courses it offers (each course once).
+ */
+export const providerEditSchema = providerSchema.extend({
+  isDefault: z.boolean(),
+  offerings: z
+    .array(offeringSchema)
+    .max(500)
+    .superRefine((rows, ctx) => {
+      const seen = new Set<string>()
+      rows.forEach((row, i) => {
+        if (seen.has(row.courseId))
+          ctx.addIssue({ code: 'custom', path: [i, 'courseId'], message: 'duplicate' })
+        seen.add(row.courseId)
+      })
+    }),
+})
+export type ProviderEdit = z.infer<typeof providerEditSchema>
+
 export const employeeSchema = z
   .object({
     externalId: externalIdSchema,
@@ -135,6 +163,19 @@ const sessionTimes = {
 }
 
 /**
+ * A session as the app schedules it: its course and provider, when it starts (it ends its
+ * course's length later), its room and its own seats. Its price is the provider's for the
+ * course, never typed in.
+ */
+const appSession = {
+  courseId: z.string().trim().min(1).max(64),
+  providerId: z.string().trim().min(1).max(64),
+  date: isoDate,
+  startTime: time,
+  roomId: z.string().trim().min(1).max(64),
+}
+
+/**
  * An imported session names its room (`location`, the export's "místo"); the writer
  * resolves it to a room, creating one when there is no such room yet (its kind then follows
  * from the name).
@@ -146,6 +187,8 @@ const sessionBase = z.object({
   /** The source's state; in the app a session changes it only by being cancelled or reinstated. */
   status: z.enum(SESSION_STATUSES),
   location: trimmed(200),
+  /** Who holds it, by name; none = the default provider. */
+  providerName: trimmed(200).nullable(),
   bookedCount: z.int().min(0).max(10_000),
 })
 const endAfterStart = (s: { startTime: string; endTime: string }) => s.endTime > s.startTime
@@ -186,13 +229,13 @@ export const courseEditSchema = courseSchema.pick({ name: true, validityMonths: 
   departmentIds: entityIds,
   positionIds: entityIds,
   /**
-   * What one session needs, where the app overrides what the sessions import derives:
-   * null = take the derived value. At most 12 hours: from the usual 09:00 start, a session
-   * ends the same day.
+   * What every session of the course is: its length (null = not set yet, nothing can be
+   * scheduled; at most 12 hours), its seats unless a session sets its own, whether it may be
+   * held online, and the equipment its room needs.
    */
-  sessionMinutes: z.int().min(15).max(720).nullable(),
-  groupSize: z.int().min(1).max(10_000).nullable(),
-  onlineAllowed: z.boolean().nullable(),
+  sessionMinutes: z.int().min(SESSION_MINUTES.min).max(SESSION_MINUTES.max).nullable(),
+  seats: z.int().min(1).max(10_000).nullable(),
+  onlineAllowed: z.boolean(),
   capabilities,
 })
 export type CourseEdit = z.infer<typeof courseEditSchema>
@@ -208,24 +251,16 @@ export type CourseCreate = z.infer<typeof courseCreateSchema>
  */
 export const sessionEditSchema = z
   .object({
-    courseId: entityId,
-    ...sessionTimes,
-    roomId: entityId,
+    ...appSession,
+    capacity: z.int().min(0).max(10_000),
     unnamedBookings: z.int().min(0).max(10_000),
   })
-  .refine(endAfterStart, endAfterStartIssue)
   .refine(s => s.unnamedBookings <= s.capacity, { path: ['capacity'], error: 'over_capacity' })
 export type SessionEdit = z.infer<typeof sessionEditSchema>
 
 /** A new session (from the planner or the course page); it starts with no bookings. */
 export const sessionCreateSchema = z
-  .object({
-    courseId: entityId,
-    ...sessionTimes,
-    capacity: z.int().min(1).max(10_000),
-    roomId: entityId,
-  })
-  .refine(endAfterStart, endAfterStartIssue)
+  .object({ ...appSession, capacity: z.int().min(1).max(10_000) })
   // A new session is planned, so ahead: one on an earlier day is a typo (record a completion for
   // what already took place). Checked against today wherever it is parsed, form or server.
   .refine(s => s.date >= todayIn(), {

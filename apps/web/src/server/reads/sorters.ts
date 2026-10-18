@@ -134,6 +134,7 @@ export const sessionKeys: Record<(typeof SESSION_SORT)[number], (s: SessionListI
     course: s => s.courseName,
     date: s => Date.parse(s.startsAt),
     room: s => s.room.name,
+    provider: s => s.provider.name,
     // How full: booked seats over capacity.
     capacity: s => (s.capacity > 0 ? s.bookedCount / s.capacity : null),
     price: s => s.pricePerPerson,

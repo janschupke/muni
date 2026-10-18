@@ -107,13 +107,13 @@ describe('ImportWizard', () => {
     expect(calls).toEqual([
       ['courses', 10],
       ['employees', 170],
-      ['sessions', 33],
       ['completions', 500],
       ['completions', 500],
       ['completions', 500],
       ['completions', 500],
       ['completions', 500],
       ['completions', 322],
+      ['sessions', 33],
     ])
     expect(screen.getByText('Completions: 2822 created, 0 updated')).toBeTruthy()
     await expectNoAxeViolations()

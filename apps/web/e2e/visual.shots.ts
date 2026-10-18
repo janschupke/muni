@@ -328,12 +328,39 @@ for (const theme of ['light', 'dark'] as const) {
       await shot(page, 'import-confirm')
     })
 
+    test('a provider’s offered courses, a session derived from them, a room’s course fit', async ({
+      page,
+    }) => {
+      await page.goto('/providers')
+      await loaded(page)
+      await page.getByRole('link', { name: 'Interní školitel' }).first().click()
+      await loaded(page)
+      await shot(page, 'provider-offerings')
+      await page.getByRole('main').getByRole('link', { name: 'Edit', exact: true }).click()
+      await loaded(page)
+      // It offers every course: the rows, and no way to add another.
+      await page.getByRole('group', { name: 'Offered courses' }).scrollIntoViewIfNeeded()
+      await shot(page, 'form-provider-offerings', false)
+      await page.goto('/courses/GDPR/sessions/new')
+      await loaded(page)
+      await expect(page.getByRole('status', { name: /^End/ })).toHaveText('11:00')
+      await shot(page, 'form-session-derived')
+      await page.goto('/rooms')
+      await loaded(page)
+      await page.getByRole('link', { name: 'Aula A' }).first().click()
+      await loaded(page)
+      await page.getByRole('heading', { name: 'Course fit' }).evaluate(heading => {
+        heading.scrollIntoView({ block: 'start' })
+      })
+      await shot(page, 'room-course-fit', false)
+    })
+
     test('forms with fields at odds, and nothing changed by itself', async ({ page }) => {
       await page.goto('/sessions/T016/edit')
       await loaded(page)
       await page.getByRole('combobox', { name: /Room/ }).click()
       await page.getByRole('option', { name: /^Seminární místnost/ }).click()
-      await expect(page.getByRole('textbox', { name: /Capacity/ })).toHaveValue('30')
+      await expect(page.getByRole('textbox', { name: /^Seats/ })).toHaveValue('30')
       await shot(page, 'form-session-room-too-small')
       await page.goto('/employees/E0153/edit')
       await loaded(page)
@@ -377,6 +404,8 @@ for (const theme of ['light', 'dark'] as const) {
         .getByRole('button', { name: /^Who is booked on / })
         .first()
         .click()
+      // The people who need its course, read as the row opens.
+      await expect(page.getByRole('combobox', { name: /^Person to book/ })).toBeEnabled()
       await shot(page, 'sessions-row-open', false)
       // A booking that cannot reach the server: nothing is written, a toast says so.
       await page.goto('/advisor?view=action')

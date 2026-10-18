@@ -49,7 +49,7 @@ describe('form helpers', () => {
       departmentIds: [],
       positionIds: [],
       sessionMinutes: null,
-      groupSize: null,
+      seats: null,
       onlineAllowed: false,
       capabilities: [],
     }
@@ -109,7 +109,7 @@ describe('form helpers', () => {
       departmentIds: [],
       positionIds: [],
       sessionMinutes: 900,
-      groupSize: null,
+      seats: null,
       onlineAllowed: null,
       capabilities: [],
     }
@@ -124,19 +124,17 @@ describe('form helpers', () => {
   it('surfaces refinement keys', () => {
     const input = {
       courseId: 'course_kyber',
+      providerId: 'prv_internal',
       date: '2026-10-28',
       startTime: '12:00',
-      endTime: '09:00',
       roomId: 'room_aula_a',
       capacity: 10,
-      unnamedBookings: 0,
-      pricePerPerson: null,
-      status: 'PLANNED',
+      unnamedBookings: 11,
     }
     const result = sessionEditSchema.safeParse(input)
-    if (result.success) throw new Error('the schema accepted an end before the start')
+    if (result.success) throw new Error('the schema accepted more unnamed seats than seats')
     expect(fieldErrors(result.error, input)).toMatchObject({
-      fieldErrors: { endTime: 'before_start' },
+      fieldErrors: { capacity: 'over_capacity' },
     })
   })
 })

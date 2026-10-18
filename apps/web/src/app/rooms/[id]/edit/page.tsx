@@ -12,10 +12,10 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
   const { id } = await params
-  const t = await getTranslations('rooms.form')
+  const t = await getTranslations('forms.room')
   return titleOf(
     { name: 'room-form', input: { id } },
-    data => t('editTitle', { name: data.name }),
+    data => data.room && t('editTitle', { name: data.room.name }),
     (await getTranslations('rooms'))('title')
   )
 }

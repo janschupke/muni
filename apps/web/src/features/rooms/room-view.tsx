@@ -6,7 +6,6 @@ import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import type { TablePaging } from '@muni/ui/data-table'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { EmptyState } from '@muni/ui/empty-state'
-import { SplitLayout } from '@muni/ui/layout'
 import { Meter } from '@muni/ui/meter'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
@@ -65,74 +64,66 @@ function RoomDetail({
           }
         }
       />
-      <SplitLayout
-        side={
-          <Card>
-            <CardHeader title={t('detail.facts')} />
-            <CardBody className="flex flex-col gap-4">
-              <DescriptionList>
-                <DescriptionItem label={t('detail.capacity')}>{seats}</DescriptionItem>
-                <DescriptionItem label={t('detail.capabilities')}>
-                  <CapabilityList capabilities={room.capabilities} empty={t('noCapabilities')} />
-                </DescriptionItem>
-                {room.note && (
-                  <DescriptionItem label={t('detail.note')}>{room.note}</DescriptionItem>
-                )}
-              </DescriptionList>
-              {room.utilisation !== null && (
-                <BarRow
+      {/* Its facts across the page, so its sessions get the full width as on a course's page. */}
+      <Card>
+        <CardHeader title={t('detail.facts')} />
+        <CardBody className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+          <DescriptionList>
+            <DescriptionItem label={t('detail.capacity')}>{seats}</DescriptionItem>
+            <DescriptionItem label={t('detail.capabilities')}>
+              <CapabilityList capabilities={room.capabilities} empty={t('noCapabilities')} />
+            </DescriptionItem>
+            {room.note && <DescriptionItem label={t('detail.note')}>{room.note}</DescriptionItem>}
+          </DescriptionList>
+          {room.utilisation !== null && (
+            <BarRow
+              label={t('detail.utilisation', { days: UTILISATION_DAYS })}
+              value={t('utilisationOf', { share: formatPercent(room.utilisation, locale) })}
+              bar={
+                <Meter
+                  value={Math.round(room.utilisation * 100)}
+                  max={100}
                   label={t('detail.utilisation', { days: UTILISATION_DAYS })}
-                  value={t('utilisationOf', { share: formatPercent(room.utilisation, locale) })}
-                  bar={
-                    <Meter
-                      value={Math.round(room.utilisation * 100)}
-                      max={100}
-                      label={t('detail.utilisation', { days: UTILISATION_DAYS })}
-                      size="md"
-                    />
-                  }
+                  size="md"
                 />
-              )}
-            </CardBody>
-          </Card>
-        }
-        main={
-          <>
-            <SectionHeading className="mt-0">{t('detail.upcoming')}</SectionHeading>
-            {room.upcoming.total === 0 ? (
-              <EmptyState variant="inline" title={t('detail.noUpcoming')} />
-            ) : (
-              <SessionTable
-                sessions={room.upcoming.items}
-                paging={paging(room.upcoming)}
-                canEdit={canEdit}
-                caption={t('detail.upcoming')}
-                panelLevel={3}
-              />
-            )}
-            {room.pastCount > 0 && (
-              <p className="mt-3 text-sm">
-                <TextLink asChild>
-                  <Link
-                    href={`/sessions?when=past&room=${encodeURIComponent(room.id)}`}
-                    className="inline-flex items-center gap-1.5"
-                  >
-                    <History aria-hidden className="size-4" />
-                    {t('detail.past', { count: room.pastCount })}
-                  </Link>
-                </TextLink>
-              </p>
-            )}
-          </>
-        }
-      />
+              }
+            />
+          )}
+        </CardBody>
+      </Card>
+      <SectionHeading>{t('detail.upcoming')}</SectionHeading>
+      {room.upcoming.total === 0 ? (
+        <EmptyState title={t('detail.noUpcoming')} />
+      ) : (
+        <SessionTable
+          sessions={room.upcoming.items}
+          paging={paging(room.upcoming)}
+          canEdit={canEdit}
+          showRoom={false}
+          caption={t('detail.upcoming')}
+          panelLevel={3}
+        />
+      )}
+      {room.pastCount > 0 && (
+        <p className="mt-3 text-sm">
+          <TextLink asChild>
+            <Link
+              href={`/sessions?when=past&room=${encodeURIComponent(room.id)}`}
+              className="inline-flex items-center gap-1.5"
+            >
+              <History aria-hidden className="size-4" />
+              {t('detail.past', { count: room.pastCount })}
+            </Link>
+          </TextLink>
+        </p>
+      )}
       <SectionHeading description={t('detail.coursesDescription')}>
         {t('detail.courses')}
       </SectionHeading>
       {room.courses.length === 0 ? (
         <EmptyState variant="inline" title={t('detail.noCourses')} />
       ) : (
-        <RoomFitTable room={room} />
+        <RoomFitTable room={room} canEdit={canEdit} />
       )}
     </>
   )

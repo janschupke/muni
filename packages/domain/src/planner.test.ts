@@ -2,28 +2,37 @@ import { describe, expect, it } from 'vitest'
 
 import type { PlanItem, UnplacedReason } from './advisor'
 import {
-  DEFAULT_SESSION_MINUTES,
+  type CourseOffering,
   groupOffers,
   type PlannerCourse,
   type PlannerInput,
   type PlannerSession,
   planSessions,
+  proposedOffering,
 } from './planner'
 import type { RoomFacts } from './rooms'
 
 // 2026-10-16 is a Friday: tomorrow is Saturday, so the first working day is Monday the 19th.
 const asOf = '2026-10-16'
 
+const INTERNAL: CourseOffering = {
+  providerId: 'prv_internal',
+  providerName: 'Interní školitel',
+  price: 450,
+  isDefault: true,
+}
+
 const course = (over: Partial<PlannerCourse> = {}): PlannerCourse => ({
   id: 'course_bozp',
   code: 'BOZP-Z',
   name: 'BOZP – základní školení',
   sessionMinutes: 180,
-  groupSize: 2,
+  seats: 2,
   onlineAllowed: false,
   capabilities: [],
   usualStart: '08:00',
   heldIn: [],
+  offerings: [INTERNAL],
   ...over,
 })
 
@@ -174,23 +183,49 @@ describe('planSessions: demand', () => {
     expect(offers).toEqual([])
   })
 
+  it('schedules nothing for a course with no length, or that nobody offers', () => {
+    const items = [unplaced('A')]
+    expect(
+      planSessions(input({ courses: [course({ sessionMinutes: null })], items }))[0]?.problem
+    ).toEqual({ kind: 'NO_LENGTH' })
+    const none = planSessions(input({ courses: [course({ offerings: [] })], items }))[0]
+    expect(none?.problem).toEqual({ kind: 'NO_PROVIDER' })
+    expect(none?.offering).toBeNull()
+  })
+
+  it('proposes the default provider, else the cheapest, ties by name', () => {
+    const other = (providerName: string, price: number): CourseOffering => ({
+      providerId: providerName,
+      providerName,
+      price,
+      isDefault: false,
+    })
+    expect(proposedOffering([other('Bé', 500), INTERNAL])).toEqual(INTERNAL)
+    expect(proposedOffering([other('Bé', 500), other('Cé', 300), other('Áčko', 300)])).toEqual(
+      other('Áčko', 300)
+    )
+    expect(proposedOffering([])).toBeNull()
+  })
+
   it('fills the largest suitable room when the course has no group size', () => {
-    const noGroup = course({ groupSize: null, sessionMinutes: null, usualStart: null })
+    const noGroup = course({ seats: null, usualStart: null })
     const items = [unplaced('A'), unplaced('B'), unplaced('C')]
     const offers = planSessions(input({ courses: [noGroup], items }))
     expect(offers.map(o => o.size)).toEqual([3])
-    // The default start and length; the offer carries what the course's sessions need.
+    // The default start and the course's length; the offer carries what its sessions need,
+    // and the provider that would hold it.
     expect(offers[0]?.slot).toMatchObject({ startTime: '09:00', endTime: '12:00' })
-    expect(DEFAULT_SESSION_MINUTES).toBe(180)
     expect(offers[0]?.course).toEqual({
       id: 'course_bozp',
       code: 'BOZP-Z',
       name: 'BOZP – základní školení',
-      sessionMinutes: null,
-      groupSize: null,
+      sessionMinutes: 180,
+      seats: null,
       onlineAllowed: false,
       capabilities: [],
+      offerings: [INTERNAL],
     })
+    expect(offers[0]?.offering).toEqual(INTERNAL)
     // Rooms of two: two sessions, not one that fits nowhere.
     const small = [room({ id: 'a', capacity: 2 }), room({ id: 'b', capacity: 1 })]
     expect(
@@ -216,7 +251,7 @@ describe('planSessions: rooms', () => {
     ]
     const items = [unplaced('A'), unplaced('B')]
     expect(
-      planSessions(input({ rooms, items, courses: [course({ groupSize: 20 })] }))[0]
+      planSessions(input({ rooms, items, courses: [course({ seats: 20 })] }))[0]
     ).toMatchObject({
       room: { id: 'small' },
       // A group of twenty, as far as a room of twelve allows.

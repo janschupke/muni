@@ -1,32 +1,28 @@
-import { effectiveNeeds, type RoomFacts } from '@muni/domain/rooms'
+import type { RoomFacts, SessionNeeds } from '@muni/domain/rooms'
 
 // How a course's needs and a room's facts are read, on their own so the session reads can
 // select them without importing the session-fit checks (which import the session reads).
 
-/** Select this on a course to read what its sessions need (`needsOf`). */
+/** Select this on a course to read what its sessions are (`needsOf`). */
 export const needsSelect = {
   sessionMinutes: true,
-  groupSize: true,
+  seats: true,
   onlineAllowed: true,
-  sessionMinutesOverride: true,
-  groupSizeOverride: true,
-  onlineAllowedOverride: true,
   capabilities: { select: { capability: true } },
 } as const
 
-interface StoredNeedsRow {
+/** What every session of the course is, as the course holds it: its length and its needs. */
+export const needsOf = (course: {
   sessionMinutes: number | null
-  groupSize: number | null
+  seats: number | null
   onlineAllowed: boolean
-  sessionMinutesOverride: number | null
-  groupSizeOverride: number | null
-  onlineAllowedOverride: boolean | null
   capabilities: { capability: RoomFacts['capabilities'][number] }[]
-}
-
-/** What a session of the course needs: the app's overrides, else what imports derived. */
-export const needsOf = (course: StoredNeedsRow) =>
-  effectiveNeeds({ ...course, capabilities: course.capabilities.map(c => c.capability) })
+}): SessionNeeds & { sessionMinutes: number | null } => ({
+  sessionMinutes: course.sessionMinutes,
+  seats: course.seats,
+  onlineAllowed: course.onlineAllowed,
+  capabilities: course.capabilities.map(c => c.capability),
+})
 
 /** Select this on a room to read it as `RoomFacts` (`roomFactsOf`). */
 export const roomFactsSelect = {

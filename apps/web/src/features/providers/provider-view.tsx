@@ -13,22 +13,28 @@ import { useTranslations } from 'next-intl'
 import { EmailLink } from '@/components/email-link'
 import { ReadView } from '@/components/read-view'
 import { RecordHeader, useRecordRead } from '@/components/record-view'
+import { SessionTable } from '@/components/session-table'
 import { DetailSkeleton } from '@/components/skeletons'
 import {
   ProviderCompletionsTable,
   ProviderCoursesTable,
+  ProviderOfferingsTable,
 } from '@/features/providers/provider-tables'
-import { COMPLETION_SORT, PROVIDER_COURSE_SORT } from '@/lib/list-keys'
+import { COMPLETION_SORT, PROVIDER_COURSE_SORT, SESSION_SORT } from '@/lib/list-keys'
 import { type PageInfo, useListUrl } from '@/lib/use-list-url'
 import type { ReadOutput } from '@/server/reads/registry'
 
-/** A provider's page: its details and totals, and a page each of its courses and completions. */
+/**
+ * A provider's page: its details and totals, what it offers, and a page each of its sessions
+ * ahead, its courses and its completions.
+ */
 export function ProviderView({ id, canEdit }: { id: string; canEdit: boolean }) {
+  const sessions = useListUrl(SESSION_SORT, { id: 'date', desc: false }, 'sessions')
   const courses = useListUrl(PROVIDER_COURSE_SORT, undefined, 'courses')
   const completions = useListUrl(COMPLETION_SORT, { id: 'completedOn', desc: true }, 'completions')
   const read = useRecordRead(
     'provider',
-    { id, ...courses.input, ...completions.input },
+    { id, ...sessions.input, ...courses.input, ...completions.input },
     provider => provider.name
   )
   return (
@@ -37,7 +43,11 @@ export function ProviderView({ id, canEdit }: { id: string; canEdit: boolean }) 
         <ProviderDetail
           data={data}
           canEdit={canEdit}
-          paging={{ courses: courses.paging, completions: completions.paging }}
+          paging={{
+            sessions: sessions.paging,
+            courses: courses.paging,
+            completions: completions.paging,
+          }}
         />
       )}
     </ReadView>
@@ -51,7 +61,7 @@ function ProviderDetail({
 }: {
   data: ReadOutput<'provider'>
   canEdit: boolean
-  paging: Record<'courses' | 'completions', (page: PageInfo) => TablePaging>
+  paging: Record<'sessions' | 'courses' | 'completions', (page: PageInfo) => TablePaging>
 }) {
   const provider = data
   const t = useTranslations('providers')
@@ -63,6 +73,7 @@ function ProviderDetail({
       <RecordHeader
         list={{ href: '/providers', label: t('title') }}
         title={provider.name}
+        description={provider.isDefault ? t('detail.isDefault') : undefined}
         record={
           canEdit && {
             kind: 'provider',
@@ -128,7 +139,20 @@ function ProviderDetail({
         }
         main={
           <>
-            <SectionHeading className="mt-0" description={t('detail.byCourseDescription')}>
+            <SectionHeading className="mt-0" description={t('detail.offeringsDescription')}>
+              {t('detail.offerings.title')}
+            </SectionHeading>
+            {provider.offerings.length === 0 ? (
+              <EmptyState title={t('detail.noOfferings')} />
+            ) : (
+              <ProviderOfferingsTable
+                providerId={provider.id}
+                providerName={provider.name}
+                rows={provider.offerings}
+                canEdit={canEdit}
+              />
+            )}
+            <SectionHeading description={t('detail.byCourseDescription')}>
               {t('detail.byCourse')}
             </SectionHeading>
             {provider.byCourse.total === 0 ? (
@@ -143,6 +167,22 @@ function ProviderDetail({
           </>
         }
       />
+      {/* Full width, as on a course's and a room's page: the session table needs it. */}
+      <SectionHeading description={t('detail.upcomingDescription')}>
+        {t('detail.upcoming')}
+      </SectionHeading>
+      {provider.upcoming.total === 0 ? (
+        <EmptyState title={t('detail.noUpcoming')} />
+      ) : (
+        <SessionTable
+          sessions={provider.upcoming.items}
+          paging={paging.sessions(provider.upcoming)}
+          canEdit={canEdit}
+          showProvider={false}
+          caption={t('detail.upcoming')}
+          panelLevel={3}
+        />
+      )}
       <SectionHeading
         description={
           provider.completionList.total > 0 &&

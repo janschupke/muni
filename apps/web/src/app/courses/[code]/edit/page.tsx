@@ -15,7 +15,7 @@ export async function generateMetadata({
   const t = await getTranslations()
   return titleOf(
     { name: 'course-form', input: { code } },
-    data => data.course && t('forms.course.title', { name: data.course.name }),
+    data => data.course && t('forms.course.editTitle', { name: data.course.name }),
     t('courses.title')
   )
 }

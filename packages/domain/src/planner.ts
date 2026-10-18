@@ -35,8 +35,30 @@ import { type RoomFacts, roomMismatch, type RoomRef } from './rooms'
 export const PLAN_NOW_DAYS = 14
 /** How far ahead the planner looks for a free slot. */
 export const PLAN_HORIZON_DAYS = 120
-export const DEFAULT_SESSION_MINUTES = 180
 export const DEFAULT_START = '09:00'
+
+/** A provider that offers a course, at its price per person. */
+export interface CourseOffering {
+  providerId: string
+  providerName: string
+  price: number
+  /** The provider imported sessions without one fall to. */
+  isDefault: boolean
+}
+
+/**
+ * Who a new session of the course goes to unless chosen otherwise: the default provider if it
+ * offers the course, else the cheapest offering (ties by name); null when nobody offers it.
+ */
+export function proposedOffering(offerings: readonly CourseOffering[]): CourseOffering | null {
+  return (
+    offerings.find(o => o.isDefault) ??
+    offerings.toSorted(
+      (a, b) => a.price - b.price || a.providerName.localeCompare(b.providerName, 'cs')
+    )[0] ??
+    null
+  )
+}
 
 export interface PlannerCourse {
   /** Internal id: a session is created for the course by it. */
@@ -44,13 +66,15 @@ export interface PlannerCourse {
   code: string
   name: string
   sessionMinutes: number | null
-  groupSize: number | null
+  seats: number | null
   onlineAllowed: boolean
   capabilities: readonly Capability[]
   /** The start time most of its sessions had (Prague wall clock), if any. */
   usualStart: string | null
   /** Rooms it was held in before. */
   heldIn: readonly string[]
+  /** Who offers it, at what price. */
+  offerings: readonly CourseOffering[]
 }
 
 export interface PlannerSession {
@@ -94,6 +118,10 @@ export type OfferProblem =
   | { kind: 'NO_ONLINE_OR_ROOM' }
   /** Its usual start and length end after midnight. */
   | { kind: 'RUNS_PAST_MIDNIGHT' }
+  /** The course has no length set: nothing can be scheduled. */
+  | { kind: 'NO_LENGTH' }
+  /** No provider offers the course. */
+  | { kind: 'NO_PROVIDER' }
   | { kind: 'NO_FREE_SLOT' }
 
 /** The course an offer is for, with what its sessions need. */
@@ -116,6 +144,8 @@ export interface SessionOffer {
   room: RoomRef | null
   /** Other valid rooms free at the same slot. */
   alternatives: RoomRef[]
+  /** Who would hold it (`proposedOffering`), at what price; another offering can be chosen. */
+  offering: CourseOffering | null
   late: boolean
   problem: OfferProblem | null
 }
@@ -206,10 +236,11 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
     const people = group.people.toSorted(
       (a, b) => (a.lapses ?? '').localeCompare(b.lapses ?? '') || a.name.localeCompare(b.name, 'cs')
     )
-    const minutes = course.sessionMinutes ?? DEFAULT_SESSION_MINUTES
+    const minutes = course.sessionMinutes
+    const offering = proposedOffering(course.offerings)
     const start = course.usualStart ?? DEFAULT_START
     const needs = {
-      groupSize: course.groupSize,
+      seats: course.seats,
       onlineAllowed: course.onlineAllowed,
       capabilities: course.capabilities,
     }
@@ -217,10 +248,10 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
     // largest of them; an online one takes everyone.
     const suitable = input.rooms.filter(r => roomMismatch(r, needs, null) === null)
     const roomSeats = suitable.map(r => r.capacity ?? people.length)
-    const groupSize = course.groupSize ?? Math.max(1, ...roomSeats)
-    const { id, code, name, sessionMinutes, onlineAllowed, capabilities } = course
-    for (let i = 0; i * groupSize < people.length; i++) {
-      const chunk = people.slice(i * groupSize, (i + 1) * groupSize)
+    const seats = course.seats ?? Math.max(1, ...roomSeats)
+    const { id, code, name, sessionMinutes, onlineAllowed, capabilities, offerings } = course
+    for (let i = 0; i * seats < people.length; i++) {
+      const chunk = people.slice(i * seats, (i + 1) * seats)
       const size = chunk.length
       const base = {
         id: `${course.code}|${group.bucket}|${String(i + 1)}`,
@@ -229,9 +260,10 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
           code,
           name,
           sessionMinutes,
-          groupSize: course.groupSize,
+          seats: course.seats,
           onlineAllowed,
           capabilities,
+          offerings,
         },
         bucket: group.bucket,
         deadline: group.deadline,
@@ -244,9 +276,18 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
         room: null,
         capacity: null,
         alternatives: [],
+        offering,
         late: false,
         problem,
       })
+      if (minutes === null) {
+        offers.push(unplaced({ kind: 'NO_LENGTH' }))
+        continue
+      }
+      if (offering === null) {
+        offers.push(unplaced({ kind: 'NO_PROVIDER' }))
+        continue
+      }
       // Rooms the course has used before first, then the smallest that fits, then by name.
       const valid = suitable
         .filter(r => roomMismatch(r, needs, size) === null)
@@ -280,13 +321,14 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
       }
       const [room, ...others] = placed.free as [RoomFacts, ...RoomFacts[]]
       busy.push({ roomId: room.id, startsAt: placed.slot.startsAt, endsAt: placed.slot.endsAt })
-      const wanted = Math.max(course.groupSize ?? size, size)
+      const wanted = Math.max(course.seats ?? size, size)
       offers.push({
         ...base,
         slot: placed.slot,
         room: toRef(room),
         capacity: room.capacity === null ? wanted : Math.min(room.capacity, wanted),
         alternatives: others.map(toRef),
+        offering,
         late: placed.slot.date > group.deadline,
         problem: null,
       })

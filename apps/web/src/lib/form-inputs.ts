@@ -5,7 +5,7 @@ import {
   departmentSchema,
   employeeEditSchema,
   positionSchema,
-  providerSchema,
+  providerEditSchema,
   roomSchema,
   sessionCreateSchema,
   sessionEditSchema,
@@ -20,6 +20,7 @@ import {
   money,
   NEW_PROVIDER,
   number,
+  rows,
   text,
 } from './form'
 
@@ -50,12 +51,6 @@ export function parseForm<T>(
     : { ok: false, state: fieldErrors(parsed.error, input) }
 }
 
-/** A three-way choice posted as `derived`, `yes` or `no`: null = take the derived value. */
-function override(form: FormData, key: string): boolean | null {
-  const value = text(form, key)
-  return value === 'yes' ? true : value === 'no' ? false : null
-}
-
 const courseInput = (form: FormData) => ({
   name: text(form, 'name'),
   validityMonths: number(form, 'validityMonths'),
@@ -63,8 +58,8 @@ const courseInput = (form: FormData) => ({
   departmentIds: list(form, 'departmentIds'),
   positionIds: list(form, 'positionIds'),
   sessionMinutes: number(form, 'sessionMinutes'),
-  groupSize: number(form, 'groupSize'),
-  onlineAllowed: override(form, 'onlineAllowed'),
+  seats: number(form, 'seats'),
+  onlineAllowed: checkbox(form, 'onlineAllowed'),
   capabilities: list(form, 'capabilities'),
 })
 
@@ -76,14 +71,14 @@ export const courseCreateSpec = spec(
   courseCreateSchema
 )
 
+/** A session: its course and provider, when it starts, where, and its seats; the rest follows. */
 const sessionInput = (form: FormData) => ({
   courseId: text(form, 'courseId'),
+  providerId: text(form, 'providerId'),
   date: text(form, 'date'),
   startTime: text(form, 'startTime'),
-  endTime: text(form, 'endTime'),
   roomId: text(form, 'roomId'),
   capacity: number(form, 'capacity'),
-  pricePerPerson: money(form, 'pricePerPerson'),
 })
 
 export const sessionEditSpec = spec(
@@ -144,8 +139,13 @@ export const providerSpec = spec(
     phone: text(form, 'phone'),
     website: text(form, 'website'),
     note: text(form, 'note'),
+    isDefault: checkbox(form, 'isDefault'),
+    offerings: rows(form, 'offerings', field => ({
+      courseId: text(form, field('courseId')),
+      price: money(form, field('price')),
+    })),
   }),
-  providerSchema
+  providerEditSchema
 )
 
 export const roomSpec = spec(

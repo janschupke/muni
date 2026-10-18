@@ -1,20 +1,23 @@
 'use client'
 
 import type { SessionListItem } from '@muni/db/repositories'
+import { sessionPhase } from '@muni/domain/sessions'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { DetailGrid, DetailPanel } from '@muni/ui/detail-panel'
-import { EmptyState } from '@muni/ui/empty-state'
 import { CellStack } from '@muni/ui/table'
 import { formatCurrency } from '@muni/utils/format'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { sessionTarget } from '@/features/sessions/session-target'
+import { readQuery } from '@/lib/query/queries'
 
 import { RecordLink } from './archived'
 import { usePaginationLabels } from './pagination-labels'
 import { SeatMeter } from './seat-meter'
-import { SessionAttendees, SessionFacts } from './session-details'
+import { SessionBookings } from './session-bookings'
+import { SessionFacts } from './session-details'
 import { RoomLink, SessionDateLink } from './session-links'
 import { SessionStatusBadge } from './status-badges'
 import { rowActionsColumn } from './table-columns'
@@ -25,6 +28,8 @@ export function SessionTable({
   sessions,
   canEdit,
   showCourse = true,
+  showRoom = true,
+  showProvider = true,
   compact = false,
   caption,
   panelLevel = 2,
@@ -35,6 +40,10 @@ export function SessionTable({
   paging: TablePaging
   canEdit: boolean
   showCourse?: boolean | undefined
+  /** False on a room's page, where every row is that room. */
+  showRoom?: boolean | undefined
+  /** False on a provider's page, where every row is that provider. */
+  showProvider?: boolean | undefined
   /** Course, time and occupancy only, not sortable (dashboard). */
   compact?: boolean | undefined
   /** The table's accessible name: "Sessions" unless the section names them otherwise. */
@@ -91,7 +100,7 @@ export function SessionTable({
           meta: { nowrap: true },
           cell: ({ row }) => <SessionDateLink session={row.original} />,
         }),
-        ...(compact
+        ...(compact || !showRoom
           ? []
           : [
               col.accessor(s => s.room.name, {
@@ -99,6 +108,23 @@ export function SessionTable({
                 header: t('columns.room'),
                 sortFn: 'text',
                 cell: ({ row }) => <RoomLink room={row.original.room} />,
+              }),
+            ]),
+        ...(compact || !showProvider
+          ? []
+          : [
+              col.accessor(s => s.provider.name, {
+                id: 'provider',
+                header: t('columns.provider'),
+                sortFn: 'text',
+                cell: ({ row }) => (
+                  <RecordLink
+                    href={`/providers/${row.original.provider.id}`}
+                    archived={row.original.provider.archived}
+                  >
+                    {row.original.provider.name}
+                  </RecordLink>
+                ),
               }),
             ]),
         // Sorts by how full the session is; a session without places sorts last.
@@ -135,7 +161,7 @@ export function SessionTable({
           ? [rowActionsColumn(col, tc('actions'), r => sessionTarget(r, { row: true }))]
           : []),
       ]),
-    [canEdit, compact, showCourse, t, tc]
+    [canEdit, compact, showCourse, showProvider, showRoom, t, tc]
   )
 
   return (
@@ -149,7 +175,9 @@ export function SessionTable({
       enableSorting={!compact}
       rowClassName={s => (s.status === 'CANCELLED' ? 'text-fg-subtle' : undefined)}
       {...(!compact && {
-        renderExpanded: (s: SessionListItem) => <SessionDetails session={s} level={panelLevel} />,
+        renderExpanded: (s: SessionListItem) => (
+          <SessionDetails session={s} level={panelLevel} canEdit={canEdit} />
+        ),
         expandLabel: (s: SessionListItem) => t('attendees.toggle', { id: s.externalId }),
         expandHeader: t('attendees.header'),
       })}
@@ -159,24 +187,37 @@ export function SessionTable({
 
 /**
  * An opened session: the session itself (when, the room against what the course needs, the
- * seats, the price, the status) and who is booked on it by name, how and when. Its page shows
- * the same two parts.
+ * seats, the price, the status) and who is booked on it by name, how and when, with, for
+ * admins, the way to book someone who needs it or cancel a booking. Its page shows the same
+ * two parts (`SessionFacts`, `SessionBookings`).
  */
-function SessionDetails({ session: s, level }: { session: SessionListItem; level: 2 | 3 }) {
+function SessionDetails({
+  session: s,
+  level,
+  canEdit,
+}: {
+  session: SessionListItem
+  level: 2 | 3
+  canEdit: boolean
+}) {
   const t = useTranslations('sessions.expanded')
-  const ta = useTranslations('sessions.attendees')
-  const named = s.bookings.length
+  const ahead = sessionPhase(s, new Date()) === 'AHEAD'
+  // Who needs the course, read when the row opens: the list itself stays light.
+  const candidates = useQuery({
+    ...readQuery('session-candidates', { externalId: s.externalId }),
+    enabled: canEdit && ahead,
+  })
   return (
     <DetailGrid layout="narrow-wide">
       <DetailPanel title={t('session')} level={level}>
         <SessionFacts session={s} />
       </DetailPanel>
-      <DetailPanel title={t('people')} count={named} flush={named > 0} level={level}>
-        {named === 0 ? (
-          <EmptyState variant="inline" title={ta('noneNamed')} />
-        ) : (
-          <SessionAttendees session={s} />
-        )}
+      <DetailPanel title={t('people')} count={s.bookings.length} level={level}>
+        <SessionBookings
+          session={s}
+          canEdit={canEdit}
+          needing={candidates.data?.needing ?? (candidates.isError ? [] : 'loading')}
+        />
       </DetailPanel>
     </DetailGrid>
   )

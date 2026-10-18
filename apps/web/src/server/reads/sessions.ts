@@ -52,28 +52,50 @@ export const sessionsList = read({
   },
 })
 
+/** The people who need a course booked (not held, lapsed or lapsing soon, nothing booked). */
+export interface NeedingPerson {
+  externalId: string
+  name: string
+  status: 'EXPIRED' | 'EXPIRING' | 'MISSING' | 'VALID'
+  validUntil: string | null
+}
+
 /**
- * A session's page, and for admins the people to book on it: those who need its course (not
- * held, lapsed or lapsing soon, nothing booked), most overdue first, as the advisor queues them.
+ * Who needs a course booked, most overdue first, as the advisor queues them: the people a
+ * session of it can take by hand.
  */
+async function needingOf(courseCode: string): Promise<NeedingPerson[]> {
+  return itemsToBook(planAssignments(await getAdvisorInput()), { course: courseCode }).map(
+    ({ need }) => ({
+      externalId: need.employee.externalId,
+      name: need.employee.name,
+      status: need.status,
+      validUntil: need.validUntil,
+    })
+  )
+}
+
+/** A session's page, and for admins the people to book on it (`needingOf`). */
 export const session = read({
   guard: 'reader',
   input: byExternalId,
   load: async ({ externalId }, user) => {
-    const [found, input] = await Promise.all([
-      getSession(externalId),
-      canWrite(user.role) ? getAdvisorInput() : null,
-    ])
+    const found = await getSession(externalId)
     if (!found) return null
-    const needing = input
-      ? itemsToBook(planAssignments(input), { course: found.courseCode }).map(({ need }) => ({
-          externalId: need.employee.externalId,
-          name: need.employee.name,
-          status: need.status,
-          validUntil: need.validUntil,
-        }))
-      : []
-    return { session: found, needing }
+    return { session: found, needing: canWrite(user.role) ? await needingOf(found.courseCode) : [] }
+  },
+})
+
+/**
+ * The people a session can take by hand, for admins: what a session's opened row in a list
+ * reads when it opens, so the list itself stays light.
+ */
+export const sessionCandidates = read({
+  guard: 'admin',
+  input: byExternalId,
+  load: async ({ externalId }) => {
+    const found = await getSession(externalId)
+    return found && { needing: await needingOf(found.courseCode) }
   },
 })
 

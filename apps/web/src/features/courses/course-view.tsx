@@ -1,8 +1,8 @@
 'use client'
 
 import { COMPLIANCE_STATUSES } from '@muni/domain/enums'
+import { scheduleBlock } from '@muni/domain/sessions'
 import { BarRow } from '@muni/ui/bar-row'
-import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import type { TablePaging } from '@muni/ui/data-table'
 import { StatItem, StatList } from '@muni/ui/description-list'
@@ -11,18 +11,18 @@ import { SplitLayout } from '@muni/ui/layout'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger } from '@muni/utils/format'
-import { CalendarPlus } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { CourseCompletionsTable } from '@/components/completion-tables'
 import { ComplianceBar, ComplianceLegend } from '@/components/compliance-breakdown'
-import { CourseByDepartment, CourseNeeds } from '@/components/course-panel'
+import { CourseByDepartment, CourseNeeds, CourseOfferings } from '@/components/course-panel'
 import { ReadView } from '@/components/read-view'
 import { RecordHeader, useRecordRead } from '@/components/record-view'
 import { RequirementList } from '@/components/requirement-list'
 import { SessionTable } from '@/components/session-table'
 import { DetailSkeleton } from '@/components/skeletons'
+import { ScheduleSessionButton } from '@/features/sessions/schedule-button'
 import { formatRate } from '@/lib/format-rate'
 import { COMPLETION_SORT, SESSION_SORT } from '@/lib/list-keys'
 import { type PageInfo, useListUrl } from '@/lib/use-list-url'
@@ -88,12 +88,14 @@ function CourseDetail({
           }
         }
       >
-        <Button asChild variant="primary">
-          <Link href={`/courses/${course.code}/sessions/new`}>
-            <CalendarPlus aria-hidden />
-            {t('newSession')}
-          </Link>
-        </Button>
+        <ScheduleSessionButton
+          course={course.code}
+          primary
+          block={scheduleBlock({
+            sessionMinutes: course.sessionNeeds.minutes,
+            offerings: course.offerings.length,
+          })}
+        />
       </RecordHeader>
 
       <SplitLayout
@@ -109,6 +111,12 @@ function CourseDetail({
               <CardHeader title={tp('needs')} />
               <CardBody>
                 <CourseNeeds needs={course.sessionNeeds} />
+              </CardBody>
+            </Card>
+            <Card>
+              <CardHeader title={tp('offeredBy')} />
+              <CardBody>
+                <CourseOfferings offerings={course.offerings} />
               </CardBody>
             </Card>
           </div>

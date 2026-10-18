@@ -22,8 +22,13 @@ export async function loadReferenceSnapshot(db: Db): Promise<ReferenceSnapshot> 
         select: {
           code: true,
           validityMonths: true,
-          onlineAllowedOverride: true,
+          sessionMinutes: true,
+          onlineAllowed: true,
           capabilities: { select: { capability: true } },
+          offerings: {
+            where: { provider: ACTIVE },
+            select: { provider: { select: { name: true } } },
+          },
         },
         orderBy: { code: 'asc' },
       }),
@@ -34,7 +39,11 @@ export async function loadReferenceSnapshot(db: Db): Promise<ReferenceSnapshot> 
       }),
       db.department.findMany({ where: ACTIVE, select: { name: true }, orderBy: { name: 'asc' } }),
       db.position.findMany({ where: ACTIVE, select: { name: true }, orderBy: { name: 'asc' } }),
-      db.provider.findMany({ where: ACTIVE, select: { name: true }, orderBy: { name: 'asc' } }),
+      db.provider.findMany({
+        where: ACTIVE,
+        select: { name: true, isDefault: true },
+        orderBy: { name: 'asc' },
+      }),
       db.room.findMany({
         where: ACTIVE,
         select: {
@@ -59,13 +68,14 @@ export async function loadReferenceSnapshot(db: Db): Promise<ReferenceSnapshot> 
     courses: courses.map(c => ({
       code: c.code,
       validityMonths: c.validityMonths,
-      // Whether it may be online is derived from the very sessions an import brings, so only
-      // the app's own "no" counts here; equipment is only ever set in the app.
+      // A course whose sessions are not set yet takes online from the very sessions an import
+      // brings, so it is no reason to refuse them; equipment is only ever set in the app.
       needs: {
-        groupSize: null,
-        onlineAllowed: c.onlineAllowedOverride ?? true,
+        seats: null,
+        onlineAllowed: c.sessionMinutes === null || c.onlineAllowed,
         capabilities: c.capabilities.map(x => x.capability),
       },
+      offeredBy: c.offerings.map(o => o.provider.name),
     })),
     employees: employees.map(e => ({
       externalId: e.externalId,
@@ -75,6 +85,7 @@ export async function loadReferenceSnapshot(db: Db): Promise<ReferenceSnapshot> 
     departments: departments.map(d => d.name),
     positions: positions.map(p => p.name),
     providers: providers.map(p => p.name),
+    defaultProvider: providers.find(p => p.isDefault)?.name ?? null,
     rooms: rooms.map(r => r.name),
     roomFacts: rooms.map(r => ({ ...r, capabilities: r.capabilities.map(x => x.capability) })),
     plannedSessions: sessions.map(s => {

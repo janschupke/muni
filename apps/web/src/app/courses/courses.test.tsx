@@ -17,7 +17,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
-import { counts, courseDetail, courseForEdit, courseRow, matrix } from '@/test/fixtures'
+import {
+  counts,
+  courseDetail,
+  courseForEdit,
+  courseRow,
+  EXTERNAL,
+  INTERNAL,
+  matrix,
+} from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
@@ -115,7 +123,7 @@ describe('course list', () => {
         name: 'Anglický jazyk – kurz',
         upcoming: [],
         byDepartment: [],
-        sessionNeeds: { minutes: null, groupSize: null, onlineAllowed: true, capabilities: [] },
+        sessionNeeds: { minutes: null, seats: null, onlineAllowed: true, capabilities: [] },
       }),
     ])
     await renderServer(CoursesPage({ searchParams: params({}) }))
@@ -132,9 +140,14 @@ describe('course list', () => {
       '/rooms/room_online'
     )
     expect(within(sessions).getByText('Full')).toBeTruthy()
-    const needs = panel(/^A session needs/)
+    const needs = panel(/^Its sessions/)
     expect(within(needs).getByText('180 min')).toBeTruthy()
-    expect(within(needs).getByText('Groups of 30')).toBeTruthy()
+    expect(within(needs).getByText('30 seats')).toBeTruthy()
+    // Who offers it, at what price, the default marked.
+    expect(within(needs).getByRole('link', { name: 'Interní školitel' }).getAttribute('href')).toBe(
+      '/providers/prv_internal'
+    )
+    expect(within(needs).getByText('default')).toBeTruthy()
     expect(within(needs).getByText('On site only')).toBeTruthy()
     expect(within(needs).getByText('Projector')).toBeTruthy()
     const departments = panel(/^Compliance by department/)
@@ -146,9 +159,9 @@ describe('course list', () => {
 
     await user.click(screen.getByRole('button', { name: 'Details for Anglický jazyk – kurz' }))
     expect(screen.getByText('Nothing is planned.')).toBeTruthy()
-    const angl = panel(/^A session needs/)
+    const angl = panel(/^Its sessions/)
     expect(within(angl).getByText('Length not set')).toBeTruthy()
-    expect(within(angl).getByText('No group size set')).toBeTruthy()
+    expect(within(angl).getByText('Seats not set')).toBeTruthy()
     expect(within(angl).getByText('Can be held online')).toBeTruthy()
     expect(within(angl).getByText('Nothing special')).toBeTruthy()
     expect(screen.getByText('Nobody active must hold it.')).toBeTruthy()
@@ -184,7 +197,8 @@ describe('course detail', () => {
     // again under compliance by department, as the course's opened row shows it.
     for (const link of screen.getAllByRole('link', { name: 'Laboratoře' }))
       expect(link.getAttribute('href')).toBe('/departments/dep_lab')
-    expect(screen.getByRole('heading', { level: 2, name: 'A session needs' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 2, name: 'Its sessions' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 2, name: 'Offered by' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Vedoucí oddělení' }).getAttribute('href')).toBe(
       '/positions/pos_head'
     )
@@ -304,7 +318,8 @@ describe('new session', () => {
     code: 'BOZP-Z',
     name: 'BOZP – základní školení',
     validityMonths: 24,
-    needs: { sessionMinutes: 180, groupSize: 30, onlineAllowed: false, capabilities: [] },
+    needs: { sessionMinutes: 180, seats: 30, onlineAllowed: false, capabilities: [] },
+    offerings: [INTERNAL, EXTERNAL],
   }
   beforeEach(() => {
     vi.mocked(listCourseOptions).mockResolvedValue([bozp])
@@ -313,7 +328,7 @@ describe('new session', () => {
   it('opens from the course for admins, set to the course’s length and group', async () => {
     signInAs('ADMIN')
     await renderServer(CoursePage(props))
-    expect(screen.getByRole('link', { name: 'New session' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: 'Schedule session' }).getAttribute('href')).toBe(
       '/courses/BOZP-Z/sessions/new'
     )
     cleanup()
@@ -326,26 +341,28 @@ describe('new session', () => {
       screen.getByRole('heading', { level: 1, name: 'New session of BOZP – základní školení' })
     ).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /^Start/ })).toHaveProperty('value', '09:00')
-    expect(screen.getByRole('textbox', { name: /^End/ })).toHaveProperty('value', '12:00')
-    expect(screen.getByRole('textbox', { name: /Capacity/ })).toHaveProperty('value', '30')
+    expect(screen.getByRole('status', { name: /^End/ }).textContent).toBe('12:00')
+    expect(screen.getByRole('textbox', { name: /^Seats/ })).toHaveProperty('value', '30')
     expect(screen.queryByRole('textbox', { name: /Other bookings/ })).toBeNull()
     // The course is chosen already, and can be changed.
     expect(screen.getByRole('combobox', { name: /Course/ }).textContent).toContain('BOZP-Z')
     await expectNoAxeViolations()
   })
 
-  it('falls back to three hours and an empty group, and 404s for an unknown course', async () => {
+  it('says a course with no length cannot end, leaves the seats to set, and 404s for an unknown course', async () => {
     signInAs('ADMIN')
     vi.mocked(listCourseOptions).mockResolvedValue([
-      { ...bozp, needs: { ...bozp.needs, sessionMinutes: null, groupSize: null } },
+      { ...bozp, needs: { ...bozp.needs, sessionMinutes: null, seats: null } },
     ])
     await renderServer(NewSessionPage(props))
-    expect(screen.getByRole('textbox', { name: /^End/ })).toHaveProperty('value', '12:00')
-    expect(screen.getByRole('textbox', { name: /Capacity/ })).toHaveProperty('value', '')
-    vi.mocked(recordExists).mockResolvedValueOnce(false)
-    await expect(NewSessionPage({ params: params({ code: 'NOPE' }) })).rejects.toThrow(
-      NotFoundError
+    expect(screen.getByRole('status', { name: /^End/ }).textContent).toBe(
+      'The course has no length set yet.'
     )
+    expect(screen.getByRole('textbox', { name: /^Seats/ })).toHaveProperty('value', '')
+    vi.mocked(recordExists).mockResolvedValueOnce(false)
+    await expect(
+      NewSessionPage({ params: params({ code: 'NOPE' }), searchParams: params({}) })
+    ).rejects.toThrow(NotFoundError)
   })
 })
 

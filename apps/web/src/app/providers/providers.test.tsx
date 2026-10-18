@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
-import { getProvider, getProviderForEdit, listProviders } from '@muni/db/repositories'
+import {
+  getProvider,
+  getProviderForEdit,
+  listCourseOptions,
+  listProviders,
+} from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -21,6 +26,7 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
   getProvider: vi.fn(),
   getProviderForEdit: vi.fn(),
+  listCourseOptions: vi.fn(),
   listProviders: vi.fn(),
   recordExists: vi.fn(() => Promise.resolve(true)),
 }))
@@ -54,7 +60,19 @@ beforeEach(() => {
     phone: null,
     website: null,
     note: null,
+    isDefault: false,
+    offerings: [{ courseId: 'course_bozp', price: 450 }],
   })
+  vi.mocked(listCourseOptions).mockResolvedValue(
+    ['BOZP-Z', 'GDPR'].map(code => ({
+      id: `course_${code.toLowerCase().replace('-z', '')}`,
+      code,
+      name: code === 'GDPR' ? 'Ochrana osobních údajů' : 'BOZP – základní školení',
+      validityMonths: 24,
+      needs: { sessionMinutes: 120, seats: 20, onlineAllowed: false, capabilities: [] },
+      offerings: [],
+    }))
+  )
 })
 
 describe('provider list', () => {
@@ -134,6 +152,10 @@ describe('provider detail', () => {
     )
     expect(within(marie).getByText('450,50 Kč')).toBeTruthy()
     expect(screen.getByText('Every completion with this provider, 2 in all.')).toBeTruthy()
+    // Its sessions ahead in the sessions' own table, without a column that only repeats it.
+    const upcoming = screen.getByRole('table', { name: 'Upcoming sessions' })
+    expect(within(upcoming).getByRole('button', { name: 'Who is booked on T016' })).toBeTruthy()
+    expect(within(upcoming).queryByRole('columnheader', { name: /Provider/ })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
     await expectNoAxeViolations()
   })

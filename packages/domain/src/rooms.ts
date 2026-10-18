@@ -57,8 +57,13 @@ export interface RoomFacts extends RoomRef {
 }
 
 /** What one session of a course needs from its room. */
+/**
+ * What a session of a course needs from its room, as the course holds it: its seats (the
+ * default; a session may open its own number), whether it may be held online, and the
+ * equipment.
+ */
 export interface SessionNeeds {
-  groupSize: number | null
+  seats: number | null
   onlineAllowed: boolean
   capabilities: readonly Capability[]
 }
@@ -113,27 +118,4 @@ export function roomMismatch(
   seats: number | null
 ): RoomMismatch | null {
   return roomFit(room, needs, seats).mismatch
-}
-
-/** A course's needs as stored: what the sessions import derived, and what the app overrides. */
-export interface StoredNeeds {
-  sessionMinutes: number | null
-  groupSize: number | null
-  onlineAllowed: boolean
-  sessionMinutesOverride: number | null
-  groupSizeOverride: number | null
-  onlineAllowedOverride: boolean | null
-  capabilities: readonly Capability[]
-}
-
-/** What a session of the course needs: each override where the app set one, else the derived value. */
-export function effectiveNeeds(
-  course: StoredNeeds
-): SessionNeeds & { sessionMinutes: number | null } {
-  return {
-    sessionMinutes: course.sessionMinutesOverride ?? course.sessionMinutes,
-    groupSize: course.groupSizeOverride ?? course.groupSize,
-    onlineAllowed: course.onlineAllowedOverride ?? course.onlineAllowed,
-    capabilities: course.capabilities,
-  }
 }

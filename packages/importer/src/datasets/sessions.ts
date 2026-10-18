@@ -52,5 +52,6 @@ export function mapSession(b: RowBuilder): RowMapResult<SessionInput> {
     bookedCount,
     pricePerPerson: b.price('price'),
     status: status(b),
+    providerName: b.text('provider'),
   })
 }

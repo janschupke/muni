@@ -64,7 +64,15 @@ export function withoutArchived<T>(
  * holds then (`ROOM_BUSY`), or leave upcoming sessions in a room that no longer suits them
  * (`ROOM_UNFIT`), as the room and session forms refuse.
  */
-export type CommitRefusal = 'ROOM_BUSY' | 'ROOM_UNFIT'
+export type CommitRefusal =
+  | 'ROOM_BUSY'
+  | 'ROOM_UNFIT'
+  /** A session names a provider there is no (active) record of. */
+  | 'PROVIDER_UNKNOWN'
+  /** A session names a provider that does not offer its course. */
+  | 'PROVIDER_NOT_OFFERING'
+  /** A session names no provider, and no provider is the default. */
+  | 'NO_DEFAULT_PROVIDER'
 
 export class CommitRefusedError extends Error {
   override name = 'CommitRefusedError'

@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { deleteCourses, deleteRooms, unarchiveAll } from '../test/archive'
 import { needing } from '../test/needs'
+import { defaultProviderId, offer } from '../test/providers'
 import { completionOf, courseIdOf } from '../test/records'
 import { createTestUser, deleteTestUser, TEST_USER } from '../test/users'
 import { createDb } from './connect'
@@ -117,8 +118,8 @@ const course = {
   departmentIds: [] as string[],
   positionIds: [] as string[],
   sessionMinutes: 60,
-  groupSize: 10,
-  onlineAllowed: null as boolean | null,
+  seats: 10,
+  onlineAllowed: false,
   capabilities: [] as ('PROJECTOR' | 'COMPUTERS')[],
 }
 
@@ -601,26 +602,33 @@ describe('sessions keep fitting their rooms', () => {
       },
       options
     )
-  const at = { date: '2027-05-03', startTime: '09:00', endTime: '10:00' }
+  // An hour from 09:00 (the test courses are 60 minutes long), by the default provider.
+  const at = { date: '2027-05-03', startTime: '09:00' }
+  let providerId = ''
+  beforeAll(async () => {
+    providerId = await defaultProviderId(db)
+  })
 
   it('re-checks a session whose course or seats change, and the room or course under it', async () => {
     const withProjector = await room('A', { capabilities: ['PROJECTOR'] })
     const bare = await room('B', { capacity: 30 })
     // Required of everyone: the people booked on it below must need it.
     await createCourse(
-      { ...course, code: 'TEST-REC-S', groupSize: null, requiredForAll: true },
+      { ...course, code: 'TEST-REC-S', seats: null, requiredForAll: true },
       options
     )
     await createCourse({ ...course, code: 'TEST-REC-P', capabilities: ['PROJECTOR'] }, options)
     const plain = await courseIdOf(db, 'TEST-REC-S')
     const projected = await courseIdOf(db, 'TEST-REC-P')
+    await offer(db, providerId, plain)
+    await offer(db, providerId, projected)
     const created = await createSession(
       {
         ...at,
+        providerId,
         courseId: plain,
         roomId: withProjector.id,
         capacity: 8,
-        pricePerPerson: null,
       },
       options
     )
@@ -637,11 +645,11 @@ describe('sessions keep fitting their rooms', () => {
     expect(booked.map(b => b.ok)).toEqual([true, true])
     const edit = {
       ...at,
+      providerId,
       courseId: plain,
       roomId: withProjector.id,
       capacity: 8,
       unnamedBookings: 0,
-      pricePerPerson: null,
     }
     // Seats never drop below the bookings, named and unnamed together.
     expect(await updateSession(created.externalId, { ...edit, capacity: 1 }, options)).toEqual({
@@ -701,33 +709,29 @@ describe('sessions keep fitting their rooms', () => {
       await createSession(
         {
           ...at,
+          providerId,
           courseId: plain,
           roomId: online.id,
           capacity: 50,
-          pricePerPerson: null,
         },
         options
       )
     ).toEqual({ ok: false, problem: 'ROOM_ONLINE_NOT_ALLOWED' })
-    await updateCourse('TEST-REC-S', { ...course, groupSize: null, onlineAllowed: true }, options)
+    await updateCourse('TEST-REC-S', { ...course, seats: null, onlineAllowed: true }, options)
     expect(
       await createSession(
         {
           ...at,
+          providerId,
           courseId: plain,
           roomId: online.id,
           capacity: 50,
-          pricePerPerson: null,
         },
         options
       )
     ).toMatchObject({ ok: true })
     expect(
-      await updateCourse(
-        'TEST-REC-S',
-        { ...course, groupSize: null, onlineAllowed: false },
-        options
-      )
+      await updateCourse('TEST-REC-S', { ...course, seats: null, onlineAllowed: false }, options)
     ).toEqual({ ok: false, field: 'onlineAllowed', reason: 'sessions_unfit', count: 1 })
 
     // What the form asks while the user picks: the room is taken then, except by itself.
@@ -743,11 +747,11 @@ describe('sessions keep fitting their rooms', () => {
     const created = await createSession(
       {
         ...at,
+        providerId,
         date: '2027-05-04',
         courseId: await courseIdOf(db, 'TEST-REC-S'),
         roomId: tight.id,
         capacity: 3,
-        pricePerPerson: null,
       },
       options
     )
@@ -765,12 +769,12 @@ describe('sessions keep fitting their rooms', () => {
         created.externalId,
         {
           ...at,
+          providerId,
           date: '2027-05-04',
           courseId: await courseIdOf(db, 'TEST-REC-S'),
           roomId: tight.id,
           capacity: 2,
           unnamedBookings: 0,
-          pricePerPerson: null,
         },
         options
       ),

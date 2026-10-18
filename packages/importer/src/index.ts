@@ -31,4 +31,4 @@ export {
 export { archivedCandidates, validateBatch } from './validate'
 
 /** Commit order: each dataset may reference the ones before it. */
-export const COMMIT_ORDER = ['rooms', 'courses', 'employees', 'sessions', 'completions'] as const
+export const COMMIT_ORDER = ['rooms', 'courses', 'employees', 'completions', 'sessions'] as const

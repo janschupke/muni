@@ -20,7 +20,7 @@ export function CourseFormView({ code }: { code?: string | undefined }) {
             {...formShell({
               action: saveCourse.bind(null, code),
               back: { href: `/courses/${code}`, label: course.name },
-              title: t('forms.course.title', { name: course.name }),
+              title: t('forms.course.editTitle', { name: course.name }),
             })}
             defaults={course}
             departments={departments}
@@ -41,9 +41,8 @@ export function CourseFormView({ code }: { code?: string | undefined }) {
               departmentIds: [],
               positionIds: [],
               sessionMinutes: null,
-              groupSize: null,
-              onlineAllowed: null,
-              derived: { sessionMinutes: null, groupSize: null, onlineAllowed: false },
+              seats: null,
+              onlineAllowed: false,
               capabilities: [],
             }}
             departments={departments}

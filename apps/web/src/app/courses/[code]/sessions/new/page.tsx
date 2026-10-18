@@ -27,14 +27,28 @@ export async function generateMetadata({
   )
 }
 
-export default async function NewSessionPage({ params }: { params: Promise<{ code: string }> }) {
+/** A room or provider to start with (`?room=`, `?provider=`): what the page it came from had. */
+const param = (value: string | string[] | undefined) =>
+  typeof value === 'string' && value.length <= 64 ? value : undefined
+
+export default async function NewSessionPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ code: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const user = await requireAdminPage()
   const { code } = await params
+  const query = await searchParams
   if (!(await recordExists('course', code))) notFound()
   return prefetched(
     user,
     [{ name: 'session-form', input: {} }],
-    <SessionFormView courseCode={code} />,
+    <SessionFormView
+      courseCode={code}
+      prefill={{ room: param(query['room']), provider: param(query['provider']) }}
+    />,
     { form: true }
   )
 }

@@ -17,6 +17,9 @@ export const controlClass =
  * Label, control, help and error. The label wraps nothing: help and error are linked with
  * aria-describedby so they don't leak into the control's accessible name.
  *
+ * `hideLabel` keeps the label for assistive technology only: for a control in a table row,
+ * whose column header names it for sighted users.
+ *
  * In a form that tracks its fields, `name` marks the field (`data-field`) and `dirty` /
  * `touched` say whether it changed or was visited (`data-dirty`, `data-touched`); with
  * `data-invalid` they are there for styles and tests.
@@ -31,8 +34,10 @@ export function Field({
   touched,
   children,
   className,
+  hideLabel = false,
 }: {
   label: ReactNode
+  hideLabel?: boolean | undefined
   help?: ReactNode | undefined
   error?: ReactNode | undefined
   required?: boolean | undefined
@@ -64,7 +69,8 @@ export function Field({
         htmlFor={id}
         className={cn(
           'text-sm font-medium text-fg',
-          required && "after:ml-0.5 after:text-danger-fg after:content-['*']"
+          required && "after:ml-0.5 after:text-danger-fg after:content-['*']",
+          hideLabel && 'sr-only'
         )}
       >
         {label}
@@ -107,6 +113,39 @@ export function Input({
   ...props
 }: Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> & VariantProps<typeof inputClass>) {
   return <input className={cn(inputClass({ size }), className)} {...props} />
+}
+
+/**
+ * A value the form works out from other fields (a session's end, its price), in a field's
+ * place: labelled, with its help and error, at an input's height, but plainly not typed in. An
+ * `<output>`, so a screen reader hears it change as the fields it follows do.
+ */
+export function FieldValue({
+  label,
+  help,
+  error,
+  children,
+  className,
+}: {
+  label: ReactNode
+  help?: ReactNode | undefined
+  error?: ReactNode | undefined
+  children: ReactNode
+  className?: string | undefined
+}) {
+  return (
+    <Field label={label} help={help} error={error} className={className}>
+      {props => (
+        <output
+          id={props.id}
+          aria-describedby={props['aria-describedby']}
+          className="flex min-h-9 items-center text-sm text-fg tabular-nums"
+        >
+          {children}
+        </output>
+      )}
+    </Field>
+  )
 }
 
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {

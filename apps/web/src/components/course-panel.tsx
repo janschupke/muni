@@ -1,11 +1,13 @@
 import type { CourseListItem } from '@muni/db/repositories'
 import { complianceBand, complianceOf } from '@muni/domain/compliance'
+import { Badge } from '@muni/ui/badge'
 import { HeatCell } from '@muni/ui/charts/heat-cell'
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { DetailGrid, DetailPanel } from '@muni/ui/detail-panel'
 import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { TextLink } from '@muni/ui/text-link'
+import { formatCurrency } from '@muni/utils/format'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -45,7 +47,13 @@ export function CoursePanel({ course }: { course: CourseListItem }) {
         )}
       </DetailPanel>
       <DetailPanel title={t('needs')}>
-        <CourseNeeds needs={course.sessionNeeds} />
+        <div className="flex flex-col gap-4">
+          <CourseNeeds needs={course.sessionNeeds} />
+          <div className="flex flex-col gap-1.5">
+            <p className="text-sm font-medium">{t('offeredBy')}</p>
+            <CourseOfferings offerings={course.offerings} />
+          </div>
+        </div>
       </DetailPanel>
       <DetailPanel title={t('byDepartment')} count={course.byDepartment.length}>
         <CourseByDepartment byDepartment={course.byDepartment} />
@@ -62,8 +70,8 @@ export function CourseNeeds({ needs }: { needs: CourseListItem['sessionNeeds'] }
       <DescriptionItem label={t('length')}>
         {needs.minutes === null ? t('noMinutes') : t('minutes', { minutes: needs.minutes })}
       </DescriptionItem>
-      <DescriptionItem label={t('groupSize')}>
-        {needs.groupSize === null ? t('noGroup') : t('group', { size: needs.groupSize })}
+      <DescriptionItem label={t('seats')}>
+        {needs.seats === null ? t('noGroup') : t('group', { size: needs.seats })}
       </DescriptionItem>
       <DescriptionItem label={t('onlineLabel')}>
         {needs.onlineAllowed ? t('onlineYes') : t('onlineNo')}
@@ -72,6 +80,27 @@ export function CourseNeeds({ needs }: { needs: CourseListItem['sessionNeeds'] }
         <CapabilityList capabilities={needs.capabilities} empty={t('noEquipment')} />
       </DescriptionItem>
     </DescriptionList>
+  )
+}
+
+/** Who offers a course, at what price: each provider linking to its page, the default marked. */
+export function CourseOfferings({ offerings }: { offerings: CourseListItem['offerings'] }) {
+  const t = useTranslations('courses.panel')
+  if (offerings.length === 0) return <EmptyState variant="inline" title={t('noOfferings')} />
+  return (
+    <ItemList>
+      {offerings.map(o => (
+        <ItemListRow key={o.providerId}>
+          <span className="flex flex-wrap items-center gap-x-2">
+            <TextLink asChild hitArea>
+              <Link href={`/providers/${o.providerId}`}>{o.providerName}</Link>
+            </TextLink>
+            {o.isDefault && <Badge tone="neutral">{t('defaultProvider')}</Badge>}
+          </span>
+          <span className="tabular-nums">{formatCurrency(o.price)}</span>
+        </ItemListRow>
+      ))}
+    </ItemList>
   )
 }
 

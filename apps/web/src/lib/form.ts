@@ -39,6 +39,10 @@ export type FieldErrorKey =
   | 'last_admin'
   | 'over_capacity'
   | 'attendee_conflict'
+  | 'no_length'
+  | 'not_offered'
+  | 'provider_archived'
+  | 'offering_in_use'
   | 'sessions_unfit'
   | 'not_a_member'
   | 'pair_unknown'
@@ -61,7 +65,7 @@ export type FormState =
       status: 'error'
       fieldErrors: Partial<Record<string, FieldErrorKey>>
       /** What a field's message says besides its key (how many sessions, …). */
-      values?: Partial<Record<string, Record<string, number>>> | undefined
+      values?: Partial<Record<string, Record<string, number | string>>> | undefined
       formError?: FormErrorKey
     }
 
@@ -145,6 +149,23 @@ export function list(form: FormData, key: string): string[] {
   return form.getAll(key).filter(v => typeof v === 'string')
 }
 
+/**
+ * Repeated rows a form posts as `name.0.field`, `name.1.field`, … (`RowsField`), in their
+ * order, each read field by field (`read(form, key)` with the row's own key).
+ */
+export function rows<T>(
+  form: FormData,
+  name: string,
+  read: (field: (key: string) => string) => T
+): T[] {
+  const indexes = new Set<number>()
+  for (const key of form.keys()) {
+    const match = new RegExp(`^${name}\\.(\\d+)\\.`).exec(key)
+    if (match?.[1] !== undefined) indexes.add(Number(match[1]))
+  }
+  return [...indexes].sort((a, b) => a - b).map(i => read(key => `${name}.${String(i)}.${key}`))
+}
+
 const KNOWN = new Set<string>([
   'invalid_type',
   'invalid_format',
@@ -177,6 +198,18 @@ const PATTERNS: Partial<Record<string, FieldErrorKey>> = {
   endTime: 'invalid_time',
 }
 
+/** The value at a field's path in what was parsed (`offerings.2.price`). */
+function valueAt(input: unknown, field: string): unknown {
+  let value: unknown = input
+  for (const key of field.split('.')) {
+    if (value === null || typeof value !== 'object') return undefined
+    value = (value as Record<string, unknown>)[key]
+  }
+  return value
+}
+
+const lastKey = (field: string) => field.split('.').pop() ?? field
+
 /** One zod issue as a message key, with what the message counts (a minimum, a length). */
 function keyOf(
   issue: z.core.$ZodIssue,
@@ -185,13 +218,14 @@ function keyOf(
 ): { key: FieldErrorKey; values?: Record<string, number> } {
   switch (issue.code) {
     case 'invalid_type':
-      if (input[field] == null) return { key: 'required' }
+      if (valueAt(input, field) == null) return { key: 'required' }
       // A number field posts what was typed when it is not a number (`number()`).
       return { key: issue.expected === 'number' ? 'not_a_number' : 'invalid_type' }
     case 'invalid_format':
       return {
         key:
-          (issue.format === 'regex' ? PATTERNS[field] : FORMATS[issue.format]) ?? 'invalid_format',
+          (issue.format === 'regex' ? PATTERNS[lastKey(field)] : FORMATS[issue.format]) ??
+          'invalid_format',
       }
     case 'too_small':
       return issue.origin === 'number'
@@ -225,7 +259,8 @@ export function fieldErrors(error: z.ZodError, input: Record<string, unknown>): 
   const fieldErrors: Record<string, FieldErrorKey> = {}
   const values: Record<string, Record<string, number>> = {}
   for (const issue of error.issues) {
-    const field = String(issue.path[0] ?? 'form')
+    // A row's field is named by its whole path (`offerings.2.price`), as the form posts it.
+    const field = issue.path.length === 0 ? 'form' : issue.path.map(String).join('.')
     if (field in fieldErrors) continue
     const found = keyOf(issue, field, input)
     fieldErrors[field] = found.key
@@ -242,6 +277,9 @@ const PROBLEM_FIELD: Partial<Record<SessionProblem, string>> = {
   ROOM_TOO_SMALL: 'capacity',
   OVER_CAPACITY: 'capacity',
   COURSE_ARCHIVED: 'courseId',
+  NO_LENGTH: 'courseId',
+  NOT_OFFERED: 'providerId',
+  PROVIDER_ARCHIVED: 'providerId',
   ATTENDEE_CONFLICT: 'startTime',
 }
 
@@ -259,7 +297,7 @@ export function sessionProblem(problem: SessionProblem): FormState {
 export function refusedField(
   field: string,
   key: FieldErrorKey,
-  values?: Record<string, number>
+  values?: Record<string, number | string>
 ): FormState {
   return {
     status: 'error',

@@ -6,10 +6,14 @@ import { unarchiveAll } from '../test/archive'
 import { completionOf } from '../test/records'
 import { createDb } from './connect'
 import {
+  archiveImpact,
   createCompletion,
   createProvider,
+  createSession,
   getProvider,
   getProviderForEdit,
+  getSession,
+  listCourseOptions,
   listProviders,
   updateProvider,
 } from './repositories'
@@ -43,16 +47,25 @@ const CREATED = [
   'Zkušební dodavatel s.r.o.',
   'Druhý dodavatel',
   'Třetí dodavatel',
+  'Čtvrtý dodavatel',
 ]
 
-const blank = { companyId: null, email: null, phone: null, website: null, note: null }
+const details = { companyId: null, email: null, phone: null, website: null, note: null }
+/** A provider form with no details, not the default, offering nothing. */
+const blank = { ...details, isDefault: false, offerings: [] }
 
 const cleanUp = async () => {
   await db.courseCompletion.deleteMany({
     where: { externalId: { startsWith: 'A' }, provider: { name: { in: CREATED } } },
   })
+  await db.sessionAssignment.deleteMany({
+    where: { session: { provider: { name: { in: CREATED } } } },
+  })
+  await db.courseSession.deleteMany({ where: { provider: { name: { in: CREATED } } } })
+  await db.providerCourse.deleteMany({ where: { provider: { name: { in: CREATED } } } })
   await db.provider.deleteMany({ where: { name: { in: CREATED } } })
-  await db.provider.updateMany({ data: blank })
+  await db.provider.updateMany({ data: { ...details, isDefault: false } })
+  await db.provider.update({ where: { name: 'Interní školitel' }, data: { isDefault: true } })
   await unarchiveAll(db)
 }
 
@@ -205,6 +218,8 @@ describe('provider records', () => {
         phone: '+420 600 000 000',
         website: 'dodavatel.example',
         note: '  Smlouva do 2027  ',
+        isDefault: false,
+        offerings: [],
       },
       options
     )
@@ -218,6 +233,8 @@ describe('provider records', () => {
       phone: '+420 600 000 000',
       website: 'https://dodavatel.example',
       note: 'Smlouva do 2027',
+      isDefault: false,
+      offerings: [],
     })
     expect(
       await updateProvider(id, { ...blank, name: 'Zkušební dodavatel s.r.o.' }, options)
@@ -255,15 +272,140 @@ describe('provider records', () => {
 
   it('keeps the details entered in the app through a re-import', async () => {
     const internal = await db.provider.findUniqueOrThrow({ where: { name: 'Interní školitel' } })
-    await updateProvider(
-      internal.id,
-      { ...blank, name: 'Interní školitel', email: 'skoleni@vzorova.example' },
-      options
-    )
+    const form = await getProviderForEdit(internal.id, options)
+    if (!form) throw new Error('fixture')
+    await updateProvider(internal.id, { ...form, email: 'skoleni@vzorova.example' }, options)
     await seedFromDirectory(db, DATA_DIR, asOf)
     expect(await getProviderForEdit(internal.id, options)).toMatchObject({
       name: 'Interní školitel',
       email: 'skoleni@vzorova.example',
     })
+  })
+})
+
+describe('what a provider offers', () => {
+  it('saves the courses it offers at their prices, and refuses each course twice', async () => {
+    const [bozp, gdpr] = await Promise.all(
+      ['BOZP-Z', 'GDPR'].map(code => db.course.findFirstOrThrow({ where: { code } }))
+    )
+    if (!bozp || !gdpr) throw new Error('fixture')
+    const created = await createProvider(
+      {
+        ...blank,
+        name: 'Třetí dodavatel',
+        offerings: [
+          { courseId: bozp.id, price: 450 },
+          { courseId: gdpr.id, price: 0 },
+        ],
+      },
+      options
+    )
+    if (!created.ok) throw new Error('not created')
+    expect((await getProviderForEdit(created.id, options))?.offerings).toEqual([
+      { courseId: bozp.id, price: 450 },
+      { courseId: gdpr.id, price: 0 },
+    ])
+    expect(await getProvider(created.id, 'FULL', options)).toMatchObject({
+      offerings: [
+        { code: 'BOZP-Z', price: 450, upcomingSessions: 0 },
+        { code: 'GDPR', price: 0, upcomingSessions: 0 },
+      ],
+      upcoming: [],
+    })
+    // The course list and the session form see it among the course's providers.
+    const options_ = (await listCourseOptions(options)).find(c => c.code === 'BOZP-Z')
+    expect(options_?.offerings).toContainEqual({
+      providerId: created.id,
+      providerName: 'Třetí dodavatel',
+      price: 450,
+      isDefault: false,
+    })
+    // A session it holds keeps the offering it uses: dropping that one is refused.
+    const room = await db.room.findFirstOrThrow({ where: { name: 'Aula A' } })
+    const session = await createSession(
+      {
+        courseId: bozp.id,
+        providerId: created.id,
+        date: '2027-04-06',
+        startTime: '07:00',
+        roomId: room.id,
+        capacity: 10,
+      },
+      options
+    )
+    expect(session).toMatchObject({ ok: true })
+    expect(
+      await updateProvider(
+        created.id,
+        { ...blank, name: 'Třetí dodavatel', offerings: [{ courseId: gdpr.id, price: 0 }] },
+        options
+      )
+    ).toEqual({ ok: false, offeringInUse: { course: bozp.name, count: 1 } })
+    // A new price is saved; the session keeps the one it was scheduled at.
+    expect(
+      await updateProvider(
+        created.id,
+        {
+          ...blank,
+          name: 'Třetí dodavatel',
+          offerings: [{ courseId: bozp.id, price: 500 }],
+        },
+        options
+      )
+    ).toEqual({ ok: true, id: created.id })
+    if (!session.ok) return
+    expect((await getSession(session.externalId, options))?.pricePerPerson).toBe(450)
+    // Its page lists the session ahead, as the sessions list does, and counts it on the offering.
+    expect(await getProvider(created.id, 'FULL', options)).toMatchObject({
+      offerings: [{ code: 'BOZP-Z', upcomingSessions: 1 }],
+      upcoming: [
+        {
+          externalId: session.externalId,
+          courseCode: 'BOZP-Z',
+          provider: { id: created.id, name: 'Třetí dodavatel' },
+          pricePerPerson: 450,
+        },
+      ],
+    })
+    // While it holds a session ahead, it is not archived.
+    expect(await archiveImpact('provider', created.id, options)).toEqual({
+      ok: false,
+      reason: 'IN_USE',
+      count: 1,
+    })
+  })
+
+  it('has one default, which is not archived; making another the default moves it', async () => {
+    const internal = await db.provider.findUniqueOrThrow({ where: { name: 'Interní školitel' } })
+    expect(internal.isDefault).toBe(true)
+    expect(await archiveImpact('provider', internal.id, options)).toEqual({
+      ok: false,
+      reason: 'DEFAULT_PROVIDER',
+      count: 0,
+    })
+    const created = await createProvider(
+      { ...blank, name: 'Čtvrtý dodavatel', isDefault: true },
+      options
+    )
+    if (!created.ok) throw new Error('not created')
+    const defaults = await db.provider.findMany({
+      where: { isDefault: true },
+      select: { id: true },
+    })
+    expect(defaults).toEqual([{ id: created.id }])
+    // At most one, even written past the app.
+    await expect(
+      db.provider.update({ where: { id: internal.id }, data: { isDefault: true } })
+    ).rejects.toMatchObject({ code: 'P2002' })
+    // An offering's price is never below zero.
+    await expect(
+      db.providerCourse.create({
+        data: {
+          providerId: created.id,
+          courseId: (await db.course.findFirstOrThrow({ where: { code: 'ANGL' } })).id,
+          pricePerPerson: -1,
+        },
+      })
+    ).rejects.toThrow(/provider_courses_price_check/)
   })
 })

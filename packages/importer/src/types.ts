@@ -88,16 +88,20 @@ export interface ReferenceSnapshot {
     code: string
     validityMonths: number | null
     /**
-     * What its sessions need from a room, as far as the app has said: equipment, and whether
-     * it may be online (true unless the app said no, since imports derive that from the very
-     * sessions being checked).
+     * What its sessions need from a room: equipment, and whether it may be online (true for a
+     * course whose sessions are not set yet, since an import fills that from the very sessions
+     * being checked).
      */
     needs?: SessionNeeds | undefined
+    /** Providers (by name) that offer it. */
+    offeredBy?: string[] | undefined
   }[]
   employees: { externalId: string; email: string | null; fullName: string }[]
   departments: string[]
   positions: string[]
   providers: string[]
+  /** The provider an imported session that names none goes to; null when there is none. */
+  defaultProvider?: string | null | undefined
   rooms: string[]
   /** What each room offers, by name, for the sessions' room checks. */
   roomFacts?: Omit<RoomFacts, 'id'>[] | undefined

@@ -14,7 +14,7 @@ import { removeAssignmentAction } from '@/server/actions/assignments'
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
 import { expectNoAxeViolations } from '@/test/axe'
-import { advisorInput, AULA_A, ONLINE, session } from '@/test/fixtures'
+import { advisorInput, AULA_A, EXTERNAL, INTERNAL, ONLINE, session } from '@/test/fixtures'
 import { NotFoundError, route, router } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
@@ -84,7 +84,8 @@ beforeEach(() => {
       code: 'BOZP-Z',
       name: 'BOZP – základní školení',
       validityMonths: 24,
-      needs: { sessionMinutes: 180, groupSize: 30, onlineAllowed: true, capabilities: [] },
+      needs: { sessionMinutes: 180, seats: 30, onlineAllowed: true, capabilities: [] },
+      offerings: [INTERNAL, EXTERNAL],
     },
   ])
 })
@@ -401,10 +402,11 @@ describe('session edit', () => {
                 validityMonths: null,
                 needs: {
                   sessionMinutes: 60,
-                  groupSize: 10,
+                  seats: 10,
                   onlineAllowed: false,
                   capabilities: [],
                 },
+                offerings: [INTERNAL],
               },
             ]
           : []

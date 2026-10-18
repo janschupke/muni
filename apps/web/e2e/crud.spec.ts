@@ -129,13 +129,13 @@ test('plans a session with the time picker, books a person, cancels, reinstates 
   await page.getByRole('listbox', { name: 'Hours' }).getByRole('option', { name: '07' }).click()
   await page.getByRole('listbox', { name: 'Minutes' }).getByRole('option', { name: '30' }).click()
   await expect(page.getByRole('textbox', { name: /^Start/ })).toHaveValue('07:30')
-  const end = page.getByRole('textbox', { name: /^End/ })
-  await end.fill('930')
-  await end.blur()
-  await expect(end).toHaveValue('09:30')
+  // The end follows the course's length (GDPR: two hours); the provider brings the price.
+  await expect(page.getByRole('status', { name: /^End/ })).toHaveText('09:30')
+  await page.getByRole('combobox', { name: /Provider/ }).click()
+  await page.getByRole('option', { name: /^Interní školitel/ }).click()
   await page.getByRole('combobox', { name: /Room/ }).click()
   await page.getByRole('option', { name: 'Online' }).click()
-  await page.getByRole('textbox', { name: /Capacity/ }).fill('5')
+  await page.getByRole('textbox', { name: /^Seats/ }).fill('5')
   await save(page).click()
   await expect(page).toHaveURL(/\/sessions\/S\d{3}$/)
 
@@ -284,13 +284,15 @@ test('checks a session’s room and seats as they are typed, and changes its cou
   await page.goto('/sessions/new')
   await page.getByRole('combobox', { name: /Course/ }).click()
   await page.getByRole('option', { name: /^BOZP-Z/ }).click()
+  await page.getByRole('combobox', { name: /Provider/ }).click()
+  await page.getByRole('option', { name: /^Interní školitel/ }).click()
   const date = page.getByRole('textbox', { name: /Date/ })
   await date.fill('12.04.2027')
   await date.blur()
   // A room never changes the seats: they are the user's to type.
   await page.getByRole('combobox', { name: /Room/ }).click()
   await page.getByRole('option', { name: /^Aula A · 40 seats/ }).click()
-  const seats = page.getByRole('textbox', { name: /Capacity/ })
+  const seats = page.getByRole('textbox', { name: /^Seats/ })
   await expect(seats).toHaveValue('')
   await seats.fill('30')
   // A room too small marks both fields, before anything is sent, and keeps the seats.
@@ -334,7 +336,8 @@ test('reviews a planner offer, checks it, then creates the session with its peop
     .click()
   const dialog = page.getByRole('dialog', { name: /^New session: / })
   await expect(dialog).toBeVisible()
-  await dialog.getByRole('textbox', { name: /Price per person/ }).fill('450')
+  // The provider is proposed with its price; the end follows the course's length.
+  await expect(dialog.getByRole('combobox', { name: /Provider/ })).toContainText('Interní školitel')
   await dialog.getByRole('button', { name: 'Check' }).click()
   await expect(dialog.getByText('What will be created')).toBeVisible()
   await dialog.getByRole('button', { name: /^Create session and book / }).click()
@@ -343,7 +346,7 @@ test('reviews a planner offer, checks it, then creates the session with its peop
   await expect(toast).toBeVisible()
   await page.getByRole('link', { name: 'Open session' }).click()
   await expect(page).toHaveURL(/\/sessions\/S\d{3}$/)
-  await expect(page.getByText('450,00 Kč').first()).toBeVisible()
+  await expect(page.getByRole('main').getByRole('link', { name: 'Interní školitel' })).toBeVisible()
 })
 
 /** The Book dialog, once it has read what it books. */
@@ -470,3 +473,206 @@ test('offers on a session’s page only the people who need its course', async (
 })
 
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** Picks an option from a select by its label. */
+const pick = async (page: Page, label: string | RegExp, option: RegExp) => {
+  await page.getByRole('combobox', { name: label }).click()
+  await page.getByRole('option', { name: option }).click()
+}
+
+test('a provider offers courses at prices, holds sessions of them, and stops only when none is ahead', async ({
+  page,
+}) => {
+  await page.goto('/providers/new')
+  await page.getByRole('textbox', { name: 'Name' }).fill('E2E dodavatel')
+  await page.getByRole('button', { name: 'Add a course' }).click()
+  await pick(page, 'Course in row 1', /^GDPR/)
+  await page.getByRole('textbox', { name: /^Price per person for GDPR/ }).fill('300')
+  await page.getByRole('button', { name: 'Add a course' }).click()
+  // A course already listed is not offered again.
+  await page.getByRole('combobox', { name: 'Course in row 2' }).click()
+  await expect(page.getByRole('option', { name: /^GDPR/ })).toHaveCount(0)
+  await page.getByRole('option', { name: /^BOZP-Z/ }).click()
+  await page.getByRole('textbox', { name: /^Price per person for BOZP-Z/ }).fill('400')
+  await save(page).click()
+  await expect(page).toHaveURL(/\/providers\/[^/]+$/)
+  const offered = page.getByRole('table', { name: 'Courses E2E dodavatel offers' })
+  await expect(offered.getByRole('row', { name: /Ochrana osobních údajů/ })).toContainText(
+    /300,00\sKč/
+  )
+
+  // Scheduled from its offering: the course and the provider chosen, the price with them.
+  await page
+    .getByRole('link', {
+      name: 'Schedule a session of Ochrana osobních údajů with E2E dodavatel',
+    })
+    .click()
+  await expect(page.getByRole('combobox', { name: /Provider/ })).toContainText('E2E dodavatel')
+  await expect(page.getByRole('status', { name: 'Price per person' })).toHaveText(/300,00/)
+  const date = page.getByRole('textbox', { name: /Date/ })
+  await date.fill('20.04.2027')
+  await date.blur()
+  await pick(page, /Room/, /^Online/)
+  await page.getByRole('textbox', { name: /^Seats/ }).fill('5')
+  await save(page).click()
+  // Back where the form was opened: the provider, which now holds the session.
+  await expect(page.getByRole('heading', { level: 1, name: 'E2E dodavatel' })).toBeVisible()
+  const main = page.getByRole('main')
+  await expect(
+    offered
+      .getByRole('row', { name: /Ochrana osobních údajů/ })
+      .getByRole('cell', { name: '1', exact: true })
+  ).toBeVisible()
+  await main.getByRole('link', { name: /20\.04\.2027/ }).click()
+  await expect(page).toHaveURL(/\/sessions\/S\d{3}$/)
+  // Its provider among its facts (the way back names it too).
+  const held = page.getByRole('definition').getByRole('link', { name: 'E2E dodavatel' })
+  await expect(held).toBeVisible()
+
+  // While that session is ahead, the course it uses stays offered, and the provider stays.
+  await held.click()
+  await expect(page.getByRole('heading', { level: 1, name: 'E2E dodavatel' })).toBeVisible()
+  await main.getByRole('button', { name: 'Archive', exact: true }).click()
+  const archive = page.getByRole('dialog', { name: /^Archive E2E dodavatel/ })
+  await expect(archive.getByText(/It holds 1 session ahead\./)).toBeVisible()
+  await archive.getByRole('button', { name: 'Keep as is' }).click()
+  await main.getByRole('link', { name: 'Edit', exact: true }).click()
+  await page.getByRole('button', { name: 'Remove GDPR · Ochrana osobních údajů' }).click()
+  await save(page).click()
+  await expect(
+    page.getByText(/^Upcoming sessions of Ochrana osobních údajů are held by this provider \(1\)/)
+  ).toBeVisible()
+  // A new price is saved; the session keeps the one it was scheduled at.
+  await page.goto(page.url())
+  await page.getByRole('textbox', { name: /^Price per person for GDPR/ }).fill('350')
+  await save(page).click()
+  await expect(offered.getByRole('row', { name: /Ochrana osobních údajů/ })).toContainText(
+    /350,00\sKč/
+  )
+  await expectNoViolations(page, 'provider with offerings')
+})
+
+test('a course sets what its sessions are; one is scheduled from its row, by a provider that offers it', async ({
+  page,
+}) => {
+  await page.goto('/courses/new')
+  await page.getByRole('textbox', { name: /Code/ }).fill('e2e-kurz')
+  await page.getByRole('textbox', { name: 'Name' }).fill('E2E kurz')
+  await page.getByRole('textbox', { name: /^Length/ }).fill('90')
+  await page.getByRole('textbox', { name: /^Seats/ }).fill('8')
+  await save(page).click()
+  await expect(page).toHaveURL(/\/courses\/E2E-KURZ$/)
+  // Nobody offers it yet: scheduling stays in place, dimmed, and says why.
+  const blocked = page.getByRole('main').getByRole('button', { name: 'Schedule session' })
+  await expect(blocked).toHaveAttribute('aria-disabled', 'true')
+  await blocked.hover()
+  await expect(page.getByRole('tooltip', { includeHidden: true })).toHaveText(
+    'No provider offers the course: add it to a provider’s offered courses first'
+  )
+
+  // The internal provider offers it now.
+  await page.goto('/providers')
+  await page.getByRole('link', { name: 'Interní školitel' }).first().click()
+  await page.getByRole('main').getByRole('link', { name: 'Edit', exact: true }).click()
+  await page.getByRole('button', { name: 'Add a course' }).click()
+  const rows = page.getByRole('group', { name: 'Offered courses' })
+  const last = rows.getByRole('combobox', { name: /^Course in row/ }).last()
+  await last.click()
+  await page.getByRole('option', { name: /^E2E-KURZ/ }).click()
+  await rows.getByRole('textbox', { name: /^Price per person for E2E-KURZ/ }).fill('0')
+  await save(page).click()
+  await expect(page).toHaveURL(/\/providers\/[^/]+$/)
+
+  // From the course list's row: the form takes the course's length and seats.
+  await page.goto('/courses')
+  await page.getByRole('link', { name: 'Schedule a session of E2E kurz' }).click()
+  await expect(page.getByRole('combobox', { name: /Course/ })).toContainText('E2E-KURZ')
+  await expect(page.getByRole('combobox', { name: /Provider/ })).toContainText('Interní školitel')
+  await expect(page.getByRole('status', { name: /^End/ })).toHaveText('10:30')
+  const seats = page.getByRole('textbox', { name: /^Seats/ })
+  await expect(seats).toHaveValue('8')
+  // Its own seats, fewer than the course's.
+  await seats.fill('6')
+  const date = page.getByRole('textbox', { name: /Date/ })
+  await date.fill('21.04.2027')
+  await date.blur()
+  await pick(page, /Room/, /^Učebna 1/)
+  await save(page).click()
+  // Back on the list it was scheduled from; the course has the session, with its own seats.
+  await expect(page).toHaveURL(/\/courses$/)
+  await page.goto('/courses/E2E-KURZ')
+  const row = page.getByRole('row', { name: /21\.04\.2027/ })
+  await expect(row).toContainText('Učebna 1')
+  await expect(row).toContainText(/0 of 6/)
+})
+
+test('a room holds its seats (an online one none), and schedules a course that fits it', async ({
+  page,
+}) => {
+  await page.goto('/rooms/new')
+  await page.getByRole('textbox', { name: 'Name' }).fill('E2E místnost')
+  // Online: no seats to set.
+  await pick(page, /Kind/, /^Online/)
+  await expect(page.getByRole('textbox', { name: /^Seats/ })).toHaveCount(0)
+  await pick(page, /Kind/, /^Classroom/)
+  await page.getByRole('textbox', { name: /^Seats/ }).fill('40')
+  await page.getByRole('checkbox', { name: 'Projector' }).click()
+  await save(page).click()
+  await expect(page).toHaveURL(/\/rooms\/[^/]+$/)
+  // Its course fit schedules a course here, the room chosen.
+  await page
+    .getByRole('link', { name: 'Schedule a session of BOZP – základní školení in E2E místnost' })
+    .click()
+  await expect(page.getByRole('combobox', { name: /Room/ })).toContainText('E2E místnost')
+  await expect(page.getByRole('combobox', { name: /Course/ })).toContainText('BOZP-Z')
+})
+
+test('books a person, and cancels the booking, from a session’s opened row in the list', async ({
+  page,
+}) => {
+  await page.goto('/sessions?course=BOZP-Z')
+  await page.getByRole('button', { name: 'Who is booked on T018' }).click()
+  const person = page.getByRole('combobox', { name: 'Person to book' })
+  await expect(person).toBeEnabled()
+  await person.click()
+  const option = page.getByRole('option').first()
+  const name = ((await option.textContent()) ?? '').split(' · ')[0] ?? ''
+  await option.click()
+  await page.getByRole('button', { name: 'Book', exact: true }).click()
+  await expect(page.getByText(new RegExp(`^Booked: ${name}`))).toBeVisible()
+  const remove = page.getByRole('button', { name: `Cancel the booking of ${name}` })
+  await expect(remove).toBeVisible()
+  await remove.click()
+  await page
+    .getByRole('dialog', { name: `Remove ${name} from this session?` })
+    .getByRole('button', { name: 'Cancel booking' })
+    .click()
+  await expect(remove).toHaveCount(0)
+})
+
+test('the default provider is not archived; making another the default moves it', async ({
+  page,
+}) => {
+  await page.goto('/providers')
+  await page.getByRole('link', { name: 'Interní školitel' }).first().click()
+  const main = page.getByRole('main')
+  await expect(main.getByText('Default for imported sessions that name no provider')).toBeVisible()
+  await main.getByRole('button', { name: 'Archive', exact: true }).click()
+  const archive = page.getByRole('dialog', { name: /^Archive Interní školitel/ })
+  await expect(archive.getByText(/It is the default provider for imported sessions/)).toBeVisible()
+  await archive.getByRole('button', { name: 'Keep as is' }).click()
+  const internal = page.url()
+
+  await page.goto('/providers/new')
+  await page.getByRole('textbox', { name: 'Name' }).fill('E2E výchozí')
+  await page.getByRole('checkbox', { name: 'Default for imported sessions' }).click()
+  await save(page).click()
+  await expect(main.getByText('Default for imported sessions that name no provider')).toBeVisible()
+  await page.goto(internal)
+  await expect(main.getByText('Default for imported sessions that name no provider')).toHaveCount(0)
+  // Given back, as it was.
+  await main.getByRole('link', { name: 'Edit', exact: true }).click()
+  await page.getByRole('checkbox', { name: 'Default for imported sessions' }).click()
+  await save(page).click()
+  await expect(main.getByText('Default for imported sessions that name no provider')).toBeVisible()
+})

@@ -21,12 +21,28 @@ import type {
 import type { getCourseForEdit, getPlannerInput } from '@muni/db/repositories'
 import type { AdvisorInput } from '@muni/domain/advisor'
 import type { ComplianceCounts } from '@muni/domain/compliance'
+import type { CourseOffering } from '@muni/domain/planner'
 import { type RoomFacts, roomFit, type RoomRef, type SessionNeeds } from '@muni/domain/rooms'
+import { scheduleBlock } from '@muni/domain/sessions'
 
 // Typed builders for repository results, shaped like the seeded register (asOf 2026-10-16).
 // Each takes overrides, so a test states only what it is about.
 
 const AS_OF = '2026-10-16'
+
+/** The default provider, as every seeded course's offering of it. */
+export const INTERNAL: CourseOffering = {
+  providerId: 'prv_internal',
+  providerName: 'Interní školitel',
+  price: 450,
+  isDefault: true,
+}
+export const EXTERNAL: CourseOffering = {
+  providerId: 'prv_external',
+  providerName: 'Externí lektor',
+  price: 600,
+  isDefault: false,
+}
 
 export const AULA_A: RoomRef = { id: 'room_aula_a', name: 'Aula A', kind: 'CLASSROOM' }
 export const ONLINE: RoomRef = { id: 'room_online', name: 'Online', kind: 'ONLINE' }
@@ -43,12 +59,13 @@ export const session = (over: Partial<SessionListItem> = {}): SessionListItem =>
   courseCode: 'BOZP-Z',
   courseName: 'BOZP – základní školení',
   courseArchived: false,
+  provider: { id: INTERNAL.providerId, name: INTERNAL.providerName, archived: false },
   startsAt: '2026-11-04T07:00:00.000Z',
   endsAt: '2026-11-04T10:00:00.000Z',
   room: AULA_A,
   roomSeats: 40,
   roomCapabilities: ['PROJECTOR'],
-  needs: { sessionMinutes: 180, groupSize: 30, onlineAllowed: false, capabilities: ['PROJECTOR'] },
+  needs: { sessionMinutes: 180, seats: 30, onlineAllowed: false, capabilities: ['PROJECTOR'] },
   capacity: 30,
   unnamedBookings: 29,
   bookings: [
@@ -215,7 +232,8 @@ export const courseRow = (over: Partial<CourseListItem> = {}): CourseListItem =>
   upcomingSessions: 2,
   counts: counts(),
   rate: 0.7,
-  sessionNeeds: { minutes: 180, groupSize: 30, onlineAllowed: false, capabilities: ['PROJECTOR'] },
+  sessionNeeds: { minutes: 180, seats: 30, onlineAllowed: false, capabilities: ['PROJECTOR'] },
+  offerings: [INTERNAL, EXTERNAL],
   upcoming: [
     session(),
     session({ externalId: 'T020', room: ONLINE, bookedCount: 12, capacity: 100 }),
@@ -462,10 +480,9 @@ export const courseForEdit = (over: Partial<CourseForEdit> = {}): CourseForEdit 
   requiredForAll: true,
   departmentIds: [],
   positionIds: [],
-  sessionMinutes: null,
-  groupSize: null,
-  onlineAllowed: null,
-  derived: { sessionMinutes: 180, groupSize: 30, onlineAllowed: false },
+  sessionMinutes: 180,
+  seats: 30,
+  onlineAllowed: false,
   capabilities: [],
   ...over,
 })
@@ -489,7 +506,27 @@ export const providerDetail = (over: Partial<ProviderDetail> = {}): ProviderDeta
   phone: '+420 549 49 1111',
   website: 'https://www.vzor.example',
   note: 'Smlouva do 2027',
+  isDefault: false,
   prices: true,
+  offerings: [
+    {
+      courseId: 'course_bozp',
+      code: 'BOZP-Z',
+      name: 'BOZP – základní školení',
+      price: 450,
+      sessionMinutes: 180,
+      upcomingSessions: 1,
+    },
+    {
+      courseId: 'course_angl',
+      code: 'ANGL',
+      name: 'Angličtina',
+      price: 900,
+      sessionMinutes: null,
+      upcomingSessions: 0,
+    },
+  ],
+  upcoming: [session()],
   byCourse: [
     {
       code: 'BOZP-Z',
@@ -549,12 +586,23 @@ const fitOf = (
   room: RoomFacts,
   code: string,
   name: string,
-  needs: Partial<SessionNeeds> & { groupSize: number | null }
-) => ({
-  code,
-  name,
-  fit: roomFit(room, { onlineAllowed: false, capabilities: [], ...needs }, needs.groupSize),
-})
+  needs: Partial<SessionNeeds> & { seats: number | null; sessionMinutes?: number | null }
+) => {
+  const fit = roomFit(room, { onlineAllowed: false, capabilities: [], ...needs }, needs.seats)
+  return {
+    id: `crs_${code}`,
+    code,
+    name,
+    fit,
+    block: scheduleBlock(
+      {
+        sessionMinutes: needs.sessionMinutes === undefined ? 120 : needs.sessionMinutes,
+        offerings: 1,
+      },
+      fit
+    ),
+  }
+}
 
 export const roomDetail = (over: Partial<RoomDetail> = {}): RoomDetail => {
   const room = { ...roomRow(), ...over }
@@ -563,13 +611,13 @@ export const roomDetail = (over: Partial<RoomDetail> = {}): RoomDetail => {
     upcoming: [session()],
     pastCount: 4,
     courses: [
-      fitOf(room, 'BOZP-Z', 'BOZP – základní školení', { groupSize: 30 }),
+      fitOf(room, 'BOZP-Z', 'BOZP – základní školení', { seats: 30 }),
       fitOf(room, 'LAB-BEZ', 'Bezpečná práce v laboratoři', {
-        groupSize: 20,
+        seats: 20,
         capabilities: ['LAB_EQUIPMENT', 'PROJECTOR'],
       }),
-      fitOf(room, 'GDPR', 'Ochrana osobních údajů', { groupSize: 100, onlineAllowed: true }),
-      fitOf(room, 'ANGL', 'Angličtina', { groupSize: null }),
+      fitOf(room, 'GDPR', 'Ochrana osobních údajů', { seats: 100, onlineAllowed: true }),
+      fitOf(room, 'ANGL', 'Angličtina', { seats: null, sessionMinutes: null }),
     ],
     ...room,
   }
@@ -688,22 +736,24 @@ export const plannerInput = (
       code: 'POZ-OCH',
       name: 'Požární ochrana',
       sessionMinutes: 120,
-      groupSize: 40,
+      seats: 40,
       onlineAllowed: false,
       capabilities: ['PROJECTOR'],
       usualStart: '10:00',
       heldIn: [AULA_A.id],
+      offerings: [INTERNAL],
     },
     {
       id: 'course_bozp',
       code: 'BOZP-Z',
       name: 'BOZP – základní školení',
       sessionMinutes: 180,
-      groupSize: 30,
+      seats: 30,
       onlineAllowed: true,
       capabilities: [],
       usualStart: '08:00',
       heldIn: [AULA_A.id],
+      offerings: [INTERNAL],
     },
   ],
   rooms: [

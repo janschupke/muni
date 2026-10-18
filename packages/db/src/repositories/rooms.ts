@@ -1,5 +1,6 @@
 import type { Capability, RoomKind } from '@muni/domain/enums'
 import { type RoomFit, roomFit, UTILISATION_DAYS, WORKING_HOURS } from '@muni/domain/rooms'
+import { type ScheduleBlock, scheduleBlock } from '@muni/domain/sessions'
 import {
   addDays,
   type IsoDate,
@@ -35,8 +36,11 @@ export interface RoomDetail extends RoomListItem {
   upcoming: SessionListItem[]
   /** Sessions held here (cancelled ones not counted). */
   pastCount: number
-  /** Every course, with what a session of it needs beside what this room provides. */
-  courses: { code: string; name: string; fit: RoomFit }[]
+  /**
+   * Every course, with what a session of it needs beside what this room provides, and why a
+   * session of it cannot be scheduled here (null: it can).
+   */
+  courses: { id: string; code: string; name: string; fit: RoomFit; block: ScheduleBlock | null }[]
 }
 
 /** The days utilisation is measured over, and their bounds as instants. */
@@ -136,9 +140,11 @@ export async function getRoom(
     db.course.findMany({
       where: ACTIVE,
       select: {
+        id: true,
         code: true,
         name: true,
         ...needsSelect,
+        _count: { select: { offerings: { where: { provider: ACTIVE } } } },
       },
       orderBy: { code: 'asc' },
     }),
@@ -152,7 +158,14 @@ export async function getRoom(
     pastCount,
     courses: courses.map(c => {
       const needs = needsOf(c)
-      return { code: c.code, name: c.name, fit: roomFit(listed, needs, needs.groupSize) }
+      const fit = roomFit(listed, needs, needs.seats)
+      return {
+        id: c.id,
+        code: c.code,
+        name: c.name,
+        fit,
+        block: scheduleBlock({ ...needs, offerings: c._count.offerings }, fit),
+      }
     }),
   }
 }

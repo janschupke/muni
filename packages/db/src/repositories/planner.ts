@@ -3,6 +3,7 @@ import { toZonedParts } from '@muni/utils/dates'
 
 import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions } from './context'
+import { offeringsInclude, toOffering } from './offerings'
 import { needsOf, needsSelect } from './session-fit'
 
 /** The most frequent value; the smallest one on a tie; null for none. */
@@ -14,7 +15,7 @@ function mostCommon(values: string[]): string | null {
 
 /**
  * What the session planner needs besides the advisor's plan: each course's session needs,
- * usual start and rooms used, every room, and the planned sessions that occupy rooms.
+ * usual start, rooms used and offerings, every room, and the planned sessions that occupy rooms.
  */
 export async function getPlannerInput(
   options?: RepoOptions & { now?: Date }
@@ -29,6 +30,7 @@ export async function getPlannerInput(
         code: true,
         name: true,
         ...needsSelect,
+        offerings: offeringsInclude,
         sessions: {
           where: { ...ACTIVE, status: 'PLANNED', room: ACTIVE },
           select: { startsAt: true, roomId: true },
@@ -60,6 +62,7 @@ export async function getPlannerInput(
       ...needsOf(c),
       usualStart: mostCommon(c.sessions.map(s => toZonedParts(s.startsAt).time)),
       heldIn: [...new Set(c.sessions.map(s => s.roomId))],
+      offerings: c.offerings.map(toOffering),
     })),
     rooms: rooms.map(r => ({ ...r, capabilities: r.capabilities.map(x => x.capability) })),
     sessions: sessions.map(s => ({

@@ -23,15 +23,14 @@ const form = (entries: Record<string, string | string[]>) => {
 }
 
 describe('form specs', () => {
-  it('read a course, its code in capitals and the online choice as an override', () => {
+  it('read a course, its code in capitals and online as a checkbox', () => {
     const course = {
       name: ' BOZP ',
       validityMonths: '24',
       requiredForAll: 'on',
       departmentIds: ['dep_lab'],
       sessionMinutes: '',
-      groupSize: '12',
-      onlineAllowed: 'no',
+      seats: '12',
       capabilities: ['PROJECTOR'],
     }
     expect(parseForm(courseCreateSpec, form({ ...course, code: 'bozp-n' }))).toEqual({
@@ -44,37 +43,94 @@ describe('form specs', () => {
         departmentIds: ['dep_lab'],
         positionIds: [],
         sessionMinutes: null,
-        groupSize: 12,
+        seats: 12,
         onlineAllowed: false,
         capabilities: ['PROJECTOR'],
       },
     })
-    const edited = parseForm(courseEditSpec, form({ ...course, onlineAllowed: 'derived' }))
-    expect(edited.ok && edited.data.onlineAllowed).toBeNull()
-    expect(parseForm(courseEditSpec, form({ ...course, onlineAllowed: 'yes' }))).toMatchObject({
+    expect(parseForm(courseEditSpec, form({ ...course, onlineAllowed: 'on' }))).toMatchObject({
       data: { onlineAllowed: true },
+    })
+    // A length out of bounds says so on the field.
+    expect(parseForm(courseEditSpec, form({ ...course, sessionMinutes: '5' }))).toMatchObject({
+      state: { fieldErrors: { sessionMinutes: 'too_small_number' } },
     })
   })
 
-  it('read a session: unnamed seats only on an edit, none counting as zero', () => {
+  it('read a session: its course, provider, start, room and seats; no end, no price', () => {
     const session = {
       courseId: 'course_bozp',
+      providerId: 'prv_internal',
       date: '2026-11-04',
       startTime: '09:00',
-      endTime: '12:00',
       roomId: 'room_aula_a',
       capacity: '20',
-      pricePerPerson: '1 200 Kč',
-      status: 'PLANNED',
     }
-    expect(parseForm(sessionEditSpec, form(session))).toMatchObject({
+    expect(parseForm(sessionEditSpec, form(session))).toEqual({
       ok: true,
-      data: { unnamedBookings: 0, capacity: 20, pricePerPerson: 1200 },
+      data: {
+        courseId: 'course_bozp',
+        providerId: 'prv_internal',
+        date: '2026-11-04',
+        startTime: '09:00',
+        roomId: 'room_aula_a',
+        capacity: 20,
+        unnamedBookings: 0,
+      },
     })
-    expect(parseForm(sessionCreateSpec, form(session))).toMatchObject({ ok: true })
-    expect(parseForm(sessionCreateSpec, form({ ...session, endTime: '08:00' }))).toEqual({
+    expect(parseForm(sessionCreateSpec, form({ ...session, providerId: '' }))).toEqual({
       ok: false,
-      state: { status: 'error', fieldErrors: { endTime: 'before_start' } },
+      state: { status: 'error', fieldErrors: { providerId: 'required' } },
+    })
+  })
+
+  it('read a provider and the courses it offers, row by row', () => {
+    const provider = {
+      name: 'Externí lektor',
+      'offerings.0.courseId': 'course_bozp',
+      'offerings.0.price': '450,50',
+      'offerings.1.courseId': 'course_gdpr',
+      'offerings.1.price': '0',
+      isDefault: 'on',
+    }
+    expect(parseForm(providerSpec, form(provider))).toMatchObject({
+      ok: true,
+      data: {
+        name: 'Externí lektor',
+        isDefault: true,
+        offerings: [
+          { courseId: 'course_bozp', price: 450.5 },
+          { courseId: 'course_gdpr', price: 0 },
+        ],
+      },
+    })
+    // A row with no course, a price below zero: each on its own field.
+    expect(
+      parseForm(
+        providerSpec,
+        form({ ...provider, 'offerings.2.courseId': '', 'offerings.2.price': '-5' })
+      )
+    ).toEqual({
+      ok: false,
+      state: {
+        status: 'error',
+        fieldErrors: {
+          'offerings.2.courseId': 'required',
+          'offerings.2.price': 'too_small_number',
+        },
+        values: { 'offerings.2.price': { min: 0 } },
+      },
+    })
+    // A course twice: on the second row's course.
+    expect(
+      parseForm(providerSpec, form({ ...provider, 'offerings.1.courseId': 'course_bozp' }))
+    ).toEqual({
+      ok: false,
+      state: { status: 'error', fieldErrors: { 'offerings.1.courseId': 'duplicate' } },
+    })
+    expect(parseForm(providerSpec, form({ name: 'Bez nabídky' }))).toMatchObject({
+      ok: true,
+      data: { offerings: [], isDefault: false },
     })
   })
 

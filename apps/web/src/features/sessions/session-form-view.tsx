@@ -14,14 +14,17 @@ import { newSessionDefaults } from './new-session'
 
 /**
  * The session form: a session to edit (`externalId`), a new one of a course (`courseCode`,
- * from the course's page), or a new one whose course is chosen in the form.
+ * scheduled from a course, a room or a provider, which `prefill`), or a new one whose course
+ * is chosen in the form.
  */
 export function SessionFormView({
   externalId,
   courseCode,
+  prefill,
 }: {
   externalId?: string | undefined
   courseCode?: string | undefined
+  prefill?: { room?: string | undefined; provider?: string | undefined } | undefined
 }) {
   const t = useTranslations()
   const read = useFormRead('session-form', { externalId })
@@ -52,6 +55,8 @@ export function SessionFormView({
               named={session.bookings.length}
               defaults={{
                 courseId: session.courseId,
+                providerId: session.provider.id,
+                providerName: session.provider.name,
                 date: start.date,
                 startTime: start.time,
                 endTime: end.time,
@@ -82,7 +87,7 @@ export function SessionFormView({
             })}
             courses={courses}
             rooms={rooms}
-            defaults={newSessionDefaults(course ?? null)}
+            defaults={newSessionDefaults(course ?? null, prefill)}
           />
         )
       }}

@@ -3,18 +3,19 @@
 import type { RoomOption } from '@muni/db/repositories'
 import type { SessionOffer } from '@muni/domain/planner'
 import type { SessionNeeds } from '@muni/domain/rooms'
-import { sessionIssues } from '@muni/domain/sessions'
+import { sessionEndTime, sessionIssues } from '@muni/domain/sessions'
 import { isWorkingDay, todayIn, zonedTimeToUtc } from '@muni/utils/dates'
 import { formatDate, formatTimeRange, PLACEHOLDER } from '@muni/utils/format'
-import { parseAmount, parseCount } from '@muni/utils/money'
+import { parseCount } from '@muni/utils/money'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 import { useRoomBusy, useRoomMismatchError } from '@/components/form/session-checks'
 
 /**
- * A planner offer as the user edits it before it becomes a session: the day, times, room,
- * seats, price and who is booked, with what is wrong (errors, which stop the check) and what
+ * A planner offer as the user edits it before it becomes a session: the day, start, room,
+ * seats, provider and who is booked (the end follows the course's length, the price the
+ * provider's offering), with what is wrong (errors, which stop the check) and what
  * is worth knowing (warnings: a day off, a date after the due date), checked as the user
  * types by the same rules as the session form. `onEdit` runs on every change: the review
  * starts over.
@@ -27,26 +28,28 @@ export function useOfferDraft(
   const t = useTranslations('planner.review')
   const te = useTranslations('forms.errors')
   const needs: SessionNeeds = {
-    groupSize: offer.course.groupSize,
+    seats: offer.course.seats,
     onlineAllowed: offer.course.onlineAllowed,
     capabilities: offer.course.capabilities,
   }
   const [date, setDate] = useState(offer.slot?.date ?? '')
   const [startTime, setStartTime] = useState(offer.slot?.startTime ?? '')
-  const [endTime, setEndTime] = useState(offer.slot?.endTime ?? '')
   const [roomId, setRoomId] = useState(offer.room?.id ?? '')
   const [capacity, setCapacity] = useState(String(offer.capacity ?? offer.size))
-  const [price, setPrice] = useState('')
+  const [providerId, setProviderId] = useState(offer.offering?.providerId ?? '')
   const [people, setPeople] = useState<ReadonlySet<string>>(
     () => new Set(offer.people.map(p => p.externalId))
   )
 
   const room = rooms.find(r => r.id === roomId)
   const seats = parseCount(capacity)
-  const pricePerPerson = parseAmount(price)
+  const minutes = offer.course.sessionMinutes
+  const end = startTime && minutes !== null ? sessionEndTime(startTime, minutes) : null
+  const endTime = end?.time ?? ''
+  const offering = offer.course.offerings.find(o => o.providerId === providerId)
   const issues = sessionIssues({
-    startTime,
-    endTime,
+    minutes,
+    offered: providerId ? offering !== undefined : undefined,
     capacity: seats,
     booked: people.size,
     planned: true,
@@ -54,7 +57,7 @@ export function useOfferDraft(
     needs,
   })
   const busy = useRoomBusy(
-    room !== undefined && room.kind !== 'ONLINE' && date !== '' && endTime > startTime
+    room !== undefined && room.kind !== 'ONLINE' && date !== '' && end && !end.nextDay
       ? { roomId, date, startTime, endTime }
       : null,
     null
@@ -66,7 +69,11 @@ export function useOfferDraft(
 
   const errors = {
     date: date !== '' && date < todayIn() ? te('in_past') : undefined,
-    endTime: issues.some(i => i.kind === 'END_BEFORE_START') ? te('before_start') : undefined,
+    endTime: issues.some(i => i.kind === 'NO_LENGTH')
+      ? te('no_length')
+      : end?.nextDay
+        ? t('pastMidnight')
+        : undefined,
     roomId: unfit ? te(unfit.key, unfit.values) : busy ? te('room_busy') : undefined,
     // Too few seats in the room: fewer seats settle it as well as another room.
     capacity:
@@ -77,7 +84,12 @@ export function useOfferDraft(
           : unfit && mismatch?.kind === 'ROOM' && mismatch.mismatch.kind === 'TOO_SMALL'
             ? te(unfit.key, unfit.values)
             : undefined,
-    price: pricePerPerson === undefined ? te('not_a_number') : undefined,
+    providerId:
+      providerId === ''
+        ? te('required')
+        : issues.some(i => i.kind === 'NOT_OFFERED')
+          ? te('not_offered')
+          : undefined,
   }
   const valid = date !== '' && room !== undefined && Object.values(errors).every(e => !e)
 
@@ -95,14 +107,13 @@ export function useOfferDraft(
 
   return {
     needs,
-    values: { date, startTime, endTime, roomId, capacity, price, people },
+    values: { date, startTime, endTime, roomId, capacity, providerId, people },
     set: {
       date: changing(setDate),
       startTime: changing(setStartTime),
-      endTime: changing(setEndTime),
       roomId: changing(setRoomId),
       capacity: changing(setCapacity),
-      price: changing(setPrice),
+      providerId: changing(setProviderId),
       person: changing(({ externalId, on }: { externalId: string; on: boolean }) => {
         setPeople(current => {
           const next = new Set(current)
@@ -114,13 +125,14 @@ export function useOfferDraft(
     },
     room,
     seats,
-    pricePerPerson,
+    /** The chosen provider's price for the course; null with none chosen. */
+    pricePerPerson: offering?.price ?? null,
     errors,
     valid,
     warnings,
     chosen: offer.people.filter(p => people.has(p.externalId)),
     when:
-      date && startTime && endTime
+      date && startTime && end && !end.nextDay
         ? formatTimeRange(
             zonedTimeToUtc(date, startTime).toISOString(),
             zonedTimeToUtc(date, endTime).toISOString()
@@ -130,12 +142,11 @@ export function useOfferDraft(
     request: (dryRun: boolean) => ({
       session: {
         courseId: offer.course.id,
+        providerId,
         date,
         startTime,
-        endTime,
         roomId,
         capacity: seats ?? 0,
-        pricePerPerson: pricePerPerson ?? null,
       },
       people: [...people],
       dryRun,

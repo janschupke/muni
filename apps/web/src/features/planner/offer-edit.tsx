@@ -5,11 +5,11 @@ import type { SessionOffer } from '@muni/domain/planner'
 import { Alert } from '@muni/ui/alert'
 import { Checkbox } from '@muni/ui/checkbox'
 import { DatePicker } from '@muni/ui/date-picker'
-import { Field, FieldRow, Input } from '@muni/ui/field'
+import { Field, FieldRow, FieldValue, Input } from '@muni/ui/field'
 import { Select } from '@muni/ui/select'
 import { TimePicker } from '@muni/ui/time-picker'
 import { todayIn } from '@muni/utils/dates'
-import { currencySymbol, formatDate } from '@muni/utils/format'
+import { formatCurrency, formatDate } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { useDateLabels, useRoomLabel, useTimeLabels } from '@/components/form/session-fields'
@@ -102,16 +102,17 @@ export function OfferEdit({
             />
           )}
         </Field>
-        <Field label={tf('endTime')} required error={errors.endTime}>
-          {control => (
-            <TimePicker
-              {...control}
-              value={values.endTime}
-              onValueChange={set.endTime}
-              labels={timeLabels(tf('endTime'))}
-            />
-          )}
-        </Field>
+        <FieldValue
+          label={tf('endTime')}
+          error={errors.endTime}
+          help={
+            offer.course.sessionMinutes === null
+              ? undefined
+              : tf('endHelp', { minutes: offer.course.sessionMinutes })
+          }
+        >
+          {values.endTime}
+        </FieldValue>
       </FieldRow>
       <FieldRow>
         <Field label={tf('capacity')} required error={errors.capacity}>
@@ -126,16 +127,19 @@ export function OfferEdit({
             />
           )}
         </Field>
-        <Field label={tf('pricePerPerson', { currency: currencySymbol() })} error={errors.price}>
+        <Field label={tf('provider')} required error={errors.providerId}>
           {control => (
-            <Input
+            <Select
               {...control}
-              inputMode="decimal"
-              placeholder="0"
-              value={values.price}
-              onChange={event => {
-                set.price(event.target.value)
-              }}
+              value={values.providerId}
+              onValueChange={set.providerId}
+              options={offer.course.offerings.map(o => ({
+                value: o.providerId,
+                label: tf(o.isDefault ? 'providerOptionDefault' : 'providerOption', {
+                  name: o.providerName,
+                  price: formatCurrency(o.price),
+                }),
+              }))}
             />
           )}
         </Field>

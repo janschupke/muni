@@ -1,16 +1,20 @@
 import type { Role } from '@muni/domain/enums'
-import { type ProviderInput, providerSchema } from '@muni/domain/schemas'
+import { type ProviderEdit, providerEditSchema } from '@muni/domain/schemas'
 import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
 
 import { Prisma } from '../generated/prisma/client'
 import { ACTIVE, isArchived, type PersonRef, personSelect, toPersonRef } from './archive'
 import { dbOf, getPolicy, type RepoOptions, toAmount } from './context'
+import type { SessionListItem } from './courses'
 import { isPrismaCode } from './errors'
+import { lockSessionWrites } from './session-fit'
+import { listSessions, upcomingSessionWhere } from './sessions'
 
-// Training providers: who delivered the completions on record, with their contact details
-// and what was done with them. Prices follow the sanitisation policy for `completion.price`:
-// a role that may not see a completion's price sees no sums of them either.
+// Training providers: who holds sessions and delivered the completions on record, with their
+// contact details, what they offer and what was done with them. Prices follow the sanitisation
+// policy for `completion.price`: a role that may not see a completion's price sees no sums of
+// them either.
 
 /** What was done with a provider, across all its completions or one course's. */
 export interface ProviderTotals {
@@ -34,12 +38,31 @@ export interface ProviderList {
   prices: boolean
 }
 
+/** A course a provider offers, at its price, with what is planned of it. */
+interface ProviderOffering {
+  courseId: string
+  code: string
+  name: string
+  price: number
+  /** The course's length: none set, nothing can be scheduled. */
+  sessionMinutes: number | null
+  /** The course's upcoming sessions this provider holds. */
+  upcomingSessions: number
+}
+
 export interface ProviderDetail extends ProviderListItem {
   email: string | null
   phone: string | null
   website: string | null
   note: string | null
+  /** Holds imported sessions that name no provider. */
+  isDefault: boolean
   prices: boolean
+  /** The courses it offers, by code. */
+  offerings: ProviderOffering[]
+  /** Its sessions still ahead (or under way), soonest first. */
+  /** Planned sessions it holds that are still ahead (cancelled ones are not listed). */
+  upcoming: SessionListItem[]
   /** Per course, most completions first. */
   byCourse: (ProviderTotals & { code: string; name: string })[]
   /** Every completion with it, newest first (its page pages them). */
@@ -139,7 +162,8 @@ export async function getProvider(
 ): Promise<ProviderDetail | null> {
   const db = dbOf(options)
   const prices = pricesVisible(role)
-  const [provider, [total = NONE], perCourse, recent] = await Promise.all([
+  const now = new Date()
+  const [provider, [total = NONE], perCourse, recent, upcoming] = await Promise.all([
     db.provider.findFirst({
       where: { id, ...ACTIVE },
       select: {
@@ -150,6 +174,15 @@ export async function getProvider(
         phone: true,
         website: true,
         note: true,
+        isDefault: true,
+        offerings: {
+          where: { course: ACTIVE },
+          select: {
+            pricePerPerson: true,
+            course: { select: { id: true, code: true, name: true, sessionMinutes: true } },
+          },
+          orderBy: { course: { code: 'asc' } },
+        },
       },
     }),
     totalsByProvider(options, id),
@@ -167,14 +200,25 @@ export async function getProvider(
         course: { select: { code: true, name: true, archivedAt: true } },
       },
     }),
+    listSessions({ window: 'upcoming', provider: id, status: 'PLANNED' }, { ...options, now }),
   ])
   if (!provider) return null
+  const { offerings, ...record } = provider
   return {
-    ...provider,
+    ...record,
     ...totalsOf(total, prices),
     courses: total.courses,
     prices,
     byCourse: perCourse.map(row => ({ code: row.code, name: row.name, ...totalsOf(row, prices) })),
+    offerings: offerings.map(o => ({
+      courseId: o.course.id,
+      code: o.course.code,
+      name: o.course.name,
+      price: toAmount(o.pricePerPerson) ?? 0,
+      sessionMinutes: o.course.sessionMinutes,
+      upcomingSessions: upcoming.filter(s => s.courseCode === o.course.code).length,
+    })),
+    upcoming,
     completionList: recent.map(c => ({
       id: c.id,
       externalId: c.externalId,
@@ -189,8 +233,8 @@ export async function getProvider(
   }
 }
 
-export function getProviderForEdit(id: string, options?: RepoOptions) {
-  return dbOf(options).provider.findFirst({
+export async function getProviderForEdit(id: string, options?: RepoOptions) {
+  const provider = await dbOf(options).provider.findFirst({
     where: { id, ...ACTIVE },
     select: {
       id: true,
@@ -200,27 +244,97 @@ export function getProviderForEdit(id: string, options?: RepoOptions) {
       phone: true,
       website: true,
       note: true,
+      isDefault: true,
+      // An archived course's offering stays for when it comes back; the form leaves it alone.
+      offerings: {
+        where: { course: ACTIVE },
+        select: { courseId: true, pricePerPerson: true },
+        orderBy: { course: { code: 'asc' } },
+      },
     },
   })
+  if (!provider) return null
+  return {
+    ...provider,
+    offerings: provider.offerings.map(o => ({
+      courseId: o.courseId,
+      price: toAmount(o.pricePerPerson) ?? 0,
+    })),
+  }
 }
 
-/** A saved provider, or the unique field another provider already holds. */
-export type ProviderWrite = { ok: true; id: string } | { ok: false; taken: 'name' | 'companyId' }
+/**
+ * A saved provider; or the unique field another provider already holds; or an offering the
+ * form dropped that upcoming sessions of the provider still use (its course and how many).
+ */
+export type ProviderWrite =
+  | { ok: true; id: string }
+  | { ok: false; taken: 'name' | 'companyId' }
+  | { ok: false; offeringInUse: { course: string; count: number } }
 
+class OfferingInUse extends Error {
+  constructor(
+    readonly course: string,
+    readonly count: number
+  ) {
+    super(`offering of ${course} in use by ${String(count)} sessions`)
+  }
+}
+
+/**
+ * Saves a provider and the courses it offers, under the sessions lock: an offering dropped
+ * while upcoming sessions of the provider use it is refused, and making it the default takes
+ * that from whichever provider had it. A changed price applies to sessions scheduled from now
+ * on; those scheduled keep theirs.
+ */
 async function writeProvider(
   id: string | null,
-  input: ProviderInput,
+  input: ProviderEdit,
   options: RepoOptions | undefined
 ): Promise<ProviderWrite> {
-  const parsed = providerSchema.parse(input)
-  const data = { ...parsed, note: cleanFreeText(parsed.note) }
+  const { offerings, isDefault, ...fields } = providerEditSchema.parse(input)
+  const data = { ...fields, note: cleanFreeText(fields.note), isDefault }
   const db = dbOf(options)
   try {
-    const saved = id
-      ? await db.provider.update({ where: { id, ...ACTIVE }, data, select: { id: true } })
-      : await db.provider.create({ data, select: { id: true } })
-    return { ok: true, id: saved.id }
+    return await db.$transaction(async tx => {
+      await lockSessionWrites(tx)
+      if (isDefault)
+        await tx.provider.updateMany({
+          where: { isDefault: true, ...(id && { id: { not: id } }) },
+          data: { isDefault: false },
+        })
+      const saved = id
+        ? await tx.provider.update({ where: { id, ...ACTIVE }, data, select: { id: true } })
+        : await tx.provider.create({ data, select: { id: true } })
+      const kept = offerings.map(o => o.courseId)
+      const dropped = await tx.providerCourse.findMany({
+        where: { providerId: saved.id, courseId: { notIn: kept }, course: ACTIVE },
+        select: { courseId: true, course: { select: { name: true } } },
+      })
+      for (const offering of dropped) {
+        const count = await tx.courseSession.count({
+          where: {
+            providerId: saved.id,
+            courseId: offering.courseId,
+            ...upcomingSessionWhere(new Date()),
+          },
+        })
+        if (count > 0) throw new OfferingInUse(offering.course.name, count)
+      }
+      await tx.providerCourse.deleteMany({
+        where: { providerId: saved.id, courseId: { in: dropped.map(d => d.courseId) } },
+      })
+      for (const o of offerings)
+        await tx.providerCourse.upsert({
+          where: { providerId_courseId: { providerId: saved.id, courseId: o.courseId } },
+          create: { providerId: saved.id, courseId: o.courseId, pricePerPerson: o.price },
+          update: { pricePerPerson: o.price },
+        })
+      return { ok: true as const, id: saved.id }
+    })
   } catch (error) {
+    if (error instanceof OfferingInUse)
+      return { ok: false, offeringInUse: { course: error.course, count: error.count } }
     if (!isPrismaCode(error, 'P2002')) throw error
     // Name and IČO are the unique fields: the IČO is taken when someone else holds it.
     const holder =
@@ -233,12 +347,12 @@ async function writeProvider(
   }
 }
 
-export const createProvider = (input: ProviderInput, options?: RepoOptions) =>
+export const createProvider = (input: ProviderEdit, options?: RepoOptions) =>
   writeProvider(null, input, options)
 
 /**
- * Saves a provider's details; a new name renames it everywhere its completions show. An
- * unknown or archived id throws P2025.
+ * Saves a provider's details and offerings; a new name renames it everywhere its completions
+ * and sessions show. An unknown or archived id throws P2025.
  */
-export const updateProvider = (id: string, input: ProviderInput, options?: RepoOptions) =>
+export const updateProvider = (id: string, input: ProviderEdit, options?: RepoOptions) =>
   writeProvider(id, input, options)

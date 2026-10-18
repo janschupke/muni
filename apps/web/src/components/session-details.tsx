@@ -12,7 +12,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 
-import { PersonLink } from './archived'
+import { PersonLink, RecordLink } from './archived'
 import { OrgLink } from './org-links'
 import { SeatMeter } from './seat-meter'
 import { RoomLink } from './session-links'
@@ -41,7 +41,7 @@ export function SessionFacts({
   const unfit = roomMismatch(room, s.needs, s.capacity)
   const needs = [
     ...(s.needs.sessionMinutes === null ? [] : [t('minutes', { count: s.needs.sessionMinutes })]),
-    ...(s.needs.groupSize === null ? [] : [t('groupSize', { count: s.needs.groupSize })]),
+    ...(s.needs.seats === null ? [] : [t('courseSeats', { count: s.needs.seats })]),
     ...(s.needs.onlineAllowed ? [t('canBeOnline')] : []),
     ...(s.needs.capabilities.length > 0
       ? [t('equipment', { list: s.needs.capabilities.map(c => tcap(c)).join(', ') })]
@@ -57,6 +57,11 @@ export function SessionFacts({
         </DescriptionItem>
       )}
       <DescriptionItem label={t('when')}>{formatTimeRange(s.startsAt, s.endsAt)}</DescriptionItem>
+      <DescriptionItem label={t('provider')}>
+        <RecordLink href={`/providers/${s.provider.id}`} archived={s.provider.archived}>
+          {s.provider.name}
+        </RecordLink>
+      </DescriptionItem>
       <DescriptionItem label={t('room')}>
         <span className="flex flex-col gap-0.5">
           <span>

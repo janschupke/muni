@@ -52,6 +52,7 @@ export const COLUMNS = {
     { key: 'bookedCount', csvHeaders: ['obsazeno', 'booked'] },
     { key: 'price', csvHeaders: ['cena_na_osobu', 'price_per_person', 'price'] },
     { key: 'status', csvHeaders: ['stav', 'status'] },
+    { key: 'provider', csvHeaders: ['poskytovatel', 'provider'] },
   ],
   completions: [
     { key: 'externalId', csvHeaders: ['id_zaznamu', 'record_id'], required: true },
