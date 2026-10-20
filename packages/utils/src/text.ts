@@ -1,3 +1,12 @@
+/**
+ * Czech collation for sorting what people read: case and accents count only as a last resort
+ * (`sensitivity: 'base'` ties them), numbers by value ("Učebna 2" before "Učebna 10").
+ */
+export const czechCollator = new Intl.Collator('cs', { numeric: true, sensitivity: 'base' })
+
+/** `a.localeCompare(b, 'cs')`, made once: Czech order, case and accents breaking ties. */
+export const compareCs = new Intl.Collator('cs').compare
+
 /** Collapses runs of whitespace (incl. NBSP) into one space and trims. */
 export function collapseWhitespace(value: string): string {
   return value.replace(/[\s\u00a0]+/g, ' ').trim()
@@ -30,7 +39,7 @@ export function isFormulaLike(value: string): boolean {
  * Neutralises spreadsheet-formula payloads in free text (CSV injection).
  * The text is kept; only the leading trigger characters are removed.
  */
-export function neutralizeFormula(value: string): string {
+function neutralizeFormula(value: string): string {
   return value.trimStart().replace(/^[=+\-@\t\r]+/, '')
 }
 

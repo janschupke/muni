@@ -1,5 +1,6 @@
 export {
   committable,
+  countCommittable,
   editCell,
   type ImportContext,
   mapRow,
@@ -12,8 +13,10 @@ export {
 } from './batch'
 export { COLUMNS } from './columns'
 export { ISSUE_CODES, type IssueCode, SKIPPING_CODES } from './issues'
+export { isCommitted, type RowState, rowState } from './row-state'
 export {
   type ArchivedKeys,
+  COMMIT_ORDER,
   DATASET_KINDS,
   type DatasetKind,
   type DatasetRecord,
@@ -29,6 +32,3 @@ export {
   type ValidationSummary,
 } from './types'
 export { archivedCandidates, validateBatch } from './validate'
-
-/** Commit order: each dataset may reference the ones before it. */
-export const COMMIT_ORDER = ['rooms', 'courses', 'employees', 'completions', 'sessions'] as const

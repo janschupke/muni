@@ -1,10 +1,12 @@
 import {
   addDays,
+  intervalsOverlap,
   type IsoDate,
   isWorkingDay,
   toZonedParts,
   zonedTimeToUtc,
 } from '@muni/utils/dates'
+import { compareCs } from '@muni/utils/text'
 
 import { needsNewSession, NOW, type PlanItem } from './advisor'
 import type { Capability } from './enums'
@@ -32,7 +34,7 @@ import { type RoomFacts, roomMismatch, type RoomRef } from './rooms'
  */
 
 /** Already lapsed or never held: wanted within this many days. */
-export const PLAN_NOW_DAYS = 14
+const PLAN_NOW_DAYS = 14
 /** How far ahead the planner looks for a free slot. */
 export const PLAN_HORIZON_DAYS = 120
 export const DEFAULT_START = '09:00'
@@ -54,7 +56,7 @@ export function proposedOffering(offerings: readonly CourseOffering[]): CourseOf
   return (
     offerings.find(o => o.isDefault) ??
     offerings.toSorted(
-      (a, b) => a.price - b.price || a.providerName.localeCompare(b.providerName, 'cs')
+      (a, b) => a.price - b.price || compareCs(a.providerName, b.providerName)
     )[0] ??
     null
   )
@@ -150,10 +152,11 @@ export interface SessionOffer {
   problem: OfferProblem | null
 }
 
+// ISO instants in one format order as the time does.
 const overlaps = (
   a: { startsAt: string; endsAt: string },
   b: { startsAt: string; endsAt: string }
-) => a.startsAt < b.endsAt && b.startsAt < a.endsAt
+) => intervalsOverlap({ start: a.startsAt, end: a.endsAt }, { start: b.startsAt, end: b.endsAt })
 
 /** The slot on `date`, or null when it would run past midnight. */
 function slotOn(date: IsoDate, start: string, minutes: number): Slot | null {
@@ -183,7 +186,7 @@ function noRoomProblem(
   const equipped = physical.filter(r => lacking(r).length === 0)
   if (equipped.length === 0) {
     const closest = physical.toSorted(
-      (a, b) => lacking(a).length - lacking(b).length || a.name.localeCompare(b.name, 'cs')
+      (a, b) => lacking(a).length - lacking(b).length || compareCs(a.name, b.name)
     )[0] as RoomFacts
     return { kind: 'NO_ROOM_WITH', missing: lacking(closest) }
   }
@@ -234,7 +237,7 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
   for (const group of ordered) {
     const { course } = group
     const people = group.people.toSorted(
-      (a, b) => (a.lapses ?? '').localeCompare(b.lapses ?? '') || a.name.localeCompare(b.name, 'cs')
+      (a, b) => (a.lapses ?? '').localeCompare(b.lapses ?? '') || compareCs(a.name, b.name)
     )
     const minutes = course.sessionMinutes
     const offering = proposedOffering(course.offerings)
@@ -295,7 +298,7 @@ export function planSessions(input: PlannerInput): SessionOffer[] {
           (a, b) =>
             Number(course.heldIn.includes(b.id)) - Number(course.heldIn.includes(a.id)) ||
             (a.capacity ?? Number.POSITIVE_INFINITY) - (b.capacity ?? Number.POSITIVE_INFINITY) ||
-            a.name.localeCompare(b.name, 'cs')
+            compareCs(a.name, b.name)
         )
       if (valid.length === 0) {
         offers.push(unplaced(noRoomProblem(course, input.rooms, size)))

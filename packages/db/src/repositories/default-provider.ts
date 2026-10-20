@@ -1,3 +1,4 @@
+import { compareCs } from '@muni/utils/text'
 import { fold } from '@muni/utils/text'
 
 import type { Tx } from '../client'
@@ -23,7 +24,7 @@ export async function chooseDefaultProvider(tx: Tx): Promise<string | null> {
       (a, b) =>
         Number(fold(b.name) === internal) - Number(fold(a.name) === internal) ||
         b._count.completions - a._count.completions ||
-        a.name.localeCompare(b.name, 'cs')
+        compareCs(a.name, b.name)
     )[0]?.id ?? null
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { canBookNow } from '@muni/domain/advisor'
+import { countBookable } from '@muni/domain/advisor'
 import { displayName } from '@muni/domain/names'
 import { Button } from '@muni/ui/button'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
@@ -59,7 +59,7 @@ function EmployeeDetail({
   const locale = useLocale()
   const name = displayName(employee)
   const date = (value: string | null) => formatOptional(value, v => formatDate(v))
-  const toBook = employee.requirements.filter(r => canBookNow(r, employee.status)).length
+  const toBook = countBookable(employee.requirements, employee.status)
   const person = { externalId: employee.externalId, name, status: employee.status }
 
   return (

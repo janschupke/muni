@@ -1,6 +1,6 @@
 'use client'
 
-import { type Bucket, forecastEnd, NOW, type PlanItem } from '@muni/domain/advisor'
+import { type Bucket, forecastEnd, NOW, type PlanItem, UPCOMING } from '@muni/domain/advisor'
 import { DataTable, type TablePaging } from '@muni/ui/data-table'
 import { EmptyState } from '@muni/ui/empty-state'
 import { SectionHeading } from '@muni/ui/section-heading'
@@ -14,7 +14,7 @@ import { itemId } from '@/features/bookings/book-dialog'
 
 import { useBookSelection } from './book-selection'
 import { col, usePlanColumns } from './columns'
-import { RemediationBadge, UPCOMING, useBucketName } from './labels'
+import { RemediationBadge, useBucketName } from './labels'
 
 /**
  * One bucket's trainings (or the whole forecast's): who, which, when it lapses, what is being

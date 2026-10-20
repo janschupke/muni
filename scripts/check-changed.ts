@@ -353,7 +353,12 @@ function main(argv: string[]): number {
     // One at a time: the suites share the test database and the machine.
     for (const c of plan.checks) {
       say(`\n▶ ${c.label}  (${c.reason})`)
-      const run = spawnSync(c.command, c.args, { cwd: path.join(root, c.cwd), stdio: 'inherit' })
+      // Through sh: package-manager shims are scripts a bare exec can refuse (ENOEXEC).
+      const run = spawnSync('sh', ['-c', 'exec "$0" "$@"', c.command, ...c.args], {
+        cwd: path.join(root, c.cwd),
+        stdio: 'inherit',
+      })
+      if (run.error) say(`check:changed: could not run ${c.label}: ${run.error.message}`)
       if (run.status !== 0) failed.push(c.label)
     }
   }

@@ -2,13 +2,7 @@ import { todayIn } from '@muni/utils/dates'
 import { isCompanyId } from '@muni/utils/text'
 import * as z from 'zod'
 
-import {
-  CAPABILITIES,
-  EMPLOYMENT_STATUSES,
-  REQUIREMENT_SCOPES,
-  ROOM_KINDS,
-  SESSION_STATUSES,
-} from './enums'
+import { CAPABILITIES, EMPLOYMENT_STATUSES, ROOM_KINDS, SESSION_STATUSES } from './enums'
 import { SESSION_MINUTES } from './sessions'
 
 // Normalised records. The importer produces them; the server re-validates them on commit;
@@ -21,13 +15,13 @@ const trimmed = (max: number) => z.string().trim().min(1).max(max)
 const optionalText = (max: number) => z.string().trim().max(max).nullable()
 const money = z.number().min(0).max(1_000_000).nullable()
 
-export const courseCodeSchema = z
+const courseCodeSchema = z
   .string()
   .trim()
   .regex(/^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$/)
   .max(32)
 
-export const externalIdSchema = z
+const externalIdSchema = z
   .string()
   .trim()
   .regex(/^[A-Z]\d{3,8}$/)
@@ -38,13 +32,12 @@ export const externalIdSchema = z
  */
 export const APP_ID_PREFIX = { session: 'S', completion: 'A', employee: 'N' } as const
 
-export const requirementSchema = z.discriminatedUnion('scope', [
+const requirementSchema = z.discriminatedUnion('scope', [
   z.object({ scope: z.literal('ALL') }),
   z.object({ scope: z.literal('DEPARTMENT'), department: trimmed(120) }),
   z.object({ scope: z.literal('POSITION'), position: trimmed(120) }),
 ])
 export type RequirementInput = z.infer<typeof requirementSchema>
-export const requirementScopeSchema = z.enum(REQUIREMENT_SCOPES)
 
 export const courseSchema = z.object({
   code: courseCodeSchema,
@@ -104,7 +97,7 @@ export const providerSchema = z.object({
 export type ProviderInput = z.infer<typeof providerSchema>
 
 /** A course a provider offers, at its price per person (0 for internal training). */
-export const offeringSchema = z.object({
+const offeringSchema = z.object({
   courseId: z.string().trim().min(1).max(64),
   price: z.number().min(0).max(1_000_000).multipleOf(0.01),
 })

@@ -1,6 +1,6 @@
 'use client'
 
-import { type BreakdownRow, type Bucket, REMEDIATIONS } from '@muni/domain/advisor'
+import { type BreakdownRow, type Bucket, REMEDIATIONS, upcomingRow } from '@muni/domain/advisor'
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { Legend } from '@muni/ui/charts/legend'
 import { StackedBar } from '@muni/ui/charts/stacked-bar'
@@ -8,14 +8,7 @@ import { cn } from '@muni/ui/cn'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
-import { advisorHref, REMEDIATION_FILL, UPCOMING, useBucketName } from './labels'
-
-/** Every forecast month's trainings in one row: what the "lapsing" count adds up. */
-export function upcomingRow(months: readonly BreakdownRow[]): BreakdownRow {
-  const counts = { PLANNED: 0, PLANNED_LATE: 0, ACTION_REQUIRED: 0 }
-  for (const row of months) for (const r of REMEDIATIONS) counts[r] += row.counts[r]
-  return { bucket: UPCOMING, counts, total: months.reduce((total, r) => total + r.total, 0) }
-}
+import { advisorHref, REMEDIATION_FILL, useBucketName } from './labels'
 
 /**
  * Non-compliant now, then everything lapsing in the forecast, then each of its months under

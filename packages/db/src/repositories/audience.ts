@@ -1,5 +1,6 @@
 import type { ComplianceRequirement } from '@muni/domain/compliance'
 import type { RequirementScope } from '@muni/domain/enums'
+import { compareCs } from '@muni/utils/text'
 
 /**
  * Who must hold a course is stored normalised (a flag for everyone, one table per department
@@ -85,6 +86,6 @@ export function requirementViews(course: AudienceRow): RequirementView[] {
     })),
   ]
   return views.sort(
-    (a, b) => a.scope.localeCompare(b.scope) || (a.target ?? '').localeCompare(b.target ?? '', 'cs')
+    (a, b) => a.scope.localeCompare(b.scope) || compareCs(a.target ?? '', b.target ?? '')
   )
 }

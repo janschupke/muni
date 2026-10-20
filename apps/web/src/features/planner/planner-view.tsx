@@ -21,7 +21,7 @@ import {
   formatDate,
   formatInteger,
   formatMonth,
-  formatTimeRange,
+  formatSessionTime,
   PLACEHOLDER,
 } from '@muni/utils/format'
 import { CalendarPlus, Clock, TriangleAlert } from 'lucide-react'
@@ -156,7 +156,7 @@ function OfferTable({
             if (!slot || problem) return <ProblemText offer={row.original} />
             return (
               <div className="flex flex-col items-start gap-1">
-                <span className="font-medium">{formatTimeRange(slot.startsAt, slot.endsAt)}</span>
+                <span className="font-medium">{formatSessionTime(slot)}</span>
                 {late && (
                   <Badge tone="warning">
                     <Clock aria-hidden />

@@ -1,6 +1,6 @@
 import type { RoomRef } from '@muni/domain/rooms'
 import { TextLink } from '@muni/ui/text-link'
-import { formatTimeRange } from '@muni/utils/format'
+import { formatSessionTime } from '@muni/utils/format'
 import { Wifi } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -29,9 +29,7 @@ export function SessionDateLink({
 }) {
   return (
     <TextLink asChild emphasis={emphasis} hitArea>
-      <Link href={sessionHref(session.externalId, employee)}>
-        {formatTimeRange(session.startsAt, session.endsAt)}
-      </Link>
+      <Link href={sessionHref(session.externalId, employee)}>{formatSessionTime(session)}</Link>
     </TextLink>
   )
 }

@@ -1,11 +1,11 @@
 'use client'
 
-import type { AdvisorSession, OverbookedSession } from '@muni/domain/advisor'
+import { checkMoves, type OverbookedSession } from '@muni/domain/advisor'
 import { Alert } from '@muni/ui/alert'
 import { ChoiceGroup } from '@muni/ui/choice-group'
 import { EmptyState } from '@muni/ui/empty-state'
 import { Field, Input } from '@muni/ui/field'
-import { formatTimeRange } from '@muni/utils/format'
+import { formatSessionTime } from '@muni/utils/format'
 import { parseCount } from '@muni/utils/money'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -41,7 +41,6 @@ export function ResolveDialog({
   const tr = useTranslations('advisor.overbooked.refused')
   const afterWrite = useAfterWrite('session')
   const { session } = o
-  const when = (s: AdvisorSession) => formatTimeRange(s.startsAt, s.endsAt)
   const named = session.assigned.length
   const movable = session.unnamedBookings
   const canMove = movable > 0 && o.targets.length > 0
@@ -50,12 +49,11 @@ export function ResolveDialog({
     () => new Map(o.moves.map(m => [m.to.externalId, String(m.count)]))
   )
 
-  // What the typed counts come to, and what is wrong with them.
-  const moves = o.targets.map(target => ({
-    target,
-    count: countOf(counts.get(target.session.externalId) ?? ''),
-  }))
-  const total = moves.reduce((sum, m) => sum + (m.count ?? 0), 0)
+  // What the typed counts come to (`checkMoves`), and what is wrong with them.
+  const { moves, total, overTarget, tooMany, ready } = checkMoves(
+    o,
+    new Map([...counts].map(([id, text]) => [id, countOf(text)]))
+  )
   // What is wrong with one count goes on its field; the total, under them all.
   const fieldError = ({ target, count }: (typeof moves)[number]) =>
     count === null
@@ -63,17 +61,14 @@ export function ResolveDialog({
       : count > target.free
         ? t('overField', { free: target.free })
         : undefined
-  const problems = [
-    ...moves.flatMap(move => (fieldError(move) ? [move.target.session.externalId] : [])),
-    ...(total > movable ? [t('tooMany', { count: movable })] : []),
-  ]
-  const typedWell = moves.every(m => m.count !== null)
-  const moveReady = canMove && typedWell && total > 0 && problems.length === 0
+  // Nothing typed wrong: the dialog can say what the session comes to.
+  const clean = moves.every(m => m.count !== null) && overTarget.length === 0 && !tooMany
+  const moveReady = canMove && ready
   const after = o.booked - total
   const raiseTo = o.raiseTo
 
   const confirm = async (): Promise<ConfirmOutcome> => {
-    const name = `${session.courseName}, ${when(session)}`
+    const name = `${session.courseName}, ${formatSessionTime(session)}`
     if (way === 'raise') {
       // The button is off while the room is too small; this only answers a stale click.
       if (raiseTo === null) return { kind: 'refused', message: tr('ROOM_TOO_SMALL') }
@@ -103,7 +98,7 @@ export function ResolveDialog({
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={t('title', { course: session.courseName, date: when(session) })}
+      title={t('title', { course: session.courseName, date: formatSessionTime(session) })}
       confirmLabel={
         way === 'raise'
           ? raiseTo === null
@@ -152,7 +147,7 @@ export function ResolveDialog({
                 <Field
                   key={target.session.externalId}
                   label={t('target', {
-                    date: when(target.session),
+                    date: formatSessionTime(target.session),
                     room: target.session.room.name,
                   })}
                   help={t('free', { free: target.free })}
@@ -173,8 +168,8 @@ export function ResolveDialog({
                 </Field>
               ))}
             </div>
-            {total > movable && <Alert tone="danger">{t('tooMany', { count: movable })}</Alert>}
-            {problems.length === 0 &&
+            {tooMany && <Alert tone="danger">{t('tooMany', { count: movable })}</Alert>}
+            {clean &&
               (total === 0 ? (
                 <EmptyState variant="inline" title={t('nothing')} />
               ) : (

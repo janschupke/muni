@@ -1,6 +1,12 @@
 'use client'
 
-import { type DatasetKind, type ImportBatch, type ParsedRow, summarize } from '@muni/importer'
+import {
+  type DatasetKind,
+  type ImportBatch,
+  type ParsedRow,
+  rowState,
+  summarize,
+} from '@muni/importer'
 import { Alert } from '@muni/ui/alert'
 import { Badge } from '@muni/ui/badge'
 import { Button } from '@muni/ui/button'
@@ -41,15 +47,15 @@ function matches(row: ParsedRow<unknown>, filter: Filter): boolean {
     case 'all':
       return true
     case 'valid':
-      return row.isValid && !row.isSkipped && !row.isRemoved
+      return rowState(row) === 'VALID'
     case 'errors':
-      return !row.isValid && !row.isRemoved
+      return rowState(row) === 'INVALID'
     case 'warnings':
-      return row.isValid && !row.isSkipped && !row.isRemoved && row.warnings.length > 0
+      return rowState(row) === 'VALID' && row.warnings.length > 0
     case 'skipped':
-      return row.isSkipped && !row.isRemoved
+      return rowState(row) === 'SKIPPED'
     case 'removed':
-      return row.isRemoved
+      return rowState(row) === 'REMOVED'
   }
 }
 

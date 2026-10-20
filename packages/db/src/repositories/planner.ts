@@ -1,17 +1,12 @@
 import type { PlannerInput } from '@muni/domain/planner'
+import { mostCommon } from '@muni/utils/collections'
 import { toZonedParts } from '@muni/utils/dates'
 
 import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions } from './context'
 import { offeringsInclude, toOffering } from './offerings'
 import { needsOf, needsSelect } from './session-fit'
-
-/** The most frequent value; the smallest one on a tie; null for none. */
-function mostCommon(values: string[]): string | null {
-  const counts = new Map<string, number>()
-  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1)
-  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null
-}
+import { upcomingSessionWhere } from './sessions'
 
 /**
  * What the session planner needs besides the advisor's plan: each course's session needs,
@@ -50,7 +45,7 @@ export async function getPlannerInput(
       orderBy: { name: 'asc' },
     }),
     db.courseSession.findMany({
-      where: { ...ACTIVE, status: 'PLANNED', endsAt: { gte: now } },
+      where: upcomingSessionWhere(now),
       select: { roomId: true, startsAt: true, endsAt: true },
     }),
   ])
@@ -60,7 +55,12 @@ export async function getPlannerInput(
       code: c.code,
       name: c.name,
       ...needsOf(c),
-      usualStart: mostCommon(c.sessions.map(s => toZonedParts(s.startsAt).time)),
+      // The most frequent start, the earliest on a tie.
+      usualStart:
+        mostCommon(
+          c.sessions.map(s => toZonedParts(s.startsAt).time),
+          (a, b) => a.localeCompare(b)
+        ) ?? null,
       heldIn: [...new Set(c.sessions.map(s => s.roomId))],
       offerings: c.offerings.map(toOffering),
     })),

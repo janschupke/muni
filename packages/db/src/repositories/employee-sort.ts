@@ -1,26 +1,20 @@
-import { complianceRate } from '@muni/domain/compliance'
-import type { ComplianceStatus, EmployeeSortKey, EmploymentState } from '@muni/domain/enums'
+import { complianceRate, URGENCY } from '@muni/domain/compliance'
+import type { EmployeeSortKey, EmploymentState } from '@muni/domain/enums'
+import { czechCollator } from '@muni/utils/text'
 
 import type { EmployeeListItem } from './employees'
 import { type ListQuery, type Page, pageBounds } from './paging'
-
-const collator = new Intl.Collator('cs', { numeric: true, sensitivity: 'base' })
 
 /** Czech name order: surname, then first name. */
 export function compareNames(
   a: { lastName: string; firstName: string },
   b: { lastName: string; firstName: string }
 ): number {
-  return collator.compare(a.lastName, b.lastName) || collator.compare(a.firstName, b.firstName)
+  return (
+    czechCollator.compare(a.lastName, b.lastName) || czechCollator.compare(a.firstName, b.firstName)
+  )
 }
 
-// Ascending puts the most urgent first.
-const COMPLIANCE_ORDER: Record<ComplianceStatus, number> = {
-  EXPIRED: 0,
-  MISSING: 1,
-  EXPIRING: 2,
-  VALID: 3,
-}
 const STATUS_ORDER: Record<EmploymentState, number> = {
   ACTIVE: 0,
   PARENTAL_LEAVE: 1,
@@ -39,7 +33,7 @@ function sortValue(e: EmployeeListItem, by: Exclude<EmployeeSortKey, 'name'>): S
       return STATUS_ORDER[e.status]
     case 'compliance':
       // The list shows no compliance for people who have left; sort them with the blanks.
-      return e.status === 'LEFT' || e.compliance === null ? null : COMPLIANCE_ORDER[e.compliance]
+      return e.status === 'LEFT' || e.compliance === null ? null : URGENCY[e.compliance]
     case 'required':
       return e.counts.total === 0 ? null : complianceRate(e.counts)
   }
@@ -61,7 +55,7 @@ export function sortEmployees(items: EmployeeListItem[], by: EmployeeSortKey, de
     if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1
     const order =
       typeof va === 'string' && typeof vb === 'string'
-        ? collator.compare(va, vb)
+        ? czechCollator.compare(va, vb)
         : Number(va) - Number(vb)
     return desc ? -order : order
   })

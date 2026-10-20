@@ -40,6 +40,9 @@ export interface RowMapResult<T> {
   issues: ValidationIssue[]
 }
 
+/** Commit order: each dataset may reference the ones before it. */
+export const COMMIT_ORDER = ['rooms', 'courses', 'employees', 'completions', 'sessions'] as const
+
 export interface ParsedRow<T> {
   /** Physical line in the source file where the record starts (1-based, header = 1). */
   rowNumber: number

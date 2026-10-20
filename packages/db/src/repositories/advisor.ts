@@ -1,10 +1,10 @@
-import { type AdvisorInput, type AdvisorNeed, forecastEnd } from '@muni/domain/advisor'
+import { type AdvisorInput, type AdvisorNeed, forecastEnd, inForecast } from '@muni/domain/advisor'
 import { sortName } from '@muni/domain/names'
 
 import { ACTIVE } from './archive'
 import { dbOf, loadCompliance, toAmount, type WithCompliance } from './context'
 import { stillEmployed } from './employment'
-import { roomRefSelect, toRoomRef } from './sessions'
+import { roomRefSelect, sessionAheadWhere, toRoomRef } from './sessions'
 
 /**
  * Everything the advisor needs, as plain data: every training that is non-compliant now or
@@ -34,8 +34,8 @@ export async function getAdvisorInput(
     }),
     db.course.findMany({ where: ACTIVE, select: { id: true, code: true, name: true } }),
     db.courseSession.findMany({
-      // Any status, the plan ignores the cancelled; not yet over, as `upcomingSessionWhere`.
-      where: { ...ACTIVE, endsAt: { gte: now }, course: ACTIVE },
+      // Any status: the plan ignores the cancelled.
+      where: { ...sessionAheadWhere(now), course: ACTIVE },
       select: {
         externalId: true,
         startsAt: true,
@@ -58,9 +58,8 @@ export async function getAdvisorInput(
   const needs: AdvisorNeed[] = []
   const end = forecastEnd(compliance.options.asOf)
   for (const cell of compliance.cells) {
-    // A valid training is in scope only if it lapses (the day after validUntil) by the end.
     const validUntil = cell.basis?.validUntil ?? null
-    if (cell.status === 'VALID' && (validUntil === null || validUntil >= end)) continue
+    if (!inForecast({ status: cell.status, validUntil }, end)) continue
     const employee = employeeById.get(cell.employeeId)
     const course = courseById.get(cell.courseId)
     if (!employee || !course) continue

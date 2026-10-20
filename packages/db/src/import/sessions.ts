@@ -1,5 +1,6 @@
 import { roomKindOfName } from '@muni/domain/rooms'
 import { APP_ID_PREFIX, type SessionInput } from '@muni/domain/schemas'
+import { mostCommon } from '@muni/utils/collections'
 import { zonedTimeToUtc } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 
@@ -79,7 +80,8 @@ async function fillCourseDefaults(tx: Tx, courseIdList: string[]): Promise<void>
       data:
         course.sessionMinutes === null
           ? {
-              sessionMinutes: mostCommon(minutes),
+              // The usual length, the shortest on a tie.
+              sessionMinutes: mostCommon(minutes, (a, b) => a - b) ?? null,
               seats: course.seats ?? seats,
               onlineAllowed: course.sessions.some(s => s.room.kind === 'ONLINE'),
             }
@@ -139,13 +141,6 @@ async function resolveProviders(
     }
   }
   return resolved
-}
-
-/** The most frequent value; the smallest one on a tie. */
-function mostCommon(values: number[]): number {
-  const counts = new Map<number, number>()
-  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1)
-  return [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 0
 }
 
 /**

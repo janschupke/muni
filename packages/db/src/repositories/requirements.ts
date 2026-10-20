@@ -6,7 +6,7 @@ import { diffInDays, type IsoDate } from '@muni/utils/dates'
 import type { Db } from '../client'
 import { ACTIVE } from './archive'
 import type { EmployeeListRequirement } from './employees'
-import { roomRefSelect, toRoomRef, upcomingSessionWhere } from './sessions'
+import { bookableSessionWhere, roomRefSelect, toRoomRef, upcomingSessionWhere } from './sessions'
 
 /** A person's next booking on a course, as the requirement rows show it. */
 export interface NextBooking {
@@ -59,7 +59,7 @@ export async function loadBookingContext(
       orderBy: { session: { startsAt: 'asc' } },
     }),
     db.courseSession.findMany({
-      where: { ...ACTIVE, status: 'PLANNED', startsAt: { gt: now }, course: ACTIVE },
+      where: { ...bookableSessionWhere(now), course: ACTIVE },
       select: {
         courseId: true,
         capacity: true,

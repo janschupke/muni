@@ -9,7 +9,7 @@ import { EmptyState } from '@muni/ui/empty-state'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { Meter } from '@muni/ui/meter'
 import { TextLink } from '@muni/ui/text-link'
-import { formatTimeRange } from '@muni/utils/format'
+import { formatSessionTime } from '@muni/utils/format'
 import { ArrowRightLeft } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
@@ -95,7 +95,7 @@ export function OverbookedList({
                   size="sm"
                   aria-label={t('resolveLabel', {
                     course: o.session.courseName,
-                    date: formatTimeRange(o.session.startsAt, o.session.endsAt),
+                    date: formatSessionTime(o.session),
                   })}
                   onClick={event => {
                     setResolving({ item: o, from: event.currentTarget })

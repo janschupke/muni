@@ -5,8 +5,8 @@ import type {
   ComplianceMatrixRow,
   EmployeeListRequirement,
 } from '@muni/db/repositories'
-import { canBookNow } from '@muni/domain/advisor'
-import { COMPLIANCE_BANDS, complianceBand, complianceOf } from '@muni/domain/compliance'
+import { countBookable } from '@muni/domain/advisor'
+import { bandRanges, compareUrgency, complianceBand, complianceOf } from '@muni/domain/compliance'
 import { COMPLIANCE_STATUSES, type ComplianceStatus } from '@muni/domain/enums'
 import { HeatCell, HeatLegend } from '@muni/ui/charts/heat-cell'
 import { cn } from '@muni/ui/cn'
@@ -40,9 +40,6 @@ const STATUS_CELL: Record<ComplianceStatus, string> = {
   EXPIRED: 'bg-serious-soft text-serious-fg',
   MISSING: 'bg-danger-soft text-danger-fg',
 }
-
-// Most urgent first, as in the employee list.
-const URGENCY: Record<ComplianceStatus, number> = { EXPIRED: 0, MISSING: 1, EXPIRING: 2, VALID: 3 }
 
 const employeesHref = (department: string) =>
   `/employees?department=${encodeURIComponent(department)}`
@@ -82,18 +79,15 @@ export function ComplianceMatrixTable({
       <div className="flex flex-col gap-2">
         <HeatLegend
           label={t('bands.label')}
-          items={COMPLIANCE_BANDS.map(({ band, min }, i) => {
-            const above = COMPLIANCE_BANDS[i - 1]
-            return {
-              band,
-              label:
-                above === undefined
-                  ? t('bands.full', { value: pct(min) })
-                  : min === 0
-                    ? t('bands.below', { value: pct(above.min) })
-                    : t('bands.range', { from: pct(min), to: pct(above.min - 0.01) }),
-            }
-          })}
+          items={bandRanges().map(({ band, from, to }) => ({
+            band,
+            label:
+              to === null
+                ? t('bands.full', { value: pct(from ?? 1) })
+                : from === null
+                  ? t('bands.below', { value: pct(to) })
+                  : t('bands.range', { from: pct(from), to: pct(to) }),
+          }))}
         />
         {expanded.size > 0 && <PersonLegend />}
       </div>
@@ -468,12 +462,12 @@ function CellDialog({
   )
 }
 
-/** The people of a department whose training of a course can be booked now (`canBookNow`). */
+/** The people of a department whose training of a course can be booked now. */
 const toBook = (row: ComplianceMatrixRow, code: string) =>
-  row.people.filter(p => {
-    const requirement = p.cells[code]
-    return requirement != null && canBookNow(requirement, 'ACTIVE')
-  }).length
+  countBookable(
+    row.people.flatMap(p => p.cells[code] ?? []),
+    'ACTIVE'
+  )
 
 /** The people a department cell counts, most urgent first; an admin books who needs it. */
 function CellPeople({
@@ -493,7 +487,7 @@ function CellPeople({
     })
     .sort(
       (a, b) =>
-        URGENCY[a.requirement.status] - URGENCY[b.requirement.status] ||
+        compareUrgency(a.requirement.status, b.requirement.status) ||
         (a.requirement.daysLeft ?? Infinity) - (b.requirement.daysLeft ?? Infinity)
     )
   return (

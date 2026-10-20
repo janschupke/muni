@@ -4,12 +4,15 @@ import {
   addDays,
   addMonths,
   diffInDays,
+  intervalsOverlap,
   isCzechHoliday,
   isoDateFromUtc,
   isoDateToUtc,
   isWorkingDay,
+  monthOf,
   parseDate,
   parseTimeRange,
+  startOfMonth,
   todayIn,
   toZonedParts,
   zonedTimeToUtc,
@@ -63,6 +66,22 @@ describe('date arithmetic', () => {
 
   it('round-trips through UTC midnight', () => {
     expect(isoDateFromUtc(isoDateToUtc('2026-10-16'))).toBe('2026-10-16')
+  })
+
+  it('names the month a day falls in, and its first day', () => {
+    expect(monthOf('2026-10-18')).toBe('2026-10')
+    expect(startOfMonth('2026-10-18')).toBe('2026-10-01')
+    expect(startOfMonth('2026-02-01')).toBe('2026-02-01')
+  })
+})
+
+describe('intervalsOverlap', () => {
+  it('overlaps when each starts before the other ends; touching ends do not', () => {
+    const at = (start: string, end: string) => ({ start, end })
+    expect(intervalsOverlap(at('09:00', '12:00'), at('11:00', '13:00'))).toBe(true)
+    expect(intervalsOverlap(at('09:00', '12:00'), at('10:00', '11:00'))).toBe(true)
+    expect(intervalsOverlap(at('09:00', '12:00'), at('12:00', '13:00'))).toBe(false)
+    expect(intervalsOverlap({ start: 3, end: 5 }, { start: 0, end: 3 })).toBe(false)
   })
 })
 

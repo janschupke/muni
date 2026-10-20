@@ -11,7 +11,6 @@ import {
   positionSchema,
   providerEditSchema,
   providerSchema,
-  requirementScopeSchema,
   roomSchema,
   sessionCreateSchema,
   sessionEditSchema,
@@ -88,7 +87,6 @@ describe('records', () => {
     ).toBe(false)
     expect(employeeSchema.safeParse({ ...employee, externalId: 'E1' }).success).toBe(false)
     expect(employeeSchema.safeParse({ ...employee, nationalId: '6659170359X' }).success).toBe(false)
-    expect(requirementScopeSchema.safeParse('TEAM').success).toBe(false)
   })
 
   it('refuses dates that run backwards, by a named code', () => {

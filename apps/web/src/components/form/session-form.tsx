@@ -6,6 +6,7 @@ import { sessionEndTime, type SessionIssue, sessionIssues } from '@muni/domain/s
 import { FieldRow, FieldValue } from '@muni/ui/field'
 import { formatCurrency } from '@muni/utils/format'
 import { parseCount } from '@muni/utils/money'
+import { compareCs } from '@muni/utils/text'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
@@ -49,7 +50,7 @@ export interface SessionDefaults {
 
 /** A course's providers as the form offers them: the default first, then by name. */
 const byDefaultThenName = (a: CourseOffering, b: CourseOffering) =>
-  Number(b.isDefault) - Number(a.isDefault) || a.providerName.localeCompare(b.providerName, 'cs')
+  Number(b.isDefault) - Number(a.isDefault) || compareCs(a.providerName, b.providerName)
 
 /**
  * A session's form. What follows from the course and the provider is shown, not typed: the end

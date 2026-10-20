@@ -6,10 +6,12 @@ import {
   type AdvisorPlan,
   type AdvisorSession,
   bookingState,
-  canBookNow,
+  checkMoves,
   choicesOf,
+  countBookable,
   forecastEnd,
   forecastMonths,
+  inForecast,
   isProposed,
   itemsToBook,
   MAX_ALTERNATIVES,
@@ -17,7 +19,9 @@ import {
   personBookingState,
   planAssignments,
   seatsFree,
+  summarizeBookings,
   unpack,
+  upcomingRow,
 } from './advisor'
 import { openingOf, type SessionOpening } from './sessions'
 
@@ -123,6 +127,31 @@ describe('scope and buckets', () => {
       ['E3', '2026-11', '2026-11-01'],
       ['E4', '2027-03', '2027-03-31'],
     ])
+  })
+
+  it('takes what is non-compliant now, or lapses (the day after its last day) by the end', () => {
+    const end = forecastEnd(AS_OF)
+    expect(inForecast({ status: 'EXPIRED', validUntil: '2020-01-01' }, end)).toBe(true)
+    expect(inForecast({ status: 'MISSING', validUntil: null }, end)).toBe(true)
+    expect(inForecast({ status: 'VALID', validUntil: '2027-03-30' }, end)).toBe(true)
+    expect(inForecast({ status: 'VALID', validUntil: '2027-03-31' }, end)).toBe(false)
+    expect(inForecast({ status: 'VALID', validUntil: null }, end)).toBe(false)
+  })
+
+  it('adds the forecast months up into one "lapsing" row', () => {
+    const p = plan(
+      [
+        need('E1', 'BOZP', 'VALID', { validUntil: '2026-11-10' }),
+        need('E2', 'BOZP', 'VALID', { validUntil: '2027-01-10' }),
+        need('E3', 'BOZP', 'EXPIRED'),
+      ],
+      []
+    )
+    expect(upcomingRow(p.breakdown.slice(1))).toEqual({
+      bucket: 'upcoming',
+      counts: { PLANNED: 0, PLANNED_LATE: 0, ACTION_REQUIRED: 2 },
+      total: 2,
+    })
   })
 
   it('keeps empty months in the breakdown, and its counts add up to the items', () => {
@@ -329,6 +358,16 @@ describe('session choice', () => {
     ])
   })
 
+  it('sums what chosen bookings cost, and finds a session they would overfill', () => {
+    const tight = session('BOZP', '2026-11-02', { capacity: 2, unnamedBookings: 1 })
+    const free = session('BOZP', '2026-11-09', { pricePerPerson: null })
+    expect(summarizeBookings([tight, tight, free])).toEqual({
+      cost: 1000,
+      over: [{ session: tight, count: 2 }],
+    })
+    expect(summarizeBookings([])).toEqual({ cost: 0, over: [] })
+  })
+
   it('prices the proposals', () => {
     const p = plan(
       [need('E1', 'BOZP', 'EXPIRED'), need('E2', 'GDPR', 'MISSING')],
@@ -431,6 +470,40 @@ describe('overbooking', () => {
     expect(p.overbooked[0]).toMatchObject({ excess: 1, moves: [], remaining: 1 })
   })
 
+  it('checks typed moves: whole numbers, within each target’s seats and the seats without a name', () => {
+    const over = session('BOZP', '2026-11-02', { capacity: 30, unnamedBookings: 33 })
+    const soon = session('BOZP', '2026-11-09', { capacity: 10, unnamedBookings: 9 })
+    const later = session('BOZP', '2026-12-09', { capacity: 10 })
+    const [o] = plan([], [over, soon, later]).overbooked
+    if (!o) throw new Error('not overbooked')
+    const typed = (counts: Record<string, number | null>) =>
+      checkMoves(o, new Map(Object.entries(counts)))
+    expect(typed({ [soon.externalId]: 1, [later.externalId]: 2 })).toMatchObject({
+      total: 3,
+      overTarget: [],
+      tooMany: false,
+      ready: true,
+    })
+    // One more than the session has free: marked on it, and nothing goes.
+    expect(typed({ [soon.externalId]: 2 })).toMatchObject({
+      overTarget: [soon.externalId],
+      ready: false,
+    })
+    // Not a number, or nothing at all.
+    expect(typed({ [later.externalId]: null }).ready).toBe(false)
+    expect(typed({}).ready).toBe(false)
+    // More than the 33 seats without a name.
+    expect(typed({ [later.externalId]: 10, [soon.externalId]: 1 }).tooMany).toBe(false)
+    const big = session('BOZP', '2026-11-02', { capacity: 1, unnamedBookings: 2 })
+    const roomy = session('BOZP', '2026-12-01', { capacity: 40 })
+    const [b] = plan([], [big, roomy]).overbooked
+    if (!b) throw new Error('not overbooked')
+    expect(checkMoves(b, new Map([[roomy.externalId, 3]]))).toMatchObject({
+      tooMany: true,
+      ready: false,
+    })
+  })
+
   it('does not hand the moved seats to the plan', () => {
     const over = session('BOZP', '2026-11-02', { capacity: 2, unnamedBookings: 4 })
     const room = session('BOZP', '2026-11-09', { capacity: 3 })
@@ -451,7 +524,6 @@ describe('booking what is needed, anywhere', () => {
     expect(bookingState(at('MISSING'), 'ACTIVE')).toEqual({ kind: 'BOOK' })
     expect(bookingState(at('EXPIRED'), 'ACTIVE')).toEqual({ kind: 'BOOK' })
     expect(bookingState(at('EXPIRING'), 'ACTIVE')).toEqual({ kind: 'BOOK' })
-    expect(canBookNow(at('EXPIRING'), 'ACTIVE')).toBe(true)
     // Nothing to do: held, booked, or gone.
     expect(bookingState(at('VALID'), 'ACTIVE')).toBeNull()
     expect(bookingState(at('EXPIRED', 'OPEN', { sessionExternalId: 'T1' }), 'ACTIVE')).toBeNull()
@@ -469,7 +541,11 @@ describe('booking what is needed, anywhere', () => {
       kind: 'BLOCKED',
       reason: 'NO_SEATS',
     })
-    expect(canBookNow(at('MISSING', 'FULL'), 'ACTIVE')).toBe(false)
+    // A row of them counts the ones to book now.
+    expect(
+      countBookable([at('EXPIRING'), at('MISSING', 'FULL'), at('VALID'), at('EXPIRED')], 'ACTIVE')
+    ).toBe(2)
+    expect(countBookable([at('EXPIRED')], 'PARENTAL_LEAVE')).toBe(0)
   })
 
   it('offers a person’s row the trainings that can be booked, or says why none can', () => {
@@ -582,8 +658,8 @@ describe('booking what is needed, anywhere', () => {
     ]
     const p = plan(needs, [near, later])
     // Each need a screen would offer to book (not valid, at work, nothing booked) is there.
-    for (const n of needs.filter(n =>
-      canBookNow({ ...n, booked: null, opening: 'OPEN' }, n.employee.status)
+    for (const n of needs.filter(
+      n => bookingState({ ...n, booked: null, opening: 'OPEN' }, n.employee.status)?.kind === 'BOOK'
     ))
       expect(
         itemsToBook(p, { employee: n.employee.externalId, course: n.course.code }),

@@ -55,7 +55,7 @@ export function appliesTo(
 }
 
 /** Course ids the employee must hold, given every requirement rule. */
-export function requiredCourseIds(
+function requiredCourseIds(
   employee: ComplianceEmployee,
   requirements: readonly ComplianceRequirement[]
 ): Set<string> {
@@ -149,14 +149,67 @@ export function complianceOf(counts: ComplianceCounts): {
   return { held: counts.VALID + counts.EXPIRING, total: counts.total, rate: complianceRate(counts) }
 }
 
-/** Worst status wins: MISSING > EXPIRED > EXPIRING > VALID. */
+/**
+ * Most urgent first, everywhere a status is ranked: a training that lapsed (the person is
+ * working out of date now), one never held, one lapsing soon, one held.
+ */
+export const URGENCY: Record<ComplianceStatus, number> = {
+  EXPIRED: 0,
+  MISSING: 1,
+  EXPIRING: 2,
+  VALID: 3,
+}
+
+/** Sorts statuses most urgent first (`URGENCY`). */
+export const compareUrgency = (a: ComplianceStatus, b: ComplianceStatus): number =>
+  URGENCY[a] - URGENCY[b]
+
+/** A person's overall status: their most urgent one (`URGENCY`); null with nothing required. */
 export function worstStatus(statuses: Iterable<ComplianceStatus>): ComplianceStatus | null {
-  const rank: Record<ComplianceStatus, number> = { VALID: 0, EXPIRING: 1, EXPIRED: 2, MISSING: 3 }
   let worst: ComplianceStatus | null = null
   for (const status of statuses) {
-    if (worst === null || rank[status] > rank[worst]) worst = status
+    if (worst === null || compareUrgency(status, worst) < 0) worst = status
   }
   return worst
+}
+
+/** What one department × course cell of the matrix counts. */
+export interface MatrixCell {
+  counts: ComplianceCounts
+  rate: number
+}
+
+/**
+ * The department-by-course grid of the active people's cells: each department's headcount at
+ * work and, per course (keyed by code), its counts and rate, or null where the course applies
+ * to nobody there. Departments with nobody at work are left out.
+ */
+export function departmentMatrix<D extends { id: string }>(
+  departments: readonly D[],
+  courses: readonly { id: string; code: string }[],
+  employees: readonly { id: string; departmentId: string | null; status: string }[],
+  cells: readonly ComplianceCell[]
+): { department: D; headcount: number; cells: Record<string, MatrixCell | null> }[] {
+  const active = employees.filter(e => e.status === 'ACTIVE')
+  const departmentOf = new Map(active.map(e => [e.id, e.departmentId]))
+  const headcount = Map.groupBy(active, e => e.departmentId)
+  const byPair = Map.groupBy(
+    cells.filter(c => departmentOf.has(c.employeeId)),
+    c => `${departmentOf.get(c.employeeId) ?? ''}|${c.courseId}`
+  )
+  return departments.flatMap(department => {
+    const people = headcount.get(department.id)?.length ?? 0
+    if (people === 0) return []
+    const row = Object.fromEntries(
+      courses.map(course => {
+        const pair = byPair.get(`${department.id}|${course.id}`)
+        if (!pair) return [course.code, null]
+        const counts = countStatuses(pair)
+        return [course.code, { counts, rate: complianceRate(counts) }]
+      })
+    )
+    return [{ department, headcount: people, cells: row }]
+  })
 }
 
 /**
@@ -180,6 +233,20 @@ export type ComplianceBand = (typeof COMPLIANCE_BANDS)[number]['band']
  */
 export function compliancePercent(rate: number): number {
   return Math.floor(rate * 100 + 1e-9)
+}
+
+/**
+ * What each band covers, as its legend prints it, best first: the full rate (`to` null), then
+ * ranges down to the last floor, then everything below it (`from` null). Bounds are rates, the
+ * upper one a hundredth under the next band's floor (rates print as whole percent).
+ */
+export function bandRanges(): { band: ComplianceBand; from: number | null; to: number | null }[] {
+  return COMPLIANCE_BANDS.map(({ band, min }, i) => {
+    const above = COMPLIANCE_BANDS[i - 1]
+    if (above === undefined) return { band, from: min, to: null }
+    if (min === 0) return { band, from: null, to: above.min }
+    return { band, from: min, to: above.min - 0.01 }
+  })
 }
 
 export function complianceBand(rate: number): ComplianceBand {

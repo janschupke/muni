@@ -7,11 +7,13 @@ import type {
   RoomInput,
   SessionInput,
 } from '@muni/domain/schemas'
+import { intervalsOverlap } from '@muni/utils/dates'
 import { addMonths } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 
 import { Canonicalizer, DEPARTMENT_ALIASES } from './canonical'
 import { type IssueCode, SKIPPING_CODES } from './issues'
+import { isCommitted } from './row-state'
 import type {
   ArchivedKeys,
   ImportBatch,
@@ -110,7 +112,9 @@ function managerLoops(links: Map<string, string | null>, order: readonly string[
 const overlaps = (
   a: { date: string; startTime: string; endTime: string },
   b: { date: string; startTime: string; endTime: string }
-) => a.date === b.date && a.startTime < b.endTime && b.startTime < a.endTime
+) =>
+  a.date === b.date &&
+  intervalsOverlap({ start: a.startTime, end: a.endTime }, { start: b.startTime, end: b.endTime })
 
 /** Rows that can serve as a reference for other rows: mapped cleanly and not removed. */
 const usable = <T>(row: ParsedRow<T>): row is ParsedRow<T> & { base: { data: T } } =>
@@ -214,8 +218,7 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
     reference.courses.map(c => [c.code, c.validityMonths])
   )
   for (const row of out.courses) {
-    if (row.isValid && !row.isSkipped && !row.isRemoved && row.data)
-      courseValidity.set(row.data.code, row.data.validityMonths)
+    if (isCommitted(row)) courseValidity.set(row.data.code, row.data.validityMonths)
   }
 
   // ---- employees --------------------------------------------------------------------------
@@ -288,7 +291,7 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
   const validEmployeeIds = new Set<string>(reference.employees.map(e => e.externalId))
   const nameById = new Map<string, string>(reference.employees.map(e => [e.externalId, e.fullName]))
   for (const row of out.employees) {
-    if (!row.isValid || row.isSkipped || row.isRemoved || !row.data) continue
+    if (!isCommitted(row)) continue
     validEmployeeIds.add(row.data.externalId)
     nameById.set(row.data.externalId, sortName(row.data))
     if (row.data.email) validEmails.add(row.data.email)
@@ -310,9 +313,8 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
   const idByEmail = new Map<string, string>(
     reference.employees.flatMap(e => (e.email ? [[e.email, e.externalId] as const] : []))
   )
-  const imported = out.employees.filter(
-    (r): r is typeof r & { data: EmployeeInput } =>
-      r.isValid && !r.isSkipped && !r.isRemoved && r.data !== null
+  const imported = out.employees.filter((r): r is typeof r & { data: EmployeeInput } =>
+    isCommitted(r)
   )
   for (const row of imported) if (row.data.email) idByEmail.set(row.data.email, row.data.externalId)
   const links = new Map(
@@ -357,9 +359,7 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
       extra.push(issue('name', 'VALUE_NORMALIZED', 'warning', { raw: data.name, value: name }))
     return finalize<RoomInput>(row, { ...data, name }, extra)
   })
-  const roomNames = out.rooms.flatMap(r =>
-    r.isValid && !r.isSkipped && !r.isRemoved && r.data ? [r.data.name] : []
-  )
+  const roomNames = out.rooms.flatMap(r => (isCommitted(r) ? [r.data.name] : []))
 
   // ---- sessions ---------------------------------------------------------------------------
   const sessionRows = batch.sessions ?? []
@@ -383,7 +383,7 @@ export function validateBatch(batch: ImportBatch, reference: ReferenceSnapshot):
     (reference.roomFacts ?? []).map(r => [rooms.keyOf(r.name), r])
   )
   for (const row of out.rooms) {
-    if (!row.isValid || row.isSkipped || row.isRemoved || !row.data) continue
+    if (!isCommitted(row)) continue
     const known = facts.get(rooms.keyOf(row.data.name))
     facts.set(rooms.keyOf(row.data.name), {
       ...row.data,

@@ -2,7 +2,7 @@
 
 import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { SplitLayout } from '@muni/ui/layout'
-import { formatTimeRange } from '@muni/utils/format'
+import { formatSessionTime } from '@muni/utils/format'
 import { useTranslations } from 'next-intl'
 
 import { ReadView } from '@/components/read-view'
@@ -51,7 +51,7 @@ function SessionDetail({
       <RecordHeader
         list={{ href: '/sessions', label: t('title') }}
         title={session.courseName}
-        description={formatTimeRange(session.startsAt, session.endsAt)}
+        description={formatSessionTime(session)}
         record={canEdit && sessionTarget(session)}
       />
       <SplitLayout

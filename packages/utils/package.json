@@ -8,7 +8,8 @@
     "./text": "./src/text.ts",
     "./dates": "./src/dates.ts",
     "./money": "./src/money.ts",
-    "./format": "./src/format.ts"
+    "./format": "./src/format.ts",
+    "./collections": "./src/collections.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

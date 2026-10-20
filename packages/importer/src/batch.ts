@@ -9,15 +9,17 @@ import { mapRoom } from './datasets/rooms'
 import { mapSession } from './datasets/sessions'
 import { decode } from './decode'
 import { RowBuilder } from './fields'
-import type {
-  DatasetKind,
-  DatasetRecord,
-  ImportBatch,
-  ParsedFile,
-  ParsedRow,
-  ReferenceSnapshot,
-  RowMapResult,
-  ValidationSummary,
+import { isCommitted, rowState } from './row-state'
+import {
+  COMMIT_ORDER,
+  type DatasetKind,
+  type DatasetRecord,
+  type ImportBatch,
+  type ParsedFile,
+  type ParsedRow,
+  type ReferenceSnapshot,
+  type RowMapResult,
+  type ValidationSummary,
 } from './types'
 import { validateBatch } from './validate'
 
@@ -233,12 +235,12 @@ export function summarize(rows: readonly ParsedRow<unknown>[]): ValidationSummar
     removed: 0,
   }
   for (const row of rows) {
-    if (row.isRemoved) summary.removed++
-    else if (!row.isValid) summary.invalid++
-    else if (row.isSkipped) summary.skipped++
+    const state = rowState(row)
+    if (state === 'REMOVED') summary.removed++
+    else if (state === 'INVALID') summary.invalid++
+    else if (state === 'SKIPPED') summary.skipped++
     else summary.valid++
-    if (!row.isRemoved && row.isValid && !row.isSkipped && row.warnings.length > 0)
-      summary.warnings++
+    if (state === 'VALID' && row.warnings.length > 0) summary.warnings++
   }
   return summary
 }
@@ -248,8 +250,11 @@ export function committable<K extends DatasetKind>(
   batch: ImportBatch,
   kind: K
 ): DatasetRecord[K][] {
-  const rows = batch[kind] ?? []
-  return rows.flatMap(row =>
-    row.isValid && !row.isSkipped && !row.isRemoved && row.data ? [row.data] : []
-  )
+  const rows: ParsedRow<DatasetRecord[K]>[] = batch[kind] ?? []
+  return rows.filter(isCommitted).map(row => row.data)
+}
+
+/** How many records a commit writes, over every dataset in the batch. */
+export function countCommittable(batch: ImportBatch): number {
+  return COMMIT_ORDER.reduce((sum, kind) => sum + committable(batch, kind).length, 0)
 }

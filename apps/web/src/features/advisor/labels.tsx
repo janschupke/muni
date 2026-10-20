@@ -23,7 +23,6 @@ import { useLocale, useTranslations } from 'next-intl'
 import type { ADVISOR_VIEWS } from '@/lib/list-keys'
 import { withParams } from '@/lib/search-params'
 
-export { UPCOMING }
 export type AdvisorView = (typeof ADVISOR_VIEWS)[number]
 
 export const VIEW_ICON: Record<AdvisorView, LucideIcon> = {

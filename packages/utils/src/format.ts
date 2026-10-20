@@ -55,11 +55,6 @@ export function formatDateTime(instant: Date | string, timeZone: string = APP_TI
   return instantIn(instant, timeZone).toFormat(DATE_TIME)
 }
 
-/** A time of day: `9:00`. */
-export function formatTime(instant: Date | string, timeZone: string = APP_TIME_ZONE): string {
-  return instantIn(instant, timeZone).toFormat(TIME)
-}
-
 /**
  * `16.10.2026 9:00–12:00` when both ends fall on the same local day, otherwise the full date
  * and time on both sides.
@@ -76,8 +71,16 @@ export function formatTimeRange(
     : `${from.toFormat(DATE_TIME)} – ${to.toFormat(DATE_TIME)}`
 }
 
+/** When a session (or a slot) runs, as `formatTimeRange` writes it. */
+export function formatSessionTime(session: {
+  startsAt: Date | string
+  endsAt: Date | string
+}): string {
+  return formatTimeRange(session.startsAt, session.endsAt)
+}
+
 /** Every amount the app stores and shows is in this currency. */
-export const CURRENCY = 'CZK'
+const CURRENCY = 'CZK'
 
 // Money is written the Czech way in both languages, always with its two decimals, so a column
 // of amounts lines up: 1 200,00 Kč.
@@ -115,18 +118,6 @@ export function currencySymbol(): string {
 
 export function formatInteger(value: number, locale: string): string {
   return numberFormatter(locale, { maximumFractionDigits: 0 }).format(value)
-}
-
-/** A score or weight: `42.5`, `−3`; `signed` adds `+` to positives (score terms). */
-export function formatDecimal(
-  value: number,
-  locale: string,
-  { digits = 1, signed = false }: { digits?: number; signed?: boolean } = {}
-): string {
-  return numberFormatter(locale, {
-    maximumFractionDigits: digits,
-    signDisplay: signed ? 'exceptZero' : 'auto',
-  }).format(value)
 }
 
 /** `ratio` is 0–1. */

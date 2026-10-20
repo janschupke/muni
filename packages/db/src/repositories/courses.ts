@@ -25,6 +25,7 @@ import { needsOf, needsSelect } from './session-fit'
 import {
   countSessions,
   isUpcoming,
+  sessionAheadWhere,
   sessionInclude,
   type SessionSummary,
   sessionSummarySelect,
@@ -201,7 +202,7 @@ export async function getCourse(code: string, options?: RepoOptions): Promise<Co
       capabilities: { select: { capability: true }, orderBy: { capability: 'asc' } },
       offerings: offeringsInclude,
       sessions: {
-        where: { ...ACTIVE, endsAt: { gte: now } },
+        where: sessionAheadWhere(now),
         orderBy: { startsAt: 'asc' },
         include: sessionInclude,
       },

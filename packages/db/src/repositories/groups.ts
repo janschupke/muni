@@ -5,6 +5,7 @@ import {
   type PositionInput,
   positionSchema,
 } from '@muni/domain/schemas'
+import { compareCs } from '@muni/utils/text'
 
 import type { Tx } from '../client'
 import { ACTIVE } from './archive'
@@ -166,7 +167,7 @@ export async function getDepartmentForEdit(id: string, options?: RepoOptions) {
   if (!department) return null
   const members = department.employees
     .map(e => ({ id: e.id, name: sortName(e) }))
-    .sort((a, b) => a.name.localeCompare(b.name, 'cs'))
+    .sort((a, b) => compareCs(a.name, b.name))
   return {
     id: department.id,
     name: department.name,

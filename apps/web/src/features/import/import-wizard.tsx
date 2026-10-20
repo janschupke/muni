@@ -5,6 +5,7 @@ import {
   type ArchivedKeys,
   COMMIT_ORDER,
   committable,
+  countCommittable,
   type DatasetKind,
   editCell,
   type ImportBatch,
@@ -117,7 +118,7 @@ export function ImportWizard({
 
   const run = async () => {
     const kinds = COMMIT_ORDER.filter(kind => (batch[kind]?.length ?? 0) > 0)
-    const total = kinds.reduce((sum, kind) => sum + committable(batch, kind).length, 0)
+    const total = countCommittable(batch)
     const results: Partial<
       Record<DatasetKind, { created: number; updated: number; skipped: number }>
     > = {}

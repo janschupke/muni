@@ -7,15 +7,23 @@ import { dbOf, type RepoOptions, toAmount } from './context'
 import type { SessionListItem } from './courses'
 import { needsOf, needsSelect } from './fit-selects'
 
+/** Not archived and not yet ended, whatever its status: a cancelled one ahead included. */
+export const sessionAheadWhere = (now: Date) => ({ ...ACTIVE, endsAt: { gte: now } })
+
 /**
  * What "upcoming" means wherever sessions are shown or counted: planned and not yet ended,
- * so a session under way still counts. (Taking a booking is stricter: a session that has
- * started takes nobody new; see assignments.)
+ * so a session under way still counts. (Taking a booking is stricter: `bookableSessionWhere`.)
  */
 export const upcomingSessionWhere = (now: Date) => ({
+  ...sessionAheadWhere(now),
+  status: 'PLANNED' as const,
+})
+
+/** What a booking can still be taken on: planned and not yet started. */
+export const bookableSessionWhere = (now: Date) => ({
   ...ACTIVE,
   status: 'PLANNED' as const,
-  endsAt: { gte: now },
+  startsAt: { gt: now },
 })
 
 /** The same test in memory. */
@@ -194,7 +202,7 @@ function sessionWhere(
 ): Prisma.CourseSessionWhereInput {
   return {
     ...ACTIVE,
-    ...(window === 'upcoming' ? { endsAt: { gte: now } } : { endsAt: { lt: now } }),
+    ...(window === 'upcoming' ? sessionAheadWhere(now) : { endsAt: { lt: now } }),
     ...(course && { course: { code: course, ...ACTIVE } }),
     ...(room && { roomId: room }),
     ...(provider && { providerId: provider }),

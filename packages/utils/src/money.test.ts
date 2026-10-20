@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseAmount, parseCount, parseCzk } from './money'
+import { parseCount, parseCzk } from './money'
 
 describe('parseCzk', () => {
   // Verbatim shapes from data/absolvovana_skoleni.csv and data/terminy_skoleni.csv.
@@ -35,16 +35,5 @@ describe('parseCount', () => {
     expect(parseCount('-1')).toBeNull()
     expect(parseCount('2 roky')).toBeNull()
     expect(parseCount(undefined)).toBeNull()
-  })
-})
-
-describe('parseAmount', () => {
-  it('reads what a person types into a price field', () => {
-    expect(parseAmount('1 200,50 Kč')).toBe(1200.5)
-    expect(parseAmount('450,-')).toBe(450)
-    expect(parseAmount('zdarma')).toBe(0)
-    expect(parseAmount('  ')).toBeNull()
-    expect(parseAmount('free of charge')).toBeUndefined()
-    expect(parseAmount('-5')).toBeUndefined()
   })
 })

@@ -6,6 +6,8 @@ import {
   type Bucket,
   forecastEnd,
   NOW,
+  UPCOMING,
+  upcomingRow,
 } from '@muni/domain/advisor'
 import { Badge } from '@muni/ui/badge'
 import type { TablePaging } from '@muni/ui/data-table'
@@ -16,9 +18,9 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { ActionTable } from './action-table'
-import { BreakdownChart, upcomingRow } from './breakdown-chart'
+import { BreakdownChart } from './breakdown-chart'
 import { BreakdownTable } from './breakdown-table'
-import { advisorHref, type AdvisorView, UPCOMING, VIEW_ICON } from './labels'
+import { advisorHref, type AdvisorView, VIEW_ICON } from './labels'
 import { OverbookedList } from './overbooked-list'
 import { PlannedTable } from './planned-table'
 import { AdvisorRules } from './rules'

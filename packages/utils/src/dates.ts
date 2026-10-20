@@ -23,11 +23,11 @@ const ISO_RE = /^(\d{4})-(\d{1,2})-(\d{1,2})$/
 const CZECH_RE = /^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})$/
 const EXCEL_SERIAL_RE = /^\d{5}$/
 
-export function isValidCalendarDate(year: number, month: number, day: number): boolean {
+function isValidCalendarDate(year: number, month: number, day: number): boolean {
   return DateTime.utc(year, month, day).isValid
 }
 
-export function toIsoDate(year: number, month: number, day: number): IsoDate {
+function toIsoDate(year: number, month: number, day: number): IsoDate {
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
@@ -75,6 +75,27 @@ export function addMonths(date: IsoDate, months: number): IsoDate {
 
 export function addDays(date: IsoDate, days: number): IsoDate {
   return isoOf(utcDay(date).plus({ days }))
+}
+
+/** The first day of the month `date` falls in. */
+export function startOfMonth(date: IsoDate): IsoDate {
+  return `${monthOf(date)}-01`
+}
+
+/** The month `date` falls in, as `YYYY-MM`. */
+export function monthOf(date: IsoDate): string {
+  return date.slice(0, 7)
+}
+
+/**
+ * Whether two half-open intervals `[start, end)` overlap. Works on anything that orders as
+ * the time does: epoch milliseconds, ISO instants in one format, `HH:mm` on one day.
+ */
+export function intervalsOverlap<T extends string | number>(
+  a: { start: T; end: T },
+  b: { start: T; end: T }
+): boolean {
+  return a.start < b.end && b.start < a.end
 }
 
 export function diffInDays(from: IsoDate, to: IsoDate): number {

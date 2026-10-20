@@ -5,6 +5,7 @@ import {
   countStatuses,
 } from '@muni/domain/compliance'
 import type { EmploymentStatus } from '@muni/domain/enums'
+import { compareCs } from '@muni/utils/text'
 
 import { ACTIVE, type PersonRef, toPersonRef } from './archive'
 import {
@@ -195,9 +196,7 @@ function tally(
     const entry = id === null ? undefined : groups.get(id)
     if (entry) entry.count++
   }
-  return [...groups.values()].sort(
-    (a, b) => b.count - a.count || a.name.localeCompare(b.name, 'cs')
-  )
+  return [...groups.values()].sort((a, b) => b.count - a.count || compareCs(a.name, b.name))
 }
 
 interface Reporting {

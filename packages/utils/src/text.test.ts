@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { cleanFreeText, fold, isCompanyId, isFormulaLike, titleCase } from './text'
+import {
+  cleanFreeText,
+  compareCs,
+  czechCollator,
+  fold,
+  isCompanyId,
+  isFormulaLike,
+  titleCase,
+} from './text'
 
 describe('fold', () => {
   it('folds the department variants in zamestnanci.csv to one key', () => {
@@ -45,5 +53,29 @@ describe('isCompanyId', () => {
       expect(isCompanyId(id)).toBe(true)
     for (const id of ['00216225', '0021622', '002162245', '0021622a', ''])
       expect(isCompanyId(id)).toBe(false)
+  })
+})
+
+describe('Czech order', () => {
+  it('sorts by the Czech alphabet, numbers by value, case and accents as a last resort', () => {
+    const names = ['Učebna 10', 'Chemie', 'Učebna 2', 'Cvičiště', 'čítárna', 'Hala']
+    expect(names.toSorted(czechCollator.compare)).toEqual([
+      'Cvičiště',
+      'čítárna',
+      'Hala',
+      'Chemie',
+      'Učebna 2',
+      'Učebna 10',
+    ])
+    expect(czechCollator.compare('Aula', 'aula')).toBe(0)
+  })
+
+  it('compareCs is localeCompare in Czech: case and accents break ties', () => {
+    for (const [a, b] of [
+      ['Aula', 'aula'],
+      ['Černá', 'Cerna'],
+      ['Chemie', 'Hala'],
+    ] as const)
+      expect(Math.sign(compareCs(a, b))).toBe(Math.sign(a.localeCompare(b, 'cs')))
   })
 })

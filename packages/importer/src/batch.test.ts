@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   committable,
+  countCommittable,
   editCell,
   type ImportContext,
   parseFile,
@@ -9,6 +10,7 @@ import {
   setRemoved,
   summarize,
 } from './batch'
+import { isCommitted, rowState } from './row-state'
 import {
   EMPTY_REFERENCE,
   type ImportBatch,
@@ -332,6 +334,24 @@ describe('row operations', () => {
     expect(summarize(removed.sessions ?? [])).toMatchObject({ removed: 1 })
     expect(setRemoved(start, 'sessions', 99, true, reference)).toBe(start)
     expect(committable({}, 'courses')).toEqual([])
+  })
+
+  it('says what each row comes to on commit, and counts what will be written', () => {
+    const removed = setRemoved(start, 'sessions', 2, true, reference)
+    const states = (removed.sessions ?? []).map(rowState)
+    expect(states[2]).toBe('REMOVED')
+    // A row with an error (an unknown course code) is refused; the rest are written.
+    expect(states[3]).toBe('INVALID')
+    expect(removed.sessions?.filter(isCommitted)).toHaveLength(
+      states.filter(s => s === 'VALID').length
+    )
+    expect(countCommittable(removed)).toBe(
+      (['rooms', 'courses', 'employees', 'completions', 'sessions'] as const).reduce(
+        (sum, kind) => sum + committable(removed, kind).length,
+        0
+      )
+    )
+    expect(countCommittable({})).toBe(0)
   })
 
   it('summarises valid, invalid and warning rows', () => {

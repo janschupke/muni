@@ -1,4 +1,10 @@
-import { type ComplianceCounts, complianceRate, countStatuses } from '@muni/domain/compliance'
+import {
+  type ComplianceCounts,
+  complianceRate,
+  countStatuses,
+  departmentMatrix,
+  type MatrixCell,
+} from '@muni/domain/compliance'
 import { sortName } from '@muni/domain/names'
 
 import { ACTIVE } from './archive'
@@ -77,7 +83,7 @@ export interface ComplianceMatrixRow {
   departmentId: string
   department: string
   headcount: number
-  cells: Record<string, { counts: ComplianceCounts; rate: number } | null>
+  cells: Record<string, MatrixCell | null>
   /** The department's active people, by name; their cells add up to the row's counts. */
   people: ComplianceMatrixPerson[]
 }
@@ -118,12 +124,7 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
     }),
     loadBookingContext(db),
   ])
-  const active = compliance.employees.filter(e => e.status === 'ACTIVE')
-  const activeIds = new Set(active.map(e => e.id))
-  const departmentOf = new Map(active.map(e => [e.id, e.departmentId]))
-  const cells = compliance.cells.filter(c => activeIds.has(c.employeeId))
-  const byPair = Map.groupBy(cells, c => `${departmentOf.get(c.employeeId) ?? ''}|${c.courseId}`)
-  const cellsByPerson = Map.groupBy(cells, c => c.employeeId)
+  const cellsByPerson = Map.groupBy(compliance.cells, c => c.employeeId)
   const peopleByDepartment = Map.groupBy(people.toSorted(compareNames), p => p.departmentId)
   const context: RequirementContext = {
     courses: new Map(courses.map(c => [c.id, c])),
@@ -134,19 +135,12 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
   return {
     asOf: compliance.options.asOf,
     courses: courses.map(c => ({ code: c.code, name: c.name })),
-    rows: departments
-      .map(d => ({
+    rows: departmentMatrix(departments, courses, compliance.employees, compliance.cells).map(
+      ({ department: d, headcount, cells }) => ({
         departmentId: d.id,
         department: d.name,
-        headcount: active.filter(e => e.departmentId === d.id).length,
-        cells: Object.fromEntries(
-          courses.map(course => {
-            const pair = byPair.get(`${d.id}|${course.id}`)
-            if (!pair) return [course.code, null]
-            const counts = countStatuses(pair)
-            return [course.code, { counts, rate: complianceRate(counts) }]
-          })
-        ),
+        headcount,
+        cells,
         people: (peopleByDepartment.get(d.id) ?? []).map(p => {
           const own = new Map((cellsByPerson.get(p.id) ?? []).map(c => [c.courseId, c]))
           return {
@@ -161,7 +155,7 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
             ),
           }
         }),
-      }))
-      .filter(r => r.headcount > 0),
+      })
+    ),
   }
 }

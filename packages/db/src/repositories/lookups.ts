@@ -1,5 +1,6 @@
 import { sortName } from '@muni/domain/names'
 import type { RoomFacts } from '@muni/domain/rooms'
+import { compareCs } from '@muni/utils/text'
 
 import { ACTIVE } from './archive'
 import { dbOf, type RepoOptions } from './context'
@@ -87,5 +88,5 @@ export async function listEmployeeOptions(options?: RepoOptions): Promise<Person
       name: sortName(p),
       departmentId: p.departmentId,
     }))
-    .sort((a, b) => a.name.localeCompare(b.name, 'cs'))
+    .sort((a, b) => compareCs(a.name, b.name))
 }

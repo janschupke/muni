@@ -7,13 +7,12 @@ import {
   formatDate,
   formatDateRange,
   formatDateTime,
-  formatDecimal,
   formatInteger,
   formatMonth,
   formatOptional,
   formatPercent,
   formatRelativeDays,
-  formatTime,
+  formatSessionTime,
   formatTimeRange,
   PLACEHOLDER,
 } from './format'
@@ -31,8 +30,8 @@ describe('dates and times', () => {
 
   it('formats instants in Prague time on both sides of DST', () => {
     expect(formatDateTime('2026-10-14T07:00:00Z')).toBe('14.10.2026 9:00')
-    expect(formatTime('2026-12-16T12:00:00Z')).toBe('13:00')
-    expect(formatTime('2026-12-16T07:05:00Z')).toBe('8:05')
+    expect(formatDateTime('2026-12-16T12:00:00Z')).toBe('16.12.2026 13:00')
+    expect(formatDateTime('2026-12-16T07:05:00Z')).toBe('16.12.2026 8:05')
   })
 
   it('names a month in the language', () => {
@@ -44,6 +43,12 @@ describe('dates and times', () => {
     expect(formatTimeRange('2026-10-14T07:00:00Z', '2026-10-14T10:00:00Z')).toBe(
       '14.10.2026 9:00–12:00'
     )
+  })
+
+  it('writes when a session runs', () => {
+    expect(
+      formatSessionTime({ startsAt: '2026-10-14T07:00:00Z', endsAt: '2026-10-14T10:00:00Z' })
+    ).toBe('14.10.2026 9:00–12:00')
   })
 
   it('spells out both dates when a range crosses local midnight', () => {
@@ -69,14 +74,6 @@ describe('numbers', () => {
     expect(formatAmount(2100)).toBe('2100,00')
     expect(formatAmount(null)).toBe('')
     expect(currencySymbol()).toBe('Kč')
-  })
-
-  it('formats scores, signed when asked', () => {
-    expect(formatDecimal(42.46, 'en')).toBe('42.5')
-    expect(formatDecimal(-3, 'en', { signed: true })).toBe('-3')
-    expect(formatDecimal(10, 'en', { signed: true })).toBe('+10')
-    expect(formatDecimal(0, 'en', { signed: true })).toBe('0')
-    expect(plain(formatDecimal(-3.25, 'cs', { signed: true }))).toBe('-3,3')
   })
 
   it('formats counts and rates', () => {

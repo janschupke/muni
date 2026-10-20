@@ -1,3 +1,5 @@
+import { czechCollator } from '@muni/utils/text'
+
 /** One page of a list, with where it sits among the rest. */
 export interface Page<T> {
   items: T[]
@@ -31,12 +33,10 @@ export interface ListQuery<K extends string> {
 /** A value a list sorts by; missing ones sort last in either direction. */
 export type SortValue = string | number | null | undefined
 
-// Czech data in either UI language: č after c, ch after h, numbers within text naturally.
-const collator = new Intl.Collator('cs', { numeric: true, sensitivity: 'base' })
-
 function compare(a: SortValue, b: SortValue): number {
   if (typeof a === 'number' && typeof b === 'number') return a - b
-  return collator.compare(String(a), String(b))
+  // Czech data in either UI language: č after c, ch after h, numbers within text naturally.
+  return czechCollator.compare(String(a), String(b))
 }
 
 /**

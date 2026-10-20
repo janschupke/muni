@@ -1,20 +1,20 @@
 'use client'
 
 import {
-  type AdvisorSession,
   choicesOf,
   isProposed,
   type PlanItem,
   type ProposedItem,
   seatsFree,
   type SessionChoice,
+  summarizeBookings,
 } from '@muni/domain/advisor'
 import { Alert } from '@muni/ui/alert'
 import { SelectBox } from '@muni/ui/checkbox'
 import { EmptyState } from '@muni/ui/empty-state'
 import { Select } from '@muni/ui/select'
 import { Table, TableContainer, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
-import { formatCurrency, formatTimeRange } from '@muni/utils/format'
+import { formatCurrency, formatSessionTime } from '@muni/utils/format'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
@@ -76,15 +76,7 @@ export function BookDialog({
   const bookings = proposed
     .filter(item => !left.has(itemId(item)))
     .map(item => ({ item, session: choiceOf(item, chosen).session }))
-  const cost = bookings.reduce((sum, b) => sum + (b.session.pricePerPerson ?? 0), 0)
-  const when = (s: AdvisorSession) => formatTimeRange(s.startsAt, s.endsAt)
-
-  const bySession = new Map<string, { session: AdvisorSession; count: number }>()
-  for (const { session } of bookings) {
-    const entry = bySession.get(session.externalId) ?? { session, count: 0 }
-    bySession.set(session.externalId, { ...entry, count: entry.count + 1 })
-  }
-  const over = [...bySession.values()].filter(({ session, count }) => count > seatsFree(session))
+  const { cost, over } = summarizeBookings(bookings.map(b => b.session))
 
   const confirm = async (): Promise<ConfirmOutcome> => {
     const result = await applyAssignmentsAction(
@@ -113,7 +105,7 @@ export function BookDialog({
               {tr('failure', {
                 name: booking?.item.need.employee.name ?? f.employeeExternalId,
                 session: booking
-                  ? `${booking.session.courseName}, ${when(booking.session)}`
+                  ? `${booking.session.courseName}, ${formatSessionTime(booking.session)}`
                   : f.sessionExternalId,
                 reason: tr(`reasons.${f.reason}`),
               })}
@@ -233,7 +225,7 @@ export function BookDialog({
                               }}
                               options={choicesOf(item).map(c => {
                                 const label = tb('choice', {
-                                  date: when(c.session),
+                                  date: formatSessionTime(c.session),
                                   room: c.session.room.name,
                                   free: Math.max(0, seatsFree(c.session)),
                                 })
@@ -265,7 +257,7 @@ export function BookDialog({
           {over.map(({ session, count }) => (
             <Alert key={session.externalId} tone="danger">
               {t('over', {
-                session: `${session.courseName}, ${when(session)}`,
+                session: `${session.courseName}, ${formatSessionTime(session)}`,
                 count,
                 free: Math.max(0, seatsFree(session)),
               })}

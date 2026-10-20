@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  bandRanges,
   bestCompletion,
+  compareUrgency,
   complianceBand,
   type ComplianceCompletion,
   type ComplianceEmployee,
@@ -11,6 +13,7 @@ import {
   type ComplianceRequirement,
   computeCompliance,
   countStatuses,
+  departmentMatrix,
   statusOf,
   worstStatus,
 } from './compliance'
@@ -127,10 +130,51 @@ describe('computeCompliance', () => {
   })
 })
 
-describe('worstStatus', () => {
-  it('ranks MISSING highest', () => {
-    expect(worstStatus(['VALID', 'EXPIRING', 'MISSING', 'EXPIRED'])).toBe('MISSING')
+describe('urgency', () => {
+  it('puts a lapsed training first, then one never held, one lapsing soon, one held', () => {
+    expect((['VALID', 'MISSING', 'EXPIRING', 'EXPIRED'] as const).toSorted(compareUrgency)).toEqual(
+      ['EXPIRED', 'MISSING', 'EXPIRING', 'VALID']
+    )
+  })
+
+  it('makes a person as urgent as their most urgent training', () => {
+    // One lapsed and one never held: they work out of date now, as the employee list sorts them.
+    expect(worstStatus(['VALID', 'EXPIRING', 'MISSING', 'EXPIRED'])).toBe('EXPIRED')
+    expect(worstStatus(['VALID', 'MISSING', 'EXPIRING'])).toBe('MISSING')
+    expect(worstStatus(['VALID'])).toBe('VALID')
     expect(worstStatus([])).toBeNull()
+  })
+})
+
+describe('departmentMatrix', () => {
+  it('counts each department’s people at work by course; null where a course applies to nobody', () => {
+    const away = { ...lab, id: 'e3', status: 'PARENTAL_LEAVE' as const }
+    const employees = [lab, it_, away]
+    const cells = computeCompliance(
+      employees,
+      requirements,
+      [done('e1', 'BOZP', '2026-01-01', null)],
+      options
+    )
+    const rows = departmentMatrix(
+      [{ id: 'lab' }, { id: 'it' }, { id: 'empty' }],
+      [
+        { id: 'BOZP', code: 'BOZP-Z' },
+        { id: 'LAB', code: 'LAB-BEZ' },
+      ],
+      employees,
+      cells
+    )
+    // The person on leave counts neither in the headcount nor in a cell; an empty department goes.
+    expect(rows.map(r => [r.department.id, r.headcount])).toEqual([
+      ['lab', 1],
+      ['it', 1],
+    ])
+    expect(rows[0]?.cells).toEqual({
+      'BOZP-Z': { counts: { VALID: 1, EXPIRING: 0, EXPIRED: 0, MISSING: 0, total: 1 }, rate: 1 },
+      'LAB-BEZ': { counts: { VALID: 0, EXPIRING: 0, EXPIRED: 0, MISSING: 1, total: 1 }, rate: 0 },
+    })
+    expect(rows[1]?.cells['LAB-BEZ']).toBeNull()
   })
 })
 
@@ -161,6 +205,16 @@ describe('complianceBand', () => {
         expect(shown === 100, `${held}/${total}`).toBe(held === total)
       }
     }
+  })
+
+  it('describes each band as its legend prints it, best first', () => {
+    expect(bandRanges()).toEqual([
+      { band: 'FULL', from: 1, to: null },
+      { band: 'HIGH', from: 0.9, to: 0.99 },
+      { band: 'FAIR', from: 0.75, to: 0.89 },
+      { band: 'LOW', from: 0.5, to: 0.74 },
+      { band: 'POOR', from: null, to: 0.5 },
+    ])
   })
 
   it('prints whole percents, rounded down', () => {

@@ -1,5 +1,16 @@
-import { addDays, addMonths, diffInDays, type IsoDate, toZonedParts } from '@muni/utils/dates'
+import {
+  addDays,
+  addMonths,
+  diffInDays,
+  intervalsOverlap,
+  type IsoDate,
+  monthOf,
+  startOfMonth,
+  toZonedParts,
+} from '@muni/utils/dates'
+import { czechCollator } from '@muni/utils/text'
 
+import { compareUrgency } from './compliance'
 import type { RoomRef } from './rooms'
 import { seatsLeft, type SessionOpening } from './sessions'
 
@@ -17,7 +28,7 @@ export const FORECAST_MONTHS = 6
 
 /** Last day the forecast covers: the end of the sixth month, counting the current one. */
 export function forecastEnd(asOf: IsoDate): IsoDate {
-  const firstOfLast = `${addMonths(asOf, FORECAST_MONTHS - 1).slice(0, 7)}-01`
+  const firstOfLast = startOfMonth(addMonths(asOf, FORECAST_MONTHS - 1))
   return addDays(addMonths(firstOfLast, 1), -1)
 }
 
@@ -175,9 +186,15 @@ export function bookingState(
   return { kind: 'BOOK' }
 }
 
-/** Whether a requirement is one to book now (`bookingState` is `BOOK`). */
-export const canBookNow = (...args: Parameters<typeof bookingState>): boolean =>
-  bookingState(...args)?.kind === 'BOOK'
+/** How many of the requirements are ones to book now (`bookingState` is `BOOK`). */
+export function countBookable(
+  requirements: Iterable<Parameters<typeof bookingState>[0]>,
+  employment: Parameters<typeof bookingState>[1]
+): number {
+  let count = 0
+  for (const r of requirements) if (bookingState(r, employment)?.kind === 'BOOK') count += 1
+  return count
+}
 
 /** Why none of a person's needed trainings can be booked: one reason, or several. */
 export const PERSON_BOOKING_BLOCKS = [...BOOKING_BLOCKS, 'MIXED'] as const
@@ -191,12 +208,12 @@ export function personBookingState(
   requirements: readonly Parameters<typeof bookingState>[0][],
   employment: Parameters<typeof bookingState>[1]
 ): { kind: 'BOOK'; count: number } | { kind: 'BLOCKED'; reason: PersonBookingBlock } | null {
+  const count = countBookable(requirements, employment)
+  if (count > 0) return { kind: 'BOOK', count }
   const states = requirements.flatMap(r => {
     const state = bookingState(r, employment)
     return state ? [state] : []
   })
-  const count = states.filter(s => s.kind === 'BOOK').length
-  if (count > 0) return { kind: 'BOOK', count }
   const reasons = new Set(states.flatMap(s => (s.kind === 'BLOCKED' ? [s.reason] : [])))
   const [only] = reasons
   if (only === undefined) return null
@@ -271,17 +288,29 @@ export interface AdvisorPlan {
   cost: number
 }
 
-const collator = new Intl.Collator('cs', { sensitivity: 'base', numeric: true })
-
 const endDay = (s: AdvisorSession) => toZonedParts(s.endsAt).date
-const overlaps = (a: AdvisorSession, b: AdvisorSession) =>
-  Date.parse(a.startsAt) < Date.parse(b.endsAt) && Date.parse(b.startsAt) < Date.parse(a.endsAt)
+const span = (s: AdvisorSession) => ({ start: Date.parse(s.startsAt), end: Date.parse(s.endsAt) })
+const overlaps = (a: AdvisorSession, b: AdvisorSession) => intervalsOverlap(span(a), span(b))
 const byStart = (a: AdvisorSession, b: AdvisorSession) =>
   Date.parse(a.startsAt) - Date.parse(b.startsAt) || a.externalId.localeCompare(b.externalId)
 
 const isNonCompliant = (need: AdvisorNeed) => need.status === 'EXPIRED' || need.status === 'MISSING'
-const lapsesOn = (need: AdvisorNeed) =>
+const lapsesOn = (need: Pick<AdvisorNeed, 'validUntil'>) =>
   need.validUntil === null ? null : addDays(need.validUntil, 1)
+
+/**
+ * Whether a training is the advisor's business: non-compliant now, or lapsing (the day after
+ * its last valid day) by `end`. The repository reads what it plans with this, and the plan
+ * scopes with it.
+ */
+export function inForecast(
+  need: Pick<AdvisorNeed, 'status' | 'validUntil'>,
+  end: IsoDate
+): boolean {
+  if (need.status === 'EXPIRED' || need.status === 'MISSING') return true
+  const lapses = lapsesOn(need)
+  return lapses !== null && lapses <= end
+}
 
 /** The window a session leaves for a need; null when it ends before the training lapses. */
 function windowFor(need: AdvisorNeed, session: AdvisorSession | null): NonComplianceWindow | null {
@@ -294,11 +323,10 @@ function windowFor(need: AdvisorNeed, session: AdvisorSession | null): NonCompli
 
 /** Queue order: expired (earliest expiry first), never completed, then by lapse date. */
 function compareQueue(a: AdvisorNeed, b: AdvisorNeed): number {
-  const group = (n: AdvisorNeed) => (n.status === 'EXPIRED' ? 0 : n.status === 'MISSING' ? 1 : 2)
   return (
-    group(a) - group(b) ||
+    compareUrgency(a.status, b.status) ||
     (a.validUntil ?? '').localeCompare(b.validUntil ?? '') ||
-    collator.compare(a.employee.name, b.employee.name) ||
+    czechCollator.compare(a.employee.name, b.employee.name) ||
     a.employee.externalId.localeCompare(b.employee.externalId) ||
     a.course.code.localeCompare(b.course.code)
   )
@@ -358,9 +386,8 @@ export function planAssignments(input: AdvisorInput): AdvisorPlan {
   const remedied: PlanItem[] = []
   const queue: AdvisorNeed[] = []
   for (const need of input.needs) {
-    if (need.employee.status === 'PARENTAL_LEAVE') continue
+    if (need.employee.status === 'PARENTAL_LEAVE' || !inForecast(need, end)) continue
     const lapses = lapsesOn(need)
-    if (!isNonCompliant(need) && (lapses === null || lapses > end)) continue
     const booking = planned.find(
       s => s.courseCode === need.course.code && s.assigned.includes(need.employee.externalId)
     )
@@ -455,13 +482,13 @@ export function planAssignments(input: AdvisorInput): AdvisorPlan {
 
 function bucketOf(need: AdvisorNeed): Bucket {
   const lapses = lapsesOn(need)
-  return isNonCompliant(need) || lapses === null ? NOW : lapses.slice(0, 7)
+  return isNonCompliant(need) || lapses === null ? NOW : monthOf(lapses)
 }
 
 /** The forecast's months, `2026-10` … `2027-03`. */
 export function forecastMonths(asOf: IsoDate): Bucket[] {
   return Array.from({ length: FORECAST_MONTHS }, (_, i) =>
-    addMonths(`${asOf.slice(0, 7)}-01`, i).slice(0, 7)
+    monthOf(addMonths(startOfMonth(asOf), i))
   )
 }
 
@@ -471,6 +498,73 @@ function breakdownOf(items: PlanItem[], asOf: IsoDate): BreakdownRow[] {
     for (const item of items) if (item.bucket === bucket) counts[item.remediation] += 1
     return { bucket, counts, total: counts.PLANNED + counts.PLANNED_LATE + counts.ACTION_REQUIRED }
   })
+}
+
+/** Every forecast month's trainings in one row (`UPCOMING`): what the "lapsing" count adds up. */
+export function upcomingRow(months: readonly BreakdownRow[]): BreakdownRow {
+  const counts: Record<Remediation, number> = { PLANNED: 0, PLANNED_LATE: 0, ACTION_REQUIRED: 0 }
+  for (const row of months) for (const r of REMEDIATIONS) counts[r] += row.counts[r]
+  return { bucket: UPCOMING, counts, total: months.reduce((total, r) => total + r.total, 0) }
+}
+
+/**
+ * What a set of chosen bookings comes to: their cost, and each session that would get more
+ * people than it has free seats (with how many it would get). The Book… dialog stops its
+ * confirm while any session is over.
+ */
+export function summarizeBookings(sessions: readonly AdvisorSession[]): {
+  cost: number
+  over: { session: AdvisorSession; count: number }[]
+} {
+  const bySession = new Map<string, { session: AdvisorSession; count: number }>()
+  for (const session of sessions) {
+    const entry = bySession.get(session.externalId) ?? { session, count: 0 }
+    bySession.set(session.externalId, { session, count: entry.count + 1 })
+  }
+  return {
+    cost: sessions.reduce((sum, s) => sum + (s.pricePerPerson ?? 0), 0),
+    over: [...bySession.values()].filter(({ session, count }) => count > seatsFree(session)),
+  }
+}
+
+/**
+ * What typed seat moves off an overbooked session come to: the seats moved, the targets given
+ * more than they have free, and whether the total exceeds the seats booked without a name (the
+ * only ones that move). `counts` are per target session ID; null is a count that is not a whole
+ * number, an absent one moves nothing.
+ */
+export function checkMoves(
+  o: OverbookedSession,
+  counts: ReadonlyMap<string, number | null>
+): {
+  moves: { target: OverbookedSession['targets'][number]; count: number | null }[]
+  total: number
+  /** Targets given more than they have free. */
+  overTarget: string[]
+  tooMany: boolean
+  /** Every count is a whole number, something moves, and nothing is over. */
+  ready: boolean
+} {
+  const moves = o.targets.map(target => ({
+    target,
+    count: counts.has(target.session.externalId)
+      ? (counts.get(target.session.externalId) ?? null)
+      : 0,
+  }))
+  const total = moves.reduce((sum, m) => sum + (m.count ?? 0), 0)
+  const overTarget = moves.flatMap(m =>
+    m.count !== null && m.count > m.target.free ? [m.target.session.externalId] : []
+  )
+  const tooMany = total > o.session.unnamedBookings
+  const typed = moves.every(m => m.count !== null)
+  return {
+    moves,
+    total,
+    overTarget,
+    tooMany,
+    ready:
+      o.session.unnamedBookings > 0 && typed && total > 0 && overTarget.length === 0 && !tooMany,
+  }
 }
 
 /**
