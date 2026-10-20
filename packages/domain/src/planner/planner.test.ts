@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import type { PlanItem, UnplacedReason } from './advisor'
+import type { PlanItem, UnplacedReason } from '../advisor'
+import type { RoomFacts } from '../rooms'
 import {
   type CourseOffering,
   groupOffers,
@@ -9,8 +10,7 @@ import {
   type PlannerSession,
   planSessions,
   proposedOffering,
-} from './planner'
-import type { RoomFacts } from './rooms'
+} from '.'
 
 // 2026-10-16 is a Friday: tomorrow is Saturday, so the first working day is Monday the 19th.
 const asOf = '2026-10-16'

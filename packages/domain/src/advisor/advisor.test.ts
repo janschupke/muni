@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { openingOf, type SessionOpening } from '../sessions'
 import {
   type AdvisorInput,
   type AdvisorNeed,
@@ -22,8 +23,7 @@ import {
   summarizeBookings,
   unpack,
   upcomingRow,
-} from './advisor'
-import { openingOf, type SessionOpening } from './sessions'
+} from '.'
 
 const AS_OF = '2026-10-16'
 /** Midnight of AS_OF in Prague: every session that day is still to start. */
