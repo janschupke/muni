@@ -1,6 +1,6 @@
 import { fold } from '@muni/utils/text'
 
-import type { DatasetKind } from './types'
+import type { DatasetKind } from '../types'
 
 export interface ColumnSchema {
   key: string

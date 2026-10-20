@@ -3,8 +3,8 @@ import { type SessionInput, sessionSchema } from '@muni/domain/schemas'
 import { parseTimeRange } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 
-import { reservedId, type RowBuilder } from '../fields'
 import type { RowMapResult } from '../types'
+import { reservedId, type RowBuilder } from './fields'
 
 const STATUS_BY_FOLD: Record<string, SessionStatus> = {
   planovano: 'PLANNED',

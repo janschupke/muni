@@ -1,15 +1,15 @@
 import type { IsoDate } from '@muni/utils/dates'
 
-import { COLUMNS, detectKind, resolveColumnMap } from './columns'
-import { detectDelimiter, isBlankRecord, isCommentRecord, parseCsv } from './csv'
-import { mapCompletion } from './datasets/completions'
-import { mapCourse } from './datasets/courses'
-import { mapEmployee } from './datasets/employees'
-import { mapRoom } from './datasets/rooms'
-import { mapSession } from './datasets/sessions'
-import { decode } from './decode'
-import { RowBuilder } from './fields'
+import { COLUMNS, detectKind, resolveColumnMap } from './parse/columns'
+import { detectDelimiter, isBlankRecord, isCommentRecord, parseCsv } from './parse/csv'
+import { decode } from './parse/decode'
 import { isCommitted, rowState } from './row-state'
+import { mapCompletion } from './rows/completions'
+import { mapCourse } from './rows/courses'
+import { mapEmployee } from './rows/employees'
+import { RowBuilder } from './rows/fields'
+import { mapRoom } from './rows/rooms'
+import { mapSession } from './rows/sessions'
 import {
   COMMIT_ORDER,
   type DatasetKind,

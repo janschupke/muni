@@ -11,8 +11,8 @@ export {
   setRemoved,
   summarize,
 } from './batch'
-export { COLUMNS } from './columns'
 export { ISSUE_CODES, type IssueCode, SKIPPING_CODES } from './issues'
+export { COLUMNS } from './parse/columns'
 export { isCommitted, type RowState, rowState } from './row-state'
 export {
   type ArchivedKeys,

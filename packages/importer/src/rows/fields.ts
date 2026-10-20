@@ -4,8 +4,8 @@ import { parseCount, parseCzk } from '@muni/utils/money'
 import { cleanFreeText, collapseWhitespace, isFormulaLike } from '@muni/utils/text'
 import type * as z from 'zod'
 
-import type { IssueCode } from './issues'
-import type { RowMapResult, ValidationIssue } from './types'
+import type { IssueCode } from '../issues'
+import type { RowMapResult, ValidationIssue } from '../types'
 
 const SUMMARY_LABELS = /^(celkem|soucet|součet|total|sum)$/i
 

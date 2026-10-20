@@ -3,8 +3,8 @@ import { ROOM_KIND_WORDS, roomKindOfName } from '@muni/domain/rooms'
 import { type RoomInput, roomSchema } from '@muni/domain/schemas'
 import { fold } from '@muni/utils/text'
 
-import type { RowBuilder } from '../fields'
 import type { RowMapResult } from '../types'
+import type { RowBuilder } from './fields'
 
 const CAPABILITY_BY_FOLD: ReadonlyMap<string, Capability> = new Map(
   Object.entries({

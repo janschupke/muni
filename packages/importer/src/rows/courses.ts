@@ -1,8 +1,8 @@
 import { type CourseInput, courseSchema, type RequirementInput } from '@muni/domain/schemas'
 import { fold } from '@muni/utils/text'
 
-import type { RowBuilder } from '../fields'
 import type { RowMapResult } from '../types'
+import type { RowBuilder } from './fields'
 
 const YEARS_RE = /^(\d+)\s*(rok|roky|let|year|years)$/
 const MONTHS_RE = /^(\d+)\s*(mesic|mesice|mesicu|month|months)$/

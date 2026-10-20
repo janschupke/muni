@@ -1345,10 +1345,13 @@ describe('ConfirmDialog', () => {
     const dialog = screen.getByRole('dialog', { name: 'Cancel the booking?' })
     await user.click(within(dialog).getByRole('button', { name: 'Cancel booking' }))
     expect(await within(dialog).findByText('Already cancelled.')).toBeTruthy()
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel booking' }))
+    // The button reads "Working…" until the action has settled, which can be after the message.
+    await user.click(await within(dialog).findByRole('button', { name: 'Cancel booking' }))
     expect(
       await within(dialog).findByText('That did not go through. Check the page and try again.')
     ).toBeTruthy()
+    // Settled again (the confirm button has its name back): Keep is no longer disabled.
+    await within(dialog).findByRole('button', { name: 'Cancel booking' })
     await user.click(within(dialog).getByRole('button', { name: 'Keep booking' }))
     expect(screen.queryByRole('dialog')).toBeNull()
   })

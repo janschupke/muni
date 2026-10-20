@@ -466,6 +466,38 @@ describe('rooms', () => {
     expect(codesOf(none.sessions?.[0])).toEqual(['provider:NO_DEFAULT_PROVIDER'])
   })
 
+  it('counts a provider as known from the completions that will be written only', () => {
+    const register: ReferenceSnapshot = {
+      ...EMPTY_REFERENCE,
+      courses: [{ code: 'GDPR', validityMonths: 24, offeredBy: ['Interní školitel'] }],
+      providers: ['Interní školitel'],
+      defaultProvider: 'Interní školitel',
+      rooms: ['Aula A'],
+      employees: [
+        { externalId: 'E0500', email: 'eva.simkova@vzorova.example', fullName: 'Šimková Eva' },
+      ],
+    }
+    const out = validateBatch(
+      {
+        completions: file('absolvovana.csv', [
+          'id_zaznamu;id_zamestnance;zamestnanec;kod_skoleni;datum_absolvovani;platnost_do;poskytovatel',
+          // Nobody by this ID: the row is refused, and so is the provider only it names.
+          'Z000201;E9999;;GDPR;2025-03-01;;Nová firma s.r.o.',
+          'Z000202;E0500;Šimková Eva;GDPR;2025-03-01;;Druhá firma s.r.o.',
+        ]).rows as NonNullable<ImportBatch['completions']>,
+        sessions: file('terminy.csv', [
+          'id_terminu;kod_skoleni;datum;cas;misto;kapacita;poskytovatel',
+          'T201;GDPR;2026-11-04;08:00-10:00;Aula A;10;Nová firma s.r.o.',
+          'T202;GDPR;2026-11-05;08:00-10:00;Aula A;10;Druhá firma s.r.o.',
+        ]).rows as NonNullable<ImportBatch['sessions']>,
+      },
+      register
+    )
+    expect(codesOf(out.completions?.[0])).toContain('employeeExternalId:EMPLOYEE_NOT_FOUND')
+    expect(codesOf(out.sessions?.[0])).toEqual(['provider:PROVIDER_UNKNOWN'])
+    expect(codesOf(out.sessions?.[1])).toEqual([])
+  })
+
   it('keeps the spelling of a room the register already has', () => {
     const batch = validateBatch(
       {

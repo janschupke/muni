@@ -4,8 +4,8 @@ import type { IsoDate } from '@muni/utils/dates'
 import { collapseWhitespace, fold, titleCase } from '@muni/utils/text'
 import * as z from 'zod'
 
-import { reservedId, type RowBuilder } from '../fields'
 import type { RowMapResult } from '../types'
+import { reservedId, type RowBuilder } from './fields'
 
 /** A source status. "Left" is no status in the register: the leaving date says it. */
 const STATUS_BY_FOLD: Record<string, EmploymentState> = {
