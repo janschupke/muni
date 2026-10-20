@@ -2,7 +2,7 @@
 
 One palette in `packages/ui/src/styles/tokens.css`, checked as data by
 `packages/ui/src/styles/tokens.test.ts`. Deep reference:
-[README § Colour](../../README.md#colour).
+[docs/design.md](../../docs/design.md).
 
 ## Rules
 

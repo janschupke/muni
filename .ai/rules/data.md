@@ -2,8 +2,8 @@
 
 Postgres through Prisma 7. Invariants are enforced by the database where they can be (CHECKs,
 partial unique indexes, RESTRICT foreign keys) and by repositories under locks where they
-cannot. Deep reference: [README § Data model](../../README.md#data-model) and
-[§ Archiving](../../README.md#archiving).
+cannot. Deep reference: [docs/data-model.md](../../docs/data-model.md), including
+[§ Archiving](../../docs/data-model.md#archiving).
 
 ## Rules
 

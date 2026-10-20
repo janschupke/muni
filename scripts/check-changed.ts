@@ -67,6 +67,7 @@ const TEST = /\.test\.tsx?$/
 export const SCANNING_SUITES = {
   web: ['src/i18n/messages-parity.test.ts', 'src/lib/format/format-rate.test.ts'],
   ui: ['src/styles/tokens.test.ts'],
+  root: ['scripts/docs-paths.test.ts'],
 } as const
 
 const WEB = '@muni/web'
@@ -277,6 +278,18 @@ export function planChecks(
               ]
             )
           : check('db integration (all)', 'db files were deleted', '', 'pnpm', ['test:integration'])
+    )
+  }
+
+  // The docs name files by path: a changed doc, or a file moved or deleted, can break one.
+  if (files.some(f => f.endsWith('.md') || !exists(f))) {
+    checks.push(
+      check('paths the docs name', 'docs changed or files were removed', '', 'pnpm', [
+        'exec',
+        'vitest',
+        'run',
+        ...SCANNING_SUITES.root,
+      ])
     )
   }
 

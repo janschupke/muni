@@ -21,7 +21,9 @@ monorepo; internal packages ship TypeScript source.
 - `packages/importer` — CSV decoding, parsing and validation (browser and Node)
 - `packages/ui` — design tokens and components
 - `packages/utils` — text, dates, money, formatting
-- `scripts/` — repo tooling (`check-changed.ts`)
+- `scripts/` — repo tooling (`check-changed.ts`, `docs-paths.test.ts`)
+- `docs/` — how it works, in depth: architecture, data model, UI, colour, features, testing,
+  deployment
 
 ## Rules
 

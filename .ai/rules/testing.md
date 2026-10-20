@@ -2,7 +2,7 @@
 
 Vitest in every package (unit; db also integration against the test database on :5439),
 Playwright for e2e, visual shots and Lighthouse on the production build. Deep reference:
-[README § Commands](../../README.md#commands).
+[docs/testing.md](../../docs/testing.md).
 
 ## Rules
 
@@ -15,8 +15,8 @@ Playwright for e2e, visual shots and Lighthouse on the production build. Deep re
 - **A new branch needs a test** (90 % per package). Integration tests assert every write's
   result: an unchecked refusal hides a broken test.
 - **e2e runs the production build.** Rebuild (`pnpm --filter @muni/web build`) after every UI
-  change, then run one spec file at a time. On this machine Playwright needs
-  `NODE_OPTIONS=--no-network-family-autoselection` to reach Clerk.
+  change, then run one spec file at a time. If the setup project times out reaching Clerk,
+  see [troubleshooting](../../docs/testing.md#troubleshooting).
 - **e2e signs in for real** through the Clerk development instance; the setup project creates
   the three users. Never automate against live user data or a real profile.
 - **Never run two suites at once;** they share the test database and the machine. Capture a

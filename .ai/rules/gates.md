@@ -1,7 +1,7 @@
 # Gates
 
 **`pnpm check` is the full gate; `pnpm check:changed` is what to run after each change.**
-Deep reference: [README § Checks](../../README.md#checks).
+Deep reference: [docs/testing.md](../../docs/testing.md).
 
 `pnpm check` runs, in order (the same steps as `.github/workflows/check.yml`):
 
@@ -41,6 +41,7 @@ It needs the test database (`pnpm db:up`). Playwright and Lighthouse are not in 
 | `apps/web/src/i18n/messages/**`                                             | `messages-parity.test.ts` (keys, ICU, glossary, unused keys)          |
 | `apps/web/src/**` (any source)                                              | `messages-parity.test.ts`, `format-rate.test.ts`, ui `tokens.test.ts` |
 | `packages/ui/src/styles/**`                                                 | `tokens.test.ts` (the colour contract)                                |
+| a Markdown file, or a file moved or deleted                                 | `scripts/docs-paths.test.ts` (every path the docs name exists)        |
 | a page, form, dialog or table                                               | rebuild, the covering e2e spec, `a11y.spec.ts`, visual shots          |
 | `tsconfig*`, `eslint.preset.js`, `vitest.preset.ts`, `turbo.json`, lockfile | `pnpm check`                                                          |
 

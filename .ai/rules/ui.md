@@ -1,7 +1,7 @@
 # UI
 
 The web app is server-guarded pages over client views reading through TanStack Query, built
-from `@muni/ui`. Deep reference: [README § UI](../../README.md#ui).
+from `@muni/ui`. Deep reference: [docs/ui.md](../../docs/ui.md).
 
 ## Rules
 

@@ -1,7 +1,7 @@
 # Architecture
 
 A pnpm + Turborepo monorepo: one Next.js 16 app over five internal packages that ship
-TypeScript source (no build step). Deep reference: [README § Layout](../../README.md#layout).
+TypeScript source (no build step). Deep reference: [docs/architecture.md](../../docs/architecture.md).
 
 ## The shape
 

@@ -88,13 +88,14 @@ describe('the checks a change needs', () => {
     expect(plan.checks).toEqual([expect.objectContaining({ label: 'pnpm check', args: ['check'] })])
   })
 
-  it('docs only: formatting', () => {
+  it('docs only: formatting, and the paths they name', () => {
     expect(labels(planChecks(['README.md', 'docs/ui.md'], WORKSPACES, present).checks)).toEqual([
       'prettier',
+      'paths the docs name',
     ])
   })
 
-  it('a deleted file: nothing left to trace, so its whole package runs', () => {
+  it('a deleted file: its whole package runs, and the docs are checked for it', () => {
     const plan = planChecks(['packages/utils/src/money.ts'], WORKSPACES, () => false)
     expect(labels(plan.checks)).toEqual([
       'typecheck @muni/web',
@@ -105,6 +106,7 @@ describe('the checks a change needs', () => {
       'knip',
       'tests @muni/utils',
       'db integration (all)',
+      'paths the docs name',
     ])
   })
 
@@ -132,5 +134,7 @@ describe('the suites that scan the source', () => {
       expect(existsSync(path.join(root, 'apps/web', suite)), suite).toBe(true)
     for (const suite of SCANNING_SUITES.ui)
       expect(existsSync(path.join(root, 'packages/ui', suite)), suite).toBe(true)
+    for (const suite of SCANNING_SUITES.root)
+      expect(existsSync(path.join(root, suite)), suite).toBe(true)
   })
 })
