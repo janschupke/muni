@@ -1,7 +1,7 @@
 import { type CourseInput } from '@muni/domain/schemas'
 
 import type { Tx } from '../client'
-import { ACTIVE } from '../repositories/archive'
+import { ACTIVE } from '../repositories/archive/archive'
 import type { CommitResult } from './shared'
 import { archivedOnly, lookup, upsertNames, withoutArchived } from './shared'
 

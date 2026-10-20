@@ -22,7 +22,7 @@ import { todayIn } from '@muni/utils/dates'
 
 import type { Db } from './client'
 import { findArchivedKeys, loadReferenceSnapshot } from './reference'
-import { fillDepartmentHeads } from './repositories/groups'
+import { fillDepartmentHeads } from './repositories/org/groups'
 import { chunk, commitChunk } from './writer'
 
 const log = (line: string) => process.stdout.write(`${line}\n`)

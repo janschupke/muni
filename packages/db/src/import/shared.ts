@@ -1,7 +1,7 @@
 import { fold } from '@muni/utils/text'
 
 import type { Tx } from '../client'
-import { ACTIVE } from '../repositories/archive'
+import { ACTIVE } from '../repositories/archive/archive'
 
 export interface CommitResult {
   created: number

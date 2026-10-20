@@ -3,7 +3,7 @@ import { isoDateToUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
 
 import type { Tx } from '../client'
-import { ACTIVE } from '../repositories/archive'
+import { ACTIVE } from '../repositories/archive/archive'
 import type { CommitResult } from './shared'
 import { archivedOnly, partition, upsertNames, withoutArchived } from './shared'
 

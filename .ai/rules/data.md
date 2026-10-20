@@ -20,7 +20,7 @@ cannot. Deep reference: [README § Data model](../../README.md#data-model) and
 - **A session derives from its course and provider:** the provider must offer the course
   (`provider_courses`), the end is start + `Course.sessionMinutes`, the price is the
   offering's, copied when scheduled or when course or provider changes (`derive()` in
-  `repositories/mutations.ts`). Imported sessions keep their exported times and price.
+  `repositories/records/mutations.ts`). Imported sessions keep their exported times and price.
 - **One active default provider** (partial unique); imported sessions naming none go to it;
   it cannot be archived.
 - **Session writes take the sessions lock and the row lock** (`lockSessionWrites`,

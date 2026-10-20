@@ -5,8 +5,8 @@ import { zonedTimeToUtc } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 
 import type { Tx } from '../client'
-import { ACTIVE } from '../repositories/archive'
-import { lockSessionWrites } from '../repositories/session-fit'
+import { ACTIVE } from '../repositories/archive/archive'
+import { lockSessionWrites } from '../repositories/scheduling/session-fit'
 import type { CommitResult } from './shared'
 import {
   archivedOnly,
@@ -179,8 +179,9 @@ async function refuseAppRoomClashes(
   }
 }
 
-export async function writeSessions(tx: Tx, all: SessionInput[]): Promise<CommitResult> {
-  const { kept: records, skipped } = withoutArchived(all, [
+/** The rows whose session, course or room only an archived record holds are skipped. */
+async function skipArchived(tx: Tx, all: SessionInput[]) {
+  return withoutArchived(all, [
     [
       await archivedOnly(
         tx,
@@ -209,6 +210,31 @@ export async function writeSessions(tx: Tx, all: SessionInput[]): Promise<Commit
       r => [r.location],
     ],
   ])
+}
+
+/**
+ * The batch's sessions the register already has, locked (as booking locks a session) before
+ * their named bookings are counted: one booked meanwhile is counted, not stored again as an
+ * unnamed seat. Fills `assigned` with each one's named bookings.
+ */
+function lockExisting(tx: Tx, assigned: Map<string, number>) {
+  return async (keys: string[]) => {
+    const found = await tx.$queryRaw<{ id: string; external_id: string }[]>`
+      SELECT id, external_id FROM course_sessions
+      WHERE external_id = ANY(${keys}) AND archived_at IS NULL
+      ORDER BY id FOR UPDATE`
+    const counts = await tx.sessionAssignment.groupBy({
+      by: ['sessionId'],
+      where: { sessionId: { in: found.map(f => f.id) } },
+      _count: { _all: true },
+    })
+    for (const c of counts) assigned.set(c.sessionId, c._count._all)
+    return found.map(f => ({ key: f.external_id, id: f.id }))
+  }
+}
+
+export async function writeSessions(tx: Tx, all: SessionInput[]): Promise<CommitResult> {
+  const { kept: records, skipped } = await skipArchived(tx, all)
   // Session writes take turns, as the app's own do (see lockSessionWrites).
   await lockSessionWrites(tx)
   const courses = await courseIds(
@@ -238,21 +264,7 @@ export async function writeSessions(tx: Tx, all: SessionInput[]): Promise<Commit
   const { fresh, existing } = await partition(
     records,
     r => r.externalId,
-    async keys => {
-      // Locked before the named bookings are counted, as booking locks the session: one
-      // booked meanwhile is counted, not stored again as an unnamed seat.
-      const found = await tx.$queryRaw<{ id: string; external_id: string }[]>`
-        SELECT id, external_id FROM course_sessions
-        WHERE external_id = ANY(${keys}) AND archived_at IS NULL
-        ORDER BY id FOR UPDATE`
-      const counts = await tx.sessionAssignment.groupBy({
-        by: ['sessionId'],
-        where: { sessionId: { in: found.map(f => f.id) } },
-        _count: { _all: true },
-      })
-      for (const c of counts) assignedBySession.set(c.sessionId, c._count._all)
-      return found.map(f => ({ key: f.external_id, id: f.id }))
-    }
+    lockExisting(tx, assignedBySession)
   )
   const freshProvider = (r: SessionInput) => {
     const id = providers.get(r) ?? fallback

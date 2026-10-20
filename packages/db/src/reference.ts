@@ -6,7 +6,7 @@ import { toZonedParts } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 
 import type { Db } from './client'
-import { ACTIVE } from './repositories/archive'
+import { ACTIVE } from './repositories/archive/archive'
 
 /**
  * What the importer needs to resolve references against existing data. Sent to the

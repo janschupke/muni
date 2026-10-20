@@ -2,13 +2,13 @@ import { type RoomInput } from '@muni/domain/schemas'
 import { cleanFreeText } from '@muni/utils/text'
 
 import type { Tx } from '../client'
-import { ACTIVE } from '../repositories/archive'
+import { ACTIVE } from '../repositories/archive/archive'
 import {
   lockSessionWrites,
   newlyUnfit,
   roomFactsOf,
   roomFactsSelect,
-} from '../repositories/session-fit'
+} from '../repositories/scheduling/session-fit'
 import type { CommitResult } from './shared'
 import { archivedOnly, CommitRefusedError, withoutArchived } from './shared'
 

@@ -13,7 +13,7 @@ export default [
       'no-restricted-syntax': [
         'error',
         {
-          // Nothing carrying history is deleted: it is archived (see repositories/archiving.ts).
+          // Nothing carrying history is deleted: it is archived (see repositories/archive/archiving.ts).
           // Bookings and join rows are the exceptions.
           selector: `CallExpression[callee.property.name=/^delete(Many)?$/]:not([callee.object.property.name=/^(${JOIN_ROWS})$/])`,
           message:

@@ -2,40 +2,23 @@
 // personal fields have already been passed through the sanitisation policy for the role.
 import 'server-only'
 
-export { getAdvisorInput } from './advisor'
-export type { PersonRef, UserRef } from './archive'
+export type { PersonRef, UserRef } from './archive/archive'
 export {
   type ArchivedField,
   type ArchivedItem,
   type ArchivedRecord,
+  getArchivedRecord,
+  listArchived,
+} from './archive/archived-records'
+export {
   type ArchiveImpact,
   archiveImpact,
   archiveRecord,
   type ArchiveRefusal,
-  getArchivedRecord,
-  listArchived,
   type UnarchiveOutcome,
   unarchiveRecord,
   type UniqueField,
-} from './archiving'
-export {
-  applyAssignments,
-  ASSIGNMENT_FAILURES,
-  type AssignmentFailure,
-  type AssignmentOutcome,
-  type AssignmentRequest,
-  type BookingsOf,
-  type EmployeeBooking,
-  listUpcomingBookings,
-  type MoveFailure,
-  type MoveOutcome,
-  moveSeatsMany,
-  removeAssignment,
-  type SeatMoveRequest,
-  type UpcomingBooking,
-} from './assignments'
-export { getPolicy, type RepoOptions } from './context'
-export { type ComplianceSnapshot, loadCompliance } from './context'
+} from './archive/archiving'
 export {
   type CourseDetail,
   type CourseListItem,
@@ -47,28 +30,35 @@ export {
   type RequirementView,
   type SessionBooking,
   type SessionListItem,
-} from './courses'
+} from './catalog/courses'
 export {
-  type ComplianceMatrix,
-  type ComplianceMatrixPerson,
-  type ComplianceMatrixRow,
-  type DashboardData,
-  getComplianceMatrix,
-  getDashboard,
-} from './dashboard'
-export { pageEmployees } from './employee-sort'
+  createProvider,
+  getProvider,
+  getProviderForEdit,
+  listProviders,
+  type ProviderDetail,
+  type ProviderList,
+  type ProviderListItem,
+  type ProviderTotals,
+  type ProviderWrite,
+  updateProvider,
+} from './catalog/providers'
+export { getPolicy, type RepoOptions } from './core/context'
+export { type ComplianceSnapshot, loadCompliance } from './core/context'
+export { isPrismaCode } from './core/errors'
+export { recordExists } from './core/exists'
 export {
-  type EmployeeDetail,
-  type EmployeeFilters,
-  type EmployeeListItem,
-  type EmployeeListRequirement,
-  getEmployee,
-  getEmployeeForEdit,
-  listEmployees,
-  type TeamMember,
-} from './employees'
-export { isPrismaCode } from './errors'
-export { recordExists } from './exists'
+  getPersonName,
+  listDepartments,
+  listEmployeeOptions,
+  listPositions,
+  listProviderOptions,
+  listRoomOptions,
+  type PersonOption,
+  type RoomOption,
+} from './core/lookups'
+export { type ListQuery, type Page, pageOf, type SortValue } from './core/paging'
+export { hitRateLimit } from './core/rate-limits'
 export {
   getDepartmentForEdit,
   getPositionForEdit,
@@ -80,17 +70,54 @@ export {
   listGroupOptions,
   saveDepartment,
   savePosition,
-} from './groups'
+} from './org/groups'
 export {
-  getPersonName,
-  listDepartments,
-  listEmployeeOptions,
-  listPositions,
-  listProviderOptions,
-  listRoomOptions,
-  type PersonOption,
-  type RoomOption,
-} from './lookups'
+  type CourseCompliance,
+  type DepartmentDetail,
+  type DepartmentSummary,
+  getDepartment,
+  getGroupName,
+  getPosition,
+  listDepartmentSummaries,
+  listGroupMembers,
+  listPositionSummaries,
+  type PositionDetail,
+  type PositionSummary,
+} from './org/org'
+export {
+  type ComplianceMatrix,
+  type ComplianceMatrixPerson,
+  type ComplianceMatrixRow,
+  type DashboardData,
+  getComplianceMatrix,
+  getDashboard,
+} from './overview/dashboard'
+export { pageEmployees } from './people/employee-sort'
+export {
+  type EmployeeDetail,
+  type EmployeeFilters,
+  type EmployeeListItem,
+  type EmployeeListRequirement,
+  getEmployee,
+  getEmployeeForEdit,
+  listEmployees,
+  type TeamMember,
+} from './people/employees'
+export {
+  type ClerkUserSync,
+  findUserByClerkId,
+  getUser,
+  listUsers,
+  revertUserRole,
+  type RoleChange,
+  setUserRole,
+  upsertUserFromClerk,
+  type UserDetail,
+  type UserListItem,
+  type UserRecord,
+} from './people/users'
+export { getAdvisorInput } from './planning/advisor'
+export { getPlannerInput } from './planning/planner'
 export {
   cancelSession,
   checkSessionSlot,
@@ -108,35 +135,7 @@ export {
   type SessionWrite,
   updateRoom,
   updateSession,
-} from './mutations'
-export {
-  type CourseCompliance,
-  type DepartmentDetail,
-  type DepartmentSummary,
-  getDepartment,
-  getGroupName,
-  getPosition,
-  listDepartmentSummaries,
-  listGroupMembers,
-  listPositionSummaries,
-  type PositionDetail,
-  type PositionSummary,
-} from './org'
-export { type ListQuery, type Page, pageOf, type SortValue } from './paging'
-export { getPlannerInput } from './planner'
-export {
-  createProvider,
-  getProvider,
-  getProviderForEdit,
-  listProviders,
-  type ProviderDetail,
-  type ProviderList,
-  type ProviderListItem,
-  type ProviderTotals,
-  type ProviderWrite,
-  updateProvider,
-} from './providers'
-export { hitRateLimit } from './rate-limits'
+} from './records/mutations'
 export {
   createCompletion,
   createCourse,
@@ -147,19 +146,28 @@ export {
   updateCompletion,
   updateCourse,
   updateEmployee,
-} from './records'
-export { getRoom, getRoomForEdit, listRooms, type RoomDetail, type RoomListItem } from './rooms'
-export { countSessions, getSession, listSessions, type SessionWindow } from './sessions'
+} from './records/records'
 export {
-  type ClerkUserSync,
-  findUserByClerkId,
-  getUser,
-  listUsers,
-  revertUserRole,
-  type RoleChange,
-  setUserRole,
-  upsertUserFromClerk,
-  type UserDetail,
-  type UserListItem,
-  type UserRecord,
-} from './users'
+  applyAssignments,
+  ASSIGNMENT_FAILURES,
+  type AssignmentFailure,
+  type AssignmentOutcome,
+  type AssignmentRequest,
+  type BookingsOf,
+  type EmployeeBooking,
+  listUpcomingBookings,
+  type MoveFailure,
+  type MoveOutcome,
+  moveSeatsMany,
+  removeAssignment,
+  type SeatMoveRequest,
+  type UpcomingBooking,
+} from './scheduling/assignments'
+export {
+  getRoom,
+  getRoomForEdit,
+  listRooms,
+  type RoomDetail,
+  type RoomListItem,
+} from './scheduling/rooms'
+export { countSessions, getSession, listSessions, type SessionWindow } from './scheduling/sessions'

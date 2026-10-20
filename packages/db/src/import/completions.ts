@@ -3,8 +3,8 @@ import { isoDateToUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
 
 import type { Tx } from '../client'
-import { ACTIVE } from '../repositories/archive'
-import { chooseDefaultProvider } from '../repositories/default-provider'
+import { ACTIVE } from '../repositories/archive/archive'
+import { chooseDefaultProvider } from '../repositories/catalog/default-provider'
 import type { CommitResult } from './shared'
 import { archivedOnly, courseIds, lookup, partition, upsertNames, withoutArchived } from './shared'
 
