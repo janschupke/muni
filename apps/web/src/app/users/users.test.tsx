@@ -11,7 +11,7 @@ import { NotFoundError, route } from '@/test/next'
 import { params, renderClient, renderServer } from '@/test/render'
 
 import UserNotFound from './[id]/not-found'
-import UserPage from './[id]/page'
+import UserPage, { generateMetadata as userMetadata } from './[id]/page'
 import UsersPage, { generateMetadata } from './page'
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
@@ -115,6 +115,18 @@ describe('a user', () => {
     await renderServer(UserPage({ params: params({ id: 'usr_2' }) }))
     expect(screen.getByRole('heading', { level: 1, name: detail.clerkId })).toBeTruthy()
     expect(screen.getByText('—')).toBeTruthy()
+  })
+
+  it('is titled by the name, else the email, else the sign-in id; the list’s title for none', async () => {
+    const titleOf = () => userMetadata({ params: params({ id: 'usr_2' }) })
+    vi.mocked(getUser).mockResolvedValue(detail)
+    expect(await titleOf()).toEqual({ title: detail.name })
+    vi.mocked(getUser).mockResolvedValue({ ...detail, name: null, email: 'petr@vzor.cz' })
+    expect(await titleOf()).toEqual({ title: 'petr@vzor.cz' })
+    vi.mocked(getUser).mockResolvedValue({ ...detail, name: null, email: null })
+    expect(await titleOf()).toEqual({ title: detail.clerkId })
+    vi.mocked(getUser).mockResolvedValue(null)
+    expect(await titleOf()).toEqual({ title: 'Users' })
   })
 
   it('does not let admins change or archive themselves, and 404s for an unknown user', async () => {

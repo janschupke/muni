@@ -49,15 +49,19 @@ export function ReviewStep({
 }) {
   const { t } = useImportText()
   const locale = useLocale()
-  const kinds = (Object.keys(batch) as DatasetKind[]).filter(k => (batch[k]?.length ?? 0) > 0)
-  const [tab, setTab] = useState<string>(kinds[0] ?? 'courses')
+  // The datasets with rows, in the batch's order.
+  const datasets = (Object.keys(batch) as DatasetKind[]).flatMap(kind => {
+    const rows = (batch[kind] ?? []) as ParsedRow<unknown>[]
+    return rows.length > 0 ? [{ kind, rows }] : []
+  })
+  const [tab, setTab] = useState<string>(datasets[0]?.kind ?? 'courses')
 
   return (
     <div className="flex flex-col gap-4">
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          {kinds.map(kind => {
-            const s = summarize(batch[kind] ?? [])
+          {datasets.map(({ kind, rows }) => {
+            const s = summarize(rows)
             const Icon = KIND_ICON[kind]
             return (
               <TabsTrigger key={kind} value={kind}>
@@ -78,12 +82,12 @@ export function ReviewStep({
             )
           })}
         </TabsList>
-        {kinds.map(kind => (
+        {datasets.map(({ kind, rows }) => (
           <TabsContent key={kind} value={kind}>
             <DatasetReview
               name={t(`kinds.${kind}`)}
               columns={columnsByKind[kind] ?? []}
-              rows={(batch[kind] ?? []) as ParsedRow<unknown>[]}
+              rows={rows}
               onEdit={(index, field, value) => {
                 onEdit(kind, index, field, value)
               }}

@@ -61,7 +61,7 @@ export function CoursePanel({ course }: { course: CourseListItem }) {
   )
 }
 
-/** What one session of a course needs: its length, group size, whether online, equipment. */
+/** What one session of a course needs: its length, seats, whether online, equipment. */
 export function CourseNeeds({ needs }: { needs: CourseListItem['sessionNeeds'] }) {
   const t = useTranslations('courses.panel')
   return (

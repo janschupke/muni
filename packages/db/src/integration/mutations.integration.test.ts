@@ -1014,6 +1014,69 @@ describe('the writer refuses what it should never write', () => {
   })
 })
 
+describe('imports and the default provider', () => {
+  it('refuses sessions without a default, chooses one again on a completions import, and adds the offering a session needs', async () => {
+    const internal = await defaultProviderId(db)
+    const course = await db.course.findUniqueOrThrow({ where: { code: 'POZ-OCH' } })
+    const key = { providerId_courseId: { providerId: internal, courseId: course.id } }
+    const { pricePerPerson } = await db.providerCourse.findUniqueOrThrow({ where: key })
+    const session = {
+      externalId: 'T950',
+      courseCode: 'POZ-OCH',
+      date: '2027-05-12',
+      startTime: '10:00',
+      endTime: '12:00',
+      location: 'Aula A',
+      capacity: 10,
+      bookedCount: 0,
+      pricePerPerson: 250,
+      status: 'PLANNED',
+      providerName: null,
+    }
+    try {
+      await db.provider.update({ where: { id: internal }, data: { isDefault: false } })
+      await expect(commitChunk(db, 'sessions', [session])).rejects.toMatchObject({
+        reason: 'NO_DEFAULT_PROVIDER',
+      })
+
+      // Any completions import puts a default back: the internal provider, by name.
+      await commitChunk(db, 'completions', [
+        {
+          externalId: 'Z900950',
+          employeeExternalId: 'E0001',
+          courseCode: 'POZ-OCH',
+          completedOn: '2026-10-01',
+          validUntil: null,
+          provider: null,
+          price: null,
+          note: null,
+        },
+      ])
+      expect(await defaultProviderId(db)).toBe(internal)
+
+      // A course the default does not offer yet is offered at the session's price.
+      await db.providerCourse.delete({ where: key })
+      await commitChunk(db, 'sessions', [{ ...session, pricePerPerson: null }])
+      expect(
+        Number((await db.providerCourse.findUniqueOrThrow({ where: key })).pricePerPerson)
+      ).toBe(0)
+      await commitChunk(db, 'sessions', [session])
+      expect(
+        (await db.courseSession.findFirstOrThrow({ where: { externalId: 'T950' } })).providerId
+      ).toBe(internal)
+    } finally {
+      await db.provider.update({ where: { id: internal }, data: { isDefault: true } })
+      await db.providerCourse.upsert({
+        where: key,
+        create: { providerId: internal, courseId: course.id, pricePerPerson },
+        update: { pricePerPerson },
+      })
+      await db.courseSession.deleteMany({ where: { externalId: 'T950' } })
+      await db.courseCompletion.deleteMany({ where: { externalId: 'Z900950' } })
+    }
+  })
+})
+
 describe('seeding a directory', () => {
   it('skips files it cannot recognise and datasets that are absent', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'muni-seed-'))

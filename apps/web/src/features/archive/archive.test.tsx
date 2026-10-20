@@ -67,6 +67,25 @@ beforeEach(() => {
 })
 
 describe('archived lists', () => {
+  it('each kind has its archived list, named after it', async () => {
+    const pages = import.meta.glob<{ generateMetadata: () => Promise<{ title: string }> }>(
+      '@/app/*/archived/page.tsx',
+      { eager: true }
+    )
+    const titles = await Promise.all(Object.values(pages).map(page => page.generateMetadata()))
+    expect(titles.map(t => t.title).toSorted()).toEqual([
+      'Archived completions',
+      'Archived courses',
+      'Archived departments',
+      'Archived employees',
+      'Archived positions',
+      'Archived providers',
+      'Archived rooms',
+      'Archived sessions',
+      'Archived users',
+    ])
+  })
+
   it('list people by tag only, each opening its admin page and coming back on request', async () => {
     vi.mocked(listArchived).mockResolvedValue([
       person(),

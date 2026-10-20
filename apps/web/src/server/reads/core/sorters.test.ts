@@ -176,6 +176,43 @@ describe('every list sorts on the server by the value its column shows', () => {
     )
   })
 
+  it('what has nothing required, an archived person and a booked training', () => {
+    const none = counts({ VALID: 0, EXPIRING: 0, EXPIRED: 0, MISSING: 0 })
+    const courses = [
+      courseRow({ code: 'A', name: 'Angličtina', counts: none, rate: 0 }),
+      courseRow({ code: 'B', name: 'BOZP', rate: 0.5 }),
+    ]
+    expectEveryColumnSorts(courses, courseKeys)
+    // Nothing required: no rate at all, not 0 %.
+    const byRate = pageOf(courses, { sort: { by: 'compliance', desc: true } }, courseKeys)
+    expect(byRate.items.map(c => c.code)).toEqual(['B', 'A'])
+
+    const departments = [
+      departmentSummary({ id: 'd1', name: 'Archiv', counts: none, rate: 0 }),
+      departmentSummary({ id: 'd2', name: 'Výroba', head: { archived: true, tag: 'aa11' } }),
+    ]
+    expectEveryColumnSorts(departments, departmentKeys)
+    expect(departmentKeys.head(departments[1] ?? departmentSummary())).toBe('~aa11')
+    expect(departmentKeys.compliance(departments[0] ?? departmentSummary())).toBeNull()
+
+    const [first] = providerDetail().completionList
+    if (!first) throw new Error('fixture')
+    expectEveryColumnSorts(
+      [first, { ...first, employee: { archived: true as const, tag: 'bb22' } }],
+      completionKeys
+    )
+
+    // Černá Marie is booked on T016 by name; Adámek Petr is not booked at all.
+    const [t016, t018] = advisorInput().sessions
+    if (!t016 || !t018) throw new Error('fixture')
+    const plan = planAssignments(
+      advisorInput({ sessions: [{ ...t016, assigned: ['E0153'], unnamedBookings: 0 }, t018] })
+    )
+    expectEveryColumnSorts(plan.items, advisorKeys)
+    const byBooked = pageOf(plan.items, { sort: { by: 'booked', desc: false } }, advisorKeys)
+    expect(byBooked.items.map(i => i.booked?.externalId ?? null)).toEqual(['T016', null])
+  })
+
   it('the advisor’s tables and the planner’s offers', () => {
     const plan = planAssignments(advisorInput())
     expectEveryColumnSorts(plan.items, advisorKeys)

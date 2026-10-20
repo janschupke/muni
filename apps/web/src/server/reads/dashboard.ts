@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { getAdvisorInput, getDashboard, loadCompliance } from '@muni/db/repositories'
-import { planAssignments } from '@muni/domain/advisor'
+import { NOW, planAssignments } from '@muni/domain/advisor'
 
 import { none, read } from './core/define'
 
@@ -23,7 +23,8 @@ export const dashboard = read({
       data,
       advisor: {
         now: plan.totals.now,
-        action: plan.breakdown[0]?.counts.ACTION_REQUIRED ?? 0,
+        action: plan.items.filter(i => i.bucket === NOW && i.remediation === 'ACTION_REQUIRED')
+          .length,
         overbooked: plan.overbooked.length,
       },
     }

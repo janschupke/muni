@@ -1307,7 +1307,7 @@
     "title": "Session planner",
     "description": "New sessions for the training no existing session can take: when, where and for whom, most urgent first.",
     "empty": "Every training that needs a session has one.",
-    "needs": "{length, plural, other {# min}} · groups of {size}",
+    "needs": "{length, plural, other {# min}} · {size, plural, one {# seat} other {# seats}} a session",
     "needsAny": "{length, plural, other {# min}} · as many as the room seats",
     "online": "can be online",
     "capabilities": "needs {list}",
@@ -1396,7 +1396,7 @@
     "rules": {
       "title": "How the planner decides",
       "group": "Trainings no existing session can take are grouped by course and due date: lapsed ones within two weeks, the rest the day before they lapse.",
-      "split": "Each group is split by the course's group size, or by the largest room that suits it.",
+      "split": "Each group is split into sessions of the course's seats, or of the largest room that suits it.",
       "day": "Each session gets the first working day from tomorrow (weekends and public holidays are not) with a suitable room free at the course's usual time.",
       "room": "A suitable room is online if the course allows it, otherwise one with everything the course needs and enough seats; rooms used before come first."
     },

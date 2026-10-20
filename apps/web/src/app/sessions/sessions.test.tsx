@@ -18,7 +18,6 @@ import { advisorInput, AULA_A, EXTERNAL, INTERNAL, ONLINE, session } from '@/tes
 import { NotFoundError, route, router } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
-import AdvisorPage, { generateMetadata as advisorMetadata } from '../advisor/page'
 import EditSessionPage, { generateMetadata as editSessionMetadata } from './[externalId]/edit/page'
 import SessionPage, { generateMetadata as sessionMetadata } from './[externalId]/page'
 import NewSessionsPage, { generateMetadata as newSessionMetadata } from './new/page'
@@ -33,13 +32,18 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   listSessions: vi.fn(),
   recordExists: vi.fn(() => Promise.resolve(true)),
 }))
+
 vi.mock('@/server/auth')
+
 vi.mock('@/server/actions/edit', () => ({ saveSession: vi.fn() }))
+
 vi.mock('@/server/actions/archive', () => ({ archiveAction: vi.fn(), previewArchive: vi.fn() }))
+
 vi.mock('@/server/actions/sessions', () => ({
   saveNewSession: vi.fn(),
   checkSessionSlotAction: vi.fn(() => Promise.resolve(null)),
 }))
+
 vi.mock('@/server/actions/assignments', () => ({
   addBookingAction: vi.fn(),
   applyAssignmentsAction: vi.fn(),
@@ -89,6 +93,30 @@ beforeEach(() => {
     },
   ])
 })
+
+/**
+ * Who needs BOZP-Z: Urbanová (expired) and Adámek (never held) have nothing booked; Černá is
+ * booked on T016 already.
+ */
+const NEEDING = (() => {
+  const input = advisorInput()
+  const [needed] = input.needs
+  const [t016, ...others] = input.sessions
+  if (!needed || !t016) throw new Error('fixture')
+  const person = (externalId: string, name: string) => ({
+    ...needed.employee,
+    externalId,
+    name,
+  })
+  return advisorInput({
+    needs: [
+      { ...needed, employee: person('E0001', 'Urbanová Tereza') },
+      { ...needed, employee: person('E0153', 'Černá Marie') },
+      { ...needed, employee: person('E0002', 'Adámek Petr'), status: 'MISSING', validUntil: null },
+    ],
+    sessions: [{ ...t016, assigned: ['E0153'], unnamedBookings: 0 }, ...others],
+  })
+})()
 
 describe('session list', () => {
   // The address the page is read from, and the one its view reads in the browser.
@@ -330,30 +358,6 @@ describe('session detail', () => {
   })
 })
 
-/**
- * Who needs BOZP-Z: Urbanová (expired) and Adámek (never held) have nothing booked; Černá is
- * booked on T016 already.
- */
-const NEEDING = (() => {
-  const input = advisorInput()
-  const [needed] = input.needs
-  const [t016, ...others] = input.sessions
-  if (!needed || !t016) throw new Error('fixture')
-  const person = (externalId: string, name: string) => ({
-    ...needed.employee,
-    externalId,
-    name,
-  })
-  return advisorInput({
-    needs: [
-      { ...needed, employee: person('E0001', 'Urbanová Tereza') },
-      { ...needed, employee: person('E0153', 'Černá Marie') },
-      { ...needed, employee: person('E0002', 'Adámek Petr'), status: 'MISSING', validUntil: null },
-    ],
-    sessions: [{ ...t016, assigned: ['E0153'], unnamedBookings: 0 }, ...others],
-  })
-})()
-
 describe('session edit', () => {
   const props = { params: params({ externalId: 'T016' }) }
   beforeEach(() => {
@@ -425,22 +429,5 @@ describe('session edit', () => {
     expect(screen.getByRole('combobox', { name: /Course/ })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /^Start/ })).toHaveProperty('value', '09:00')
     await expectNoAxeViolations()
-  })
-})
-
-describe('advisor page', () => {
-  const search = (query: Record<string, string>) => ({ searchParams: params(query) })
-
-  it('plans on the server and opens the view and bucket the URL names', async () => {
-    expect(await advisorMetadata()).toEqual({ title: 'Advisor' })
-    await renderServer(AdvisorPage(search({ view: 'action' })))
-    expect(screen.getByRole('link', { name: /^Action required/, current: 'page' })).toBeTruthy()
-    expect(screen.getByText('Only admins can book people.')).toBeTruthy()
-  })
-
-  it('falls back to the breakdown of what is non-compliant now on anything unknown', async () => {
-    signInAs('ADMIN')
-    await renderServer(AdvisorPage(search({ view: 'nonsense', bucket: '1999-01' })))
-    expect(screen.getByRole('heading', { name: 'Non-compliant now: 2 trainings' })).toBeTruthy()
   })
 })

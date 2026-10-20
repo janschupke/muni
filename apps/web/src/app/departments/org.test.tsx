@@ -31,13 +31,15 @@ import {
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
-import PositionBookingsPage from '../positions/[id]/bookings/page'
+import PositionBookingsPage, {
+  generateMetadata as positionBookingsMetadata,
+} from '../positions/[id]/bookings/page'
 import EditPositionPage, {
   generateMetadata as editPositionMetadata,
 } from '../positions/[id]/edit/page'
-import PositionPage, { generateMetadata as positionMetadata } from '../positions/[id]/page'
+import PositionPage from '../positions/[id]/page'
 import NewPositionPage, { generateMetadata as newPositionMetadata } from '../positions/new/page'
-import PositionsPage, { generateMetadata as positionsMetadata } from '../positions/page'
+import PositionsPage from '../positions/page'
 import DepartmentBookingsPage, {
   generateMetadata as departmentBookingsMetadata,
 } from './[id]/bookings/page'
@@ -86,10 +88,12 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
 }))
 
 vi.mock('@/server/auth')
+
 vi.mock('@/server/actions/groups', () => ({
   saveDepartmentAction: vi.fn(),
   savePositionAction: vi.fn(),
 }))
+
 vi.mock('@/server/actions/archive', () => ({ archiveAction: vi.fn(), previewArchive: vi.fn() }))
 
 beforeEach(() => {
@@ -130,6 +134,9 @@ beforeEach(() => {
     }),
   ])
 })
+
+const hrefIn = (scope: HTMLElement, name: string | RegExp) =>
+  within(scope).getByRole('link', { name }).getAttribute('href')
 
 describe('departments', () => {
   it('list who leads each, how many people, how compliant, and open to its people', async () => {
@@ -248,63 +255,6 @@ describe('departments', () => {
   })
 })
 
-describe('positions', () => {
-  it('list where each sits and how compliant it is', async () => {
-    const user = userEvent.setup()
-    expect(await positionsMetadata()).toEqual({ title: 'Positions' })
-    await renderServer(PositionsPage({ searchParams: params({}) }))
-    const lab = screen.getByRole('row', { name: /^Laborant/ })
-    expect(within(lab).getByRole('link', { name: 'Laborant' }).getAttribute('href')).toBe(
-      '/positions/pos_lab'
-    )
-    expect(within(lab).getByText('Laboratoře')).toBeTruthy()
-    const intern = screen.getByRole('row', { name: /Stážista/ })
-    expect(within(intern).getByText('—')).toBeTruthy()
-    await user.click(within(lab).getByRole('button', { name: 'People with the position Laborant' }))
-    const people = await screen.findByRole('table', { name: 'People of Laborant' })
-    expect(
-      within(within(people).getByRole('row', { name: /Černá Marie/ }))
-        .getByRole('link', { name: 'Laboratoře' })
-        .getAttribute('href')
-    ).toBe('/departments/dep_lab')
-    // No department: a dash.
-    expect(
-      within(within(people).getByRole('row', { name: /Bílá Jana/ })).getAllByText('—')
-    ).toHaveLength(2)
-    vi.mocked(listPositionSummaries).mockResolvedValue([])
-    await renderServer(PositionsPage({ searchParams: params({}) }))
-    expect(screen.getByText('No positions yet.')).toBeTruthy()
-  })
-
-  it('show one position: its departments, courses and people', async () => {
-    const props = { params: params({ id: 'pos_lab' }), searchParams: params({}) }
-    expect(await positionMetadata(props)).toEqual({ title: 'Laborant' })
-    await renderServer(PositionPage(props))
-    expect(screen.getByRole('heading', { level: 1, name: 'Laborant' })).toBeTruthy()
-    expect(
-      screen.getByRole('link', { name: 'Open in the employee list' }).getAttribute('href')
-    ).toBe('/employees?position=Laborant')
-    expect(screen.getAllByRole('link', { name: 'Laboratoře' }).length).toBeGreaterThan(0)
-    expectPeopleBelowTheSplit('Position')
-    expect(within(peopleTable()).queryByRole('columnheader', { name: /Position/ })).toBeNull()
-    expect(within(peopleTable()).getByRole('columnheader', { name: /Department/ })).toBeTruthy()
-    await expectNoAxeViolations()
-  })
-
-  it('show a position nobody holds anywhere; and not one that does not exist', async () => {
-    vi.mocked(getPosition).mockResolvedValue(positionDetail({ departments: [], courses: [] }))
-    await renderServer(
-      PositionPage({ params: params({ id: 'pos_lab' }), searchParams: params({}) })
-    )
-    expect(screen.getByText('Nobody with this position belongs to a department.')).toBeTruthy()
-    expect(screen.getByText('Nothing is required of this position.')).toBeTruthy()
-    vi.mocked(getPosition).mockResolvedValueOnce(null)
-    await expect(
-      renderServer(PositionPage({ params: params({ id: 'gone' }), searchParams: params({}) }))
-    ).rejects.toThrow(NotFoundError)
-  })
-})
-
 describe('upcoming bookings', () => {
   it('link from the list’s count and the facts card to the bookings they count', async () => {
     await renderServer(DepartmentsPage({ searchParams: params({}) }))
@@ -352,6 +302,12 @@ describe('upcoming bookings', () => {
 
   it('say when there are none, and that a position that is not there is not found', async () => {
     vi.mocked(listUpcomingBookings).mockResolvedValue([])
+    expect(
+      await positionBookingsMetadata({
+        params: params({ id: 'pos_lab' }),
+        searchParams: params({}),
+      })
+    ).toEqual({ title: expect.stringMatching(/^Upcoming bookings: \S/) as unknown })
     await renderServer(
       PositionBookingsPage({ params: params({ id: 'pos_lab' }), searchParams: params({}) })
     )
@@ -390,9 +346,6 @@ describe('upcoming bookings', () => {
     ).toEqual(['Book every training Černá Marie needs…'])
   })
 })
-
-const hrefIn = (scope: HTMLElement, name: string | RegExp) =>
-  within(scope).getByRole('link', { name }).getAttribute('href')
 
 describe('access', () => {
   it('keeps visitors out before any data is read', async () => {

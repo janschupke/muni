@@ -17,11 +17,11 @@ export const offeringsInclude = {
 } as const
 
 export const toOffering = (o: {
-  pricePerPerson: Parameters<typeof toAmount>[0]
+  pricePerPerson: { toString(): string }
   provider: { id: string; name: string; isDefault: boolean }
 }): CourseOffering => ({
   providerId: o.provider.id,
   providerName: o.provider.name,
-  price: toAmount(o.pricePerPerson) ?? 0,
+  price: toAmount(o.pricePerPerson),
   isDefault: o.provider.isDefault,
 })

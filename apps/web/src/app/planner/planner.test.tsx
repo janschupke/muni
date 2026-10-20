@@ -46,7 +46,7 @@ describe('session planner', () => {
     expect(
       within(section).getByRole('link', { name: 'Požární ochrana' }).getAttribute('href')
     ).toBe('/courses/POZ-OCH')
-    expect(within(section).getByText('120 min · groups of 40 · needs Projector')).toBeTruthy()
+    expect(within(section).getByText('120 min · 40 seats a session · needs Projector')).toBeTruthy()
     const row = within(section).getAllByRole('row')[1] as HTMLElement
     expect(within(row).getByText('30.10.2026')).toBeTruthy()
     expect(within(row).getByText('Lapsed now')).toBeTruthy()
@@ -209,7 +209,8 @@ describe('planner offers', () => {
     ...over,
   })
 
-  it('mark a late slot, name the other rooms, and explain every kind of failure', () => {
+  it('mark a late slot, name the other rooms, and explain every kind of failure', async () => {
+    const user = userEvent.setup()
     renderClient(
       <PlannerView
         paging={{ local: 'the offers a test gives' }}
@@ -269,5 +270,17 @@ describe('planner offers', () => {
     // Only the offer with a slot can be reviewed.
     expect(screen.getAllByRole('button', { name: /^Review session/ })).toHaveLength(1)
     expect(screen.getAllByText('12')).toHaveLength(4)
+
+    // An opened offer lists the other rooms free at its slot, each a link to the room.
+    await user.click(
+      screen.getByRole('button', { name: 'People for Ochrana osobních údajů, session 1' })
+    )
+    expect(screen.getByRole('link', { name: 'A' }).getAttribute('href')).toBe('/rooms/a')
+    expect(screen.getByRole('link', { name: 'B' }).getAttribute('href')).toBe('/rooms/b')
+    expect(screen.queryByText('No other suitable room is free then.')).toBeNull()
+    await user.click(
+      screen.getByRole('button', { name: 'People for Ochrana osobních údajů, session 2' })
+    )
+    expect(screen.getByText('No other suitable room is free then.')).toBeTruthy()
   })
 })

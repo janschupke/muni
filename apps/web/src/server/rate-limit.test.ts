@@ -21,4 +21,13 @@ describe('rate limit', () => {
     expect(refused).toBeInstanceOf(RateLimitedError)
     expect(refused).toMatchObject({ retryAfterSeconds: 12 })
   })
+
+  it('reads its limits from the environment, else the defaults', async () => {
+    vi.stubEnv('MUNI_RATE_LIMIT_READS', '1000')
+    vi.stubEnv('MUNI_RATE_LIMIT_WRITES', 'lots')
+    vi.resetModules()
+    const fresh = await import('./rate-limit')
+    expect(fresh.RATE_LIMITS).toEqual({ read: 1000, write: 60 })
+    vi.unstubAllEnvs()
+  })
 })

@@ -9,6 +9,8 @@ import { AULA_A, EXTERNAL, INTERNAL, ONLINE } from '@/test/fixtures'
 import { renderClient } from '@/test/render'
 
 import { OfferReview } from './offer-review'
+import { OfferSummary } from './offer-summary'
+import { useOfferDraft } from './use-offer-draft'
 
 vi.mock('@/server/actions/sessions', () => ({
   createPlannedSessionAction: vi.fn(),
@@ -39,6 +41,14 @@ const ROOMS = [
     capabilities: ['PROJECTOR' as const],
   },
 ]
+
+const CHECKED = {
+  ok: true as const,
+  externalId: 'S007',
+  courseCode: 'POZ-OCH',
+  booked: 2,
+  dryRun: true,
+}
 
 const OFFER: SessionOffer = {
   id: 'POZ-OCH|now|1',
@@ -74,11 +84,11 @@ const OFFER: SessionOffer = {
   problem: null,
 }
 
-function renderReview() {
+function renderReview(offer: SessionOffer = OFFER) {
   const onOpenChange = vi.fn()
-  renderClient(<OfferReview open offer={OFFER} rooms={ROOMS} onOpenChange={onOpenChange} />)
+  renderClient(<OfferReview open offer={offer} rooms={ROOMS} onOpenChange={onOpenChange} />)
   return {
-    dialog: screen.getByRole('dialog', { name: 'New session: Požární ochrana' }),
+    dialog: screen.getByRole('dialog', { name: `New session: ${offer.course.name}` }),
     onOpenChange,
   }
 }
@@ -172,6 +182,104 @@ describe('OfferReview', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it('stays open while a check is out, and closes from the review when kept as is', async () => {
+    const user = userEvent.setup()
+    let answer: (outcome: typeof CHECKED) => void = () => undefined
+    vi.mocked(createPlannedSessionAction).mockReturnValueOnce(
+      new Promise(resolve => {
+        answer = resolve
+      })
+    )
+    const { dialog, onOpenChange } = renderReview()
+    await user.click(within(dialog).getByRole('button', { name: 'Check' }))
+    expect(await within(dialog).findByRole('button', { name: 'Checking…' })).toHaveProperty(
+      'disabled',
+      true
+    )
+    // Escape does not close the dialog while the server is checking.
+    await user.keyboard('{Escape}')
+    expect(onOpenChange).not.toHaveBeenCalled()
+    answer(CHECKED)
+    expect(await within(dialog).findByText('What will be created')).toBeTruthy()
+    await clickWhenReady(user, within(dialog).getByRole('button', { name: 'Keep as is' }))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('closes on Escape when nothing is being sent', async () => {
+    const user = userEvent.setup()
+    const { onOpenChange } = renderReview()
+    await user.keyboard('{Escape}')
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('reviews a session for nobody, with the warnings the date carries', async () => {
+    const user = userEvent.setup()
+    vi.mocked(createPlannedSessionAction).mockResolvedValue({ ...CHECKED, booked: 0 })
+    const { dialog } = renderReview()
+    const date = within(dialog).getByRole('textbox', { name: /Date/ })
+    await user.clear(date)
+    await user.type(date, '31.10.2026')
+    await user.tab()
+    await user.click(within(dialog).getByRole('checkbox', { name: /Adámek Petr/ }))
+    await user.click(within(dialog).getByRole('checkbox', { name: /Bílá Jana/ }))
+    expect(within(dialog).getByText(/Nobody ticked/)).toBeTruthy()
+    // Ticked again, then off again: the box follows each click.
+    await user.click(within(dialog).getByRole('checkbox', { name: /Bílá Jana/ }))
+    expect(within(dialog).getByText(/^1 person ticked/)).toBeTruthy()
+    await user.click(within(dialog).getByRole('checkbox', { name: /Bílá Jana/ }))
+    await user.click(within(dialog).getByRole('button', { name: 'Check' }))
+    expect(await within(dialog).findByText('What will be created')).toBeTruthy()
+    expect(within(dialog).getByText('Nobody: the session is created empty.')).toBeTruthy()
+    expect(within(dialog).getByText('31.10.2026 is a weekend or public holiday.')).toBeTruthy()
+    expect(within(dialog).getByText('This is after the due date, 30.10.2026.')).toBeTruthy()
+    expect(createPlannedSessionAction).toHaveBeenCalledWith({
+      session: {
+        courseId: 'course_poz',
+        providerId: 'prv_internal',
+        date: '2026-10-31',
+        startTime: '10:00',
+        roomId: 'room_aula_a',
+        capacity: 2,
+      },
+      people: [],
+      dryRun: true,
+    })
+    await user.click(within(dialog).getByRole('button', { name: 'Create session and book nobody' }))
+    expect(createPlannedSessionAction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ people: [], dryRun: false })
+    )
+  })
+
+  it('asks for a provider, a day and a length the offer does not have', () => {
+    const { dialog } = renderReview({
+      ...OFFER,
+      course: { ...OFFER.course, sessionMinutes: null },
+      slot: null,
+      room: null,
+      offering: null,
+      capacity: null,
+    })
+    expect(within(dialog).getByText('This field is required.')).toBeTruthy()
+    expect(
+      within(dialog).getByText('The course has no length set: set it on the course first.')
+    ).toBeTruthy()
+    // The size of the group fills the seats when the offer names no capacity.
+    expect(within(dialog).getByRole('textbox', { name: /^Seats/ })).toHaveProperty('value', '2')
+    expect(within(dialog).getByRole('button', { name: 'Check' })).toHaveProperty('disabled', true)
+  })
+
+  it('says when the provider it names no longer offers the course', () => {
+    const { dialog } = renderReview({
+      ...OFFER,
+      offering: { ...EXTERNAL, providerId: 'prv_gone', providerName: 'Bývalý lektor' },
+    })
+    expect(
+      within(dialog).getByText(
+        'That provider does not offer the course. Choose one that does, or add the course to its offerings.'
+      )
+    ).toBeTruthy()
+  })
+
   it('says when the room is taken then', async () => {
     vi.mocked(checkSessionSlotAction).mockResolvedValue('ROOM_BUSY')
     const { dialog } = renderReview()
@@ -182,5 +290,31 @@ describe('OfferReview', () => {
         { timeout: 2000 }
       )
     ).toBeTruthy()
+  })
+})
+
+describe('OfferSummary', () => {
+  function Summary({ offer }: { offer: SessionOffer }) {
+    const draft = useOfferDraft(offer, ROOMS, () => undefined)
+    return <OfferSummary offer={offer} draft={draft} />
+  }
+
+  /** The value a description list gives for a term. */
+  const valueOf = (term: string) => screen.getByText(term).nextElementSibling?.textContent
+
+  it('lists who is booked and what it costs', () => {
+    renderClient(<Summary offer={OFFER} />)
+    expect(valueOf('Room')).toBe('Aula A')
+    expect(valueOf('Capacity')).toBe('2')
+    expect(valueOf('Booked')).toBe('Adámek PetrBílá Jana')
+    expect(valueOf('Cost of these bookings')).toMatch(/^900,00\sKč$/)
+  })
+
+  it('shows a dash for what the offer does not name', () => {
+    renderClient(<Summary offer={{ ...OFFER, slot: null, room: null, offering: null }} />)
+    expect(valueOf('When')).toBe('—')
+    expect(valueOf('Room')).toBe('—')
+    expect(valueOf('Price per person')).toBe('—')
+    expect(valueOf('Cost of these bookings')).toBe('—')
   })
 })

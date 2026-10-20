@@ -1307,7 +1307,7 @@
     "title": "Plánovač termínů",
     "description": "Nové termíny pro školení, která žádný stávající termín nepojme: kdy, kde a pro koho, od nejnaléhavějších.",
     "empty": "Každé školení, které termín potřebuje, ho má.",
-    "needs": "{length, plural, other {# min}} · skupiny po {size}",
+    "needs": "{length, plural, other {# min}} · {size, plural, one {# místo} few {# místa} other {# míst}} na termín",
     "needsAny": "{length, plural, other {# min}} · tolik lidí, kolik místnost pojme",
     "online": "lze online",
     "capabilities": "potřebuje {list}",
@@ -1396,7 +1396,7 @@
     "rules": {
       "title": "Jak plánovač rozhoduje",
       "group": "Školení, která žádný termín nepojme, se seskupí podle kurzu a termínu splnění: propadlá do dvou týdnů, ostatní den před propadnutím.",
-      "split": "Každá skupina se rozdělí podle velikosti skupiny kurzu, případně podle největší vhodné místnosti.",
+      "split": "Každá skupina se rozdělí na termíny po počtu míst kurzu, případně podle největší vhodné místnosti.",
       "day": "Každý termín dostane první pracovní den od zítřka (víkendy a státní svátky se nepočítají), kdy je v obvyklý čas kurzu volná vhodná místnost.",
       "room": "Vhodná místnost je online, pokud to kurz dovoluje, jinak místnost se vším, co kurz potřebuje, a s dostatkem míst; dříve použité místnosti mají přednost."
     },

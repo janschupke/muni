@@ -39,11 +39,11 @@ export function AddBookingForm({
   const [round, setRound] = useState(0)
   const afterWrite = useAfterWrite('booking')
   const toast = useToast()
+  const loading = options === 'loading'
+  const offered = loading ? [] : options
   const [state, formAction, pending] = useActionState(
     async (previous: BookingState, form: FormData): Promise<BookingState> => {
-      const chosen =
-        (options === 'loading' ? [] : options).find(o => o.value === form.get('employeeExternalId'))
-          ?.label ?? ''
+      const chosen = offered.find(o => o.value === form.get('employeeExternalId'))?.label ?? ''
       try {
         const next = await addBookingAction(sessionExternalId, previous, form)
         if (next.status === 'done') {
@@ -59,8 +59,7 @@ export function AddBookingForm({
     },
     IDLE
   )
-  const loading = options === 'loading'
-  if (!loading && options.length === 0)
+  if (!loading && offered.length === 0)
     return <EmptyState variant="inline" title={t('bookings.noneNeed')} />
   return (
     <form action={formAction} className="flex flex-col gap-2">
@@ -80,12 +79,10 @@ export function AddBookingForm({
               key={`${String(round)}-${String(loading)}`}
               {...control}
               name="employeeExternalId"
-              options={loading ? [] : options}
+              options={offered}
               disabled={loading}
               defaultValue={
-                !loading && round === 0 && options.some(o => o.value === initial)
-                  ? initial
-                  : undefined
+                round === 0 && offered.some(o => o.value === initial) ? initial : undefined
               }
               placeholder={loading ? t('common.loading') : t('common.choose')}
             />

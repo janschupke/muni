@@ -37,6 +37,8 @@ export interface RepoOptions {
 export const dbOf = (options?: RepoOptions) => options?.db ?? getDb()
 
 /** A stored amount (a Prisma Decimal, or a sum of them) in crowns; null stays null. */
+export function toAmount(value: { toString(): string }): number
+export function toAmount(value: { toString(): string } | null): number | null
 export function toAmount(value: { toString(): string } | null): number | null {
   return value === null ? null : Number(value.toString())
 }

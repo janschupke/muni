@@ -130,4 +130,8 @@ describe('rate limits', () => {
     expect(await hitRateLimit(key, 3, at('01:00'))).toEqual({ ok: true })
     expect(await db.rateLimit.count({ where: { key } })).toBe(1)
   })
+
+  it('counts by the real clock when none is given', async () => {
+    expect(await hitRateLimit(`${PREFIX}clock`, 3, options)).toEqual({ ok: true })
+  })
 })

@@ -476,6 +476,39 @@ describe('AdvisorWorkbench', () => {
     expect(book.isConnected).toBe(false)
   })
 
+  it('leaves a training out of the booking and takes it back in', async () => {
+    const user = userEvent.setup()
+    const plan = planAssignments({
+      ...INPUT,
+      needs: [
+        need('E0001', 'Adámek Petr', 'EXPIRED', '2026-09-01'),
+        need('E0002', 'Bílá Jana', 'MISSING', null),
+      ],
+      sessions: [session('T018', '2026-11-20', { capacity: 5 })],
+    })
+    renderWorkbench({ plan, view: 'action', canApply: true })
+    await user.click(
+      screen.getByRole('checkbox', { name: 'Select every proposed row on this page' })
+    )
+    await user.click(screen.getByRole('button', { name: 'Book 2 selected…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Book trainings' })
+    const bila = within(dialog).getByRole('checkbox', {
+      name: 'Book Bílá Jana, BOZP – základní školení',
+    })
+    await user.click(bila)
+    expect(
+      within(dialog).getByRole('button', { name: /^Book 1 training · 450,00\sKč$/ })
+    ).toBeTruthy()
+    await user.click(bila)
+    await user.click(
+      within(dialog).getByRole('button', { name: /^Book 2 trainings · 900,00\sKč$/ })
+    )
+    expect(applyAssignmentsAction).toHaveBeenCalledWith([
+      { sessionExternalId: 'T018', employeeExternalId: 'E0001', source: 'ADVISOR' },
+      { sessionExternalId: 'T018', employeeExternalId: 'E0002', source: 'ADVISOR' },
+    ])
+  })
+
   it('asks the server for the order a header names, keeping the rows as they came', async () => {
     const user = userEvent.setup()
     renderWorkbench({ view: 'action' })

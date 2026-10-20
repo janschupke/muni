@@ -563,6 +563,9 @@ describe('planner input', () => {
   it('gives each course its needs, usual start and rooms, and the sessions that take rooms', async () => {
     const now = new Date('2026-10-16T12:00:00Z')
     const planner = await getPlannerInput({ ...options, now })
+    // Without a clock given, the real one: the same courses and rooms.
+    const live = await getPlannerInput(options)
+    expect(live.courses.map(c => c.code)).toEqual(planner.courses.map(c => c.code))
     const bozp = planner.courses.find(c => c.code === 'BOZP-Z')
     expect(bozp).toMatchObject({ sessionMinutes: 180, seats: 30, usualStart: '08:00' })
     const aula = planner.rooms.find(r => r.name === 'Aula A')

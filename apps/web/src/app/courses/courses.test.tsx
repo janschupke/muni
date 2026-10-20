@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-import { getDb } from '@muni/db/client'
 import { loadReferenceSnapshot } from '@muni/db/reference'
 import {
   getComplianceMatrix,
@@ -29,8 +27,6 @@ import {
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
-import CompliancePage, { generateMetadata as complianceMetadata } from '../compliance/page'
-import ImportPage, { generateMetadata as importMetadata } from '../import/page'
 import EditCoursePage, { generateMetadata as editCourseMetadata } from './[code]/edit/page'
 import CoursePage, { generateMetadata as courseMetadata } from './[code]/page'
 import NewSessionPage, {
@@ -38,6 +34,8 @@ import NewSessionPage, {
 } from './[code]/sessions/new/page'
 import NewCoursePage, { generateMetadata as newCourseMetadata } from './new/page'
 import CoursesPage, { generateMetadata as listMetadata } from './page'
+
+// @vitest-environment jsdom
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
@@ -60,15 +58,22 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   listCourses: vi.fn(),
   recordExists: vi.fn(() => Promise.resolve(true)),
 }))
+
 vi.mock('@muni/db/client', () => ({ getDb: vi.fn(() => 'db') }))
+
 vi.mock('@muni/db/reference', () => ({ loadReferenceSnapshot: vi.fn() }))
+
 vi.mock('@/server/auth')
+
 vi.mock('@/server/actions/edit', () => ({ saveCourse: vi.fn(), saveSession: vi.fn() }))
+
 vi.mock('@/server/actions/sessions', () => ({
   saveNewSession: vi.fn(),
   checkSessionSlotAction: vi.fn(() => Promise.resolve(null)),
 }))
+
 vi.mock('@/server/actions/archive', () => ({ archiveAction: vi.fn(), previewArchive: vi.fn() }))
+
 vi.mock('@/server/actions/import', () => ({ commitImportChunk: vi.fn() }))
 
 beforeEach(() => {
@@ -364,43 +369,15 @@ describe('new session', () => {
       NewSessionPage({ params: params({ code: 'NOPE' }), searchParams: params({}) })
     ).rejects.toThrow(NotFoundError)
   })
-})
 
-describe('compliance matrix', () => {
-  it('prints every percentage, and says where a course does not apply', async () => {
-    const user = userEvent.setup()
-    expect(await complianceMetadata()).toEqual({ title: 'Compliance matrix' })
-    await renderServer(CompliancePage())
-    expect(screen.getByText(/Share of required trainings held.*16.10.2026/)).toBeTruthy()
-    const lab = screen.getByRole('row', { name: /^Laboratoře/ })
-    expect(within(lab).getByText('66%')).toBeTruthy()
-    // A cell says what it counts on hover.
-    await user.hover(within(lab).getByText('0%'))
-    expect((await screen.findByRole('tooltip')).textContent).toBe(
-      'Laboratoře, Bezpečná práce v laboratoři: 0 of 2 held'
-    )
-    const library = screen.getByRole('row', { name: /^Knihovna/ })
-    expect(within(library).getByText('Not required')).toBeTruthy()
-    expect(screen.getByRole('link', { name: /^LAB-BEZ / }).getAttribute('href')).toBe(
-      '/courses/LAB-BEZ'
-    )
-  })
-
-  it('says when no course is mandatory', async () => {
-    vi.mocked(getComplianceMatrix).mockResolvedValue(matrix({ courses: [], rows: [] }))
-    await renderServer(CompliancePage())
-    expect(screen.getByText('No mandatory courses are defined yet.')).toBeTruthy()
-  })
-})
-
-describe('import page', () => {
-  it('requires an admin and starts the wizard against what exists', async () => {
+  it('starts in the room it came from; a provider given twice is not read', async () => {
     signInAs('ADMIN')
-    expect(await importMetadata()).toEqual({ title: 'Import' })
-    await renderServer(ImportPage())
-    expect(requireAdminPage).toHaveBeenCalled()
-    expect(loadReferenceSnapshot).toHaveBeenCalledWith(getDb())
-    expect(screen.getByRole('heading', { level: 1, name: 'Import' })).toBeTruthy()
-    await expectNoAxeViolations()
+    await renderServer(
+      NewSessionPage({
+        params: params({ code: 'BOZP-Z' }),
+        searchParams: params({ room: 'room_aula_a', provider: ['a', 'b'] }),
+      })
+    )
+    expect(screen.getByRole('combobox', { name: /^Room/ }).textContent).toContain('Aula A')
   })
 })
