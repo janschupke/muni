@@ -24,11 +24,11 @@ vi.mock('@/server/actions/import', () => ({
 }))
 
 const DATA = path.join(import.meta.dirname, '../../../../../data')
-const csv = (name: string) =>
-  new File([readFileSync(path.join(DATA, name))], name, { type: 'text/csv' })
+const csv = (name: string, dir = '') =>
+  new File([readFileSync(path.join(DATA, dir, name))], name, { type: 'text/csv' })
 
-function renderWizard() {
-  return renderClient(<ImportWizard reference={EMPTY_REFERENCE} today="2026-10-16" />)
+function renderWizard(today = '2026-10-16') {
+  return renderClient(<ImportWizard reference={EMPTY_REFERENCE} today={today} />)
 }
 
 afterEach(() => {
@@ -132,6 +132,38 @@ describe('ImportWizard', () => {
     expect(late).toEqual([])
     expect(screen.getByText('Completions: 2818 created, 0 updated')).toBeTruthy()
     await expectNoAxeViolations()
+  })
+
+  it('imports the derived files (data/import) onto an empty register with no error', async () => {
+    const user = userEvent.setup()
+    const { container } = renderWizard('2026-10-20')
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')
+    if (!input) throw new Error('file input missing')
+    await user.upload(
+      input,
+      [
+        'katalog_skoleni.csv',
+        'zamestnanci.csv',
+        'mistnosti.csv',
+        'terminy_skoleni.csv',
+        'absolvovana_skoleni.csv',
+      ].map(name => csv(name, 'import'))
+    )
+    await user.click(await screen.findByRole('button', { name: 'Review rows' }))
+    // No tab counts an error.
+    expect(await screen.findAllByRole('tab')).toHaveLength(5)
+    expect(screen.queryByText(/with errors$/)).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    for (const line of [
+      'Rooms: 9 records will be written',
+      'Courses: 10 records will be written',
+      'Employees: 170 records will be written',
+      'Completions: 2,814 records will be written',
+      'Sessions: 32 records will be written',
+    ])
+      expect(screen.getByText(line)).toBeTruthy()
+    // Nothing to skip: every row of every file is written.
+    expect(screen.queryByText(/invalid rows? (is|are) skipped/)).toBeNull()
   })
 
   it('sorts the whole dataset before paging, and keeps the page through an edit', async () => {

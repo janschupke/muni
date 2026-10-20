@@ -130,10 +130,8 @@ test.describe('register (viewer)', () => {
     await setLocale(page, 'en')
     await page.goto('/sessions')
     await expect(page.getByText('Overbooked').first()).toBeVisible()
-    // T011: 28 of 30 seats taken.
-    await expect(
-      page.getByRole('row').filter({ hasText: 'T011' }).getByText('Almost full')
-    ).toBeVisible()
+    // T032: 8 of 8 seats taken.
+    await expect(page.getByRole('row').filter({ hasText: 'T032' }).getByText('Full')).toBeVisible()
     await page.getByRole('link', { name: 'Past' }).click()
     await expect(page).toHaveURL(/when=past/)
   })

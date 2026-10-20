@@ -94,6 +94,9 @@ const restore = async () => {
     },
   })
   await db.department.deleteMany({ where: { name: CREATED.department } })
+  // An import gives a provider that delivered a course an offering of it (the app-made
+  // completion with the new provider, here): that goes first.
+  await db.providerCourse.deleteMany({ where: { provider: { name: CREATED.provider } } })
   await db.provider.deleteMany({ where: { name: CREATED.provider } })
   await db.position.deleteMany({ where: { name: CREATED.position } })
 }

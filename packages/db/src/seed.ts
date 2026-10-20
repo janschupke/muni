@@ -25,7 +25,13 @@ import { importBatch } from './writer'
 
 const log = (line: string) => process.stdout.write(`${line}\n`)
 
-export async function seedFromDirectory(db: Db, dir: string, today = todayIn()) {
+export async function seedFromDirectory(
+  db: Db,
+  dir: string,
+  today = todayIn(),
+  /** Records per commit; the wizard's, unless a test asks for smaller chunks. */
+  { chunkSize }: { chunkSize?: number | undefined } = {}
+) {
   const ctx = { today }
   const batch: ImportBatch = {}
   for (const name of readdirSync(dir)
@@ -45,7 +51,7 @@ export async function seedFromDirectory(db: Db, dir: string, today = todayIn()) 
     archived: await findArchivedKeys(db, archivedCandidates(batch)),
   }
   const validated = validateBatch(batch, reference)
-  const written = await importBatch(db, validated)
+  const written = await importBatch(db, validated, { chunkSize })
   const results: Partial<
     Record<DatasetKind, { created: number; updated: number; skipped: number }>
   > = {}

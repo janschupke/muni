@@ -5,6 +5,7 @@ import { cleanFreeText } from '@muni/utils/text'
 import type { Tx } from '../client'
 import { ACTIVE } from '../repositories/archive/archive'
 import { chooseDefaultProvider } from '../repositories/catalog/default-provider'
+import { toAmount } from '../repositories/core/context'
 import type { CommitResult } from './shared'
 import { archivedOnly, courseIds, lookup, partition, upsertNames, withoutArchived } from './shared'
 
@@ -92,43 +93,33 @@ export async function writeCompletions(tx: Tx, all: CompletionInput[]): Promise<
   })
   for (const { record, id } of existing)
     await tx.courseCompletion.update({ where: { id }, data: toData(record) })
-  await offerWhatWasDelivered(tx, records.map(toData))
   return { created: fresh.length, updated: existing.length, skipped }
 }
 
 /**
- * A provider that delivered a course offers it: each (provider, course) pair with no offering
- * yet gets one, at the pair's latest price in these records (0 without one). An offering the
- * app (or an earlier import) set is never changed.
+ * A provider that delivered a course offers it: each (provider, course) pair the register's
+ * completions show with no offering yet gets one, at the latest price paid for it (0 when none
+ * ever was). An offering the app (or an earlier import) set is never changed. Run once a
+ * completions import is all written: from one chunk, "latest" would be that chunk's.
  */
-async function offerWhatWasDelivered(
-  tx: Tx,
-  rows: { providerId: string | null; courseId: string; completedOn: Date; price: number | null }[]
-): Promise<void> {
-  // Per pair, the latest priced completion; a pair never priced is offered at 0.
-  const latest = new Map<
-    string,
-    { providerId: string; courseId: string; on: Date; price: number | null }
-  >()
-  for (const r of rows) {
-    if (r.providerId === null) continue
-    const key = `${r.providerId}|${r.courseId}`
-    const seen = latest.get(key)
-    const later = !seen || r.completedOn > seen.on
-    const better = !seen || (r.price !== null && (seen.price === null || later))
-    if (better && (r.price !== null || later))
-      latest.set(key, {
-        providerId: r.providerId,
-        courseId: r.courseId,
-        on: r.completedOn,
-        price: r.price,
-      })
+export async function offerWhatWasDelivered(tx: Tx): Promise<void> {
+  const delivered = await tx.courseCompletion.findMany({
+    where: { ...ACTIVE, providerId: { not: null }, provider: ACTIVE, course: ACTIVE },
+    select: { providerId: true, courseId: true, price: true },
+    orderBy: [{ completedOn: 'asc' }, { externalId: 'asc' }],
+  })
+  const offers = new Map<string, { providerId: string; courseId: string; price: number }>()
+  for (const d of delivered) {
+    if (d.providerId === null) continue
+    const key = `${d.providerId}|${d.courseId}`
+    const price = d.price === null ? (offers.get(key)?.price ?? 0) : toAmount(d.price)
+    offers.set(key, { providerId: d.providerId, courseId: d.courseId, price })
   }
   await tx.providerCourse.createMany({
-    data: [...latest.values()].map(o => ({
+    data: [...offers.values()].map(o => ({
       providerId: o.providerId,
       courseId: o.courseId,
-      pricePerPerson: o.price ?? 0,
+      pricePerPerson: o.price,
     })),
     skipDuplicates: true,
   })

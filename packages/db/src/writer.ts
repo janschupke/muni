@@ -24,7 +24,11 @@ import {
 import type * as z from 'zod'
 
 import type { Db } from './client'
-import { ensureDefaultProvider, writeCompletions } from './import/completions'
+import {
+  ensureDefaultProvider,
+  offerWhatWasDelivered,
+  writeCompletions,
+} from './import/completions'
 import { writeCourses } from './import/courses'
 import { activeEmployeeRecords, linkManagers, writeEmployees } from './import/employees'
 import { writeRooms } from './import/rooms'
@@ -82,8 +86,9 @@ export function revalidate<K extends DatasetKind>(kind: K, records: unknown[]): 
  * managers first (`committable`), so each chunk's manager links find their managers.
  *
  * `last` marks a dataset's final chunk, after which what needs all of it is worked out once:
- * the departments' heads from the reporting lines (people), the default provider from every
- * completion (completions). Both only fill what is not set, so a repeat changes nothing.
+ * the departments' heads from the reporting lines (people); the offerings the completions
+ * show, at the latest price paid, and the default provider (completions). Each only fills
+ * what is not set, so a repeat changes nothing.
  */
 export async function commitChunk(
   db: Db,
@@ -112,7 +117,10 @@ export async function commitChunk(
           return writeSessions(tx, records as SessionInput[])
         case 'completions': {
           const written = await writeCompletions(tx, records as CompletionInput[])
-          if (last) await ensureDefaultProvider(tx)
+          if (last) {
+            await offerWhatWasDelivered(tx)
+            await ensureDefaultProvider(tx)
+          }
           return written
         }
       }
@@ -138,7 +146,7 @@ export async function commitChunk(
 export async function importBatch(
   db: Db,
   batch: ImportBatch,
-  { chunkSize = COMMIT_CHUNK_SIZE }: { chunkSize?: number } = {}
+  { chunkSize = COMMIT_CHUNK_SIZE }: { chunkSize?: number | undefined } = {}
 ): Promise<Partial<Record<DatasetKind, CommitResult>>> {
   const results: Partial<Record<DatasetKind, CommitResult>> = {}
   for (const kind of COMMIT_ORDER) {
