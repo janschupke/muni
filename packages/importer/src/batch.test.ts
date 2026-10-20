@@ -422,6 +422,27 @@ describe('row operations', () => {
     expect(committable({}, 'courses')).toEqual([])
   })
 
+  it('writes people managers first, so a chunk never links to a manager not yet written', () => {
+    const batch = validateBatch(
+      {
+        employees: file('zamestnanci.csv', [
+          EMPLOYEES[0] ?? '',
+          'E0003,Jan,Malý,jan.maly@vzorova.example,Laboratoře,Laborant,eva.novakova@vzorova.example,2020-01-01,aktivní',
+          'E0001,Petr,Adámek,petr.adamek@vzorova.example,Laboratoře,Laborant,jan.maly@vzorova.example,2020-01-01,aktivní',
+          'E0002,Eva,Nováková,eva.novakova@vzorova.example,Vedení,Ředitelka,,2015-01-01,aktivní',
+          'E0004,Ida,Černá,ida.cerna@vzorova.example,Vedení,Asistentka,,2021-01-01,aktivní',
+        ]).rows as NonNullable<ImportBatch['employees']>,
+      },
+      EMPTY_REFERENCE
+    )
+    expect(committable(batch, 'employees').map(e => e.externalId)).toEqual([
+      'E0002',
+      'E0003',
+      'E0001',
+      'E0004',
+    ])
+  })
+
   it('says what each row comes to on commit, and counts what will be written', () => {
     const removed = setRemoved(start, 'sessions', 2, true, reference)
     const states = (removed.sessions ?? []).map(rowState)

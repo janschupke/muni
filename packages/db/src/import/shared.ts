@@ -73,6 +73,11 @@ export type CommitRefusal =
   | 'PROVIDER_NOT_OFFERING'
   /** A session names no provider, and no provider is the default. */
   | 'NO_DEFAULT_PROVIDER'
+  /**
+   * A record names something the register does not have (an employee, course or room the
+   * review saw, archived or gone since, or skipped from an earlier chunk).
+   */
+  | 'REFERENCE_MISSING'
 
 export class CommitRefusedError extends Error {
   override name = 'CommitRefusedError'
@@ -146,8 +151,19 @@ export async function courseIds(tx: Tx, codes: string[]): Promise<Map<string, st
   return new Map(rows.map(c => [c.code, c.id]))
 }
 
+/** A record names a key the register has no active record of. */
+export class MissingReferenceError extends Error {
+  override name = 'MissingReferenceError'
+  constructor(
+    readonly what: string,
+    readonly key: string
+  ) {
+    super(`Unknown ${what} "${key}"`)
+  }
+}
+
 export function lookup<T>(map: Map<string, T>, key: string, what: string): T {
   const value = map.get(key)
-  if (value === undefined) throw new Error(`Unknown ${what} "${key}"`)
+  if (value === undefined) throw new MissingReferenceError(what, key)
   return value
 }

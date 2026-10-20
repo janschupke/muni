@@ -13,20 +13,27 @@ import {
   type SessionInput,
   sessionSchema,
 } from '@muni/domain/schemas'
-import type { DatasetKind, DatasetRecord } from '@muni/importer'
+import {
+  COMMIT_CHUNK_SIZE,
+  COMMIT_ORDER,
+  committable,
+  type DatasetKind,
+  type DatasetRecord,
+  type ImportBatch,
+} from '@muni/importer'
 import type * as z from 'zod'
 
 import type { Db } from './client'
-import { writeCompletions } from './import/completions'
+import { ensureDefaultProvider, writeCompletions } from './import/completions'
 import { writeCourses } from './import/courses'
 import { activeEmployeeRecords, linkManagers, writeEmployees } from './import/employees'
 import { writeRooms } from './import/rooms'
 import { writeSessions } from './import/sessions'
-import type { CommitResult } from './import/shared'
+import { CommitRefusedError, type CommitResult, MissingReferenceError } from './import/shared'
+import { fillDepartmentHeads } from './repositories/org/groups'
 
 export { type CommitRefusal, CommitRefusedError, type CommitResult } from './import/shared'
 
-export const COMMIT_CHUNK_SIZE = 500
 const TX_OPTIONS = { timeout: 60_000, maxWait: 10_000 }
 
 const notReserved = (
@@ -71,40 +78,81 @@ export function revalidate<K extends DatasetKind>(kind: K, records: unknown[]): 
 
 /**
  * Writes one chunk of one dataset in a single transaction (upsert by source ID, so
- * re-importing the same file is idempotent). Callers send datasets in COMMIT_ORDER.
- * Employee chunks also re-link managers, which may live in an earlier chunk.
+ * re-importing the same file is idempotent). Callers send datasets in COMMIT_ORDER, people
+ * managers first (`committable`), so each chunk's manager links find their managers.
+ *
+ * `last` marks a dataset's final chunk, after which what needs all of it is worked out once:
+ * the departments' heads from the reporting lines (people), the default provider from every
+ * completion (completions). Both only fill what is not set, so a repeat changes nothing.
  */
 export async function commitChunk(
   db: Db,
   kind: DatasetKind,
-  untrusted: unknown[]
+  untrusted: unknown[],
+  { last }: { last: boolean }
 ): Promise<CommitResult> {
   if (untrusted.length > COMMIT_CHUNK_SIZE) {
     throw new Error(`At most ${COMMIT_CHUNK_SIZE} records per chunk`)
   }
   const records = revalidate(kind, untrusted)
-  return db.$transaction(async tx => {
-    switch (kind) {
-      case 'rooms':
-        return writeRooms(tx, records as RoomInput[])
-      case 'courses':
-        return writeCourses(tx, records as CourseInput[])
-      case 'employees': {
-        const { kept, skipped } = await activeEmployeeRecords(tx, records as EmployeeInput[])
-        const result = await writeEmployees(tx, kept)
-        await linkManagers(tx, kept)
-        return { ...result, skipped }
+  try {
+    const result = await db.$transaction(async tx => {
+      switch (kind) {
+        case 'rooms':
+          return writeRooms(tx, records as RoomInput[])
+        case 'courses':
+          return writeCourses(tx, records as CourseInput[])
+        case 'employees': {
+          const { kept, skipped } = await activeEmployeeRecords(tx, records as EmployeeInput[])
+          const written = await writeEmployees(tx, kept)
+          await linkManagers(tx, kept)
+          return { ...written, skipped }
+        }
+        case 'sessions':
+          return writeSessions(tx, records as SessionInput[])
+        case 'completions': {
+          const written = await writeCompletions(tx, records as CompletionInput[])
+          if (last) await ensureDefaultProvider(tx)
+          return written
+        }
       }
-      case 'sessions':
-        return writeSessions(tx, records as SessionInput[])
-      case 'completions':
-        return writeCompletions(tx, records as CompletionInput[])
+    }, TX_OPTIONS)
+    if (last && kind === 'employees') await fillDepartmentHeads({ db })
+    return result
+  } catch (error) {
+    // Named by its record, as the other refusals are, rather than a bare failure.
+    if (error instanceof MissingReferenceError) {
+      const named = JSON.stringify(error.key)
+      const index = records.findIndex(r => JSON.stringify(r).includes(named))
+      throw new CommitRefusedError(index, 'REFERENCE_MISSING', `${error.what} ${error.key}`)
     }
-  }, TX_OPTIONS)
+    throw error
+  }
 }
 
-export function chunk<T>(items: readonly T[], size = COMMIT_CHUNK_SIZE): T[][] {
-  const out: T[][] = []
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
-  return out
+/**
+ * Writes a validated batch as the import wizard does: dataset by dataset in COMMIT_ORDER, a
+ * chunk at a time (`chunkSize`, at most COMMIT_CHUNK_SIZE), each dataset's last chunk marked.
+ * The first refusal stops it; what was written before stays.
+ */
+export async function importBatch(
+  db: Db,
+  batch: ImportBatch,
+  { chunkSize = COMMIT_CHUNK_SIZE }: { chunkSize?: number } = {}
+): Promise<Partial<Record<DatasetKind, CommitResult>>> {
+  const results: Partial<Record<DatasetKind, CommitResult>> = {}
+  for (const kind of COMMIT_ORDER) {
+    if ((batch[kind]?.length ?? 0) === 0) continue
+    const records = committable(batch, kind)
+    const sum = { created: 0, updated: 0, skipped: 0 }
+    for (let i = 0; i < records.length; i += chunkSize) {
+      const part = records.slice(i, i + chunkSize)
+      const result = await commitChunk(db, kind, part, { last: i + chunkSize >= records.length })
+      sum.created += result.created
+      sum.updated += result.updated
+      sum.skipped += result.skipped
+    }
+    results[kind] = sum
+  }
+  return results
 }

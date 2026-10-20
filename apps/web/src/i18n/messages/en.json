@@ -766,7 +766,8 @@
         "rate_limited": "too many writes in a short time; wait a minute and import again",
         "provider_unknown": "a session names a provider that is not on record",
         "provider_not_offering": "a session names a provider that does not offer its course",
-        "no_default_provider": "a session names no provider and none is the default"
+        "no_default_provider": "a session names no provider and none is the default",
+        "reference_missing": "a record names something the register does not have (archived or removed since the review); review the files again"
       },
       "meter": "Records written"
     },

@@ -529,7 +529,7 @@ describe('imports skip archived records', () => {
     expect(await archive('employee', id)).toMatchObject({ ok: true })
     const stored = await db.employee.findUniqueOrThrow({ where: { id } })
 
-    expect(await commitChunk(db, 'employees', [record])).toEqual({
+    expect(await commitChunk(db, 'employees', [record], { last: true })).toEqual({
       created: 0,
       updated: 0,
       skipped: 1,
@@ -547,7 +547,7 @@ describe('imports skip archived records', () => {
       price: null,
       note: null,
     }
-    expect(await commitChunk(db, 'completions', [completion])).toEqual({
+    expect(await commitChunk(db, 'completions', [completion], { last: true })).toEqual({
       created: 0,
       updated: 0,
       skipped: 1,

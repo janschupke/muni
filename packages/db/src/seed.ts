@@ -1,6 +1,6 @@
 /**
- * Seeds the database from the CSV exports in /data, through the same importer and writer
- * the web import wizard uses. Errors skip the row, warnings import it with the fix applied;
+ * Seeds the database from the CSV exports in a directory, through the same importer, writer
+ * and chunked commit (`importBatch`) the web import wizard uses. Errors skip the row, warnings import it with the fix applied;
  * both are summarised per code. Safe to run repeatedly (upsert by source ID).
  * The command line is `scripts/seed.ts`.
  */
@@ -10,7 +10,6 @@ import path from 'node:path'
 import {
   archivedCandidates,
   COMMIT_ORDER,
-  committable,
   type DatasetKind,
   type ImportBatch,
   type ParsedRow,
@@ -22,8 +21,7 @@ import { todayIn } from '@muni/utils/dates'
 
 import type { Db } from './client'
 import { findArchivedKeys, loadReferenceSnapshot } from './reference'
-import { fillDepartmentHeads } from './repositories/org/groups'
-import { chunk, commitChunk } from './writer'
+import { importBatch } from './writer'
 
 const log = (line: string) => process.stdout.write(`${line}\n`)
 
@@ -47,20 +45,14 @@ export async function seedFromDirectory(db: Db, dir: string, today = todayIn()) 
     archived: await findArchivedKeys(db, archivedCandidates(batch)),
   }
   const validated = validateBatch(batch, reference)
+  const written = await importBatch(db, validated)
   const results: Partial<
     Record<DatasetKind, { created: number; updated: number; skipped: number }>
   > = {}
   for (const kind of COMMIT_ORDER) {
     const rows = (validated[kind] ?? []) as ParsedRow<unknown>[]
     if (rows.length === 0) continue
-    const records = committable(validated, kind)
-    let created = 0
-    let updated = 0
-    for (const part of chunk(records)) {
-      const result = await commitChunk(db, kind, part)
-      created += result.created
-      updated += result.updated
-    }
+    const { created, updated } = written[kind] ?? { created: 0, updated: 0 }
     const summary = summarize(rows)
     const skipped = summary.invalid + summary.skipped
     results[kind] = { created, updated, skipped }
@@ -76,8 +68,5 @@ export async function seedFromDirectory(db: Db, dir: string, today = todayIn()) 
     }
     for (const [key, count] of [...codes].sort()) log(`  ${key}: ${count}`)
   }
-  // Heads are not in the exports: a department without one gets the person its reporting
-  // lines point to, once; after that they are set on the department's form.
-  log(`\ndepartment heads: ${String(await fillDepartmentHeads({ db }))} set`)
   return results
 }

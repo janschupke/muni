@@ -14,11 +14,12 @@ import { ImportWizard } from './import-wizard'
 
 // The server action and router are the only things replaced; parsing, validation, the
 // review table and the commit loop are the real code, driven with the real exports.
-const commitImportChunk = vi.fn((_kind: string, records: unknown[]) =>
+const commitImportChunk = vi.fn((_kind: string, records: unknown[], _last: boolean) =>
   Promise.resolve({ ok: true as const, created: records.length, updated: 0, skipped: 0 })
 )
 vi.mock('@/server/actions/import', () => ({
-  commitImportChunk: (kind: string, records: unknown[]) => commitImportChunk(kind, records),
+  commitImportChunk: (kind: string, records: unknown[], last: boolean) =>
+    commitImportChunk(kind, records, last),
   findArchived: async () => (await import('@muni/importer')).NO_ARCHIVED,
 }))
 
@@ -101,21 +102,34 @@ describe('ImportWizard', () => {
 
     await user.click(screen.getByRole('button', { name: /Import 3,030 records/ }))
 
-    // Commit: dependency order, chunks of at most 500.
+    // Commit: dependency order, chunks of at most 500, each dataset's last chunk marked (the
+    // server works out the heads and the default provider after it).
     // Announced from the one status region the run keeps.
     expect(await screen.findByText('Import complete', { selector: '[role="status"]' })).toBeTruthy()
-    const calls = commitImportChunk.mock.calls.map(([kind, records]) => [kind, records.length])
-    expect(calls).toEqual([
-      ['courses', 10],
-      ['employees', 170],
-      ['completions', 500],
-      ['completions', 500],
-      ['completions', 500],
-      ['completions', 500],
-      ['completions', 500],
-      ['completions', 318],
-      ['sessions', 32],
+    const calls = commitImportChunk.mock.calls.map(([kind, records, last]) => [
+      kind,
+      records.length,
+      last,
     ])
+    expect(calls).toEqual([
+      ['courses', 10, true],
+      ['employees', 170, true],
+      ['completions', 500, false],
+      ['completions', 500, false],
+      ['completions', 500, false],
+      ['completions', 500, false],
+      ['completions', 500, false],
+      ['completions', 318, true],
+      ['sessions', 32, true],
+    ])
+    // Managers first: everyone's manager is written before them.
+    const people = commitImportChunk.mock.calls.find(([kind]) => kind === 'employees')?.[1] ?? []
+    const at = new Map(people.map((p, i) => [(p as { email: string | null }).email, i]))
+    const late = people.filter((p, i) => {
+      const manager = (p as { managerEmail: string | null }).managerEmail
+      return manager !== null && (at.get(manager) ?? -1) > i
+    })
+    expect(late).toEqual([])
     expect(screen.getByText('Completions: 2818 created, 0 updated')).toBeTruthy()
     await expectNoAxeViolations()
   })

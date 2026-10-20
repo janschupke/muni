@@ -32,31 +32,39 @@ describe('import commit', () => {
 
   it('writes a chunk for a signed-in user', async () => {
     vi.mocked(commitChunk).mockResolvedValue({ created: 1, updated: 0, skipped: 2 })
-    expect(await commitImportChunk('courses', [course])).toEqual({
+    expect(await commitImportChunk('courses', [course], true)).toEqual({
       ok: true,
       created: 1,
       updated: 0,
       skipped: 2,
     })
-    expect(commitChunk).toHaveBeenCalledWith('db', 'courses', [course])
+    expect(commitChunk).toHaveBeenCalledWith('db', 'courses', [course], { last: true })
   })
 
   it('refuses visitors, unknown datasets and oversized chunks', async () => {
     signedIn(null)
-    expect(await commitImportChunk('courses', [course])).toEqual({
+    expect(await commitImportChunk('courses', [course], true)).toEqual({
       ok: false,
       error: 'unauthorized',
     })
     signedIn('user_1')
-    expect(await commitImportChunk('pets' as never, [])).toEqual({ ok: false, error: 'invalid' })
-    expect(await commitImportChunk('courses', 'x' as never)).toEqual({
+    expect(await commitImportChunk('pets' as never, [], true)).toEqual({
+      ok: false,
+      error: 'invalid',
+    })
+    expect(await commitImportChunk('courses', 'x' as never, true)).toEqual({
+      ok: false,
+      error: 'invalid',
+    })
+    expect(await commitImportChunk('courses', [course], 'yes' as never)).toEqual({
       ok: false,
       error: 'invalid',
     })
     expect(
       await commitImportChunk(
         'courses',
-        Array.from({ length: 501 }, () => course)
+        Array.from({ length: 501 }, () => course),
+        true
       )
     ).toEqual({
       ok: false,
@@ -68,7 +76,7 @@ describe('import commit', () => {
     vi.mocked(commitChunk).mockRejectedValueOnce(
       new CommitValidationError(3, [{ code: 'custom', message: 'before_start', path: [] } as never])
     )
-    expect(await commitImportChunk('sessions', [course])).toEqual({
+    expect(await commitImportChunk('sessions', [course], true)).toEqual({
       ok: false,
       error: 'invalid',
       detail: '#3: before_start',
@@ -77,16 +85,28 @@ describe('import commit', () => {
     vi.mocked(commitChunk).mockRejectedValueOnce(
       new CommitRefusedError(1, 'ROOM_BUSY', 'T951 → S001')
     )
-    expect(await commitImportChunk('sessions', [course])).toEqual({
+    expect(await commitImportChunk('sessions', [course], true)).toEqual({
       ok: false,
       error: 'room_busy',
       detail: '#1: T951 → S001',
     })
     vi.mocked(commitChunk).mockRejectedValueOnce(new CommitRefusedError(0, 'ROOM_UNFIT', 'Aula A'))
-    expect(await commitImportChunk('rooms', [course])).toMatchObject({ error: 'room_unfit' })
+    expect(await commitImportChunk('rooms', [course], true)).toMatchObject({ error: 'room_unfit' })
+    // A record naming what the register no longer has says which.
+    vi.mocked(commitChunk).mockRejectedValueOnce(
+      new CommitRefusedError(4, 'REFERENCE_MISSING', 'employee E0066')
+    )
+    expect(await commitImportChunk('completions', [course], false)).toEqual({
+      ok: false,
+      error: 'reference_missing',
+      detail: '#4: employee E0066',
+    })
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     vi.mocked(commitChunk).mockRejectedValueOnce(new Error('deadlock'))
-    expect(await commitImportChunk('sessions', [course])).toEqual({ ok: false, error: 'failed' })
+    expect(await commitImportChunk('sessions', [course], true)).toEqual({
+      ok: false,
+      error: 'failed',
+    })
     expect(log).toHaveBeenCalled()
   })
 })

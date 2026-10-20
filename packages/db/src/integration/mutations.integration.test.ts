@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 import { roomMismatch } from '@muni/domain/rooms'
+import { COMMIT_CHUNK_SIZE } from '@muni/importer'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { deleteCourses, deleteRooms, unarchiveAll } from '../../test/archive'
@@ -46,12 +47,7 @@ import {
 } from '../repositories'
 import { complianceOptions, dbOf } from '../repositories/core/context'
 import { seedFromDirectory } from '../seed'
-import {
-  COMMIT_CHUNK_SIZE,
-  commitChunk,
-  CommitRefusedError,
-  CommitValidationError,
-} from '../writer'
+import { commitChunk, CommitRefusedError, CommitValidationError } from '../writer'
 
 // Writes that the main suite does not exercise. Everything here is undone in afterAll:
 // a re-seed restores edited rows (upsert by source ID) and app-created rows are deleted.
@@ -700,26 +696,36 @@ describe('rooms', () => {
 
   it('imports rooms and creates the ones only sessions name', async () => {
     expect(
-      await commitChunk(db, 'rooms', [
-        {
-          name: CREATED.importedRoom,
-          kind: 'CLASSROOM',
-          capacity: 60,
-          capabilities: ['PROJECTOR', 'WHEELCHAIR_ACCESS'],
-          note: null,
-        },
-      ])
+      await commitChunk(
+        db,
+        'rooms',
+        [
+          {
+            name: CREATED.importedRoom,
+            kind: 'CLASSROOM',
+            capacity: 60,
+            capabilities: ['PROJECTOR', 'WHEELCHAIR_ACCESS'],
+            note: null,
+          },
+        ],
+        { last: true }
+      )
     ).toEqual({ created: 1, updated: 0, skipped: 0 })
     expect(
-      await commitChunk(db, 'rooms', [
-        {
-          name: CREATED.importedRoom,
-          kind: 'CLASSROOM',
-          capacity: 80,
-          capabilities: [],
-          note: null,
-        },
-      ])
+      await commitChunk(
+        db,
+        'rooms',
+        [
+          {
+            name: CREATED.importedRoom,
+            kind: 'CLASSROOM',
+            capacity: 80,
+            capabilities: [],
+            note: null,
+          },
+        ],
+        { last: true }
+      )
     ).toEqual({ created: 0, updated: 1, skipped: 0 })
     const imported = await db.room.findUniqueOrThrow({
       where: { name: CREATED.importedRoom },
@@ -741,7 +747,7 @@ describe('rooms', () => {
       providerName: null,
     })
     // POZ-OCH's sessions are set (the first import filled them in): new sessions leave them.
-    await commitChunk(db, 'sessions', [session('T901', 25), session('T902', 35)])
+    await commitChunk(db, 'sessions', [session('T901', 25), session('T902', 35)], { last: true })
     expect(
       await db.course.findUniqueOrThrow({
         where: { code: 'POZ-OCH' },
@@ -769,7 +775,7 @@ describe('rooms', () => {
       },
       options
     )
-    await commitChunk(db, 'sessions', [session('T901', 25), session('T902', 35)])
+    await commitChunk(db, 'sessions', [session('T901', 25), session('T902', 35)], { last: true })
     expect(
       await db.course.findUniqueOrThrow({
         where: { code: 'POZ-OCH' },
@@ -779,7 +785,7 @@ describe('rooms', () => {
 
     // A session naming its provider gets it; the default holds those that name none.
     const named = { ...session('T903', 20), providerName: 'externí lektor' }
-    await commitChunk(db, 'sessions', [named])
+    await commitChunk(db, 'sessions', [named], { last: true })
     const held = await db.courseSession.findMany({
       where: { externalId: { in: ['T901', 'T903'] } },
       select: { externalId: true, provider: { select: { name: true } } },
@@ -791,33 +797,43 @@ describe('rooms', () => {
     ])
     // One nobody knows, or that does not offer the course, is refused.
     await expect(
-      commitChunk(db, 'sessions', [{ ...named, providerName: 'Nikdo' }])
+      commitChunk(db, 'sessions', [{ ...named, providerName: 'Nikdo' }], { last: true })
     ).rejects.toMatchObject({ reason: 'PROVIDER_UNKNOWN' })
     const lonely = await db.provider.create({ data: { name: 'Test bez nabídky' } })
     await expect(
-      commitChunk(db, 'sessions', [{ ...named, providerName: lonely.name }])
+      commitChunk(db, 'sessions', [{ ...named, providerName: lonely.name }], { last: true })
     ).rejects.toMatchObject({ reason: 'PROVIDER_NOT_OFFERING' })
     await db.provider.delete({ where: { id: lonely.id } })
 
     // A rooms file without an equipment column leaves the equipment as it is.
-    await commitChunk(db, 'rooms', [
-      {
-        name: CREATED.importedRoom,
-        kind: 'CLASSROOM',
-        capacity: 80,
-        capabilities: ['PROJECTOR'],
-        note: null,
-      },
-    ])
-    await commitChunk(db, 'rooms', [
-      {
-        name: CREATED.importedRoom,
-        kind: 'CLASSROOM',
-        capacity: 90,
-        capabilities: null,
-        note: null,
-      },
-    ])
+    await commitChunk(
+      db,
+      'rooms',
+      [
+        {
+          name: CREATED.importedRoom,
+          kind: 'CLASSROOM',
+          capacity: 80,
+          capabilities: ['PROJECTOR'],
+          note: null,
+        },
+      ],
+      { last: true }
+    )
+    await commitChunk(
+      db,
+      'rooms',
+      [
+        {
+          name: CREATED.importedRoom,
+          kind: 'CLASSROOM',
+          capacity: 90,
+          capabilities: null,
+          note: null,
+        },
+      ],
+      { last: true }
+    )
     expect(
       await db.room.findUniqueOrThrow({
         where: { name: CREATED.importedRoom },
@@ -910,10 +926,15 @@ describe('a planned session with the people it is for', () => {
 
 describe('the writer refuses what it should never write', () => {
   it('re-validates every record and names the first bad one', async () => {
-    const error = await commitChunk(db, 'courses', [
-      { code: 'OK', name: 'Platný', validityMonths: null, requirements: [] },
-      { code: 'bad code', name: '', validityMonths: 0, requirements: [] },
-    ]).catch((e: unknown) => e)
+    const error = await commitChunk(
+      db,
+      'courses',
+      [
+        { code: 'OK', name: 'Platný', validityMonths: null, requirements: [] },
+        { code: 'bad code', name: '', validityMonths: 0, requirements: [] },
+      ],
+      { last: true }
+    ).catch((e: unknown) => e)
     expect(error).toBeInstanceOf(CommitValidationError)
     expect(error).toMatchObject({ index: 1 })
   })
@@ -933,7 +954,9 @@ describe('the writer refuses what it should never write', () => {
       status: 'PLANNED',
       providerName: null,
     }
-    const reserved = await commitChunk(db, 'sessions', [session]).catch((e: unknown) => e)
+    const reserved = await commitChunk(db, 'sessions', [session], { last: true }).catch(
+      (e: unknown) => e
+    )
     expect(reserved).toBeInstanceOf(CommitValidationError)
     expect(reserved).toMatchObject({
       index: 0,
@@ -949,15 +972,20 @@ describe('the writer refuses what it should never write', () => {
       price: null,
       note: null,
     }
-    await expect(commitChunk(db, 'completions', [completion])).rejects.toBeInstanceOf(
-      CommitValidationError
-    )
+    await expect(
+      commitChunk(db, 'completions', [completion], { last: true })
+    ).rejects.toBeInstanceOf(CommitValidationError)
 
     // The second record takes the room while S001 holds it: nothing of the chunk is written.
-    const busy = await commitChunk(db, 'sessions', [
-      { ...session, externalId: 'T950', startTime: '07:00', endTime: '08:00' },
-      { ...session, externalId: 'T951' },
-    ]).catch((e: unknown) => e)
+    const busy = await commitChunk(
+      db,
+      'sessions',
+      [
+        { ...session, externalId: 'T950', startTime: '07:00', endTime: '08:00' },
+        { ...session, externalId: 'T951' },
+      ],
+      { last: true }
+    ).catch((e: unknown) => e)
     expect(busy).toBeInstanceOf(CommitRefusedError)
     expect(busy).toMatchObject({ index: 1, reason: 'ROOM_BUSY', key: 'T951 → S001' })
     expect(await db.courseSession.count({ where: { externalId: { in: ['T950', 'T951'] } } })).toBe(
@@ -965,51 +993,71 @@ describe('the writer refuses what it should never write', () => {
     )
     // A cancelled one holds nothing.
     expect(
-      await commitChunk(db, 'sessions', [{ ...session, externalId: 'T952', status: 'CANCELLED' }])
+      await commitChunk(db, 'sessions', [{ ...session, externalId: 'T952', status: 'CANCELLED' }], {
+        last: true,
+      })
     ).toEqual({ created: 1, updated: 0, skipped: 0 })
 
     // Four seats would no longer hold S001's sixteen.
     await expect(
-      commitChunk(db, 'rooms', [
-        { name: CREATED.room, kind: 'LAB', capacity: 4, capabilities: null, note: null },
-      ])
+      commitChunk(
+        db,
+        'rooms',
+        [{ name: CREATED.room, kind: 'LAB', capacity: 4, capabilities: null, note: null }],
+        { last: true }
+      )
     ).rejects.toMatchObject({ reason: 'ROOM_UNFIT', key: CREATED.room })
   })
 
   it('caps the chunk size', async () => {
     const tooMany = Array.from({ length: COMMIT_CHUNK_SIZE + 1 }, () => ({}))
-    await expect(commitChunk(db, 'courses', tooMany)).rejects.toThrow(
+    await expect(commitChunk(db, 'courses', tooMany, { last: true })).rejects.toThrow(
       `At most ${String(COMMIT_CHUNK_SIZE)} records per chunk`
     )
   })
 
   it('refuses a completion for a course that does not exist', async () => {
     await expect(
-      commitChunk(db, 'completions', [
-        {
-          externalId: 'Z999999',
-          employeeExternalId: 'E0153',
-          courseCode: 'NOPE',
-          completedOn: '2026-01-01',
-          validUntil: null,
-          provider: null,
-          price: null,
-          note: null,
-        },
-      ])
-    ).rejects.toThrow('Unknown course "NOPE"')
+      commitChunk(
+        db,
+        'completions',
+        [
+          {
+            externalId: 'Z999999',
+            employeeExternalId: 'E0153',
+            courseCode: 'NOPE',
+            completedOn: '2026-01-01',
+            validUntil: null,
+            provider: null,
+            price: null,
+            note: null,
+          },
+        ],
+        { last: true }
+      )
+    ).rejects.toMatchObject({
+      name: 'CommitRefusedError',
+      index: 0,
+      reason: 'REFERENCE_MISSING',
+      key: 'course NOPE',
+    })
   })
 
   it('writes a course with no requirements and position requirements', async () => {
-    const result = await commitChunk(db, 'courses', [
-      { code: 'TEST-A', name: 'Zkušební kurz', validityMonths: null, requirements: [] },
-      {
-        code: 'TEST-B',
-        name: 'Zkušební kurz pro vedoucí',
-        validityMonths: 12,
-        requirements: [{ scope: 'POSITION', position: CREATED.position }],
-      },
-    ])
+    const result = await commitChunk(
+      db,
+      'courses',
+      [
+        { code: 'TEST-A', name: 'Zkušební kurz', validityMonths: null, requirements: [] },
+        {
+          code: 'TEST-B',
+          name: 'Zkušební kurz pro vedoucí',
+          validityMonths: 12,
+          requirements: [{ scope: 'POSITION', position: CREATED.position }],
+        },
+      ],
+      { last: true }
+    )
     expect(result).toEqual({ created: 2, updated: 0, skipped: 0 })
   })
 })
@@ -1035,32 +1083,37 @@ describe('imports and the default provider', () => {
     }
     try {
       await db.provider.update({ where: { id: internal }, data: { isDefault: false } })
-      await expect(commitChunk(db, 'sessions', [session])).rejects.toMatchObject({
+      await expect(commitChunk(db, 'sessions', [session], { last: true })).rejects.toMatchObject({
         reason: 'NO_DEFAULT_PROVIDER',
       })
 
       // Any completions import puts a default back: the internal provider, by name.
-      await commitChunk(db, 'completions', [
-        {
-          externalId: 'Z900950',
-          employeeExternalId: 'E0001',
-          courseCode: 'POZ-OCH',
-          completedOn: '2026-10-01',
-          validUntil: null,
-          provider: null,
-          price: null,
-          note: null,
-        },
-      ])
+      await commitChunk(
+        db,
+        'completions',
+        [
+          {
+            externalId: 'Z900950',
+            employeeExternalId: 'E0001',
+            courseCode: 'POZ-OCH',
+            completedOn: '2026-10-01',
+            validUntil: null,
+            provider: null,
+            price: null,
+            note: null,
+          },
+        ],
+        { last: true }
+      )
       expect(await defaultProviderId(db)).toBe(internal)
 
       // A course the default does not offer yet is offered at the session's price.
       await db.providerCourse.delete({ where: key })
-      await commitChunk(db, 'sessions', [{ ...session, pricePerPerson: null }])
+      await commitChunk(db, 'sessions', [{ ...session, pricePerPerson: null }], { last: true })
       expect(
         Number((await db.providerCourse.findUniqueOrThrow({ where: key })).pricePerPerson)
       ).toBe(0)
-      await commitChunk(db, 'sessions', [session])
+      await commitChunk(db, 'sessions', [session], { last: true })
       expect(
         (await db.courseSession.findFirstOrThrow({ where: { externalId: 'T950' } })).providerId
       ).toBe(internal)

@@ -16,6 +16,7 @@ export { COLUMNS } from './parse/columns'
 export { isCommitted, type RowState, rowState } from './row-state'
 export {
   type ArchivedKeys,
+  COMMIT_CHUNK_SIZE,
   COMMIT_ORDER,
   DATASET_KINDS,
   type DatasetKind,

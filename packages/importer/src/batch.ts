@@ -1,3 +1,4 @@
+import type { EmployeeInput } from '@muni/domain/schemas'
 import type { IsoDate } from '@muni/utils/dates'
 
 import { COLUMNS, detectKind, resolveColumnMap } from './parse/columns'
@@ -245,13 +246,42 @@ export function summarize(rows: readonly ParsedRow<unknown>[]): ValidationSummar
   return summary
 }
 
-/** The records that will be written: valid, not skipped and not removed. */
+/**
+ * People ordered so each one's manager (named by email) comes before them, file order
+ * otherwise. Written a chunk at a time, every manager link then finds its manager already
+ * written, however many chunks the people take. (Loops were dropped in the review.)
+ */
+function managersFirst(records: EmployeeInput[]): EmployeeInput[] {
+  const byEmail = new Map(records.flatMap(r => (r.email ? [[r.email, r] as const] : [])))
+  const ordered: EmployeeInput[] = []
+  const placed = new Set<EmployeeInput>()
+  const placing = new Set<EmployeeInput>()
+  const place = (record: EmployeeInput) => {
+    if (placed.has(record) || placing.has(record)) return
+    placing.add(record)
+    const manager = record.managerEmail ? byEmail.get(record.managerEmail) : undefined
+    if (manager) place(manager)
+    placing.delete(record)
+    placed.add(record)
+    ordered.push(record)
+  }
+  for (const record of records) place(record)
+  return ordered
+}
+
+/**
+ * The records that will be written, in the order to write them: valid, not skipped and not
+ * removed; people managers first.
+ */
 export function committable<K extends DatasetKind>(
   batch: ImportBatch,
   kind: K
 ): DatasetRecord[K][] {
   const rows: ParsedRow<DatasetRecord[K]>[] = batch[kind] ?? []
-  return rows.filter(isCommitted).map(row => row.data)
+  const records = rows.filter(isCommitted).map(row => row.data)
+  return kind === 'employees'
+    ? (managersFirst(records as EmployeeInput[]) as DatasetRecord[K][])
+    : records
 }
 
 /** How many records a commit writes, over every dataset in the batch. */

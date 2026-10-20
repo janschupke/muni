@@ -40,6 +40,11 @@ export interface RowMapResult<T> {
   issues: ValidationIssue[]
 }
 
+/**
+ * Records per commit: each chunk is one server call and one transaction the server re-validates.
+ */
+export const COMMIT_CHUNK_SIZE = 500
+
 /** Commit order: each dataset may reference the ones before it. */
 export const COMMIT_ORDER = ['rooms', 'courses', 'employees', 'completions', 'sessions'] as const
 

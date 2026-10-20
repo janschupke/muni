@@ -766,7 +766,8 @@
         "rate_limited": "příliš mnoho zápisů v krátké době; chvíli počkejte a importujte znovu",
         "provider_unknown": "termín uvádí poskytovatele, který není v evidenci",
         "provider_not_offering": "termín uvádí poskytovatele, který jeho kurz nenabízí",
-        "no_default_provider": "termín neuvádí poskytovatele a žádný není výchozí"
+        "no_default_provider": "termín neuvádí poskytovatele a žádný není výchozí",
+        "reference_missing": "záznam odkazuje na něco, co registr nemá (od kontroly archivováno nebo odstraněno); zkontrolujte soubory znovu"
       },
       "meter": "Zapsané záznamy"
     },

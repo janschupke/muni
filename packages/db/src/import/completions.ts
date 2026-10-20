@@ -93,7 +93,6 @@ export async function writeCompletions(tx: Tx, all: CompletionInput[]): Promise<
   for (const { record, id } of existing)
     await tx.courseCompletion.update({ where: { id }, data: toData(record) })
   await offerWhatWasDelivered(tx, records.map(toData))
-  await ensureDefaultProvider(tx)
   return { created: fresh.length, updated: existing.length, skipped }
 }
 
@@ -137,9 +136,10 @@ async function offerWhatWasDelivered(
 
 /**
  * With no default provider, one is chosen (`chooseDefaultProvider`): imported sessions that
- * name no provider go to it.
+ * name no provider go to it. Run once a completions import is all written, so the choice
+ * counts every completion, not the first chunk's.
  */
-async function ensureDefaultProvider(tx: Tx): Promise<void> {
+export async function ensureDefaultProvider(tx: Tx): Promise<void> {
   if (await tx.provider.findFirst({ where: { ...ACTIVE, isDefault: true }, select: { id: true } }))
     return
   const chosen = await chooseDefaultProvider(tx)

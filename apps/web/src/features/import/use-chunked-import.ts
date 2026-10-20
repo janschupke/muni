@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  COMMIT_CHUNK_SIZE as CHUNK,
   COMMIT_ORDER,
   committable,
   countCommittable,
@@ -14,9 +15,6 @@ import { useAfterWrite } from '@/lib/query/use-after-write'
 import { commitImportChunk } from '@/server/actions/import'
 
 import type { ImportJob } from './progress-step'
-
-/** Records per server call: each is one transaction the server re-validates. */
-const CHUNK = 500
 
 type Results = Partial<Record<DatasetKind, { created: number; updated: number; skipped: number }>>
 
@@ -38,11 +36,14 @@ export function useChunkedImport() {
     for (const kind of kinds) {
       const records = committable(batch, kind)
       for (let i = 0; i < records.length; i += CHUNK) {
-        const result = await commitImportChunk(kind, records.slice(i, i + CHUNK)).catch(() => ({
-          ok: false as const,
-          error: 'network' as const,
-          detail: undefined,
-        }))
+        const last = i + CHUNK >= records.length
+        const result = await commitImportChunk(kind, records.slice(i, i + CHUNK), last).catch(
+          () => ({
+            ok: false as const,
+            error: 'network' as const,
+            detail: undefined,
+          })
+        )
         if (!result.ok) {
           const reason = tp(`errors.${result.error}`)
           const message = result.detail ? `${reason} (${result.detail})` : reason

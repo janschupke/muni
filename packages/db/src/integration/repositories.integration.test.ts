@@ -867,21 +867,26 @@ describe('assignments', () => {
     const [person] = await needing(db, 'T003', opts, 1)
     if (!person) throw new Error('fixture: someone who needs KYBER')
     // Another KYBER session at T003's time, online (an online room never clashes).
-    await commitChunk(db, 'sessions', [
-      {
-        externalId: 'T909',
-        courseCode: 'KYBER',
-        date: '2026-11-11',
-        startTime: '09:00',
-        endTime: '12:00',
-        location: 'Online',
-        capacity: 30,
-        bookedCount: 0,
-        pricePerPerson: 800,
-        status: 'PLANNED',
-        providerName: null,
-      },
-    ])
+    await commitChunk(
+      db,
+      'sessions',
+      [
+        {
+          externalId: 'T909',
+          courseCode: 'KYBER',
+          date: '2026-11-11',
+          startTime: '09:00',
+          endTime: '12:00',
+          location: 'Online',
+          capacity: 30,
+          bookedCount: 0,
+          pricePerPerson: 800,
+          status: 'PLANNED',
+          providerName: null,
+        },
+      ],
+      { last: true }
+    )
     const [first, clash] = await applyAssignments(
       [manual('T003', person), manual('T909', person)],
       TEST_USER,
