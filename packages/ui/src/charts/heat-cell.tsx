@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react'
 
 import { cn } from '../cn'
-import { Tooltip } from '../components/tooltip'
+import { Tooltip } from '../components/feedback/tooltip'
 
 /** Rate bands, best first (the same names as complianceBand in @muni/domain). */
 export const HEAT_BANDS = ['FULL', 'HIGH', 'FAIR', 'LOW', 'POOR'] as const

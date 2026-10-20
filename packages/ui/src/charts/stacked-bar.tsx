@@ -1,6 +1,6 @@
 import { cn } from '../cn'
-import { barFillClass, barTrackClass } from '../components/meter'
-import { Tooltip } from '../components/tooltip'
+import { barFillClass, barTrackClass } from '../components/display/meter'
+import { Tooltip } from '../components/feedback/tooltip'
 
 export interface StackedSegment {
   key: string

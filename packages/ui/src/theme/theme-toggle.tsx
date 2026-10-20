@@ -3,7 +3,7 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { useSyncExternalStore } from 'react'
 
-import { SegmentedControl } from '../components/segmented-control'
+import { SegmentedControl } from '../components/forms/segmented-control'
 import { THEME_STORAGE_KEY, type ThemeChoice } from './boot'
 
 // The choice lives on <html data-theme> (the boot script sets it before first paint), so the
