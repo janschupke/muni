@@ -6,7 +6,7 @@ import { IconButton } from '@muni/ui/icon-button'
 import { Plus, X } from 'lucide-react'
 import { type ReactNode, useEffect, useRef } from 'react'
 
-import { useField } from './form-shell'
+import { useField } from './form-context'
 
 /** One row of a `RowsField`: its stable key, its cells, and the name its Remove button says. */
 export interface FieldRowItem {

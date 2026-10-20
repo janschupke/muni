@@ -2,7 +2,7 @@
 
 import type { CourseOption, RoomOption } from '@muni/db/repositories'
 import type { CourseOffering } from '@muni/domain/planner'
-import { sessionEndTime, type SessionIssue, sessionIssues } from '@muni/domain/sessions'
+import { sessionEndTime, type SessionIssue } from '@muni/domain/sessions'
 import { FieldRow, FieldValue } from '@muni/ui/field'
 import { formatCurrency } from '@muni/utils/format'
 import { parseCount } from '@muni/utils/money'
@@ -10,20 +10,14 @@ import { compareCs } from '@muni/utils/text'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
+import { DateField, SelectField, TextField, TimeField } from '@/components/form/fields'
+import type { ClientError } from '@/components/form/form-context'
 import type { FormProps } from '@/components/form/form-props'
-import {
-  type ClientError,
-  DateField,
-  FormShell,
-  type SaveConfirmation,
-  SelectField,
-  TextField,
-  TimeField,
-} from '@/components/form/form-shell'
+import { FormShell, type SaveConfirmation } from '@/components/form/form-shell'
 import { sessionCreateSpec, sessionEditSpec } from '@/lib/form/form-inputs'
 
 import { useRoomLabel } from './room-label'
-import { useRoomBusy, useRoomMismatchError } from './session-checks'
+import { useSessionChecks } from './session-checks'
 
 export interface SessionDefaults {
   courseId: string
@@ -116,22 +110,21 @@ export function SessionForm({
         : sessionEndTime(startTime, minutes)
   const price = sameOffer ? defaults.pricePerPerson : (offering?.price ?? null)
 
-  const busy = useRoomBusy(
-    planned && room !== undefined && room.kind !== 'ONLINE' && !!date && end && !end.nextDay
-      ? { roomId, date, startTime, endTime: end.time }
-      : null,
-    self
-  )
-  const mismatchError = useRoomMismatchError()
-
-  const issues = sessionIssues({
-    minutes: course && !sameTime ? (minutes ?? null) : undefined,
-    offered: course && providerId && !sameOffer ? offering !== undefined : undefined,
-    capacity: seats,
-    booked,
+  const { issues, busy, roomError } = useSessionChecks({
+    rules: {
+      minutes: course && !sameTime ? (minutes ?? null) : undefined,
+      offered: course && providerId && !sameOffer ? offering !== undefined : undefined,
+      capacity: seats,
+      booked,
+      needs: course?.needs ?? null,
+    },
+    room,
+    roomId,
+    date,
+    startTime,
+    end,
     planned,
-    room: room ?? null,
-    needs: course?.needs ?? null,
+    self: self ?? null,
   })
   const clientErrors: Partial<Record<string, ClientError>> = {}
   for (const issue of issues) Object.assign(clientErrors, errorOf(issue))
@@ -151,7 +144,7 @@ export function SessionForm({
         return unnamedSeats > 0 ? { capacity: error, unnamedBookings: error } : { capacity: error }
       }
       case 'ROOM': {
-        const error = mismatchError(issue.mismatch, room?.name ?? '')
+        const error = roomError(issue.mismatch)
         // Too few seats: a bigger room or fewer seats. Anything else the room lacks: another
         // room, or a course that does not need it.
         return issue.mismatch.kind === 'TOO_SMALL'

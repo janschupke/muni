@@ -5,15 +5,9 @@ import { currencySymbol, formatAmount } from '@muni/utils/format'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
+import { CheckboxField, SelectField, TextAreaField, TextField } from '@/components/form/fields'
 import type { FormProps } from '@/components/form/form-props'
-import {
-  CheckboxField,
-  FormSection,
-  FormShell,
-  SelectField,
-  TextAreaField,
-  TextField,
-} from '@/components/form/form-shell'
+import { FormSection, FormShell } from '@/components/form/form-shell'
 import { RowsField } from '@/components/form/rows-field'
 import { providerSpec } from '@/lib/form/form-inputs'
 

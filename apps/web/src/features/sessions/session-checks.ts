@@ -1,10 +1,12 @@
 'use client'
 
+import type { RoomOption } from '@muni/db/repositories'
 import type { RoomMismatch } from '@muni/domain/rooms'
+import { sessionIssues } from '@muni/domain/sessions'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
-import type { ClientError } from '@/components/form/form-shell'
+import type { ClientError } from '@/components/form/form-context'
 import { checkSessionSlotAction } from '@/server/actions/sessions'
 
 // What the session form and the planner's review both check as the user types: the same rule
@@ -68,5 +70,56 @@ export function useRoomMismatchError(): (mismatch: RoomMismatch, room: string) =
           values: { room, missing: mismatch.missing.map(c => ts(`capability.${c}`)).join(', ') },
         }
     }
+  }
+}
+
+/**
+ * The checks a session gets as the user types, the same on the session form and in the
+ * planner's review: the session rules (`sessionIssues`), whether another planned session
+ * holds the room then (asked of the server: only for a planned session in a physical room
+ * with a day and an end on that day), and why the room does not suit it, as a field error.
+ */
+export function useSessionChecks({
+  rules,
+  room,
+  roomId,
+  date,
+  startTime,
+  end,
+  planned,
+  self,
+}: {
+  /** What `sessionIssues` judges besides the room and whether it is planned. */
+  rules: Omit<Parameters<typeof sessionIssues>[0], 'room' | 'planned'>
+  room: RoomOption | undefined
+  roomId: string
+  date: string
+  startTime: string
+  /** When the session ends; null without a length or a start. */
+  end: { time: string; nextDay: boolean } | null
+  planned: boolean
+  /** The session being edited (never clashes with itself); null for a new one. */
+  self: string | null
+}) {
+  const issues = sessionIssues({ ...rules, room: room ?? null, planned })
+  const busy = useRoomBusy(
+    planned && room !== undefined && room.kind !== 'ONLINE' && date !== '' && end && !end.nextDay
+      ? { roomId, date, startTime, endTime: end.time }
+      : null,
+    self
+  )
+  const mismatchError = useRoomMismatchError()
+  const roomError = (mismatch: RoomMismatch) => mismatchError(mismatch, room?.name ?? '')
+  const roomIssue = issues.find(i => i.kind === 'ROOM')
+  return {
+    issues,
+    busy,
+    /** A room mismatch as the error a field shows, naming the room. */
+    roomError,
+    /** The room does not suit the session: how, and the error the room's field shows. */
+    unfit:
+      roomIssue?.kind === 'ROOM'
+        ? { mismatch: roomIssue.mismatch, error: roomError(roomIssue.mismatch) }
+        : null,
   }
 }

@@ -5,17 +5,16 @@ import { FieldRow } from '@muni/ui/field'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
-import type { FormProps, Option } from '@/components/form/form-props'
 import {
   CheckboxField,
-  type ClientError,
   DateField,
-  FormSection,
-  FormShell,
   SelectField,
   TextAreaField,
   TextField,
-} from '@/components/form/form-shell'
+} from '@/components/form/fields'
+import type { ClientError } from '@/components/form/form-context'
+import type { FormProps, Option } from '@/components/form/form-props'
+import { FormSection, FormShell } from '@/components/form/form-shell'
 import { employeeSpec } from '@/lib/form/form-inputs'
 
 export interface EmployeeDefaults {

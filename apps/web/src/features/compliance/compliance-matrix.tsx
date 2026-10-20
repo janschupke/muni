@@ -1,48 +1,65 @@
 'use client'
 
-import type {
-  ComplianceMatrix,
-  ComplianceMatrixRow,
-  EmployeeListRequirement,
-} from '@muni/db/repositories'
-import { countBookable } from '@muni/domain/advisor'
-import { bandRanges, compareUrgency, complianceBand, complianceOf } from '@muni/domain/compliance'
-import { COMPLIANCE_STATUSES, type ComplianceStatus } from '@muni/domain/enums'
-import { HeatCell, HeatLegend } from '@muni/ui/charts/heat-cell'
+import type { ComplianceMatrix } from '@muni/db/repositories'
+import { bandRanges } from '@muni/domain/compliance'
+import { HeatLegend } from '@muni/ui/charts/heat-cell'
 import { cn } from '@muni/ui/cn'
-import { Dialog } from '@muni/ui/dialog'
-import { ExpandButton } from '@muni/ui/expand-button'
-import { Table, TableContainer, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
+import { Table, TableContainer, TBody, Th, THead } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { Tooltip } from '@muni/ui/tooltip'
-import { formatDate, formatDateTime, formatInteger } from '@muni/utils/format'
-import { BookOpen, CalendarCheck, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { type ComponentProps, Fragment, useId, useRef, useState } from 'react'
+import { Fragment, useId, useRef, useState } from 'react'
 
-import { COMPLIANCE } from '@/components/badges/status-badges'
-import { BookNeedButton } from '@/features/bookings/book-button'
-import { ComplianceBar, ComplianceLegend } from '@/features/compliance/compliance-breakdown'
-import { RequirementRows } from '@/features/compliance/requirement-panel'
-import { useRovingGrid } from '@/features/compliance/use-roving-grid'
 import { formatRate } from '@/lib/format/format-rate'
+import { useToggleSet } from '@/lib/use-toggle-set'
 
-const HEAD = 'border-b-0 px-2 py-1'
-// The department column stays put while the courses scroll sideways on narrow screens.
-// layer-row paints the row's hover over the column's own fill.
-const STICKY = 'sticky left-0 z-10 bg-surface-elevated layer-row'
+import { CellDialog } from './cell-dialog'
+import { DepartmentRow } from './department-row'
+import { HEAD, STICKY } from './matrix-styles'
+import { DepartmentPeople, PersonLegend } from './person-rows'
 
-// A person's cell: the status's own tint, icon and (for screen readers) words.
-const STATUS_CELL: Record<ComplianceStatus, string> = {
-  VALID: 'bg-success-soft text-success-fg',
-  EXPIRING: 'bg-warning-soft text-warning-fg',
-  EXPIRED: 'bg-serious-soft text-serious-fg',
-  MISSING: 'bg-danger-soft text-danger-fg',
+/** Which cell's dialog is open: a department and a course. */
+type Selected = { department: string; code: string } | null
+
+/** What each colour band covers, as whole percents. */
+function BandLegend() {
+  const t = useTranslations('compliance')
+  const locale = useLocale()
+  const pct = (rate: number) => formatRate(rate, locale)
+  return (
+    <HeatLegend
+      label={t('bands.label')}
+      items={bandRanges().map(({ band, from, to }) => ({
+        band,
+        label:
+          to === null
+            ? t('bands.full', { value: pct(from ?? 1) })
+            : from === null
+              ? t('bands.below', { value: pct(to) })
+              : t('bands.range', { from: pct(from), to: pct(to) }),
+      }))}
+    />
+  )
 }
 
-const employeesHref = (department: string) =>
-  `/employees?department=${encodeURIComponent(department)}`
+/** The columns say codes: the names, readable without a pointer to hover with. */
+function CourseKey({ courses }: { courses: ComplianceMatrix['courses'] }) {
+  const t = useTranslations('compliance')
+  return (
+    <dl
+      aria-label={t('courseKey')}
+      className="mt-3 grid gap-x-6 gap-y-1 text-xs text-fg-muted sm:grid-cols-2 lg:grid-cols-3"
+    >
+      {courses.map(c => (
+        <div key={c.code} className="flex gap-2">
+          <dt className="font-medium text-fg">{c.code}</dt>
+          <dd>{c.name}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
 
 /**
  * Department × mandatory course. Each department opens into one row per person, aligned
@@ -57,38 +74,20 @@ export function ComplianceMatrixTable({
   canBook: boolean
 }) {
   const t = useTranslations('compliance')
-  const locale = useLocale()
   const baseId = useId()
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
-  const [selected, setSelected] = useState<{ department: string; code: string } | null>(null)
+  const [expanded, toggle] = useToggleSet<string>()
+  const [selected, setSelected] = useState<Selected>(null)
+  // The cell that opened the dialog, which gets the focus back when it closes.
   const opener = useRef<HTMLElement | null>(null)
-
-  const toggle = (department: string) => {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (!next.delete(department)) next.add(department)
-      return next
-    })
+  const openCell = (department: string) => (code: string, cell: HTMLElement) => {
+    opener.current = cell
+    setSelected({ department, code })
   }
-  const personRowId = (rowIndex: number, externalId: string) =>
-    `${baseId}-${rowIndex}-${externalId}`
-  const pct = (rate: number) => formatRate(rate, locale)
 
   return (
     <>
       <div className="flex flex-col gap-2">
-        <HeatLegend
-          label={t('bands.label')}
-          items={bandRanges().map(({ band, from, to }) => ({
-            band,
-            label:
-              to === null
-                ? t('bands.full', { value: pct(from ?? 1) })
-                : from === null
-                  ? t('bands.below', { value: pct(to) })
-                  : t('bands.range', { from: pct(from), to: pct(to) }),
-          }))}
-        />
+        <BandLegend />
         {expanded.size > 0 && <PersonLegend />}
       </div>
       <TableContainer paging="a grid of every department by every required course" className="mt-3">
@@ -116,86 +115,28 @@ export function ComplianceMatrixTable({
           </THead>
           <TBody className="divide-y-0">
             {matrix.rows.map((row, rowIndex) => {
-              const isOpen = expanded.has(row.department)
+              const open = expanded.has(row.department)
+              const personRowId = (externalId: string) => `${baseId}-${rowIndex}-${externalId}`
               return (
                 <Fragment key={row.department}>
-                  <Tr>
-                    <Th
-                      scope="row"
-                      nowrap
-                      className={cn('border-b-0 px-1 py-1 text-sm text-fg', STICKY)}
-                    >
-                      <span className="flex items-center gap-1">
-                        <ExpandButton
-                          open={isOpen}
-                          aria-controls={
-                            isOpen
-                              ? row.people.map(p => personRowId(rowIndex, p.externalId)).join(' ')
-                              : undefined
-                          }
-                          aria-label={t('toggle', { department: row.department })}
-                          onClick={() => {
-                            toggle(row.department)
-                          }}
-                        />
-                        <TextLink asChild>
-                          <Link href={`/departments/${row.departmentId}`}>{row.department}</Link>
-                        </TextLink>
-                      </span>
-                    </Th>
-                    <Td align="right" className="px-2 py-0 text-fg-muted">
-                      {formatInteger(row.headcount, locale)}
-                    </Td>
-                    {matrix.courses.map(course => {
-                      const cell = row.cells[course.code]
-                      if (!cell) {
-                        return (
-                          <Td key={course.code} className="p-0">
-                            <HeatCell
-                              band={null}
-                              tooltip={`${row.department}, ${course.name}: ${t('notApplicable')}`}
-                            >
-                              <span className="sr-only">{t('notApplicable')}</span>
-                            </HeatCell>
-                          </Td>
-                        )
-                      }
-                      return (
-                        <Td key={course.code} className="p-0">
-                          <HeatCell
-                            band={complianceBand(cell.rate)}
-                            tooltip={t('cellTitle', {
-                              department: row.department,
-                              course: course.name,
-                              held: complianceOf(cell.counts).held,
-                              total: cell.counts.total,
-                            })}
-                            aria-label={t('detail.open', {
-                              department: row.department,
-                              course: course.name,
-                              rate: pct(cell.rate),
-                            })}
-                            aria-haspopup="dialog"
-                            onClick={event => {
-                              opener.current = event.currentTarget
-                              setSelected({ department: row.department, code: course.code })
-                            }}
-                          >
-                            {pct(cell.rate)}
-                          </HeatCell>
-                        </Td>
-                      )
-                    })}
-                  </Tr>
-                  {isOpen && (
+                  <DepartmentRow
+                    row={row}
+                    courses={matrix.courses}
+                    open={open}
+                    controls={
+                      open ? row.people.map(p => personRowId(p.externalId)).join(' ') : undefined
+                    }
+                    onToggle={() => {
+                      toggle(row.department)
+                    }}
+                    onOpenCell={openCell(row.department)}
+                  />
+                  {open && (
                     <DepartmentPeople
                       row={row}
                       courses={matrix.courses}
-                      rowId={externalId => personRowId(rowIndex, externalId)}
-                      onOpen={(code, cell) => {
-                        opener.current = cell
-                        setSelected({ department: row.department, code })
-                      }}
+                      rowId={personRowId}
+                      onOpen={openCell(row.department)}
                     />
                   )}
                 </Fragment>
@@ -204,18 +145,7 @@ export function ComplianceMatrixTable({
           </TBody>
         </Table>
       </TableContainer>
-      {/* The columns say codes: the names, readable without a pointer to hover with. */}
-      <dl
-        aria-label={t('courseKey')}
-        className="mt-3 grid gap-x-6 gap-y-1 text-xs text-fg-muted sm:grid-cols-2 lg:grid-cols-3"
-      >
-        {matrix.courses.map(c => (
-          <div key={c.code} className="flex gap-2">
-            <dt className="font-medium text-fg">{c.code}</dt>
-            <dd>{c.name}</dd>
-          </div>
-        ))}
-      </dl>
+      <CourseKey courses={matrix.courses} />
       <CellDialog
         matrix={matrix}
         selected={selected}
@@ -226,288 +156,5 @@ export function ComplianceMatrixTable({
         canBook={canBook}
       />
     </>
-  )
-}
-
-function useRequirementText() {
-  const t = useTranslations('compliance.person')
-  const ts = useTranslations('status.compliance')
-  return (requirement: EmployeeListRequirement, courseName: string) =>
-    [
-      t('cell', { course: courseName, status: ts(requirement.status) }),
-      requirement.validUntil && t('validUntil', { date: formatDate(requirement.validUntil) }),
-      requirement.booked && t('booked', { date: formatDateTime(requirement.booked.startsAt) }),
-    ]
-      .filter(Boolean)
-      .join(' · ')
-}
-
-/**
- * An opened department's people, one row each, aligned under the course columns. Their cells
- * are one stop for Tab: the arrow keys move between them, each shows its words as it gets
- * the focus, and Enter (or a click) opens the department × course dialog.
- */
-function DepartmentPeople({
-  row,
-  courses,
-  rowId,
-  onOpen,
-}: {
-  row: ComplianceMatrixRow
-  courses: ComplianceMatrix['courses']
-  rowId: (externalId: string) => string
-  onOpen: (code: string, cell: HTMLElement) => void
-}) {
-  const cell = useRovingGrid(row.people.length, courses.length)
-  return row.people.map((person, personIndex) => (
-    <Tr
-      key={person.externalId}
-      id={rowId(person.externalId)}
-      className="motion-safe:animate-fade-in"
-    >
-      <Th scope="row" nowrap className={cn('border-b-0 py-0.5 pr-2 pl-9 font-normal', STICKY)}>
-        <span className="flex flex-col leading-tight">
-          <TextLink asChild>
-            <Link href={`/employees/${person.externalId}`}>{person.name}</Link>
-          </TextLink>
-          {person.position && <span className="text-xs text-fg-subtle">{person.position}</span>}
-        </span>
-      </Th>
-      <Td className="p-0" />
-      {courses.map((course, courseIndex) => {
-        // A course nobody here must hold has no dialog: the cell is still a stop for the
-        // arrows, saying so, but opens nothing.
-        const opens = row.cells[course.code] != null
-        return (
-          <Td key={course.code} className="p-0">
-            <PersonCell
-              {...cell(personIndex, courseIndex)}
-              requirement={person.cells[course.code] ?? null}
-              courseName={course.name}
-              aria-haspopup={opens ? 'dialog' : undefined}
-              aria-disabled={opens ? undefined : true}
-              onClick={
-                opens
-                  ? event => {
-                      onOpen(course.code, event.currentTarget)
-                    }
-                  : undefined
-              }
-            />
-          </Td>
-        )
-      })}
-    </Tr>
-  ))
-}
-
-/** One person × course: the status as tint and icon, with the words for screen readers. */
-function PersonCell({
-  requirement,
-  courseName,
-  ...props
-}: {
-  requirement: EmployeeListRequirement | null
-  courseName: string
-} & Omit<ComponentProps<'button'>, 'children' | 'className' | 'type'>) {
-  const t = useTranslations('compliance')
-  const describe = useRequirementText()
-  if (requirement === null) {
-    return (
-      <button
-        type="button"
-        className="flex h-8 w-full cursor-pointer items-center justify-center rounded-sm text-fg-subtle"
-        {...props}
-      >
-        <span aria-hidden>·</span>
-        <span className="sr-only">{`${courseName}: ${t('notApplicable')}`}</span>
-      </button>
-    )
-  }
-  const { Icon } = COMPLIANCE[requirement.status]
-  const text = describe(requirement, courseName)
-  return (
-    <Tooltip content={text} repeatsName>
-      <button
-        type="button"
-        className={cn(
-          'flex h-8 w-full cursor-pointer items-center justify-center gap-1 rounded-sm transition-shadow hover:shadow-[inset_0_0_0_2px_var(--p-fg)]',
-          STATUS_CELL[requirement.status]
-        )}
-        {...props}
-      >
-        <Icon aria-hidden className="size-4" />
-        {requirement.booked && <CalendarCheck aria-hidden className="size-3.5" />}
-        <span className="sr-only">{text}</span>
-      </button>
-    </Tooltip>
-  )
-}
-
-/** Explains the people rows: one icon per state, and the booked mark. */
-function PersonLegend() {
-  const t = useTranslations('compliance.person')
-  const ts = useTranslations('status.compliance')
-  return (
-    <ul
-      aria-label={t('legend')}
-      className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-fg-muted"
-    >
-      <li aria-hidden>{t('legend')}</li>
-      {COMPLIANCE_STATUSES.map(status => {
-        const { Icon } = COMPLIANCE[status]
-        return (
-          <li key={status} className="inline-flex items-center gap-1.5">
-            <span
-              className={cn(
-                'inline-flex h-5 w-6 items-center justify-center rounded-sm',
-                STATUS_CELL[status]
-              )}
-            >
-              <Icon aria-hidden className="size-3.5" />
-            </span>
-            {ts(status)}
-          </li>
-        )
-      })}
-      <li className="inline-flex items-center gap-1.5">
-        <CalendarCheck aria-hidden className="size-3.5" />
-        {t('bookedLegend')}
-      </li>
-    </ul>
-  )
-}
-
-function CellDialog({
-  matrix,
-  selected,
-  onClose,
-  returnFocusTo,
-  canBook,
-}: {
-  matrix: ComplianceMatrix
-  selected: { department: string; code: string } | null
-  onClose: () => void
-  returnFocusTo: () => HTMLElement | null
-  canBook: boolean
-}) {
-  const t = useTranslations('compliance.detail')
-  const tc = useTranslations('common')
-  const tb = useTranslations('bookings')
-  const locale = useLocale()
-  const row = selected ? matrix.rows.find(r => r.department === selected.department) : undefined
-  const course = selected ? matrix.courses.find(c => c.code === selected.code) : undefined
-  const cell = row && course ? row.cells[course.code] : null
-  return (
-    <Dialog
-      open={Boolean(row && course && cell)}
-      onOpenChange={open => {
-        if (!open) onClose()
-      }}
-      title={row && course ? t('title', { department: row.department, course: course.name }) : ''}
-      description={
-        cell
-          ? t('summary', {
-              held: complianceOf(cell.counts).held,
-              total: cell.counts.total,
-              rate: formatRate(cell.rate, locale),
-            })
-          : undefined
-      }
-      closeLabel={tc('close')}
-      returnFocusTo={returnFocusTo}
-      // Wide enough for the people's table with its dates and the booking column.
-      className="max-w-4xl"
-      footer={
-        canBook &&
-        row &&
-        course &&
-        toBook(row, course.code) > 1 && (
-          <BookNeedButton
-            query={{ department: row.departmentId, course: course.code }}
-            label={tb('bookAllIn', { department: row.department, course: course.name })}
-          >
-            {tb('bookAll', { count: toBook(row, course.code) })}
-          </BookNeedButton>
-        )
-      }
-    >
-      {row && course && cell && (
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <ComplianceBar
-              counts={cell.counts}
-              label={t('title', { department: row.department, course: course.name })}
-            />
-            <ComplianceLegend />
-          </div>
-          <CellPeople row={row} course={course} canBook={canBook} />
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            <TextLink asChild>
-              <Link href={`/courses/${course.code}`} className="inline-flex items-center gap-1.5">
-                <BookOpen aria-hidden className="size-4" />
-                {t('course')}
-              </Link>
-            </TextLink>
-            <TextLink asChild arrow className="gap-1.5">
-              <Link href={employeesHref(row.department)}>
-                <Users aria-hidden className="size-4" />
-                {t('employees', { department: row.department })}
-              </Link>
-            </TextLink>
-          </div>
-        </div>
-      )}
-    </Dialog>
-  )
-}
-
-/** The people of a department whose training of a course can be booked now. */
-const toBook = (row: ComplianceMatrixRow, code: string) =>
-  countBookable(
-    row.people.flatMap(p => p.cells[code] ?? []),
-    'ACTIVE'
-  )
-
-/** The people a department cell counts, most urgent first; an admin books who needs it. */
-function CellPeople({
-  row,
-  course,
-  canBook,
-}: {
-  row: ComplianceMatrixRow
-  course: { code: string; name: string }
-  canBook: boolean
-}) {
-  const t = useTranslations('compliance.detail')
-  const people = row.people
-    .flatMap(person => {
-      const requirement = person.cells[course.code]
-      return requirement ? [{ person, requirement }] : []
-    })
-    .sort(
-      (a, b) =>
-        compareUrgency(a.requirement.status, b.requirement.status) ||
-        (a.requirement.daysLeft ?? Infinity) - (b.requirement.daysLeft ?? Infinity)
-    )
-  return (
-    <RequirementRows
-      caption={t('table')}
-      lead={t('name')}
-      paging="the people one department cell counts"
-      canBook={canBook}
-      rows={people.map(({ person, requirement }) => ({
-        key: person.externalId,
-        lead: (
-          <TextLink asChild hitArea className="whitespace-nowrap">
-            <Link href={`/employees/${person.externalId}`}>{person.name}</Link>
-          </TextLink>
-        ),
-        requirement,
-        // The matrix counts the people at work only.
-        person: { externalId: person.externalId, name: person.name, status: 'ACTIVE' },
-        course: course.name,
-      }))}
-    />
   )
 }

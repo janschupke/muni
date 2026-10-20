@@ -5,14 +5,9 @@ import { FieldRow } from '@muni/ui/field'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
+import { CheckboxGroupField, SelectField, TextAreaField, TextField } from '@/components/form/fields'
 import type { FormProps } from '@/components/form/form-props'
-import {
-  CheckboxGroupField,
-  FormShell,
-  SelectField,
-  TextAreaField,
-  TextField,
-} from '@/components/form/form-shell'
+import { FormShell } from '@/components/form/form-shell'
 import { roomSpec } from '@/lib/form/form-inputs'
 
 /**

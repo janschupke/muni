@@ -6,14 +6,9 @@ import { currencySymbol, formatAmount } from '@muni/utils/format'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
+import { DateField, SelectField, TextAreaField, TextField } from '@/components/form/fields'
 import type { FormProps, Option } from '@/components/form/form-props'
-import {
-  DateField,
-  FormShell,
-  SelectField,
-  TextAreaField,
-  TextField,
-} from '@/components/form/form-shell'
+import { FormShell } from '@/components/form/form-shell'
 import { NEW_PROVIDER } from '@/lib/form/form'
 import { completionSpec } from '@/lib/form/form-inputs'
 

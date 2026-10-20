@@ -4,14 +4,9 @@ import { CAPABILITIES, type Capability } from '@muni/domain/enums'
 import { FieldRow } from '@muni/ui/field'
 import { useTranslations } from 'next-intl'
 
+import { CheckboxField, CheckboxGroupField, TextField } from '@/components/form/fields'
 import type { FormProps, Option } from '@/components/form/form-props'
-import {
-  CheckboxField,
-  CheckboxGroupField,
-  FormSection,
-  FormShell,
-  TextField,
-} from '@/components/form/form-shell'
+import { FormSection, FormShell } from '@/components/form/form-shell'
 import { courseCreateSpec, courseEditSpec } from '@/lib/form/form-inputs'
 
 export interface CourseDefaults {

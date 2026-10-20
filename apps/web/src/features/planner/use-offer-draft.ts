@@ -3,14 +3,14 @@
 import type { RoomOption } from '@muni/db/repositories'
 import type { SessionOffer } from '@muni/domain/planner'
 import type { SessionNeeds } from '@muni/domain/rooms'
-import { sessionEndTime, sessionIssues } from '@muni/domain/sessions'
+import { sessionEndTime } from '@muni/domain/sessions'
 import { isWorkingDay, todayIn, zonedTimeToUtc } from '@muni/utils/dates'
 import { formatDate, formatTimeRange, PLACEHOLDER } from '@muni/utils/format'
 import { parseCount } from '@muni/utils/money'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
-import { useRoomBusy, useRoomMismatchError } from '@/features/sessions/session-checks'
+import { useSessionChecks } from '@/features/sessions/session-checks'
 
 /**
  * A planner offer as the user edits it before it becomes a session: the day, start, room,
@@ -47,25 +47,22 @@ export function useOfferDraft(
   const end = startTime && minutes !== null ? sessionEndTime(startTime, minutes) : null
   const endTime = end?.time ?? ''
   const offering = offer.course.offerings.find(o => o.providerId === providerId)
-  const issues = sessionIssues({
-    minutes,
-    offered: providerId ? offering !== undefined : undefined,
-    capacity: seats,
-    booked: people.size,
+  const { issues, busy, unfit } = useSessionChecks({
+    rules: {
+      minutes,
+      offered: providerId ? offering !== undefined : undefined,
+      capacity: seats,
+      booked: people.size,
+      needs,
+    },
+    room,
+    roomId,
+    date,
+    startTime,
+    end,
     planned: true,
-    room: room ?? null,
-    needs,
+    self: null,
   })
-  const busy = useRoomBusy(
-    room !== undefined && room.kind !== 'ONLINE' && date !== '' && end && !end.nextDay
-      ? { roomId, date, startTime, endTime }
-      : null,
-    null
-  )
-  const mismatchError = useRoomMismatchError()
-  const mismatch = issues.find(i => i.kind === 'ROOM')
-  const unfit =
-    mismatch?.kind === 'ROOM' ? mismatchError(mismatch.mismatch, room?.name ?? '') : null
 
   const errors = {
     date: date !== '' && date < todayIn() ? te('in_past') : undefined,
@@ -74,15 +71,15 @@ export function useOfferDraft(
       : end?.nextDay
         ? t('pastMidnight')
         : undefined,
-    roomId: unfit ? te(unfit.key, unfit.values) : busy ? te('room_busy') : undefined,
+    roomId: unfit ? te(unfit.error.key, unfit.error.values) : busy ? te('room_busy') : undefined,
     // Too few seats in the room: fewer seats settle it as well as another room.
     capacity:
       seats === null || seats < 1
         ? te('not_a_number')
         : issues.some(i => i.kind === 'BELOW_BOOKED')
           ? t('capacityLow', { count: people.size })
-          : unfit && mismatch?.kind === 'ROOM' && mismatch.mismatch.kind === 'TOO_SMALL'
-            ? te(unfit.key, unfit.values)
+          : unfit?.mismatch.kind === 'TOO_SMALL'
+            ? te(unfit.error.key, unfit.error.values)
             : undefined,
     providerId:
       providerId === ''

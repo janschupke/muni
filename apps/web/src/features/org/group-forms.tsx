@@ -3,8 +3,9 @@
 import { FieldRow } from '@muni/ui/field'
 import { useTranslations } from 'next-intl'
 
+import { CheckboxGroupField, SelectField, TextField } from '@/components/form/fields'
 import type { FormProps, Option } from '@/components/form/form-props'
-import { CheckboxGroupField, FormShell, SelectField, TextField } from '@/components/form/form-shell'
+import { FormShell } from '@/components/form/form-shell'
 import { departmentSpec, positionSpec } from '@/lib/form/form-inputs'
 
 /** A department: its name, and who leads it (one of its members). */
