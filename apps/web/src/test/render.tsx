@@ -4,7 +4,7 @@ import { render, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react'
 
-import { ToastsProvider } from '@/components/toasts'
+import { ToastsProvider } from '@/components/shell/toasts'
 import en from '@/i18n/messages/en.json'
 import { STALE_MS } from '@/lib/query/query-client'
 

@@ -12,7 +12,8 @@ import { todayIn } from '@muni/utils/dates'
 import { formatCurrency, formatDate } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { useDateLabels, useRoomLabel, useTimeLabels } from '@/components/form/session-fields'
+import { useDateLabels, useTimeLabels } from '@/components/form/picker-labels'
+import { useRoomLabel } from '@/features/sessions/room-label'
 import type { PlannedOutcome } from '@/server/actions/sessions'
 
 import type { OfferDraft } from './use-offer-draft'

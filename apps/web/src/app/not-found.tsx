@@ -1,4 +1,4 @@
-import { NotFoundMessage } from '@/components/not-found-message'
+import { NotFoundMessage } from '@/components/shell/not-found-message'
 
 export default function NotFound() {
   return <NotFoundMessage />

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 
-import { ComplianceSummary } from '@/components/compliance-breakdown'
+import { ComplianceSummary } from '@/features/compliance/compliance-breakdown'
 
 /** The numbers every department and position page opens with. */
 export function GroupFacts({

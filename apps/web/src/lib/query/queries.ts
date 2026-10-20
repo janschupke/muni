@@ -1,6 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 
-import type { ReadInput, ReadName } from '@/server/reads/registry'
+import type { ReadInput, ReadName } from '@/server/reads/core/registry'
 
 import { fetchRead } from './fetch-read'
 

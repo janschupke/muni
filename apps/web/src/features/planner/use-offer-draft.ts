@@ -10,7 +10,7 @@ import { parseCount } from '@muni/utils/money'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
-import { useRoomBusy, useRoomMismatchError } from '@/components/form/session-checks'
+import { useRoomBusy, useRoomMismatchError } from '@/features/sessions/session-checks'
 
 /**
  * A planner offer as the user edits it before it becomes a session: the day, start, room,

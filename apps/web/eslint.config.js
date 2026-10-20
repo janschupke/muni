@@ -7,7 +7,7 @@ export default [
     // they may import types only. A value import would pull the server's code (and its
     // secrets' readers) into the bundle; `server-only` would only catch it at run time.
     files: ['src/components/**', 'src/features/**', 'src/lib/**'],
-    ignores: ['**/*.test.ts', '**/*.test.tsx', 'src/features/import/actions.ts'],
+    ignores: ['**/*.test.ts', '**/*.test.tsx'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',

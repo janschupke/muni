@@ -1,4 +1,4 @@
-import type { FormState } from '@/lib/form'
+import type { FormState } from '@/lib/form/form'
 
 import type { FormHeading } from './form-shell'
 

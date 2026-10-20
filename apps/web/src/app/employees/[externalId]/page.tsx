@@ -4,8 +4,8 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { EmployeeView } from '@/features/employees/employee-view'
-import { HISTORY_SORT } from '@/lib/list-keys'
-import { parseList, type SearchParams } from '@/lib/search-params'
+import { HISTORY_SORT } from '@/lib/list/list-keys'
+import { parseList, type SearchParams } from '@/lib/list/search-params'
 import { requireReader } from '@/server/auth'
 import { prefetched, titleOf } from '@/server/prefetch'
 

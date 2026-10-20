@@ -6,14 +6,14 @@ import { SplitLayout } from '@muni/ui/layout'
 import { formatDateTime, formatInteger, PLACEHOLDER } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { EmailLink } from '@/components/email-link'
-import { ReadView } from '@/components/read-view'
-import { RecordHeader, useRecordRead } from '@/components/record-view'
-import { DetailSkeleton } from '@/components/skeletons'
-import { RoleBadge } from '@/components/status-badges'
+import { EmailLink } from '@/components/badges/email-link'
+import { RoleBadge } from '@/components/badges/status-badges'
+import { ReadView } from '@/components/views/read-view'
+import { RecordHeader, useRecordRead } from '@/components/views/record-view'
+import { DetailSkeleton } from '@/components/views/skeletons'
 import { RoleForm } from '@/features/users/role-form'
 import { saveUserRole } from '@/server/actions/users'
-import type { ReadOutput } from '@/server/reads/registry'
+import type { ReadOutput } from '@/server/reads/core/registry'
 
 /** A user by what is known of them: their name, else their email, else their sign-in id. */
 const nameOf = (user: { name: string | null; email: string | null; clerkId: string }) =>

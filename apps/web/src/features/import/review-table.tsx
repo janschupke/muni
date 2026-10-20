@@ -9,7 +9,7 @@ import { Tooltip } from '@muni/ui/tooltip'
 import { CircleX, Pencil, RotateCcw, Trash2, TriangleAlert, Undo2 } from 'lucide-react'
 import { type ReactElement, useMemo, useState } from 'react'
 
-import { usePaginationLabels } from '@/components/pagination-labels'
+import { usePaginationLabels } from '@/components/table/pagination-labels'
 
 import { useImportText } from './use-issue-text'
 

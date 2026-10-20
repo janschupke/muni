@@ -3,9 +3,9 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { AdvisorView } from '@/features/advisor/advisor-view'
-import { ADVISOR_SORT, ADVISOR_VIEWS } from '@/lib/list-keys'
-import { advisorInput } from '@/lib/read-inputs'
-import { oneOf, param, parseList, type SearchParams } from '@/lib/search-params'
+import { ADVISOR_SORT, ADVISOR_VIEWS } from '@/lib/list/list-keys'
+import { advisorInput } from '@/lib/list/read-inputs'
+import { oneOf, param, parseList, type SearchParams } from '@/lib/list/search-params'
 import { requireReader } from '@/server/auth'
 import { prefetched } from '@/server/prefetch'
 

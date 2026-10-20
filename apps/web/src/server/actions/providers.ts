@@ -2,8 +2,8 @@
 
 import { createProvider, updateProvider } from '@muni/db/repositories'
 
-import { type FormState, refusedField } from '@/lib/form'
-import { parseForm, providerSpec } from '@/lib/form-inputs'
+import { type FormState, refusedField } from '@/lib/form/form'
+import { parseForm, providerSpec } from '@/lib/form/form-inputs'
 
 import { isBoundIdOrNull, saveForm } from './guard'
 

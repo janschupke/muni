@@ -7,7 +7,7 @@ import { Dialog } from '@muni/ui/dialog'
 import { useTranslations } from 'next-intl'
 import { useState, useTransition } from 'react'
 
-import { useToast } from '@/components/toasts'
+import { useToast } from '@/components/shell/toasts'
 import { useAfterWrite } from '@/lib/query/use-after-write'
 import { createPlannedSessionAction, type PlannedOutcome } from '@/server/actions/sessions'
 

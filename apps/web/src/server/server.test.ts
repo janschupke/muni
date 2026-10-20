@@ -38,8 +38,8 @@ import { NO_ARCHIVED } from '@muni/importer'
 import { revalidatePath } from 'next/cache'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { commitImportChunk, findArchived } from '@/features/import/actions'
 import getRequestConfig from '@/i18n/request'
+import { commitImportChunk, findArchived } from '@/server/actions/import'
 import {
   NotFoundError,
   RedirectError,

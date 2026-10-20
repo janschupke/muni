@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { type ReactNode, useMemo, useState } from 'react'
 
-import { hiddenHeader } from '@/components/table-columns'
+import { hiddenHeader } from '@/components/table/table-columns'
 import { BookButton } from '@/features/bookings/book-button'
 import { itemId } from '@/features/bookings/book-dialog'
 import { scheduleHref } from '@/features/bookings/choice-cells'

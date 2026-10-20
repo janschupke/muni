@@ -17,7 +17,7 @@ import { ImportWizard } from './import-wizard'
 const commitImportChunk = vi.fn((_kind: string, records: unknown[]) =>
   Promise.resolve({ ok: true as const, created: records.length, updated: 0, skipped: 0 })
 )
-vi.mock('./actions', () => ({
+vi.mock('@/server/actions/import', () => ({
   commitImportChunk: (kind: string, records: unknown[]) => commitImportChunk(kind, records),
   findArchived: async () => (await import('@muni/importer')).NO_ARCHIVED,
 }))

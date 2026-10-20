@@ -14,15 +14,15 @@ import { History } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { ReadView } from '@/components/read-view'
-import { RecordHeader, useRecordRead } from '@/components/record-view'
-import { CapabilityList, RoomKindBadge } from '@/components/room-badges'
-import { SessionTable } from '@/components/session-table'
-import { DetailSkeleton } from '@/components/skeletons'
+import { ReadView } from '@/components/views/read-view'
+import { RecordHeader, useRecordRead } from '@/components/views/record-view'
+import { DetailSkeleton } from '@/components/views/skeletons'
+import { CapabilityList, RoomKindBadge } from '@/features/rooms/room-badges'
 import { RoomFitTable } from '@/features/rooms/room-fit-table'
-import { SESSION_SORT } from '@/lib/list-keys'
-import { type PageInfo, useListUrl } from '@/lib/use-list-url'
-import type { ReadOutput } from '@/server/reads/registry'
+import { SessionTable } from '@/features/sessions/session-table'
+import { SESSION_SORT } from '@/lib/list/list-keys'
+import { type PageInfo, useListUrl } from '@/lib/list/use-list-url'
+import type { ReadOutput } from '@/server/reads/core/registry'
 
 /** A room's page: what it holds and has, a page of its sessions ahead, the courses it fits. */
 export function RoomView({ id, canEdit }: { id: string; canEdit: boolean }) {

@@ -9,7 +9,7 @@ import { UserPlus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useActionState, useState } from 'react'
 
-import { useToast } from '@/components/toasts'
+import { useToast } from '@/components/shell/toasts'
 import { useAfterWrite } from '@/lib/query/use-after-write'
 import { addBookingAction, type BookingState } from '@/server/actions/assignments'
 

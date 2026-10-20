@@ -8,8 +8,8 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { EmployeesView } from '@/features/employees/employees-view'
-import { employeesListInput } from '@/lib/read-inputs'
-import { oneOf, param, parseList, type SearchParams } from '@/lib/search-params'
+import { employeesListInput } from '@/lib/list/read-inputs'
+import { oneOf, param, parseList, type SearchParams } from '@/lib/list/search-params'
 import { requireReader } from '@/server/auth'
 import { prefetched } from '@/server/prefetch'
 

@@ -7,10 +7,10 @@ import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
-import { EmailLink } from '@/components/email-link'
-import { usePaginationLabels } from '@/components/pagination-labels'
-import { RoleBadge } from '@/components/status-badges'
-import { nameColumn, rowActionsColumn } from '@/components/table-columns'
+import { EmailLink } from '@/components/badges/email-link'
+import { RoleBadge } from '@/components/badges/status-badges'
+import { usePaginationLabels } from '@/components/table/pagination-labels'
+import { nameColumn, rowActionsColumn } from '@/components/table/table-columns'
 
 const col = createDataColumns<UserListItem>()
 

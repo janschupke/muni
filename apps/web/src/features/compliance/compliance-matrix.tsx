@@ -21,12 +21,12 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { type ComponentProps, Fragment, useId, useRef, useState } from 'react'
 
-import { ComplianceBar, ComplianceLegend } from '@/components/compliance-breakdown'
-import { RequirementRows } from '@/components/requirement-panel'
-import { COMPLIANCE } from '@/components/status-badges'
-import { useRovingGrid } from '@/components/use-roving-grid'
+import { COMPLIANCE } from '@/components/badges/status-badges'
 import { BookNeedButton } from '@/features/bookings/book-button'
-import { formatRate } from '@/lib/format-rate'
+import { ComplianceBar, ComplianceLegend } from '@/features/compliance/compliance-breakdown'
+import { RequirementRows } from '@/features/compliance/requirement-panel'
+import { useRovingGrid } from '@/features/compliance/use-roving-grid'
+import { formatRate } from '@/lib/format/format-rate'
 
 const HEAD = 'border-b-0 px-2 py-1'
 // The department column stays put while the courses scroll sideways on narrow screens.

@@ -1,7 +1,7 @@
 import { FORECAST_MONTHS } from '@muni/domain/advisor'
 import { useTranslations } from 'next-intl'
 
-import { RulesCard } from '@/components/rules-card'
+import { RulesCard } from '@/features/advisor/rules-card'
 
 const RULES = ['scope', 'remedied', 'overbooking', 'order', 'choice', 'unplaced'] as const
 

@@ -10,19 +10,19 @@ import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatDate, formatOptional } from '@muni/utils/format'
 import { useTranslations } from 'next-intl'
 
-import { EmailLink } from '@/components/email-link'
-import { ReadView } from '@/components/read-view'
-import { RecordHeader, useRecordRead } from '@/components/record-view'
-import { SessionTable } from '@/components/session-table'
-import { DetailSkeleton } from '@/components/skeletons'
+import { EmailLink } from '@/components/badges/email-link'
+import { ReadView } from '@/components/views/read-view'
+import { RecordHeader, useRecordRead } from '@/components/views/record-view'
+import { DetailSkeleton } from '@/components/views/skeletons'
 import {
   ProviderCompletionsTable,
   ProviderCoursesTable,
   ProviderOfferingsTable,
 } from '@/features/providers/provider-tables'
-import { COMPLETION_SORT, PROVIDER_COURSE_SORT, SESSION_SORT } from '@/lib/list-keys'
-import { type PageInfo, useListUrl } from '@/lib/use-list-url'
-import type { ReadOutput } from '@/server/reads/registry'
+import { SessionTable } from '@/features/sessions/session-table'
+import { COMPLETION_SORT, PROVIDER_COURSE_SORT, SESSION_SORT } from '@/lib/list/list-keys'
+import { type PageInfo, useListUrl } from '@/lib/list/use-list-url'
+import type { ReadOutput } from '@/server/reads/core/registry'
 
 /**
  * A provider's page: its details and totals, what it offers, and a page each of its sessions

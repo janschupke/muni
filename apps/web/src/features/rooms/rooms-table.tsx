@@ -9,9 +9,9 @@ import { formatInteger, formatPercent, PLACEHOLDER } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
-import { usePaginationLabels } from '@/components/pagination-labels'
-import { CapabilityList, RoomKindBadge } from '@/components/room-badges'
-import { nameColumn, rowActionsColumn } from '@/components/table-columns'
+import { usePaginationLabels } from '@/components/table/pagination-labels'
+import { nameColumn, rowActionsColumn } from '@/components/table/table-columns'
+import { CapabilityList, RoomKindBadge } from '@/features/rooms/room-badges'
 
 const col = createDataColumns<RoomListItem>()
 

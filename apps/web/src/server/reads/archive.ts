@@ -4,11 +4,11 @@ import { getArchivedRecord, listArchived, pageOf } from '@muni/db/repositories'
 import { ARCHIVABLE } from '@muni/domain/archive'
 import * as z from 'zod'
 
-import { ARCHIVED_SORT } from '@/lib/list-keys'
-import { listQuery } from '@/lib/search-params'
+import { ARCHIVED_SORT } from '@/lib/list/list-keys'
+import { listQuery } from '@/lib/list/search-params'
 
-import { listInput, read } from './define'
-import { archivedKeys } from './sorters'
+import { listInput, read } from './core/define'
+import { archivedKeys } from './core/sorters'
 
 const kind = z.enum(ARCHIVABLE)
 

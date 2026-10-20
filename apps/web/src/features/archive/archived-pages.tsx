@@ -1,8 +1,8 @@
 import type { Archivable } from '@muni/domain/archive'
 import { getTranslations } from 'next-intl/server'
 
-import { ARCHIVED_SORT } from '@/lib/list-keys'
-import { parseList, type SearchParams } from '@/lib/search-params'
+import { ARCHIVED_SORT } from '@/lib/list/list-keys'
+import { parseList, type SearchParams } from '@/lib/list/search-params'
 import { requireAdminPage } from '@/server/auth'
 import { prefetched } from '@/server/prefetch'
 

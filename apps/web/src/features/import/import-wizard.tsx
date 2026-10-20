@@ -24,8 +24,8 @@ import { useTranslations } from 'next-intl'
 import { useEffect, useRef, useState, useTransition } from 'react'
 
 import { useAfterWrite } from '@/lib/query/use-after-write'
+import { commitImportChunk, findArchived } from '@/server/actions/import'
 
-import { commitImportChunk, findArchived } from './actions'
 import { ConfirmStep } from './confirm-step'
 import { type ImportJob, ProgressStep } from './progress-step'
 import { type RejectedFile, UploadStep } from './upload-step'

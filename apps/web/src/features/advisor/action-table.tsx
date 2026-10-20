@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
-import { usePaginationLabels } from '@/components/pagination-labels'
+import { usePaginationLabels } from '@/components/table/pagination-labels'
 import { itemId } from '@/features/bookings/book-dialog'
 import { ChoiceFacts, SessionCell, UnplacedCell } from '@/features/bookings/choice-cells'
 

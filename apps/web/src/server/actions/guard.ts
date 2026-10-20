@@ -3,7 +3,7 @@ import 'server-only'
 import { isPrismaCode } from '@muni/db/repositories'
 import * as z from 'zod'
 
-import { formError, type FormState } from '@/lib/form'
+import { formError, type FormState } from '@/lib/form/form'
 import { requireAdmin, type SessionUser, UnauthorizedError } from '@/server/auth'
 import { RateLimitedError } from '@/server/rate-limit'
 

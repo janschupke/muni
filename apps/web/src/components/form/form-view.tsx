@@ -2,9 +2,9 @@
 
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 
-import { BackLink } from '@/components/back-link'
+import { BackLink } from '@/components/navigation/back-link'
 import { FORM_READ, readQuery } from '@/lib/query/queries'
-import type { ReadInput, ReadName, ReadOutput } from '@/server/reads/registry'
+import type { ReadInput, ReadName, ReadOutput } from '@/server/reads/core/registry'
 
 import type { FormProps } from './form-props'
 

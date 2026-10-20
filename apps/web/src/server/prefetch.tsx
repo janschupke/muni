@@ -5,13 +5,13 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { cache, type ReactNode } from 'react'
 
-import { FreshReads } from '@/components/fresh-reads'
+import { FreshReads } from '@/lib/query/fresh-reads'
 import { FORM_GC_MS, readQuery } from '@/lib/query/queries'
 import { getSessionUser, type SessionUser } from '@/server/auth'
 import { RateLimitedError, spendRequest } from '@/server/rate-limit'
 
-import type { ReadInput, ReadName, ReadOutput } from './reads/registry'
-import { type ReadAnswer, runRead } from './reads/run'
+import type { ReadInput, ReadName, ReadOutput } from './reads/core/registry'
+import { type ReadAnswer, runRead } from './reads/core/run'
 
 /** One read a page needs, with the input its view asks for (the same cache key). */
 export type PageRead = { [N in ReadName]: { name: N; input: ReadInput<N> } }[ReadName]

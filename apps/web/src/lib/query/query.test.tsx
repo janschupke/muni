@@ -5,8 +5,8 @@ import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { QueryProvider } from '@/components/query-provider'
-import { ReadView } from '@/components/read-view'
+import { ReadView } from '@/components/views/read-view'
+import { QueryProvider } from '@/lib/query/query-provider'
 import { router } from '@/test/next'
 import { Providers, renderClient, testQueryClient } from '@/test/render'
 

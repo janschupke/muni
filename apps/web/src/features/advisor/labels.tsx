@@ -20,8 +20,8 @@ import {
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 
-import type { ADVISOR_VIEWS } from '@/lib/list-keys'
-import { withParams } from '@/lib/search-params'
+import type { ADVISOR_VIEWS } from '@/lib/list/list-keys'
+import { withParams } from '@/lib/list/search-params'
 
 export type AdvisorView = (typeof ADVISOR_VIEWS)[number]
 

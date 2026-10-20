@@ -3,7 +3,7 @@ import type { EmployeeListItem } from '@muni/db/repositories'
 import { screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { EmployeesTable } from '@/components/employees-table'
+import { EmployeesTable } from '@/features/employees/employees-table'
 import { employeeRow } from '@/test/fixtures'
 import { renderClient } from '@/test/render'
 

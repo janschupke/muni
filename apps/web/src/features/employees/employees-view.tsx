@@ -3,12 +3,12 @@
 import { EMPLOYEE_SORT_KEYS } from '@muni/domain/enums'
 import { useTranslations } from 'next-intl'
 
-import { EmployeeFilters } from '@/components/employee-filters'
-import { EmployeesTable } from '@/components/employees-table'
-import { ListView, useListRead } from '@/components/list-view'
-import { ListSkeleton } from '@/components/skeletons'
-import { type EmployeeListFilters, employeesListInput } from '@/lib/read-inputs'
-import { useListUrl } from '@/lib/use-list-url'
+import { ListView, useListRead } from '@/components/views/list-view'
+import { ListSkeleton } from '@/components/views/skeletons'
+import { EmployeeFilters } from '@/features/employees/employee-filters'
+import { EmployeesTable } from '@/features/employees/employees-table'
+import { type EmployeeListFilters, employeesListInput } from '@/lib/list/read-inputs'
+import { useListUrl } from '@/lib/list/use-list-url'
 
 /**
  * The employee list as the address asks for it (filters, sort, page). Changing them keeps the

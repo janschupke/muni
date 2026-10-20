@@ -14,8 +14,8 @@ import { canWrite } from '@muni/domain/enums'
 import { sessionCreateSchema } from '@muni/domain/schemas'
 import * as z from 'zod'
 
-import { type FormState, sessionProblem } from '@/lib/form'
-import { parseForm, sessionCreateSpec } from '@/lib/form-inputs'
+import { type FormState, sessionProblem } from '@/lib/form/form'
+import { parseForm, sessionCreateSpec } from '@/lib/form/form-inputs'
 import { getSessionUser } from '@/server/auth'
 
 import {

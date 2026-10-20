@@ -3,9 +3,9 @@
 import { useTranslations } from 'next-intl'
 
 import { formShell, useFormRead } from '@/components/form/form-view'
-import { ProviderForm } from '@/components/form/provider-form'
-import { ReadView } from '@/components/read-view'
-import { FormSkeleton } from '@/components/skeletons'
+import { ReadView } from '@/components/views/read-view'
+import { FormSkeleton } from '@/components/views/skeletons'
+import { ProviderForm } from '@/features/providers/provider-form'
 import { saveProvider } from '@/server/actions/providers'
 
 const EMPTY = {

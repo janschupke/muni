@@ -4,8 +4,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useEffectEvent } from 'react'
 
-import { type ToastMessage, useToast } from '@/components/toasts'
-import { isLocalHref } from '@/lib/local-href'
+import { type ToastMessage, useToast } from '@/components/shell/toasts'
+import { isLocalHref } from '@/lib/navigation/local-href'
 
 import { changedBy, type WriteKind } from './invalidation'
 

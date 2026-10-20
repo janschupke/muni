@@ -4,8 +4,8 @@ import { PageHeader } from '@muni/ui/page-header'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
-import { ReadView } from '@/components/read-view'
-import { ImportSkeleton } from '@/components/skeletons'
+import { ReadView } from '@/components/views/read-view'
+import { ImportSkeleton } from '@/components/views/skeletons'
 import { readQuery } from '@/lib/query/queries'
 
 import { ImportWizard } from './import-wizard'

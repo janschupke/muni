@@ -10,7 +10,7 @@ import { parseCount } from '@muni/utils/money'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
-import { ConfirmDialog, type ConfirmOutcome } from '@/components/confirm-dialog'
+import { ConfirmDialog, type ConfirmOutcome } from '@/components/feedback/confirm-dialog'
 import { useAfterWrite } from '@/lib/query/use-after-write'
 import { resolveOverbookingAction } from '@/server/actions/assignments'
 

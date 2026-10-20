@@ -3,9 +3,9 @@
 import { useTranslations } from 'next-intl'
 
 import { formShell, useFormRead } from '@/components/form/form-view'
-import { RoomForm } from '@/components/form/room-form'
-import { ReadView } from '@/components/read-view'
-import { FormSkeleton } from '@/components/skeletons'
+import { ReadView } from '@/components/views/read-view'
+import { FormSkeleton } from '@/components/views/skeletons'
+import { RoomForm } from '@/features/rooms/room-form'
 import { saveRoom } from '@/server/actions/rooms'
 
 /** A new room (no `id`), or one to edit. */

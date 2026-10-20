@@ -6,7 +6,7 @@ import { CalendarCheck, CalendarX } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRef, useState } from 'react'
 
-import { ConfirmDialog } from '@/components/confirm-dialog'
+import { ConfirmDialog } from '@/components/feedback/confirm-dialog'
 import { useAfterWrite } from '@/lib/query/use-after-write'
 import {
   cancelSessionAction,

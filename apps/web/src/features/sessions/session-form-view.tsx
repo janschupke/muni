@@ -4,9 +4,9 @@ import { toZonedParts } from '@muni/utils/dates'
 import { useTranslations } from 'next-intl'
 
 import { formShell, useFormRead } from '@/components/form/form-view'
-import { SessionForm } from '@/components/form/session-form'
-import { ReadView } from '@/components/read-view'
-import { FormSkeleton } from '@/components/skeletons'
+import { ReadView } from '@/components/views/read-view'
+import { FormSkeleton } from '@/components/views/skeletons'
+import { SessionForm } from '@/features/sessions/session-form'
 import { saveSession } from '@/server/actions/edit'
 import { saveNewSession } from '@/server/actions/sessions'
 

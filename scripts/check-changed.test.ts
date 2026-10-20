@@ -1,6 +1,9 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
-import { type Check, planChecks, type Workspace } from './check-changed.ts'
+import { type Check, planChecks, SCANNING_SUITES, type Workspace } from './check-changed.ts'
 
 // The repo's own graph: web imports everything; db imports domain, importer and utils.
 const WORKSPACES: Workspace[] = [
@@ -119,5 +122,15 @@ describe('the checks a change needs', () => {
     const plan = planChecks(['apps/web/src/i18n/messages/cs.json'], WORKSPACES, present)
     expect(labels(plan.checks)).toContain('message catalogs and their keys in use')
     expect(plan.notes).toEqual([])
+  })
+})
+
+describe('the suites that scan the source', () => {
+  it('are where the script runs them', () => {
+    const root = path.join(import.meta.dirname, '..')
+    for (const suite of SCANNING_SUITES.web)
+      expect(existsSync(path.join(root, 'apps/web', suite)), suite).toBe(true)
+    for (const suite of SCANNING_SUITES.ui)
+      expect(existsSync(path.join(root, 'packages/ui', suite)), suite).toBe(true)
   })
 })

@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
-import { ComplianceBadge } from '@/components/status-badges'
+import { ComplianceBadge } from '@/components/badges/status-badges'
 
 import { LapsesText, WindowText } from './labels'
 

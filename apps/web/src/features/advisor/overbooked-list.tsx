@@ -16,7 +16,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
-import { RoomLink, SessionDateLink } from '@/components/session-links'
+import { RoomLink, SessionDateLink } from '@/features/sessions/session-links'
 
 // Loaded when needed: the dialog opens when a session is chosen.
 const ResolveDialog = dynamic(() => import('./resolve-dialog').then(m => m.ResolveDialog))

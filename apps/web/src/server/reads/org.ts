@@ -17,11 +17,11 @@ import {
 import { EMPLOYEE_SORT_KEYS } from '@muni/domain/enums'
 import * as z from 'zod'
 
-import { BOOKING_SORT, GROUP_SORT } from '@/lib/list-keys'
-import { listQuery } from '@/lib/search-params'
+import { BOOKING_SORT, GROUP_SORT } from '@/lib/list/list-keys'
+import { listQuery } from '@/lib/list/search-params'
 
-import { byId, listInput, read } from './define'
-import { bookingKeys, departmentKeys, positionKeys } from './sorters'
+import { byId, listInput, read } from './core/define'
+import { bookingKeys, departmentKeys, positionKeys } from './core/sorters'
 
 /** Departments, a page at a time, with how many people each has and how they comply. */
 export const departmentsList = read({

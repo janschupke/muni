@@ -3,8 +3,8 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { SessionView } from '@/features/sessions/session-view'
-import { param, type SearchParams } from '@/lib/search-params'
-import { sessionTitle } from '@/lib/titles'
+import { sessionTitle } from '@/lib/format/titles'
+import { param, type SearchParams } from '@/lib/list/search-params'
 import { requireReader } from '@/server/auth'
 import { prefetched, titleOf } from '@/server/prefetch'
 

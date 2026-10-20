@@ -11,11 +11,11 @@ import { type Messages, NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import type { ReactNode } from 'react'
 
-import { AppFooter } from '@/components/app-footer'
-import { AppShell } from '@/components/app-shell'
-import { NavigationHistory } from '@/components/navigation-history'
-import { QueryProvider } from '@/components/query-provider'
-import { ToastsProvider } from '@/components/toasts'
+import { NavigationHistory } from '@/components/navigation/navigation-history'
+import { AppFooter } from '@/components/shell/app-footer'
+import { AppShell } from '@/components/shell/app-shell'
+import { ToastsProvider } from '@/components/shell/toasts'
+import { QueryProvider } from '@/lib/query/query-provider'
 import { getSessionUser } from '@/server/auth'
 
 export async function generateMetadata(): Promise<Metadata> {

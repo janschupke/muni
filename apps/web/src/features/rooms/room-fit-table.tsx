@@ -8,7 +8,7 @@ import { CircleCheck, CircleX } from 'lucide-react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { CapabilityFitList } from '@/components/room-badges'
+import { CapabilityFitList } from '@/features/rooms/room-badges'
 import { ScheduleSessionButton } from '@/features/sessions/schedule-button'
 
 /**

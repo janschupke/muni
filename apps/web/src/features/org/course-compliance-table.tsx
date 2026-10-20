@@ -5,8 +5,8 @@ import { TextLink } from '@muni/ui/text-link'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
-import { ComplianceBar, useHeldText } from '@/components/compliance-breakdown'
-import { RequirementList } from '@/components/requirement-list'
+import { ComplianceBar, useHeldText } from '@/features/compliance/compliance-breakdown'
+import { RequirementList } from '@/features/courses/requirement-list'
 
 /** A group's mandatory courses: why it must hold each, and how much of it it holds. */
 export function CourseComplianceTable({

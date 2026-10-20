@@ -12,11 +12,11 @@ import { itemsToBook, planAssignments } from '@muni/domain/advisor'
 import { canWrite } from '@muni/domain/enums'
 import * as z from 'zod'
 
-import { SESSION_SORT } from '@/lib/list-keys'
-import { listQuery } from '@/lib/search-params'
+import { SESSION_SORT } from '@/lib/list/list-keys'
+import { listQuery } from '@/lib/list/search-params'
 
-import { byExternalId, listInput, read } from './define'
-import { sessionKeys } from './sorters'
+import { byExternalId, listInput, read } from './core/define'
+import { sessionKeys } from './core/sorters'
 
 /**
  * Upcoming or past sessions, everywhere or in one room or of one course: a page at a time,

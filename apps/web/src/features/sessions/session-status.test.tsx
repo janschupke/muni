@@ -3,7 +3,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { RecordActions, RowActions } from '@/components/record-actions'
+import { RecordActions, RowActions } from '@/components/views/record-actions'
 import { cancelSessionAction, reinstateSessionAction } from '@/server/actions/sessions'
 import { renderClient } from '@/test/render'
 

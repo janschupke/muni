@@ -59,6 +59,16 @@ const LINTED = /\.(ts|tsx|js|mjs)$/
 const CODE = /\.(ts|tsx|js|mjs|json|css)$/
 const TEST = /\.test\.tsx?$/
 
+/**
+ * Suites that read source files from disk rather than import them, so `vitest related` cannot
+ * find them: run whenever their package's source changes. Paths are relative to the package
+ * (check-changed.test.ts checks they exist, so a moved suite cannot drop out silently).
+ */
+export const SCANNING_SUITES = {
+  web: ['src/i18n/messages-parity.test.ts', 'src/lib/format/format-rate.test.ts'],
+  ui: ['src/styles/tokens.test.ts'],
+} as const
+
 const WEB = '@muni/web'
 const DB = '@muni/db'
 const UI = '@muni/ui'
@@ -223,7 +233,7 @@ export function planChecks(
         'web source or messages changed',
         'apps/web',
         'pnpm',
-        ['exec', 'vitest', 'run', 'src/i18n/messages-parity.test.ts', 'src/lib/format-rate.test.ts']
+        ['exec', 'vitest', 'run', ...SCANNING_SUITES.web]
       )
     )
   }
@@ -235,7 +245,7 @@ export function planChecks(
         'web or ui source changed',
         'packages/ui',
         'pnpm',
-        ['exec', 'vitest', 'run', 'src/styles/tokens.test.ts']
+        ['exec', 'vitest', 'run', ...SCANNING_SUITES.ui]
       )
     )
   }

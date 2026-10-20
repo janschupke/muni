@@ -7,8 +7,8 @@ import {
   savePosition,
 } from '@muni/db/repositories'
 
-import { type FormState, refusedField } from '@/lib/form'
-import { departmentSpec, parseForm, positionSpec } from '@/lib/form-inputs'
+import { type FormState, refusedField } from '@/lib/form/form'
+import { departmentSpec, parseForm, positionSpec } from '@/lib/form/form-inputs'
 
 import { isBoundIdOrNull, saveForm } from './guard'
 

@@ -30,8 +30,8 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo, useState } from 'react'
 
-import { RoomLink } from '@/components/session-links'
-import { hiddenHeader } from '@/components/table-columns'
+import { hiddenHeader } from '@/components/table/table-columns'
+import { RoomLink } from '@/features/sessions/session-links'
 
 // Loaded when needed: the review opens when an offer is chosen.
 const OfferReview = dynamic(() => import('./offer-review').then(m => m.OfferReview))

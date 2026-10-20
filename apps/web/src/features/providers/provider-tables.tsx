@@ -9,10 +9,10 @@ import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
-import { PersonLink, personText, RecordLink } from '@/components/archived'
-import { CompletionActions } from '@/components/completion-tables'
-import { usePaginationLabels } from '@/components/pagination-labels'
-import { actionsColumn } from '@/components/table-columns'
+import { PersonLink, personText, RecordLink } from '@/components/badges/archived'
+import { usePaginationLabels } from '@/components/table/pagination-labels'
+import { actionsColumn } from '@/components/table/table-columns'
+import { CompletionActions } from '@/features/employees/completion-tables'
 import { ScheduleSessionButton } from '@/features/sessions/schedule-button'
 
 type CourseRow = ProviderDetail['byCourse'][number]

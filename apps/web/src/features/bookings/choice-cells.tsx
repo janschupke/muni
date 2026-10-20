@@ -9,7 +9,7 @@ import { formatDate } from '@muni/utils/format'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
-import { RoomLink, SessionDateLink } from '@/components/session-links'
+import { RoomLink, SessionDateLink } from '@/features/sessions/session-links'
 
 /** A new session of the training's course: its form returns to the page that asked. */
 export const scheduleHref = (item: PlanItem) => `/courses/${item.need.course.code}/sessions/new`

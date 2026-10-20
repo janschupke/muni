@@ -4,7 +4,7 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { revertUserRole, setUserRole } from '@muni/db/repositories'
 import { parseRole, roleMetadata } from '@muni/domain/enums'
 
-import { formError, type FormState } from '@/lib/form'
+import { formError, type FormState } from '@/lib/form/form'
 
 import { isBoundId, logFailure, saveForm } from './guard'
 

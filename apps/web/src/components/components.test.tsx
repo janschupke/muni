@@ -6,24 +6,31 @@ import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod'
 
-import { fieldErrors, type FormState } from '@/lib/form'
+import { RequirementPanel } from '@/features/compliance/requirement-panel'
+import { CourseForm } from '@/features/courses/course-form'
+import { CompletionForm } from '@/features/employees/completion-form'
+import { CompletionHistoryTable } from '@/features/employees/completion-tables'
+import { EmployeeForm } from '@/features/employees/employee-form'
+import { DepartmentForm, PositionForm } from '@/features/org/group-forms'
+import { type SessionDefaults, SessionForm } from '@/features/sessions/session-form'
+import { SessionTable } from '@/features/sessions/session-table'
+import { fieldErrors, type FormState } from '@/lib/form/form'
 import { checkSessionSlotAction } from '@/server/actions/sessions'
 import { expectNoAxeViolations } from '@/test/axe'
 import { AULA_A, EXTERNAL, INTERNAL, ONLINE, session } from '@/test/fixtures'
 import { navigate, route, router } from '@/test/next'
 import { renderClient } from '@/test/render'
 
-import { BackLink } from './back-link'
-import { CompletionHistoryTable } from './completion-tables'
-import { ConfirmDialog, type ConfirmOutcome } from './confirm-dialog'
-import { CompletionForm } from './form/completion-form'
-import { CourseForm } from './form/course-form'
-import { EmployeeForm } from './form/employee-form'
-import { DepartmentForm, PositionForm } from './form/group-forms'
-import { type SessionDefaults, SessionForm } from './form/session-form'
-import { NavigationHistory, parseHistory, readHistory } from './navigation-history'
-import { RequirementPanel } from './requirement-panel'
-import { SessionTable } from './session-table'
+import {
+  ComplianceBadge,
+  EmploymentBadge,
+  OccupancyBadge,
+  RoleBadge,
+  SessionStatusBadge,
+} from './badges/status-badges'
+import { ConfirmDialog, type ConfirmOutcome } from './feedback/confirm-dialog'
+import { BackLink } from './navigation/back-link'
+import { NavigationHistory, parseHistory, readHistory } from './navigation/navigation-history'
 import {
   AdvisorSkeleton,
   ArchivedRecordSkeleton,
@@ -34,14 +41,7 @@ import {
   ListSkeleton,
   LoadingRegion,
   PlannerSkeleton,
-} from './skeletons'
-import {
-  ComplianceBadge,
-  EmploymentBadge,
-  OccupancyBadge,
-  RoleBadge,
-  SessionStatusBadge,
-} from './status-badges'
+} from './views/skeletons'
 
 /** Tables rendered on their own here sort and page their rows in the browser. */
 const LOCAL = { local: 'the rows a test gives' }

@@ -14,14 +14,14 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { ComplianceBar, ComplianceLegend } from '@/components/compliance-breakdown'
-import { ReadView } from '@/components/read-view'
-import { SessionTable } from '@/components/session-table'
-import { DashboardSkeleton } from '@/components/skeletons'
-import { rateTone } from '@/components/status-badges'
-import { formatRate } from '@/lib/format-rate'
+import { rateTone } from '@/components/badges/status-badges'
+import { ReadView } from '@/components/views/read-view'
+import { DashboardSkeleton } from '@/components/views/skeletons'
+import { ComplianceBar, ComplianceLegend } from '@/features/compliance/compliance-breakdown'
+import { SessionTable } from '@/features/sessions/session-table'
+import { formatRate } from '@/lib/format/format-rate'
 import { readQuery } from '@/lib/query/queries'
-import type { ReadOutput } from '@/server/reads/registry'
+import type { ReadOutput } from '@/server/reads/core/registry'
 
 /** The overview: compliance at a glance, what the advisor has waiting, the next sessions. */
 export function DashboardView({ canEdit }: { canEdit: boolean }) {

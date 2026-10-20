@@ -4,10 +4,10 @@ import { displayName } from '@muni/domain/names'
 import { todayIn } from '@muni/utils/dates'
 import { useTranslations } from 'next-intl'
 
-import { EmployeeForm } from '@/components/form/employee-form'
 import { formShell, useFormRead } from '@/components/form/form-view'
-import { ReadView } from '@/components/read-view'
-import { FormSkeleton } from '@/components/skeletons'
+import { ReadView } from '@/components/views/read-view'
+import { FormSkeleton } from '@/components/views/skeletons'
+import { EmployeeForm } from '@/features/employees/employee-form'
 import { saveEmployee } from '@/server/actions/edit'
 
 /** A new person (no `externalId`), or one to edit; the form opens once its choices are read. */

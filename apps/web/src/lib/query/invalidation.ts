@@ -1,4 +1,4 @@
-import type { ReadName } from '@/server/reads/registry'
+import type { ReadName } from '@/server/reads/core/registry'
 
 /** What a write changed, by what it saved. */
 export type WriteKind =

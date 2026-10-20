@@ -2,7 +2,7 @@
 
 import './globals.css'
 
-import { AppFailure, useFailureLocale } from '@/components/app-failure'
+import { AppFailure, useFailureLocale } from '@/components/shell/app-failure'
 
 export default function GlobalError({
   error,

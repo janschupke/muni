@@ -5,16 +5,16 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { BreakdownTable } from '@/features/advisor/breakdown-table'
+import { UnarchiveButton } from '@/features/archive/unarchive-button'
 import { ChoiceFacts, SessionCell, UnplacedCell } from '@/features/bookings/choice-cells'
+import { RemoveBookingButton } from '@/features/bookings/remove-booking-button'
 import { unarchiveAction } from '@/server/actions/archive'
 import { removeAssignmentAction } from '@/server/actions/assignments'
 import { advisorInput } from '@/test/fixtures'
 import { router } from '@/test/next'
 import { renderClient } from '@/test/render'
 
-import { PersonLink, RecordLink, UserName } from './archived'
-import { RemoveBookingButton } from './remove-booking-button'
-import { UnarchiveButton } from './unarchive-button'
+import { PersonLink, RecordLink, UserName } from './badges/archived'
 
 vi.mock('@/server/actions/assignments', () => ({ removeAssignmentAction: vi.fn() }))
 vi.mock('@/server/actions/archive', () => ({ unarchiveAction: vi.fn() }))

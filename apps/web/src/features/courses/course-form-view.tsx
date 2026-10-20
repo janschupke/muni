@@ -2,10 +2,10 @@
 
 import { useTranslations } from 'next-intl'
 
-import { CourseForm } from '@/components/form/course-form'
 import { formShell, useFormRead } from '@/components/form/form-view'
-import { ReadView } from '@/components/read-view'
-import { FormSkeleton } from '@/components/skeletons'
+import { ReadView } from '@/components/views/read-view'
+import { FormSkeleton } from '@/components/views/skeletons'
+import { CourseForm } from '@/features/courses/course-form'
 import { saveCourse } from '@/server/actions/edit'
 
 /** A new course (no `code`), or one to edit. */

@@ -11,7 +11,7 @@ import {
   updateSession,
 } from '@muni/db/repositories'
 
-import { type FormState, refusedField, sessionProblem } from '@/lib/form'
+import { type FormState, refusedField, sessionProblem } from '@/lib/form/form'
 import {
   completionSpec,
   courseCreateSpec,
@@ -19,7 +19,7 @@ import {
   employeeSpec,
   parseForm,
   sessionEditSpec,
-} from '@/lib/form-inputs'
+} from '@/lib/form/form-inputs'
 
 import { isBoundId, isBoundIdOrNull, saveForm } from './guard'
 

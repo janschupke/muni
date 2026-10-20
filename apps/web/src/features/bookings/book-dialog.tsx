@@ -18,8 +18,8 @@ import { formatCurrency, formatSessionTime } from '@muni/utils/format'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
-import { ConfirmDialog, type ConfirmOutcome } from '@/components/confirm-dialog'
-import { ComplianceBadge } from '@/components/status-badges'
+import { ComplianceBadge } from '@/components/badges/status-badges'
+import { ConfirmDialog, type ConfirmOutcome } from '@/components/feedback/confirm-dialog'
 import { useAfterWrite } from '@/lib/query/use-after-write'
 import { applyAssignmentsAction } from '@/server/actions/assignments'
 

@@ -8,9 +8,9 @@ import { formatDate, formatMonth } from '@muni/utils/format'
 import { useLocale, useTranslations } from 'next-intl'
 import { useId, useMemo } from 'react'
 
-import { usePaginationLabels } from '@/components/pagination-labels'
-import { RoomLink, SessionDateLink } from '@/components/session-links'
+import { usePaginationLabels } from '@/components/table/pagination-labels'
 import { itemId } from '@/features/bookings/book-dialog'
+import { RoomLink, SessionDateLink } from '@/features/sessions/session-links'
 
 import { useBookSelection } from './book-selection'
 import { col, usePlanColumns } from './columns'

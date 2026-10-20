@@ -3,10 +3,10 @@
 import { todayIn } from '@muni/utils/dates'
 import { useTranslations } from 'next-intl'
 
-import { CompletionForm } from '@/components/form/completion-form'
 import { formShell, useFormRead } from '@/components/form/form-view'
-import { ReadView } from '@/components/read-view'
-import { FormSkeleton } from '@/components/skeletons'
+import { ReadView } from '@/components/views/read-view'
+import { FormSkeleton } from '@/components/views/skeletons'
+import { CompletionForm } from '@/features/employees/completion-form'
 import { saveCompletion } from '@/server/actions/edit'
 
 /** A new completion for a person (no `id`), or one of theirs to correct. */

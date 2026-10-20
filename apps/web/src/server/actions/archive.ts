@@ -8,8 +8,8 @@ import {
 } from '@muni/db/repositories'
 import { ARCHIVABLE, type Archivable } from '@muni/domain/archive'
 
-import { archiveRefused, type ArchiveState } from '@/lib/form'
-import { isLocalHref } from '@/lib/local-href'
+import { archiveRefused, type ArchiveState } from '@/lib/form/form'
+import { isLocalHref } from '@/lib/navigation/local-href'
 
 import { asAdmin, type Denied, isBoundId, logFailure } from './guard'
 

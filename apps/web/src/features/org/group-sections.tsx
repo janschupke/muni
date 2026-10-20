@@ -5,9 +5,9 @@ import { TextLink } from '@muni/ui/text-link'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
-import { EmployeesTable } from '@/components/employees-table'
-import type { PageInfo } from '@/lib/use-list-url'
-import type { ReadOutput } from '@/server/reads/registry'
+import { EmployeesTable } from '@/features/employees/employees-table'
+import type { PageInfo } from '@/lib/list/use-list-url'
+import type { ReadOutput } from '@/server/reads/core/registry'
 
 import { CourseComplianceTable } from './course-compliance-table'
 

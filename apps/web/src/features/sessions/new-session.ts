@@ -2,7 +2,7 @@ import { type CourseOffering, DEFAULT_START, proposedOffering } from '@muni/doma
 import { sessionEndTime } from '@muni/domain/sessions'
 import { addDays, todayIn } from '@muni/utils/dates'
 
-import type { SessionDefaults } from '@/components/form/session-form'
+import type { SessionDefaults } from '@/features/sessions/session-form'
 
 /**
  * What a new session form starts with: tomorrow at the planner's default start; the course's

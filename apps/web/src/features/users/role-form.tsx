@@ -8,8 +8,8 @@ import { Save } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRef, useState } from 'react'
 
-import { ConfirmDialog } from '@/components/confirm-dialog'
-import { type FormState, IDLE } from '@/lib/form'
+import { ConfirmDialog } from '@/components/feedback/confirm-dialog'
+import { type FormState, IDLE } from '@/lib/form/form'
 import { useAfterWrite } from '@/lib/query/use-after-write'
 
 /**

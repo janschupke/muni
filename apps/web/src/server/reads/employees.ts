@@ -22,11 +22,11 @@ import { displayName, sortName } from '@muni/domain/names'
 import { isVisible } from '@muni/domain/sanitize'
 import * as z from 'zod'
 
-import { HISTORY_SORT } from '@/lib/list-keys'
-import { listQuery } from '@/lib/search-params'
+import { HISTORY_SORT } from '@/lib/list/list-keys'
+import { listQuery } from '@/lib/list/search-params'
 
-import { byExternalId, listInput, read } from './define'
-import { historyKeys } from './sorters'
+import { byExternalId, listInput, read } from './core/define'
+import { historyKeys } from './core/sorters'
 
 const text = z.string().min(1).max(200).optional()
 

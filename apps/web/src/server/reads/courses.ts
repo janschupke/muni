@@ -9,11 +9,11 @@ import {
 } from '@muni/db/repositories'
 import * as z from 'zod'
 
-import { COMPLETION_SORT, COURSE_SORT, SESSION_SORT } from '@/lib/list-keys'
-import { listQuery } from '@/lib/search-params'
+import { COMPLETION_SORT, COURSE_SORT, SESSION_SORT } from '@/lib/list/list-keys'
+import { listQuery } from '@/lib/list/search-params'
 
-import { byCode, listInput, read } from './define'
-import { completionKeys, courseKeys, sessionKeys } from './sorters'
+import { byCode, listInput, read } from './core/define'
+import { completionKeys, courseKeys, sessionKeys } from './core/sorters'
 
 /** The course catalogue: one page, sorted by the column asked for (by code without one). */
 export const coursesList = read({

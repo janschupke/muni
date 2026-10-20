@@ -1,6 +1,6 @@
 import { sessionPhase, startsLater } from '@muni/domain/sessions'
 
-import type { Target } from '@/components/record-actions'
+import type { Target } from '@/components/views/record-actions'
 
 import { SessionStatusButton } from './session-status-button'
 

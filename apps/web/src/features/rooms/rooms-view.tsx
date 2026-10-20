@@ -2,10 +2,10 @@
 
 import { useTranslations } from 'next-intl'
 
-import { ListView, useListRead } from '@/components/list-view'
-import { TableSkeleton } from '@/components/skeletons'
-import { ROOM_SORT } from '@/lib/list-keys'
-import { useListUrl } from '@/lib/use-list-url'
+import { ListView, useListRead } from '@/components/views/list-view'
+import { TableSkeleton } from '@/components/views/skeletons'
+import { ROOM_SORT } from '@/lib/list/list-keys'
+import { useListUrl } from '@/lib/list/use-list-url'
 
 import { RoomsTable } from './rooms-table'
 

@@ -9,13 +9,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
-import { ListView, useListRead } from '@/components/list-view'
-import { SessionTable } from '@/components/session-table'
-import { TableSkeleton } from '@/components/skeletons'
-import { SESSION_SORT } from '@/lib/list-keys'
-import { type SessionListQuery, sessionsListInput } from '@/lib/read-inputs'
-import { withParams } from '@/lib/search-params'
-import { useListUrl } from '@/lib/use-list-url'
+import { ListView, useListRead } from '@/components/views/list-view'
+import { TableSkeleton } from '@/components/views/skeletons'
+import { SessionTable } from '@/features/sessions/session-table'
+import { SESSION_SORT } from '@/lib/list/list-keys'
+import { type SessionListQuery, sessionsListInput } from '@/lib/list/read-inputs'
+import { withParams } from '@/lib/list/search-params'
+import { useListUrl } from '@/lib/list/use-list-url'
 
 const WINDOWS = ['upcoming', 'past'] as const
 

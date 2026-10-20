@@ -16,7 +16,7 @@ export function routeReadsToHandler(): void {
     const url = new URL(href, 'http://localhost')
     const [, name] = /^\/api\/read\/([^/]+)$/.exec(url.pathname) ?? []
     if (!name) throw new Error(`no fetch outside reads in tests: ${href}`)
-    const { handleRead } = await import('@/server/reads/handle')
+    const { handleRead } = await import('@/server/reads/core/handle')
     return handleRead(name, url.searchParams)
   })
 }

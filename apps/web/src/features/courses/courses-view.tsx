@@ -2,12 +2,12 @@
 
 import { useTranslations } from 'next-intl'
 
-import { ComplianceLegend } from '@/components/compliance-breakdown'
-import { CoursesTable } from '@/components/courses-table'
-import { ListView, useListRead } from '@/components/list-view'
-import { TableSkeleton } from '@/components/skeletons'
-import { COURSE_SORT } from '@/lib/list-keys'
-import { useListUrl } from '@/lib/use-list-url'
+import { ListView, useListRead } from '@/components/views/list-view'
+import { TableSkeleton } from '@/components/views/skeletons'
+import { ComplianceLegend } from '@/features/compliance/compliance-breakdown'
+import { CoursesTable } from '@/features/courses/courses-table'
+import { COURSE_SORT } from '@/lib/list/list-keys'
+import { useListUrl } from '@/lib/list/use-list-url'
 
 /** The course catalogue, a page at a time, sorted on the server. */
 export function CoursesView({ canEdit }: { canEdit: boolean }) {

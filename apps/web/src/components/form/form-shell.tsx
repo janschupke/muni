@@ -30,14 +30,14 @@ import {
   useState,
 } from 'react'
 
-import { type FieldErrorKey, type FormState, IDLE } from '@/lib/form'
-import { type FormSpec, parseForm } from '@/lib/form-inputs'
+import { ConfirmDialog } from '@/components/feedback/confirm-dialog'
+import { useOrigin } from '@/components/navigation/navigation-history'
+import { type FieldErrorKey, type FormState, IDLE } from '@/lib/form/form'
+import { type FormSpec, parseForm } from '@/lib/form/form-inputs'
 import type { WriteKind } from '@/lib/query/invalidation'
 import { useWhenWritten } from '@/lib/query/use-after-write'
 
-import { ConfirmDialog } from '../confirm-dialog'
-import { useOrigin } from '../navigation-history'
-import { useDateLabels, useTimeLabels } from './session-fields'
+import { useDateLabels, useTimeLabels } from './picker-labels'
 
 /** An error the form knows before it is sent (a key under forms.errors, and its values). */
 export interface ClientError {

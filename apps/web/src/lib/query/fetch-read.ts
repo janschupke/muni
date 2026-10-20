@@ -1,4 +1,4 @@
-import type { ReadInput, ReadName, ReadOutput } from '@/server/reads/registry'
+import type { ReadInput, ReadName, ReadOutput } from '@/server/reads/core/registry'
 
 /** A read the server refused or failed: its HTTP status and the reason it gave. */
 export class ReadError extends Error {

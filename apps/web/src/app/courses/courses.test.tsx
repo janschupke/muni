@@ -69,7 +69,7 @@ vi.mock('@/server/actions/sessions', () => ({
   checkSessionSlotAction: vi.fn(() => Promise.resolve(null)),
 }))
 vi.mock('@/server/actions/archive', () => ({ archiveAction: vi.fn(), previewArchive: vi.fn() }))
-vi.mock('@/features/import/actions', () => ({ commitImportChunk: vi.fn() }))
+vi.mock('@/server/actions/import', () => ({ commitImportChunk: vi.fn() }))
 
 beforeEach(() => {
   signInAs('VIEWER')

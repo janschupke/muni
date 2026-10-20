@@ -6,8 +6,8 @@ import { formatCurrency, formatDate, formatInteger, PLACEHOLDER } from '@muni/ut
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
-import { usePaginationLabels } from '@/components/pagination-labels'
-import { nameColumn, rowActionsColumn } from '@/components/table-columns'
+import { usePaginationLabels } from '@/components/table/pagination-labels'
+import { nameColumn, rowActionsColumn } from '@/components/table/table-columns'
 
 const col = createDataColumns<ProviderListItem>()
 

@@ -10,11 +10,11 @@ import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
-import { HeldMeter } from '@/components/compliance-breakdown'
-import { OrgLink } from '@/components/org-links'
-import { usePaginationLabels } from '@/components/pagination-labels'
-import { ComplianceBadge, EmploymentBadge } from '@/components/status-badges'
+import { ComplianceBadge, EmploymentBadge } from '@/components/badges/status-badges'
+import { usePaginationLabels } from '@/components/table/pagination-labels'
 import { BookNeedButton } from '@/features/bookings/book-button'
+import { HeldMeter } from '@/features/compliance/compliance-breakdown'
+import { OrgLink } from '@/features/org/org-links'
 
 /**
  * A department's or position's people, one record each: where else they sit, their
