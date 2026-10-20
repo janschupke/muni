@@ -9,7 +9,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useId, useMemo } from 'react'
 
 import { usePaginationLabels } from '@/components/table/pagination-labels'
-import { itemId } from '@/features/bookings/book-dialog'
+import { itemId } from '@/features/bookings/use-booking-draft'
 import { RoomLink, SessionDateLink } from '@/features/sessions/session-links'
 
 import { useBookSelection } from './book-selection'

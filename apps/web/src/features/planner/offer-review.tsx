@@ -5,15 +5,11 @@ import type { SessionOffer } from '@muni/domain/planner'
 import { Button, CancelButton } from '@muni/ui/button'
 import { Dialog } from '@muni/ui/dialog'
 import { useTranslations } from 'next-intl'
-import { useState, useTransition } from 'react'
-
-import { useToast } from '@/components/shell/toasts'
-import { useAfterWrite } from '@/lib/query/use-after-write'
-import { createPlannedSessionAction, type PlannedOutcome } from '@/server/actions/sessions'
 
 import { OfferEdit } from './offer-edit'
 import { OfferSummary } from './offer-summary'
 import { useOfferDraft } from './use-offer-draft'
+import { useOfferSubmission } from './use-offer-submission'
 
 /**
  * A planner offer turned into a session: everything can change (day, times, room, seats,
@@ -36,43 +32,11 @@ export function OfferReview({
 }) {
   const t = useTranslations('planner.review')
   const tc = useTranslations('common')
-  const toast = useToast()
-  const afterWrite = useAfterWrite('session')
-  const [pending, startTransition] = useTransition()
-  // Which request is out: each button says "working" only for its own.
-  const [sending, setSending] = useState<'check' | 'create' | null>(null)
-  const [stage, setStage] = useState<'edit' | 'review'>('edit')
-  const [answer, setAnswer] = useState<PlannedOutcome | null>(null)
-  // Any change starts the check over.
-  const draft = useOfferDraft(offer, rooms, () => {
-    setAnswer(null)
-    setStage('edit')
+  const submission = useOfferSubmission(() => {
+    onOpenChange(false)
   })
-
-  const send = (dryRun: boolean) => {
-    setSending(dryRun ? 'check' : 'create')
-    startTransition(async () => {
-      const result: PlannedOutcome = await createPlannedSessionAction(draft.request(dryRun)).catch(
-        () => ({ ok: false as const, problem: 'failed' as const, refusals: [] as [] })
-      )
-      setSending(null)
-      setAnswer(result)
-      if (!result.ok) {
-        setStage('edit')
-        return
-      }
-      if (dryRun) {
-        setStage('review')
-        return
-      }
-      afterWrite()
-      toast({
-        title: t('created', { id: result.externalId, count: result.booked }),
-        action: { label: t('openSession'), href: `/sessions/${result.externalId}` },
-      })
-      onOpenChange(false)
-    })
-  }
+  const { stage, sending, answer, pending } = submission
+  const draft = useOfferDraft(offer, rooms, submission.edited)
 
   return (
     <Dialog
@@ -100,7 +64,7 @@ export function OfferReview({
               variant="primary"
               disabled={!draft.valid || pending}
               onClick={() => {
-                send(true)
+                submission.send(draft.request(true))
               }}
             >
               {sending === 'check' ? t('checking') : t('check')}
@@ -116,19 +80,14 @@ export function OfferReview({
             >
               {tc('keepAsIs')}
             </CancelButton>
-            <Button
-              disabled={pending}
-              onClick={() => {
-                setStage('edit')
-              }}
-            >
+            <Button disabled={pending} onClick={submission.back}>
               {t('back')}
             </Button>
             <Button
               variant="primary"
               disabled={pending}
               onClick={() => {
-                send(false)
+                submission.send(draft.request(false))
               }}
             >
               {sending === 'create' ? t('creating') : t('confirm', { count: draft.chosen.length })}

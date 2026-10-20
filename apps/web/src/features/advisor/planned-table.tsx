@@ -8,9 +8,9 @@ import { useMemo } from 'react'
 
 import { usePaginationLabels } from '@/components/table/pagination-labels'
 import { hiddenHeader } from '@/components/table/table-columns'
-import { itemId } from '@/features/bookings/book-dialog'
 import { SessionCell } from '@/features/bookings/choice-cells'
 import { RemoveBookingButton } from '@/features/bookings/remove-booking-button'
+import { itemId } from '@/features/bookings/use-booking-draft'
 
 import { col, usePlanColumns } from './columns'
 import { RemediationBadge } from './labels'

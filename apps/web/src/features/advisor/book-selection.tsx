@@ -10,9 +10,9 @@ import { type ReactNode, useMemo, useState } from 'react'
 
 import { hiddenHeader } from '@/components/table/table-columns'
 import { BookButton } from '@/features/bookings/book-button'
-import { itemId } from '@/features/bookings/book-dialog'
 import { scheduleHref } from '@/features/bookings/choice-cells'
 import { useBookDialog } from '@/features/bookings/use-book-dialog'
+import { itemId } from '@/features/bookings/use-booking-draft'
 
 import { col } from './columns'
 

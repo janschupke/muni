@@ -28,6 +28,8 @@ import {
 import { useLocale } from 'next-intl'
 import { useMemo, useState } from 'react'
 
+import { useFilteredPage } from '@/lib/use-filtered-page'
+
 import { type IndexedRow, ReviewTable } from './review-table'
 import { useImportText } from './use-issue-text'
 
@@ -78,20 +80,17 @@ function DatasetReview({
 }) {
   const { t } = useImportText()
   const locale = useLocale()
-  const [filter, setFilter] = useState<Filter>('all')
-  const [page, setPage] = useState(0)
-  const summary = summarize(rows)
-  const filtered = useMemo<IndexedRow[]>(
-    () => rows.flatMap((row, index) => (matches(row, filter) ? [{ index, row }] : [])),
-    [rows, filter]
+  const { filter, choose, filtered, page, setPage } = useFilteredPage<ParsedRow<unknown>, Filter>(
+    rows,
+    matches,
+    'all',
+    PAGE_SIZE
   )
-  // Removing rows under a filter can shrink the last page away; stay on the last one left.
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const current = Math.min(page, pageCount - 1)
-  const choose = (next: Filter) => {
-    setFilter(prev => (prev === next ? 'all' : next))
-    setPage(0)
-  }
+  const indexed = useMemo<IndexedRow[]>(
+    () => filtered.map(({ index, item }) => ({ index, row: item })),
+    [filtered]
+  )
+  const summary = summarize(rows)
   const count = (value: number) => formatInteger(value, locale)
 
   return (
@@ -159,8 +158,8 @@ function DatasetReview({
       <ReviewTable
         caption={name}
         columns={columns}
-        rows={filtered}
-        pagination={{ pageIndex: current, pageSize: PAGE_SIZE }}
+        rows={indexed}
+        pagination={{ pageIndex: page, pageSize: PAGE_SIZE }}
         onPaginationChange={next => {
           setPage(next.pageIndex)
         }}

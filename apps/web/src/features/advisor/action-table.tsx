@@ -10,8 +10,8 @@ import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { usePaginationLabels } from '@/components/table/pagination-labels'
-import { itemId } from '@/features/bookings/book-dialog'
 import { ChoiceFacts, SessionCell, UnplacedCell } from '@/features/bookings/choice-cells'
+import { itemId } from '@/features/bookings/use-booking-draft'
 
 import { useBookSelection } from './book-selection'
 import { col, usePlanColumns } from './columns'
