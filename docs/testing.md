@@ -22,8 +22,9 @@ ahead.
 ## After a change
 
 `pnpm check:changed` (`scripts/check-changed.ts`) runs only what the changed files need:
-Prettier and ESLint on those files, typecheck and the related tests in their packages and the
-packages that depend on them, and the schema, drift, message or colour suites when their
+Prettier on those files; ESLint, typecheck and the related tests in their packages and the
+packages that depend on them (type-aware lint rules read other files' types, so a package
+lints whole; when only tests changed, only those files), and the schema, drift, message or colour suites when their
 files changed. It prints each check and why it ran; `--dry-run` only prints them, `--base
 <ref>` compares against another commit. For a UI change it names the e2e spec to run by hand.
 The pre-push hook runs it against the remote branch. `pnpm check` is the full run, before a

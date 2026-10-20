@@ -23,8 +23,8 @@ It needs the test database (`pnpm db:up`). Playwright and Lighthouse are not in 
 
 - **After each change, `pnpm check:changed`.** It maps the changed files (uncommitted and
   untracked; `--base <ref>` for more) to the checks that cover them and runs them one at a
-  time: Prettier and ESLint on the files, typecheck and the related tests of the package and
-  every package that imports it, knip, the source-scanning suites, the related db integration
+  time: Prettier on the files; ESLint, typecheck and the related tests of the package and
+  every package that imports it (ESLint on only the changed files when only tests changed); knip, the source-scanning suites, the related db integration
   tests, and the schema checks for a Prisma change. A shared config change asks for the full
   gate. `--dry-run` prints the plan.
 - **Before calling a task done, `pnpm check`.** Fix a finding at its root; never widen an

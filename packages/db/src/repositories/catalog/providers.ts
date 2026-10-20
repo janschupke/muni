@@ -214,7 +214,7 @@ export async function getProvider(
       courseId: o.course.id,
       code: o.course.code,
       name: o.course.name,
-      price: toAmount(o.pricePerPerson) ?? 0,
+      price: toAmount(o.pricePerPerson),
       sessionMinutes: o.course.sessionMinutes,
       upcomingSessions: upcoming.filter(s => s.courseCode === o.course.code).length,
     })),
@@ -258,7 +258,7 @@ export async function getProviderForEdit(id: string, options?: RepoOptions) {
     ...provider,
     offerings: provider.offerings.map(o => ({
       courseId: o.courseId,
-      price: toAmount(o.pricePerPerson) ?? 0,
+      price: toAmount(o.pricePerPerson),
     })),
   }
 }

@@ -158,16 +158,28 @@ export function planChecks(
     )
   }
 
-  // Each package lints with its own config, from its own root.
+  // Each package lints with its own config, from its own root. Type-aware rules read other
+  // files' types, so a source change can break lint in a file that did not change: then the
+  // package and every package that imports it lint whole. A test changes nothing else.
+  const sourceOwners = new Set(
+    code.filter(f => LINTED.test(f) && !TEST.test(f)).map(f => ownerOf(f, workspaces).name)
+  )
+  const lintWhole = new Set(sourceOwners)
+  for (const name of sourceOwners) for (const d of dependentsOf(name, workspaces)) lintWhole.add(d)
   for (const w of workspaces) {
+    const eslint = ['exec', 'eslint', '--max-warnings', '0']
+    if (lintWhole.has(w.name)) {
+      const reason = sourceOwners.has(w.name)
+        ? 'its source changed'
+        : 'a package it imports changed'
+      checks.push(check(`eslint ${w.name}`, reason, w.dir, 'pnpm', [...eslint, '.']))
+      continue
+    }
     const lintable = present.filter(f => LINTED.test(f) && ownerOf(f, workspaces) === w)
     if (lintable.length === 0) continue
     checks.push(
       check(`eslint ${w.name}`, 'changed files', w.dir, 'pnpm', [
-        'exec',
-        'eslint',
-        '--max-warnings',
-        '0',
+        ...eslint,
         '--no-warn-ignored',
         ...lintable.map(f => within(w, f)),
       ])

@@ -32,7 +32,10 @@ describe('the checks a change needs', () => {
     const plan = planChecks(['packages/domain/src/sessions.ts'], WORKSPACES, present)
     expect(labels(plan.checks)).toEqual([
       'prettier',
+      'eslint @muni/web',
+      'eslint @muni/db',
       'eslint @muni/domain',
+      'eslint @muni/importer',
       'typecheck @muni/web',
       'typecheck @muni/db',
       'typecheck @muni/domain',
@@ -47,11 +50,15 @@ describe('the checks a change needs', () => {
     expect(plan.checks.find(c => c.label === 'typecheck @muni/db')?.reason).toBe(
       'a package it imports changed'
     )
-    // Lint runs from the package's root, on the file relative to it.
+    // Type-aware lint reads other files' types: a source change lints the package whole,
+    // from its root, and every package that imports it.
     expect(plan.checks.find(c => c.label === 'eslint @muni/domain')).toMatchObject({
       cwd: 'packages/domain',
-      args: ['exec', 'eslint', '--max-warnings', '0', '--no-warn-ignored', 'src/sessions.ts'],
+      args: ['exec', 'eslint', '--max-warnings', '0', '.'],
     })
+    expect(plan.checks.find(c => c.label === 'eslint @muni/db')?.reason).toBe(
+      'a package it imports changed'
+    )
     expect(plan.notes).toEqual([])
   })
 
@@ -88,6 +95,14 @@ describe('the checks a change needs', () => {
     expect(plan.checks).toEqual([expect.objectContaining({ label: 'pnpm check', args: ['check'] })])
   })
 
+  it('a test only: lint on that file, not its package', () => {
+    const plan = planChecks(['packages/domain/src/sessions.test.ts'], WORKSPACES, present)
+    expect(plan.checks.find(c => c.label === 'eslint @muni/domain')).toMatchObject({
+      args: ['exec', 'eslint', '--max-warnings', '0', '--no-warn-ignored', 'src/sessions.test.ts'],
+    })
+    expect(labels(plan.checks).filter(l => l.startsWith('eslint'))).toEqual(['eslint @muni/domain'])
+  })
+
   it('docs only: formatting, and the paths they name', () => {
     expect(labels(planChecks(['README.md', 'docs/ui.md'], WORKSPACES, present).checks)).toEqual([
       'prettier',
@@ -98,6 +113,11 @@ describe('the checks a change needs', () => {
   it('a deleted file: its whole package runs, and the docs are checked for it', () => {
     const plan = planChecks(['packages/utils/src/money.ts'], WORKSPACES, () => false)
     expect(labels(plan.checks)).toEqual([
+      'eslint @muni/web',
+      'eslint @muni/db',
+      'eslint @muni/domain',
+      'eslint @muni/importer',
+      'eslint @muni/utils',
       'typecheck @muni/web',
       'typecheck @muni/db',
       'typecheck @muni/domain',
