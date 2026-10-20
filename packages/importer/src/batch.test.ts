@@ -155,11 +155,8 @@ describe('validateBatch', () => {
       'location:VALUE_NORMALIZED',
     ])
     expect(row('sessions', 'T002').data).toMatchObject({ location: 'Aula A' })
-    // A room nobody listed is created from its sessions.
-    expect(codesOf(row('sessions', 'T003'))).toEqual([
-      'courseCode:COURSE_NOT_FOUND',
-      'location:ROOM_DERIVED',
-    ])
+    // A refused row says nothing of the room it names: it creates none.
+    expect(codesOf(row('sessions', 'T003'))).toEqual(['courseCode:COURSE_NOT_FOUND'])
   })
 
   it('checks completions against people, courses and the validity rule', () => {
@@ -261,6 +258,21 @@ describe('validateBatch: a record twice, and rows the other files contradict', (
       { code: 'COMPLETED_AFTER_LEAVING', params: { value: '2026-09-30', leftOn: '2025-12-31' } },
       { code: 'VALIDITY_DERIVED' },
     ])
+  })
+
+  it('says what the import creates on the first row it imports, not on a refused one', () => {
+    const out = validateBatch(
+      {
+        sessions: file('terminy.csv', [
+          'id_terminu;kod_skoleni;datum;cas;misto;kapacita;obsazeno',
+          'T010;KYB3R;2026-12-02;09:00-12:00;Aula B;20;0',
+          'T011;KYBER;2026-12-03;09:00-12:00;Aula B;20;0',
+        ]).rows as NonNullable<ImportBatch['sessions']>,
+      },
+      { ...register, providers: ['Interní školitel'], defaultProvider: 'Interní školitel' }
+    )
+    expect(codesOf(out.sessions?.[0])).toEqual(['courseCode:COURSE_NOT_FOUND'])
+    expect(codesOf(out.sessions?.[1])).toEqual(['provider:OFFERING_ADDED', 'location:ROOM_DERIVED'])
   })
 
   it('names the course a mistyped code was meant to be, when only one is that near', () => {
@@ -633,8 +645,8 @@ describe('rooms', () => {
     expect(codesOf(batch.rooms?.[3])).toEqual(['name:DUPLICATE_ID'])
     // The default provider holds it, and is given the new course to offer.
     expect(codesOf(batch.sessions?.[0])).toEqual([
-      'provider:OFFERING_ADDED',
       'location:VALUE_NORMALIZED',
+      'provider:OFFERING_ADDED',
     ])
     expect(batch.sessions?.[0]?.data?.location).toBe('Laboratoř 3')
   })

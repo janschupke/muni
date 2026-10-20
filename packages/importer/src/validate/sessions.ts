@@ -15,6 +15,7 @@ import {
   type Extra,
   finalize,
   firstRowByKey,
+  hasError,
   issue,
   normalized,
   suggestedCode,
@@ -45,7 +46,6 @@ const sameSession = (a: SessionInput, b: SessionInput) =>
  * commit before sessions, so only the ones that will be written count.
  */
 function providerCheck(
-  rows: ParsedRow<SessionInput>[],
   completions: readonly ParsedRow<CompletionInput>[],
   reference: ReferenceSnapshot
 ) {
@@ -62,11 +62,8 @@ function providerCheck(
   // A completions file makes providers, and a default, when the register has none.
   const fallback = reference.defaultProvider ?? null
   const hasDefault = fallback !== null || deliveries.length > 0
-  const firstWithoutOffer = firstRowByKey(
-    rows.filter(r => usable(r) && r.base.data.providerName === null),
-    d => d.courseCode
-  )
-  return (extra: Extra, row: ParsedRow<SessionInput>, data: SessionInput) => {
+  /** The course the default provider would be given for this row; null when none. */
+  return (extra: Extra, data: SessionInput): { provider: string; course: string } | null => {
     if (data.providerName !== null) {
       const name = fold(data.providerName)
       if (!known.has(name))
@@ -78,21 +75,15 @@ function providerCheck(
             course: data.courseCode,
           })
         )
-      return
+      return null
     }
     if (!hasDefault) {
       extra.push(issue('provider', 'NO_DEFAULT_PROVIDER', 'error'))
-      return
+      return null
     }
-    // The default is given the course once, on the first row that needs it.
-    if (
-      fallback !== null &&
-      !offers.has(`${fold(fallback)}|${data.courseCode}`) &&
-      firstWithoutOffer.get(data.courseCode) === row
-    )
-      extra.push(
-        issue('provider', 'OFFERING_ADDED', 'warning', { value: fallback, course: data.courseCode })
-      )
+    return fallback !== null && !offers.has(`${fold(fallback)}|${data.courseCode}`)
+      ? { provider: fallback, course: data.courseCode }
+      : null
   }
 }
 
@@ -114,8 +105,6 @@ function roomCheck(
     rows.filter(usable).map(r => r.base.data.location),
     [...roomNames, ...reference.rooms]
   )
-  // The first session held in an unknown room says it will be created; the rest just use it.
-  const firstInRoom = firstRowByKey(rows, d => rooms.keyOf(d.location))
   // What each room offers: the rooms file wins over the register; a room neither knows is
   // created from its sessions, so it fits them.
   const facts = new Map<string, Omit<RoomFacts, 'id'>>(
@@ -138,12 +127,12 @@ function roomCheck(
     .filter(s => !batchIds.has(s.externalId))
     .map(s => ({ ...s, key: rooms.keyOf(s.room) }))
 
+  /** Where the row is held, and whether the import would create that room. */
   return (
     extra: Extra,
-    row: ParsedRow<SessionInput>,
     data: SessionInput,
     { checkFit, slotTaken }: { checkFit: boolean; slotTaken: boolean }
-  ): string => {
+  ): { location: string; newRoom: string | null } => {
     const location = rooms.canonical(data.location)
     const key = rooms.keyOf(data.location)
     const room = facts.get(key)
@@ -168,13 +157,11 @@ function roomCheck(
     }
     if (archived.room(data.location)) {
       extra.push(archivedIssue('location', data.location))
-    } else if (!known.has(data.location)) {
-      if (firstInRoom.get(key) === row)
-        extra.push(issue('location', 'ROOM_DERIVED', 'warning', { value: location }))
-    } else {
-      normalized(extra, 'location', data.location, location)
+      return { location, newRoom: null }
     }
-    return location
+    if (!known.has(data.location)) return { location, newRoom: key }
+    normalized(extra, 'location', data.location, location)
+    return { location, newRoom: null }
   }
 }
 
@@ -203,8 +190,12 @@ export function validateSessions(
   const first = firstRowByKey(rows, d => d.externalId)
   const slotOf = (d: SessionInput) => `${d.courseCode}|${d.date}|${d.startTime}|${fold(d.location)}`
   const firstSlot = firstRowByKey(rows, slotOf)
-  const checkProvider = providerCheck(rows, completions, reference)
+  const checkProvider = providerCheck(completions, reference)
   const checkRoom = roomCheck(rows, rooms, reference, archived)
+  // What the import creates is said once, on the first row that will be imported with it: a
+  // room only the sessions name, a course the default provider is given.
+  const announcedRooms = new Set<string>()
+  const announcedOffers = new Set<string>()
   return rows.map(row => {
     const extra: Extra = []
     if (!usable(row)) return finalize(row, null, extra)
@@ -230,8 +221,26 @@ export function validateSessions(
             })
           : issue('date', 'DUPLICATE_SLOT', 'warning', { otherId: slotTwin.base.data.externalId })
       )
-    checkProvider(extra, row, data)
-    const location = checkRoom(extra, row, data, { checkFit: !owner, slotTaken: !!slotTwin })
+    const offer = checkProvider(extra, data)
+    const { location, newRoom } = checkRoom(extra, data, {
+      checkFit: !owner,
+      slotTaken: !!slotTwin,
+    })
+    if (!hasError(row, extra)) {
+      if (offer && !announcedOffers.has(offer.course)) {
+        announcedOffers.add(offer.course)
+        extra.push(
+          issue('provider', 'OFFERING_ADDED', 'warning', {
+            value: offer.provider,
+            course: offer.course,
+          })
+        )
+      }
+      if (newRoom !== null && !announcedRooms.has(newRoom)) {
+        announcedRooms.add(newRoom)
+        extra.push(issue('location', 'ROOM_DERIVED', 'warning', { value: location }))
+      }
+    }
     return finalize<SessionInput>(row, { ...data, location }, extra)
   })
 }
