@@ -92,7 +92,9 @@ export class RowBuilder {
       case 'empty':
         return null
       case 'negative':
-        return this.error(field, 'NEGATIVE_PRICE', { raw: this.cell(field) })
+        // A sign is no reason to lose the record: the price is left out instead.
+        this.warn(field, 'NEGATIVE_PRICE', { raw: this.cell(field) })
+        return null
       case 'unparseable':
         return this.error(field, 'INVALID_PRICE', { raw: this.cell(field) })
     }

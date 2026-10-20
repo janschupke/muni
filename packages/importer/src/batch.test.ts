@@ -55,7 +55,7 @@ function parsed(): ImportBatch {
     completions: file('absolvovana.csv', [
       'id_zaznamu;id_zamestnance;zamestnanec;kod_skoleni;datum_absolvovani;platnost_do;poskytovatel',
       'Z000001;E0001;Černá Marie;BOZP-Z;2024-11-05;;Bezpečná firma s.r.o.',
-      'Z000002;E0003;Marie Černá;BOZP-Z;2024-11-05;2026-11-01;bezpecna firma s.r.o.',
+      'Z000002;E0003;Marie Černá;BOZP-Z;2024-11-06;2026-11-01;bezpecna firma s.r.o.',
       'Z000003;E0001;Novák Jan;LEAD;2024-11-05;;',
       'Z000004;E9001;;BOZP-Z;2024-11-05;;',
       'Z000005;E0001;;KYB3R;2024-11-05;;',
@@ -193,6 +193,92 @@ describe('validateBatch', () => {
     )
     expect(codesOf(again.employees?.[0])).toEqual(['row:DUPLICATE_PERSON'])
     expect(again.employees?.[0]?.errors[0]?.params).toEqual({ otherId: 'E0500' })
+  })
+})
+
+describe('validateBatch: a record twice, and rows the other files contradict', () => {
+  const completions = (rows: string[]) =>
+    file('absolvovana.csv', [
+      'id_zaznamu;id_zamestnance;zamestnanec;kod_skoleni;datum_absolvovani;platnost_do;poskytovatel;cena',
+      ...rows,
+    ]).rows as NonNullable<ImportBatch['completions']>
+  const register: ReferenceSnapshot = {
+    ...EMPTY_REFERENCE,
+    courses: [
+      { code: 'KYBER', validityMonths: 12 },
+      { code: 'GDPR', validityMonths: 36 },
+    ],
+    employees: [{ externalId: 'E0001', email: null, fullName: 'Černá Marie' }],
+  }
+
+  it('refuses the same completion again under another ID; another price is another record', () => {
+    const out = validateBatch(
+      {
+        completions: completions([
+          'Z000001;E0001;Černá Marie;GDPR;2024-11-05;;Interní školitel;450',
+          'Z915067;E0001;Černá Marie;GDPR;2024-11-05;;INTERNÍ ŠKOLITEL;450',
+          'Z000002;E0001;Černá Marie;GDPR;2024-11-05;;Interní školitel;500',
+        ]),
+      },
+      register
+    )
+    expect(out.completions?.[1]?.errors).toMatchObject([
+      { code: 'DUPLICATE_RECORD', params: { otherId: 'Z000001', firstRow: 2 } },
+    ])
+    expect(out.completions?.[2]?.isValid).toBe(true)
+  })
+
+  it('refuses a session copied under another ID; other seats at the same time are a warning', () => {
+    const out = validateBatch(
+      {
+        sessions: file('terminy.csv', [
+          'id_terminu;kod_skoleni;datum;cas;misto;kapacita;obsazeno;cena',
+          'T003;KYBER;2026-11-11;09:00-12:00;Aula A;30;5;800',
+          'T009;KYBER;2026-11-11;09:00-12:00;Aula A;30;5;800',
+          'T010;KYBER;2026-11-11;09:00-12:00;Aula A;20;5;800',
+        ]).rows as NonNullable<ImportBatch['sessions']>,
+      },
+      { ...register, rooms: ['Aula A'], defaultProvider: 'Interní školitel' }
+    )
+    expect(out.sessions?.[1]?.errors).toMatchObject([
+      { code: 'DUPLICATE_RECORD', params: { otherId: 'T003', firstRow: 2 } },
+    ])
+    expect(codesOf(out.sessions?.[2])).toEqual(['date:DUPLICATE_SLOT'])
+  })
+
+  it('warns on a completion after the person left the batch’s register', () => {
+    const out = validateBatch(
+      {
+        employees: file('zamestnanci.csv', [
+          'id_zamestnance,jmeno,prijmeni,email,utvar,pozice,vedouci_email,datum_nastupu,datum_ukonceni,stav',
+          'E0019,Jan,Novák,,Vedení,Ředitel,,2015-01-01,2025-12-31,ukončen',
+        ]).rows as NonNullable<ImportBatch['employees']>,
+        completions: completions(['Z002860;E0019;Novák Jan;GDPR;2026-09-30;;;']),
+      },
+      register
+    )
+    expect(out.completions?.[0]?.warnings).toMatchObject([
+      { code: 'COMPLETED_AFTER_LEAVING', params: { value: '2026-09-30', leftOn: '2025-12-31' } },
+      { code: 'VALIDITY_DERIVED' },
+    ])
+  })
+
+  it('names the course a mistyped code was meant to be, when only one is that near', () => {
+    const out = validateBatch(
+      {
+        completions: completions([
+          'Z000005;E0001;;KYB3R;2024-11-05;;;',
+          'Z000006;E0001;;XYZ;2024-11-05;;;',
+        ]),
+      },
+      register
+    )
+    expect(out.completions?.[0]?.errors).toMatchObject([
+      { code: 'COURSE_NOT_FOUND', params: { value: 'KYB3R', suggestion: 'KYBER' } },
+    ])
+    expect(out.completions?.[1]?.errors).toMatchObject([
+      { code: 'COURSE_NOT_FOUND', params: { value: 'XYZ', suggestion: 'none' } },
+    ])
   })
 })
 
@@ -444,8 +530,8 @@ describe('rooms', () => {
           'T101;GDPR;2026-11-04;08:00-10:00;Aula A;10;EXTERNÍ LEKTOR',
           'T102;GDPR;2026-11-05;08:00-10:00;Aula A;10;Nikdo',
           'T103;ANGL;2026-11-06;08:00-10:00;Aula A;10;Externí lektor',
-          'T104;ANGL;2026-11-07;08:00-10:00;Aula A;10;',
-          'T105;ANGL;2026-11-08;08:00-10:00;Aula A;10;',
+          'T104;ANGL;2026-11-09;08:00-10:00;Aula A;10;',
+          'T105;ANGL;2026-11-10;08:00-10:00;Aula A;10;',
         ]),
       },
       register

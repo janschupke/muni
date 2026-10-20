@@ -102,6 +102,15 @@ describe('sessions', () => {
     expect(codes(session({ status: 'odloženo' }))).toEqual(['status:INVALID_STATUS'])
   })
 
+  it('warns on a planned session whose day has passed, or that falls on a day off', () => {
+    expect(codes(session({ date: '2026-10-14' }))).toEqual(['date:PLANNED_IN_PAST'])
+    // Saturday, and 28 October (a public holiday).
+    expect(codes(session({ date: '2026-11-14' }))).toEqual(['date:NON_WORKING_DAY'])
+    expect(codes(session({ date: '28. 10. 2026' }))).toEqual(['date:NON_WORKING_DAY'])
+    // A cancelled one is history, whatever its day.
+    expect(codes(session({ date: '2026-10-10', status: 'zrušeno' }))).toEqual([])
+  })
+
   it('warns on zero capacity and overbooking', () => {
     expect(codes(session({ capacity: '0', bookedCount: '0' }))).toEqual(['capacity:ZERO_CAPACITY'])
     expect(codes(session({ bookedCount: '31' }))).toEqual(['bookedCount:OVERBOOKED'])
@@ -116,7 +125,6 @@ describe('sessions', () => {
     [{ date: '1900-01-01' }, ['date:PLACEHOLDER_DATE']],
     [{ date: '31. 9. 2026' }, ['date:INVALID_DATE']],
     [{ date: '' }, ['date:REQUIRED']],
-    [{ price: '-450' }, ['price:NEGATIVE_PRICE']],
     [{ price: 'dohodou' }, ['price:INVALID_PRICE']],
     [{ externalId: '' }, ['externalId:REQUIRED']],
   ])('%j → %j', (raw, issues) => {
@@ -127,6 +135,10 @@ describe('sessions', () => {
 
   it('keeps fixable values with a warning', () => {
     expect(codes(session({ price: 'zdarma' }))).toEqual(['price:FREE_PRICE'])
+    // A negative price is left out; the session is not.
+    const negative = session({ price: '-450' })
+    expect(negative.data?.pricePerPerson).toBeNull()
+    expect(codes(negative)).toEqual(['price:NEGATIVE_PRICE'])
     const serial = session({ date: '46330' })
     expect(serial.data?.date).toBe('2026-11-04')
     expect(codes(serial)).toEqual(['date:EXCEL_SERIAL_DATE'])
@@ -161,6 +173,19 @@ describe('employees', () => {
   it('refuses the IDs the app gives the people it adds', () => {
     // N… people were added in the app: an export may not overwrite them.
     expect(codes(employee({ externalId: 'N0001' }))).toEqual(['externalId:RESERVED_ID'])
+  })
+
+  it('warns on someone not at work yet, and on someone in no department', () => {
+    expect(codes(employee({ hiredOn: '2026-12-01' }))).toEqual(['hiredOn:HIRED_IN_FUTURE'])
+    expect(codes(employee({ department: '' }))).toEqual(['department:NO_DEPARTMENT'])
+  })
+
+  it('reads a comma typed for the dot in an email domain', () => {
+    const typo = employee({ email: 'lucie.fialova@vzorova,example' })
+    expect(typo.data?.email).toBe('lucie.fialova@vzorova.example')
+    expect(codes(typo)).toEqual(['email:EMAIL_FIXED'])
+    // A domain with no dot at all cannot be guessed.
+    expect(employee({ email: 'lucie.fialova@vzorova' }).data?.email).toBeNull()
   })
 
   it('title-cases names written in one case, and trusts mixed case', () => {
@@ -264,13 +289,21 @@ describe('completions', () => {
     })
   })
 
-  it('rejects validity before completion, and warns on a future completion', () => {
-    expect(codes(completion({ validUntil: '1. 1. 2024' }))).toEqual([
-      'validUntil:VALIDITY_BEFORE_COMPLETION',
-    ])
-    expect(codes(completion({ completedOn: '2026-12-01', validUntil: '' }))).toEqual([
-      'completedOn:FUTURE_COMPLETION',
-    ])
+  it('drops a validity that ends before the completion, and refuses a future completion', () => {
+    // The completion is real: its validity is worked out from the course later.
+    const early = completion({ validUntil: '1. 1. 2024' })
+    expect(early.data).toMatchObject({ completedOn: '2024-11-05', validUntil: null })
+    expect(codes(early)).toEqual(['validUntil:VALIDITY_BEFORE_COMPLETION'])
+    // A training that has not happened is not imported.
+    const ahead = completion({ completedOn: '2026-12-01', validUntil: '' })
+    expect(ahead.data).toBeNull()
+    expect(codes(ahead)).toEqual(['completedOn:FUTURE_COMPLETION'])
+  })
+
+  it('keeps a completion with a negative price, without the price', () => {
+    const negative = completion({ price: '-600,00' })
+    expect(negative.data?.price).toBeNull()
+    expect(codes(negative)).toEqual(['price:NEGATIVE_PRICE'])
   })
 
   it('requires its identifiers and rejects a footer', () => {

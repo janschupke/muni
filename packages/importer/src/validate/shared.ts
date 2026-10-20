@@ -72,17 +72,46 @@ export function checkRef(
     archived,
     known,
     unknown,
-  }: { archived: boolean; known: boolean; unknown: readonly [IssueCode, Severity] }
+    hint,
+  }: {
+    archived: boolean
+    known: boolean
+    unknown: readonly [IssueCode, Severity]
+    /** More for the unknown issue to say (a code it may have meant). */
+    hint?: () => ValidationIssue['params']
+  }
 ): boolean {
   if (archived) {
     extra.push(archivedIssue(field, value))
     return false
   }
   if (!known) {
-    extra.push(issue(field, unknown[0], unknown[1], { value }))
+    extra.push(issue(field, unknown[0], unknown[1], { value, ...hint?.() }))
     return false
   }
   return true
+}
+
+/** Whether `a` becomes `b` by one insertion, deletion or substitution. */
+function oneEditApart(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1 || a === b) return false
+  let i = 0
+  while (i < a.length && i < b.length && a[i] === b[i]) i++
+  const rest = (x: string, skip: number) => x.slice(i + skip)
+  return (
+    rest(a, 1) === rest(b, 1) || // substitution
+    rest(a, 1) === rest(b, 0) || // a has one more
+    rest(a, 0) === rest(b, 1) // b has one more
+  )
+}
+
+/**
+ * The code a mistyped one was meant to be (`KYB3R` → KYBER): the single known code one edit
+ * away, or `'none'` when there is no such code or more than one.
+ */
+export function suggestedCode(code: string, known: Iterable<string>): { suggestion: string } {
+  const near = [...known].filter(k => oneEditApart(code, k))
+  return { suggestion: near.length === 1 && near[0] ? near[0] : 'none' }
 }
 
 /**

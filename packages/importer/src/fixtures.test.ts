@@ -131,8 +131,17 @@ describe('employees', () => {
   it('fixes names and emails, drops what cannot be fixed', () => {
     expect(byId(batch.employees, 'E0020').data?.firstName).toBe('Lucie')
     expect(byId(batch.employees, 'E0002').data?.email).toBe('tereza.jandova@vzorova.example')
-    expect(byId(batch.employees, 'E0121').data?.email).toBeNull()
-    expect(codesOf(byId(batch.employees, 'E0121'))).toContain('INVALID_EMAIL')
+    // A comma typed for the dot is read as the dot; a domain with no dot cannot be guessed.
+    expect(byId(batch.employees, 'E0121').data?.email).toBe('lucie.fialova@vzorova.example')
+    expect(codesOf(byId(batch.employees, 'E0121'))).toContain('EMAIL_FIXED')
+    expect(byId(batch.employees, 'E0129').data?.email).toBeNull()
+    expect(codesOf(byId(batch.employees, 'E0129'))).toContain('INVALID_EMAIL')
+  })
+
+  it('warns on people not at work yet, and on people in no department', () => {
+    expect(codesOf(byId(batch.employees, 'E0095'))).toContain('HIRED_IN_FUTURE')
+    const none = batch.employees?.filter(r => codesOf(r).includes('NO_DEPARTMENT')) ?? []
+    expect(none.map(r => r.data?.externalId)).toEqual(['E0007', 'E0011', 'E0017', 'E0116', 'E0141'])
   })
 
   it('neutralises formula payloads in notes', () => {
@@ -155,18 +164,28 @@ describe('employees', () => {
 })
 
 describe('sessions', () => {
-  it('rejects an unknown course code and an impossible date', () => {
-    expect(byId(batch.sessions, 'T010').errors).toMatchObject([{ code: 'COURSE_NOT_FOUND' }])
+  it('rejects an unknown course code, an impossible date and a copy of another session', () => {
+    expect(byId(batch.sessions, 'T010').errors).toMatchObject([
+      { code: 'COURSE_NOT_FOUND', params: { value: 'KYB3R', suggestion: 'KYBER' } },
+    ])
     expect(byId(batch.sessions, 'T014').errors).toMatchObject([{ code: 'INVALID_DATE' }])
+    // T009 is T003 again under another ID.
+    expect(byId(batch.sessions, 'T009').errors).toMatchObject([
+      { code: 'DUPLICATE_RECORD', params: { otherId: 'T003' } },
+    ])
   })
 
-  it('warns about duplicates, overbooking and zero capacity but imports them', () => {
-    expect(byId(batch.sessions, 'T009')).toMatchObject({
-      isValid: true,
-      warnings: [{ code: 'DUPLICATE_SLOT' }],
-    })
+  it('warns on planned sessions whose day has passed or is a day off', () => {
+    const past = batch.sessions?.filter(r => codesOf(r).includes('PLANNED_IN_PAST')) ?? []
+    expect(past).toHaveLength(6)
+    expect(codesOf(byId(batch.sessions, 'T007'))).toContain('NON_WORKING_DAY')
+    expect(codesOf(byId(batch.sessions, 'T002'))).toContain('NON_WORKING_DAY')
+  })
+
+  it('warns about overbooking and zero capacity but imports them', () => {
     // No rooms file: each place becomes a room, announced on its first session.
     expect(byId(batch.sessions, 'T001').warnings).toMatchObject([
+      { code: 'PLANNED_IN_PAST' },
       { code: 'ROOM_DERIVED', params: { value: 'Aula A' } },
     ])
     expect(byId(batch.sessions, 'T016').warnings).toMatchObject([{ code: 'OVERBOOKED' }])
@@ -220,14 +239,43 @@ describe('completions', () => {
     expect(variants?.every(r => r.data?.courseCode === 'BOZP-Z')).toBe(true)
   })
 
-  it('rejects placeholder dates and negative prices, warns on Excel serials', () => {
+  it('rejects placeholder dates, warns on Excel serials, keeps negative prices out', () => {
     expect(byId(batch.completions, 'Z000001').errors).toMatchObject([{ code: 'PLACEHOLDER_DATE' }])
     expect(byId(batch.completions, 'Z000471')).toMatchObject({
       isValid: true,
       data: { completedOn: '2019-03-28' },
     })
+    // The training happened; only the price is wrong, so it is left out.
     const negative = batch.completions?.filter(r => (r.raw['price'] ?? '').startsWith('-')) ?? []
-    expect(negative.every(r => codesOf(r).includes('NEGATIVE_PRICE'))).toBe(true)
+    expect(negative).toHaveLength(3)
+    expect(negative.every(r => r.isValid && r.data?.price === null)).toBe(true)
+  })
+
+  it('works out a validity that ends before the completion from the course', () => {
+    const early = batch.completions?.filter(r => codesOf(r).includes('VALIDITY_BEFORE_COMPLETION'))
+    expect(early).toHaveLength(8)
+    expect(early?.every(r => r.isValid && codesOf(r).includes('VALIDITY_DERIVED'))).toBe(true)
+  })
+
+  it('refuses trainings entered in advance, and records exported twice under new IDs', () => {
+    const ahead = batch.completions?.filter(r => codesOf(r).includes('FUTURE_COMPLETION')) ?? []
+    expect(ahead.map(r => r.rowNumber)).toEqual([2861, 2862, 2863, 2864, 2865])
+    const twice = batch.completions?.filter(r => codesOf(r).includes('DUPLICATE_RECORD')) ?? []
+    expect(twice.map(r => r.rowNumber)).toEqual([
+      2866, 2867, 2868, 2869, 2870, 2871, 2872, 2873, 2874, 2875,
+    ])
+  })
+
+  it('warns on trainings after the person left', () => {
+    const after = batch.completions?.filter(r => codesOf(r).includes('COMPLETED_AFTER_LEAVING'))
+    expect(after?.map(r => r.data?.employeeExternalId).sort()).toEqual([
+      'E0019',
+      'E0073',
+      'E0073',
+      'E0085',
+      'E0139',
+      'E0139',
+    ])
   })
 
   it('rejects the totals footer', () => {
@@ -267,27 +315,32 @@ describe('regression baseline', () => {
       valid: 170,
       invalid: 4,
       skipped: 0,
-      // 15 of them only announce the departments and positions the import creates.
-      warnings: 46,
+      // 15 of them only announce the departments and positions the import creates; 6 are the
+      // people in no department or not at work yet.
+      warnings: 52,
       removed: 0,
     })
     expect(summarize(batch.sessions ?? [])).toEqual({
       total: 34,
-      valid: 32,
-      invalid: 2,
+      // T009, a copy of T003, is refused.
+      valid: 31,
+      invalid: 3,
       skipped: 0,
       // Seven of the eight places get a room created from their first session (one first
-      // session already carries another warning).
-      warnings: 11,
+      // session already carries another warning); five more are planned in the past or on a
+      // day off.
+      warnings: 16,
       removed: 0,
     })
     expect(summarize(batch.completions ?? [])).toEqual({
       total: 2866,
-      valid: 2822,
-      invalid: 44,
+      // 5 future trainings and 10 re-exported records refused; 3 negative prices and 8
+      // validities before the completion kept, repaired.
+      valid: 2818,
+      invalid: 48,
       skipped: 0,
       // Three more only announce providers the import creates (the fourth row has a warning).
-      warnings: 112,
+      warnings: 114,
       removed: 0,
     })
   })

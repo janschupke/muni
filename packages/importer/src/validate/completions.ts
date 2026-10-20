@@ -16,6 +16,7 @@ import {
   hasError,
   issue,
   normalized,
+  suggestedCode,
   usable,
 } from './shared'
 
@@ -46,6 +47,8 @@ export function validateCompletions(
       aliases: ReadonlyMap<string, string>
       ids: ReadonlySet<string>
       names: ReadonlyMap<string, string>
+      /** The day each person who left the batch's people did. */
+      leftOn: ReadonlyMap<string, string>
     }
     /** Every course's validity in months, by code; null never expires. */
     validity: ReadonlyMap<string, number | null>
@@ -57,6 +60,8 @@ export function validateCompletions(
     reference.providers
   )
   const newProvider = creations(reference.providers, v => providers.keyOf(v))
+  /** The same training of the same person on the same day at the same price: one record. */
+  const records = new Map<string, ParsedRow<CompletionInput>>()
   return rows.map(row => {
     const extra: Extra = []
     if (!usable(row)) return finalize(row, null, extra)
@@ -82,6 +87,14 @@ export function validateCompletions(
       unknown: ['EMPLOYEE_NOT_FOUND', 'error'],
     })
     if (person) {
+      const left = people.leftOn.get(data.employeeExternalId)
+      if (left !== undefined && data.completedOn > left)
+        extra.push(
+          issue('completedOn', 'COMPLETED_AFTER_LEAVING', 'warning', {
+            value: data.completedOn,
+            leftOn: left,
+          })
+        )
       const expected = people.names.get(data.employeeExternalId)
       const given = row.raw['employeeName']?.trim() ?? ''
       if (expected && given !== '' && !sameName(given, expected))
@@ -94,6 +107,7 @@ export function validateCompletions(
       archived: archived.course(data.courseCode),
       known: validity.has(data.courseCode),
       unknown: ['COURSE_NOT_FOUND', 'error'],
+      hint: () => suggestedCode(data.courseCode, validity.keys()),
     })
     const months = course ? (validity.get(data.courseCode) ?? null) : null
     if (months !== null) {
@@ -109,6 +123,25 @@ export function validateCompletions(
           })
         )
       }
+    }
+
+    // The same record again under another ID (a re-export): refused like a repeated ID.
+    if (!hasError(row, extra)) {
+      const key = [
+        data.employeeExternalId,
+        data.courseCode,
+        data.completedOn,
+        data.price ?? '',
+      ].join('|')
+      const owner = records.get(key)
+      if (owner?.base.data)
+        extra.push(
+          issue('row', 'DUPLICATE_RECORD', 'error', {
+            otherId: owner.base.data.externalId,
+            firstRow: owner.rowNumber,
+          })
+        )
+      else records.set(key, row)
     }
 
     if (archived.provider(data.provider)) {

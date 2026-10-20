@@ -379,7 +379,7 @@ describe('what may be archived', () => {
     ).toEqual({
       ok: false,
       reason: 'IN_USE',
-      count: 7,
+      count: 6,
     })
     expect(await archiveImpact('course', await idOf('course', 'BOZP-Z'), options)).toEqual({
       ok: false,
@@ -387,7 +387,7 @@ describe('what may be archived', () => {
       count: 2,
     })
     // A session still to start is cancelled, not archived, with seats taken or not.
-    expect(await archiveImpact('session', await idOf('courseSession', 'T009'), options)).toEqual({
+    expect(await archiveImpact('session', await idOf('courseSession', 'T003'), options)).toEqual({
       ok: false,
       reason: 'UPCOMING',
       count: 5,

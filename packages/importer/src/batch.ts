@@ -37,7 +37,7 @@ const MAPPERS: { [K in DatasetKind]: Mapper<K> } = {
   rooms: b => mapRoom(b),
   courses: b => mapCourse(b),
   employees: mapEmployee,
-  sessions: b => mapSession(b),
+  sessions: mapSession,
   completions: mapCompletion,
 }
 

@@ -61,18 +61,19 @@ describe('ImportWizard', () => {
     await waitFor(() => {
       expect(document.activeElement?.textContent).toMatch(/^Step 2 of 4: /)
     })
-    // The sessions tab has the two known errors.
+    // The sessions tab has the three known errors: a mistyped course, an impossible date, and
+    // a session exported twice under two IDs.
     await user.click(await screen.findByRole('tab', { name: /Sessions/ }))
     const panel = screen.getByRole('tabpanel')
     const errorsCard = within(panel).getByRole('button', { name: /Errors/ })
-    expect(errorsCard.textContent).toContain('2')
+    expect(errorsCard.textContent).toContain('3')
     await user.click(errorsCard)
     expect(errorsCard.getAttribute('aria-pressed')).toBe('true')
     expect(
       within(panel)
         .getByRole('button', { name: /Problems on line 11/ })
         .getAttribute('aria-label')
-    ).toContain('Unknown course “KYB3R”')
+    ).toContain('Unknown course “KYB3R”. Did you mean KYBER?')
 
     // Fix T010's course code inline; the row becomes valid and leaves the "errors" filter.
     // The cell says what is in it and that it is wrong, not only by its colour.
@@ -85,7 +86,7 @@ describe('ImportWizard', () => {
     const cell = within(panel).getByRole('textbox', { name: 'Edit Course on line 11' })
     await user.clear(cell)
     await user.type(cell, 'KYBER{Enter}')
-    expect(within(panel).getByRole('button', { name: /Errors/ }).textContent).toContain('1')
+    expect(within(panel).getByRole('button', { name: /Errors/ }).textContent).toContain('2')
     expect(within(panel).queryByRole('button', { name: /Problems on line 11/ })).toBeNull()
     await expectNoAxeViolations()
 
@@ -94,11 +95,11 @@ describe('ImportWizard', () => {
     // Confirm step: counts per dataset, errors skipped.
     expect(screen.getByText('Courses: 10 records will be written')).toBeTruthy()
     expect(screen.getByText('Employees: 170 records will be written')).toBeTruthy()
-    expect(screen.getByText('Sessions: 33 records will be written')).toBeTruthy()
-    expect(screen.getByText('Completions: 2,822 records will be written')).toBeTruthy()
+    expect(screen.getByText('Sessions: 32 records will be written')).toBeTruthy()
+    expect(screen.getByText('Completions: 2,818 records will be written')).toBeTruthy()
     await expectNoAxeViolations()
 
-    await user.click(screen.getByRole('button', { name: /Import 3,035 records/ }))
+    await user.click(screen.getByRole('button', { name: /Import 3,030 records/ }))
 
     // Commit: dependency order, chunks of at most 500.
     // Announced from the one status region the run keeps.
@@ -112,10 +113,10 @@ describe('ImportWizard', () => {
       ['completions', 500],
       ['completions', 500],
       ['completions', 500],
-      ['completions', 322],
-      ['sessions', 33],
+      ['completions', 318],
+      ['sessions', 32],
     ])
-    expect(screen.getByText('Completions: 2822 created, 0 updated')).toBeTruthy()
+    expect(screen.getByText('Completions: 2818 created, 0 updated')).toBeTruthy()
     await expectNoAxeViolations()
   })
 

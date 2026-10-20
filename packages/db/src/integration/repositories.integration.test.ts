@@ -41,6 +41,7 @@ import {
 import { ACTIVE } from '../repositories/archive/archive'
 import { loadBookingContext } from '../repositories/catalog/requirements'
 import { seedFromDirectory } from '../seed'
+import { commitChunk } from '../writer'
 
 const db = createDb()
 const asOf = '2026-10-16'
@@ -60,8 +61,9 @@ describe('seed', () => {
   it('writes the expected rows', async () => {
     expect(await db.employee.count()).toBe(170)
     expect(await db.course.count()).toBe(10)
-    expect(await db.courseSession.count()).toBe(32)
-    expect(await importedCompletions()).toBe(2822)
+    // T009 (a copy of T003) and T010, T014 are refused.
+    expect(await db.courseSession.count()).toBe(31)
+    expect(await importedCompletions()).toBe(2818)
     expect(await db.department.count()).toBe(9)
     // No rooms file in data/: one room per place the sessions are held, of the kind its name
     // implies and sized by the largest session there; online has no seat limit.
@@ -143,8 +145,8 @@ describe('seed', () => {
 
   it('is idempotent', async () => {
     const results = await seedFromDirectory(db, DATA_DIR, asOf)
-    expect(results.completions).toEqual({ created: 0, updated: 2822, skipped: 44 })
-    expect(await importedCompletions()).toBe(2822)
+    expect(results.completions).toEqual({ created: 0, updated: 2818, skipped: 48 })
+    expect(await importedCompletions()).toBe(2818)
     expect(await db.employee.count()).toBe(170)
   })
 
@@ -599,9 +601,9 @@ describe('rooms', () => {
     const aula = rooms.find(r => r.name === 'Aula A')
     expect(aula?.upcomingSessions).toBeGreaterThan(0)
     // 17 Oct – 15 Nov: 19 working days once 28 October (a holiday) is out, 8 hours each.
-    // Held on working days: T003, T009 (11 Nov) and T016 (4 Nov), 3 hours each; T002 falls
-    // on the holiday and does not count.
-    expect(aula?.utilisation).toBeCloseTo(9 / (19 * 8))
+    // Held on working days: T003 (11 Nov) and T016 (4 Nov), 3 hours each; T002 falls on the
+    // holiday and does not count.
+    expect(aula?.utilisation).toBeCloseTo(6 / (19 * 8))
     // Online rooms have no working hours to fill.
     expect(rooms.find(r => r.name === 'Online')?.utilisation).toBeNull()
   })
@@ -864,14 +866,31 @@ describe('assignments', () => {
   it('refuses overlapping sessions for one person, past and cancelled sessions', async () => {
     const [person] = await needing(db, 'T003', opts, 1)
     if (!person) throw new Error('fixture: someone who needs KYBER')
-    // T003 and T009 are the same KYBER slot (a known duplicate in the export).
+    // Another KYBER session at T003's time, online (an online room never clashes).
+    await commitChunk(db, 'sessions', [
+      {
+        externalId: 'T909',
+        courseCode: 'KYBER',
+        date: '2026-11-11',
+        startTime: '09:00',
+        endTime: '12:00',
+        location: 'Online',
+        capacity: 30,
+        bookedCount: 0,
+        pricePerPerson: 800,
+        status: 'PLANNED',
+        providerName: null,
+      },
+    ])
     const [first, clash] = await applyAssignments(
-      [manual('T003', person), manual('T009', person)],
+      [manual('T003', person), manual('T909', person)],
       TEST_USER,
       opts
     )
     expect(first?.ok).toBe(true)
     expect(clash).toMatchObject({ ok: false, reason: 'CONFLICT' })
+    await db.sessionAssignment.deleteMany({ where: { session: { externalId: 'T909' } } })
+    await db.courseSession.deleteMany({ where: { externalId: 'T909' } })
     const [past, cancelled] = await applyAssignments(
       [manual('T001', person), manual('T017', person)],
       TEST_USER,

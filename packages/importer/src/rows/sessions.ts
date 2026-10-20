@@ -1,6 +1,6 @@
 import type { SessionStatus } from '@muni/domain/enums'
 import { type SessionInput, sessionSchema } from '@muni/domain/schemas'
-import { parseTimeRange } from '@muni/utils/dates'
+import { type IsoDate, isWorkingDay, parseTimeRange } from '@muni/utils/dates'
 import { fold } from '@muni/utils/text'
 
 import type { RowMapResult } from '../types'
@@ -20,7 +20,7 @@ function status(b: RowBuilder): SessionStatus | null {
   return STATUS_BY_FOLD[fold(raw)] ?? b.error('status', 'INVALID_STATUS', { raw })
 }
 
-export function mapSession(b: RowBuilder): RowMapResult<SessionInput> {
+export function mapSession(b: RowBuilder, ctx: { today: IsoDate }): RowMapResult<SessionInput> {
   if (b.isSummaryRow('externalId')) return b.rejectSummary()
 
   const externalId = reservedId(b, b.required('externalId')?.toUpperCase() ?? null, 'session')
@@ -41,6 +41,13 @@ export function mapSession(b: RowBuilder): RowMapResult<SessionInput> {
     b.warn('bookedCount', 'OVERBOOKED', { booked: bookedCount, capacity })
   }
 
+  const sessionStatus = status(b)
+  if (sessionStatus === 'PLANNED' && date !== null) {
+    // Still planned, though its day has gone: it was held, or it was cancelled unrecorded.
+    if (date < ctx.today) b.warn('date', 'PLANNED_IN_PAST', { value: date })
+    if (!isWorkingDay(date)) b.warn('date', 'NON_WORKING_DAY', { value: date })
+  }
+
   return b.finish(sessionSchema, {
     externalId,
     courseCode,
@@ -51,7 +58,7 @@ export function mapSession(b: RowBuilder): RowMapResult<SessionInput> {
     capacity,
     bookedCount,
     pricePerPerson: b.price('price'),
-    status: status(b),
+    status: sessionStatus,
     providerName: b.text('provider'),
   })
 }

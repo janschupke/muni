@@ -36,12 +36,20 @@ function personName(b: RowBuilder, field: string): string | null {
   return normalized
 }
 
-/** Strips stray whitespace and lower-cases. A value that still isn't an email becomes null. */
+/**
+ * Strips stray whitespace and lower-cases. A comma typed for a dot (`@firma,cz`) is read as
+ * the dot. A value that still isn't an email becomes null.
+ */
 function normalizeEmail(b: RowBuilder, field: string): string | null {
   const raw = b.raw(field)
   if (raw.trim() === '') return null
   const value = raw.replace(/\s+/g, '').toLowerCase()
   if (!emailSchema.safeParse(value).success) {
+    const fixed = value.replaceAll(',', '.')
+    if (fixed !== value && emailSchema.safeParse(fixed).success) {
+      b.warn(field, 'EMAIL_FIXED', { raw: raw.trim(), value: fixed })
+      return fixed
+    }
     b.warn(field, 'INVALID_EMAIL', { raw: raw.trim() })
     return null
   }
@@ -105,8 +113,14 @@ export function mapEmployee(b: RowBuilder, ctx: { today: IsoDate }): RowMapResul
     b.warn('status', 'STATUS_DATE_MISMATCH', { status: employmentStatus, leftOn })
   }
 
+  // Not yet at work: they count from the day they start.
+  if (hiredOn !== null && hiredOn > ctx.today)
+    b.warn('hiredOn', 'HIRED_IN_FUTURE', { value: hiredOn })
+
   const department = b.optional('department')
   const position = b.optional('position')
+  // Requirements by department cannot reach someone in none.
+  if (department === null) b.warn('department', 'NO_DEPARTMENT')
 
   return b.finish(employeeSchema, {
     externalId,

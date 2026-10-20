@@ -91,10 +91,12 @@ export function validateEmployees(
 
   const ids = new Set(reference.employees.map(e => e.externalId))
   const names = new Map(reference.employees.map(e => [e.externalId, e.fullName]))
+  const leftOn = new Map<string, string>()
   for (const row of checked) {
     if (!isCommitted(row)) continue
     ids.add(row.data.externalId)
     names.set(row.data.externalId, sortName(row.data))
+    if (row.data.leftOn) leftOn.set(row.data.externalId, row.data.leftOn)
   }
-  return { rows: checkManagers(checked, idByEmail), aliases, ids, names }
+  return { rows: checkManagers(checked, idByEmail), aliases, ids, names, leftOn }
 }

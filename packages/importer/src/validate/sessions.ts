@@ -17,6 +17,7 @@ import {
   firstRowByKey,
   issue,
   normalized,
+  suggestedCode,
   usable,
 } from './shared'
 
@@ -27,6 +28,15 @@ const overlaps = (
 ) =>
   a.date === b.date &&
   intervalsOverlap({ start: a.startTime, end: a.endTime }, { start: b.startTime, end: b.endTime })
+
+/** Two rows of one session: the same in everything but the ID. */
+const sameSession = (a: SessionInput, b: SessionInput) =>
+  a.endTime === b.endTime &&
+  a.capacity === b.capacity &&
+  a.bookedCount === b.bookedCount &&
+  a.pricePerPerson === b.pricePerPerson &&
+  a.status === b.status &&
+  a.providerName === b.providerName
 
 /**
  * Who holds each session: the provider it names, which must offer the course (as the register
@@ -205,11 +215,20 @@ export function validateSessions(
       archived: archived.course(data.courseCode),
       known: validity.has(data.courseCode),
       unknown: ['COURSE_NOT_FOUND', 'error'],
+      hint: () => suggestedCode(data.courseCode, validity.keys()),
     })
     const slotTwin = duplicateOf(row, firstSlot, slotOf(data))
+    // Everything the same but the ID: the session twice (a re-export), refused. The same
+    // course, time and place with other seats is worth a look, no more.
+    const copy = slotTwin?.base.data && sameSession(slotTwin.base.data, data)
     if (!owner && slotTwin?.base.data)
       extra.push(
-        issue('date', 'DUPLICATE_SLOT', 'warning', { otherId: slotTwin.base.data.externalId })
+        copy
+          ? issue('row', 'DUPLICATE_RECORD', 'error', {
+              otherId: slotTwin.base.data.externalId,
+              firstRow: slotTwin.rowNumber,
+            })
+          : issue('date', 'DUPLICATE_SLOT', 'warning', { otherId: slotTwin.base.data.externalId })
       )
     checkProvider(extra, row, data)
     const location = checkRoom(extra, row, data, { checkFit: !owner, slotTaken: !!slotTwin })

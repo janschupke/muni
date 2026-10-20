@@ -14,12 +14,16 @@ export function mapCompletion(
   const employeeExternalId = b.required('employeeExternalId')?.toUpperCase() ?? null
   const courseCode = b.code('courseCode')
   const completedOn = b.date('completedOn', { required: true })
-  const validUntil = b.date('validUntil', { required: false })
+  let validUntil = b.date('validUntil', { required: false })
+  // The completion is real; only its expiry is wrong: worked out from the course instead, as a
+  // missing one is (validateCompletions).
   if (completedOn !== null && validUntil !== null && validUntil < completedOn) {
-    b.error('validUntil', 'VALIDITY_BEFORE_COMPLETION', { raw: b.cell('validUntil') })
+    b.warn('validUntil', 'VALIDITY_BEFORE_COMPLETION', { raw: b.cell('validUntil') })
+    validUntil = null
   }
+  // A training that has not happened yet is not a completion.
   if (completedOn !== null && completedOn > ctx.today) {
-    b.warn('completedOn', 'FUTURE_COMPLETION', { value: completedOn })
+    b.error('completedOn', 'FUTURE_COMPLETION', { value: completedOn })
   }
 
   return b.finish(completionSchema, {
