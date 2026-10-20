@@ -4,9 +4,10 @@ import { Button } from '@muni/ui/button'
 import { cn } from '@muni/ui/cn'
 import { IconButton } from '@muni/ui/icon-button'
 import { Plus, X } from 'lucide-react'
-import { type ReactNode, useEffect, useRef } from 'react'
+import { type ReactNode } from 'react'
 
 import { useField } from './form-context'
+import { useFocusAfterRows } from './use-focus-after-rows'
 
 /** One row of a `RowsField`: its stable key, its cells, and the name its Remove button says. */
 export interface FieldRowItem {
@@ -50,25 +51,8 @@ export function RowsField({
   canAdd?: boolean | undefined
 }) {
   const { error, changed } = useField(name)
-  const list = useRef<HTMLDivElement>(null)
-  const add = useRef<HTMLButtonElement>(null)
-  const pending = useRef<'added' | 'removed' | null>(null)
   const count = items.length
-
-  // Once the rows have changed: the form sees what it now posts, and the new row's first
-  // control, or "Add", takes the focus.
-  useEffect(() => {
-    const what = pending.current
-    if (what === null) return
-    pending.current = null
-    changed()
-    if (what === 'added') {
-      const rows = list.current?.querySelectorAll<HTMLElement>('[data-row]')
-      rows?.[rows.length - 1]?.querySelector<HTMLElement>('button, input, select')?.focus()
-    } else {
-      add.current?.focus()
-    }
-  }, [count, changed])
+  const { listRef, addRef, added, removed } = useFocusAfterRows(count, changed)
 
   const grid = cn(
     'grid items-start gap-x-3 gap-y-2',
@@ -83,7 +67,7 @@ export function RowsField({
           {error}
         </p>
       )}
-      <div ref={list} className="flex flex-col gap-2">
+      <div ref={listRef} className="flex flex-col gap-2">
         {count === 0 ? (
           <p className="text-sm text-fg-subtle">{empty}</p>
         ) : (
@@ -101,7 +85,7 @@ export function RowsField({
                   tone="danger"
                   label={item.removeLabel}
                   onClick={() => {
-                    pending.current = 'removed'
+                    removed()
                     onRemove(item.key)
                   }}
                 >
@@ -115,10 +99,10 @@ export function RowsField({
       {canAdd && (
         <div>
           <Button
-            ref={add}
+            ref={addRef}
             size="sm"
             onClick={() => {
-              pending.current = 'added'
+              added()
               onAdd()
             }}
           >

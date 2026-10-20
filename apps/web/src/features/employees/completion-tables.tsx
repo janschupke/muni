@@ -3,13 +3,18 @@
 import type { CourseDetail, EmployeeDetail } from '@muni/db/repositories'
 import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
-import { formatCurrency, formatDate, PLACEHOLDER } from '@muni/utils/format'
+import { PLACEHOLDER } from '@muni/utils/format'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { PersonLink, personText, RecordLink } from '@/components/badges/archived'
 import { usePaginationLabels } from '@/components/table/pagination-labels'
-import { actionsColumn } from '@/components/table/table-columns'
+import {
+  actionsColumn,
+  dateColumn,
+  priceColumn,
+  validUntilColumn,
+} from '@/components/table/table-columns'
 import { RowActions } from '@/components/views/record-actions'
 
 type EmployeeCompletion = EmployeeDetail['completions'][number]
@@ -59,21 +64,15 @@ export function CompletionHistoryTable({
             />
           ),
         }),
-        history.accessor('completedOn', {
+        dateColumn(history, {
+          id: 'completedOn',
           header: t('courses.detail.completedOn'),
-          sortFn: 'basic',
-          meta: { nowrap: true },
-          cell: ({ getValue }) => formatDate(getValue()),
+          value: c => c.completedOn,
         }),
-        history.accessor(c => c.validUntil ?? undefined, {
-          id: 'validUntil',
+        validUntilColumn(history, {
           header: t('courses.detail.validUntil'),
-          sortFn: 'basic',
-          meta: { nowrap: true },
-          cell: ({ getValue }) => {
-            const value = getValue()
-            return value === undefined ? t('common.noExpiry') : formatDate(value)
-          },
+          never: t('common.noExpiry'),
+          value: c => c.validUntil,
         }),
         history.accessor(c => c.provider?.name, {
           id: 'provider',
@@ -90,13 +89,7 @@ export function CompletionHistoryTable({
             )
           },
         }),
-        history.accessor(c => c.price ?? undefined, {
-          id: 'price',
-          header: t('employees.detail.price'),
-          sortFn: 'basic',
-          meta: { align: 'right' },
-          cell: ({ getValue }) => formatCurrency(getValue()),
-        }),
+        priceColumn(history, { header: t('employees.detail.price'), value: c => c.price }),
         ...(showNotes
           ? [
               history.display({
@@ -188,21 +181,15 @@ export function CourseCompletionsTable({
           sortFn: 'text',
           cell: ({ row }) => <PersonLink person={row.original.employee} />,
         }),
-        ofCourse.accessor('completedOn', {
+        dateColumn(ofCourse, {
+          id: 'completedOn',
           header: t('courses.detail.completedOn'),
-          sortFn: 'basic',
-          meta: { nowrap: true },
-          cell: ({ getValue }) => formatDate(getValue()),
+          value: c => c.completedOn,
         }),
-        ofCourse.accessor(c => c.validUntil ?? undefined, {
-          id: 'validUntil',
+        validUntilColumn(ofCourse, {
           header: t('courses.detail.validUntil'),
-          sortFn: 'basic',
-          meta: { nowrap: true },
-          cell: ({ getValue }) => {
-            const value = getValue()
-            return value === undefined ? t('common.noExpiry') : formatDate(value)
-          },
+          never: t('common.noExpiry'),
+          value: c => c.validUntil,
         }),
         ...(canEdit
           ? [

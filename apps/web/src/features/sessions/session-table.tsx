@@ -52,10 +52,86 @@ export function SessionTable({
   panelLevel?: 2 | 3 | undefined
 }) {
   const t = useTranslations('sessions')
-  const tc = useTranslations('common')
   const paginationLabels = usePaginationLabels()
 
-  const columns = useMemo(
+  const columns = useSessionColumns({ canEdit, compact, showCourse, showProvider, showRoom })
+
+  return (
+    <DataTable
+      caption={caption ?? t('title')}
+      columns={columns}
+      data={sessions}
+      getRowId={s => s.externalId}
+      paging={paging}
+      paginationLabels={paginationLabels}
+      enableSorting={!compact}
+      rowClassName={s => (s.status === 'CANCELLED' ? 'text-fg-subtle' : undefined)}
+      {...(!compact && {
+        renderExpanded: (s: SessionListItem) => (
+          <SessionDetails session={s} level={panelLevel} canEdit={canEdit} />
+        ),
+        expandLabel: (s: SessionListItem) => t('attendees.toggle', { id: s.externalId }),
+        expandHeader: t('attendees.header'),
+      })}
+    />
+  )
+}
+
+/**
+ * An opened session: the session itself (when, the room against what the course needs, the
+ * seats, the price, the status) and who is booked on it by name, how and when, with, for
+ * admins, the way to book someone who needs it or cancel a booking. Its page shows the same
+ * two parts (`SessionFacts`, `SessionBookings`).
+ */
+function SessionDetails({
+  session: s,
+  level,
+  canEdit,
+}: {
+  session: SessionListItem
+  level: 2 | 3
+  canEdit: boolean
+}) {
+  const t = useTranslations('sessions.expanded')
+  const ahead = sessionPhase(s, new Date()) === 'AHEAD'
+  // Who needs the course, read when the row opens: the list itself stays light.
+  const candidates = useQuery({
+    ...readQuery('session-candidates', { externalId: s.externalId }),
+    enabled: canEdit && ahead,
+  })
+  return (
+    <DetailGrid layout="narrow-wide">
+      <DetailPanel title={t('session')} level={level}>
+        <SessionFacts session={s} />
+      </DetailPanel>
+      <DetailPanel title={t('people')} count={s.bookings.length} level={level}>
+        <SessionBookings
+          session={s}
+          canEdit={canEdit}
+          needing={candidates.data?.needing ?? (candidates.isError ? [] : 'loading')}
+        />
+      </DetailPanel>
+    </DetailGrid>
+  )
+} /** Which columns a session table shows: every place lists sessions a little differently. */
+interface ColumnChoice {
+  canEdit: boolean
+  /** Course, time and occupancy only (dashboard). */
+  compact: boolean
+  showCourse: boolean
+  showProvider: boolean
+  showRoom: boolean
+}
+
+/**
+ * A session table's columns: the course, when, the room, the provider, how booked, the price,
+ * the status and, for admins, the row's actions; a place that is one room or one provider drops
+ * its column, the dashboard keeps the essentials.
+ */
+function useSessionColumns({ canEdit, compact, showCourse, showProvider, showRoom }: ColumnChoice) {
+  const t = useTranslations('sessions')
+  const tc = useTranslations('common')
+  return useMemo(
     () =>
       col.columns([
         ...(showCourse
@@ -162,63 +238,5 @@ export function SessionTable({
           : []),
       ]),
     [canEdit, compact, showCourse, showProvider, showRoom, t, tc]
-  )
-
-  return (
-    <DataTable
-      caption={caption ?? t('title')}
-      columns={columns}
-      data={sessions}
-      getRowId={s => s.externalId}
-      paging={paging}
-      paginationLabels={paginationLabels}
-      enableSorting={!compact}
-      rowClassName={s => (s.status === 'CANCELLED' ? 'text-fg-subtle' : undefined)}
-      {...(!compact && {
-        renderExpanded: (s: SessionListItem) => (
-          <SessionDetails session={s} level={panelLevel} canEdit={canEdit} />
-        ),
-        expandLabel: (s: SessionListItem) => t('attendees.toggle', { id: s.externalId }),
-        expandHeader: t('attendees.header'),
-      })}
-    />
-  )
-}
-
-/**
- * An opened session: the session itself (when, the room against what the course needs, the
- * seats, the price, the status) and who is booked on it by name, how and when, with, for
- * admins, the way to book someone who needs it or cancel a booking. Its page shows the same
- * two parts (`SessionFacts`, `SessionBookings`).
- */
-function SessionDetails({
-  session: s,
-  level,
-  canEdit,
-}: {
-  session: SessionListItem
-  level: 2 | 3
-  canEdit: boolean
-}) {
-  const t = useTranslations('sessions.expanded')
-  const ahead = sessionPhase(s, new Date()) === 'AHEAD'
-  // Who needs the course, read when the row opens: the list itself stays light.
-  const candidates = useQuery({
-    ...readQuery('session-candidates', { externalId: s.externalId }),
-    enabled: canEdit && ahead,
-  })
-  return (
-    <DetailGrid layout="narrow-wide">
-      <DetailPanel title={t('session')} level={level}>
-        <SessionFacts session={s} />
-      </DetailPanel>
-      <DetailPanel title={t('people')} count={s.bookings.length} level={level}>
-        <SessionBookings
-          session={s}
-          canEdit={canEdit}
-          needing={candidates.data?.needing ?? (candidates.isError ? [] : 'loading')}
-        />
-      </DetailPanel>
-    </DetailGrid>
   )
 }

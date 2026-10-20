@@ -12,7 +12,7 @@ import { checkSessionSlotAction } from '@/server/actions/sessions'
 // What the session form and the planner's review both check as the user types: the same rule
 // says the same thing on both screens.
 
-export interface Slot {
+interface Slot {
   roomId: string
   date: string
   startTime: string
@@ -26,7 +26,7 @@ export interface Slot {
  * older one never shows for a newer one; an unanswered question says nothing (saving checks
  * again). `self` is the session being edited, which never clashes with itself.
  */
-export function useRoomBusy(slot: Slot | null, self: string | null): boolean {
+function useRoomBusy(slot: Slot | null, self: string | null): boolean {
   const key = slot && `${slot.roomId}|${slot.date}|${slot.startTime}|${slot.endTime}`
   const [answer, setAnswer] = useState<{ key: string; busy: boolean } | null>(null)
   const roomId = slot?.roomId
@@ -53,7 +53,7 @@ export function useRoomBusy(slot: Slot | null, self: string | null): boolean {
 }
 
 /** Why the room does not suit the session, as a field error naming the room. */
-export function useRoomMismatchError(): (mismatch: RoomMismatch, room: string) => ClientError {
+function useRoomMismatchError(): (mismatch: RoomMismatch, room: string) => ClientError {
   const ts = useTranslations('status')
   return (mismatch, room) => {
     switch (mismatch.kind) {

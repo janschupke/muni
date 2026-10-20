@@ -8,13 +8,9 @@ import { useRef, useState } from 'react'
 
 import { ConfirmDialog } from '@/components/feedback/confirm-dialog'
 import { useAfterWrite } from '@/lib/query/use-after-write'
-import {
-  cancelSessionAction,
-  reinstateSessionAction,
-  type StatusOutcome,
-} from '@/server/actions/sessions'
+import { cancelSessionAction, reinstateSessionAction } from '@/server/actions/sessions'
 
-type Refusal = Extract<StatusOutcome, { ok: false }>['reason']
+import { useStatusRefusal } from './use-status-refusal'
 
 /**
  * Cancels a session still to start, or plans a cancelled one again, after asking (admins only;
@@ -97,28 +93,4 @@ function CancelBody({ named }: { named: number }) {
       <p className="text-sm text-fg-muted">{t('after')}</p>
     </>
   )
-}
-
-/** Why the session's status did not change, as a sentence. */
-function useStatusRefusal(act: 'cancel' | 'reinstate') {
-  const t = useTranslations(act === 'cancel' ? 'sessions.cancel' : 'sessions.reinstate')
-  const errors = useTranslations('forms.errors')
-  const reasons = useTranslations('advisor.outcome.reasons')
-  return (reason: Refusal): string => {
-    switch (reason) {
-      case 'UNCHANGED':
-      case 'STARTED':
-        return t(`refused.${reason}`)
-      case 'NOT_FOUND':
-        return reasons('SESSION_NOT_FOUND')
-      case 'unauthorized':
-      case 'rate_limited':
-      case 'invalid':
-      case 'failed':
-        return reasons(reason)
-      default:
-        // What keeps it from being planned there now: the room, its seats, its people.
-        return errors(reason.toLowerCase() as Lowercase<typeof reason>)
-    }
-  }
 }

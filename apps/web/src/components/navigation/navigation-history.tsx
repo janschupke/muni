@@ -77,12 +77,8 @@ export function subscribeHistory(onChange: () => void): () => void {
   }
 }
 
-/** Records each in-app page (path and query) and its final title for this tab. */
-function Recorder() {
-  const pathname = usePathname()
-  const query = useSearchParams().toString()
-  const href = query ? `${pathname}?${query}` : pathname
-
+/** Records the page at `href` (path and query) and its final title in this tab's history. */
+function useRecordHistory(href: string) {
   useEffect(() => {
     write(record(parseHistory(readHistory()), href))
     // Titles arrive with the page's metadata, possibly after this effect: watch for them.
@@ -102,7 +98,16 @@ function Recorder() {
       observer.disconnect()
     }
   }, [href])
+}
 
+/**
+ * Records each in-app page as the address changes. A component of its own: reading the query
+ * (`useSearchParams`) needs a Suspense boundary, and it renders nothing.
+ */
+function Recorder() {
+  const pathname = usePathname()
+  const query = useSearchParams().toString()
+  useRecordHistory(query ? `${pathname}?${query}` : pathname)
   return null
 }
 

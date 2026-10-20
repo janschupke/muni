@@ -3,14 +3,15 @@
 import type { DataColumns, RowData } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
-import { PLACEHOLDER } from '@muni/utils/format'
+import type { IsoDate } from '@muni/utils/dates'
+import { formatCurrency, formatDate, PLACEHOLDER } from '@muni/utils/format'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 import { RowActions, type Target } from '@/components/views/record-actions'
 
 // Columns every list has, built the same way in each: the record's name, linked and kept in
-// view, and the row's trailing actions.
+// view, dates, validity and amounts, and the row's trailing actions.
 
 /** A column header with no visible title (the row's actions, booking), named for readers. */
 export const hiddenHeader = (label: string) =>
@@ -75,4 +76,49 @@ export function rowActionsColumn<T extends RowData>(
   target: (row: T) => Target
 ) {
   return actionsColumn(col, label, row => <RowActions {...target(row)} />)
+}
+
+/** A date-only value, as dd.mm.yyyy; ISO dates sort as the time does. */
+export function dateColumn<T extends RowData>(
+  col: DataColumns<T>,
+  { id, header, value }: { id: string; header: string; value: (row: T) => IsoDate }
+) {
+  return col.accessor(row => value(row), {
+    id,
+    header,
+    sortFn: 'basic',
+    meta: { nowrap: true },
+    cell: ({ getValue }) => formatDate(getValue()),
+  })
+}
+
+/** Until when something is valid; `never` where it does not expire (those sort last). */
+export function validUntilColumn<T extends RowData>(
+  col: DataColumns<T>,
+  { header, never, value }: { header: string; never: string; value: (row: T) => IsoDate | null }
+) {
+  return col.accessor(row => value(row) ?? undefined, {
+    id: 'validUntil',
+    header,
+    sortFn: 'basic',
+    meta: { nowrap: true },
+    cell: ({ getValue }) => {
+      const until = getValue()
+      return until === undefined ? never : formatDate(until)
+    },
+  })
+}
+
+/** An amount in crowns, right-aligned; a dash where there is none (those sort last). */
+export function priceColumn<T extends RowData>(
+  col: DataColumns<T>,
+  { header, value }: { header: string; value: (row: T) => number | null | undefined }
+) {
+  return col.accessor(row => value(row) ?? undefined, {
+    id: 'price',
+    header,
+    sortFn: 'basic',
+    meta: { align: 'right', nowrap: true },
+    cell: ({ getValue }) => formatCurrency(getValue()),
+  })
 }

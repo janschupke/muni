@@ -14,15 +14,14 @@ import { EmailLink } from '@/components/badges/email-link'
 import { ReadView } from '@/components/views/read-view'
 import { RecordHeader, useRecordRead } from '@/components/views/record-view'
 import { DetailSkeleton } from '@/components/views/skeletons'
-import {
-  ProviderCompletionsTable,
-  ProviderCoursesTable,
-  ProviderOfferingsTable,
-} from '@/features/providers/provider-tables'
 import { SessionTable } from '@/features/sessions/session-table'
 import { COMPLETION_SORT, PROVIDER_COURSE_SORT, SESSION_SORT } from '@/lib/list/list-keys'
 import { type PageInfo, useListUrl } from '@/lib/list/use-list-url'
 import type { ReadOutput } from '@/server/reads/core/registry'
+
+import { ProviderCompletionsTable } from './provider-completions-table'
+import { ProviderCoursesTable } from './provider-courses-table'
+import { ProviderOfferingsTable } from './provider-offerings-table'
 
 /**
  * A provider's page: its details and totals, what it offers, and a page each of its sessions

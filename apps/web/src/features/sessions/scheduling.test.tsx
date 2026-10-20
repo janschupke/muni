@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CoursesTable } from '@/features/courses/courses-table'
-import { ProviderOfferingsTable } from '@/features/providers/provider-tables'
+import { ProviderOfferingsTable } from '@/features/providers/provider-offerings-table'
 import { RoomFitTable } from '@/features/rooms/room-fit-table'
 import { SessionTable } from '@/features/sessions/session-table'
 import { signInAs } from '@/test/auth'

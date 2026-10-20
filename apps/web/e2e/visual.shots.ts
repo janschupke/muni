@@ -398,12 +398,10 @@ for (const theme of ['light', 'dark'] as const) {
     })
 
     test('a session opened, and a failure toast', async ({ page }) => {
-      await page.goto('/sessions')
+      // A session still to start, so it takes bookings (the seed's T016, in November).
+      await page.goto('/sessions?course=BOZP-Z')
       await loaded(page)
-      await page
-        .getByRole('button', { name: /^Who is booked on / })
-        .first()
-        .click()
+      await page.getByRole('button', { name: 'Who is booked on T016' }).click()
       // The people who need its course, read as the row opens.
       await expect(page.getByRole('combobox', { name: /^Person to book/ })).toBeEnabled()
       await shot(page, 'sessions-row-open', false)

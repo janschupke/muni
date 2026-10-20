@@ -27,7 +27,8 @@ import { SIDEBAR_COOKIE } from '@/lib/sidebar'
 import type { SessionUser } from '@/server/auth'
 
 import { LocaleSwitch } from './locale-switch'
-import { type NavGroup, PublicShell, SidebarShell } from './sidebar-shell'
+import type { NavGroup } from './nav'
+import { PublicShell, SidebarShell } from './sidebar-shell'
 
 /**
  * The language/theme/account controls and the frame around every page: the navigation for
