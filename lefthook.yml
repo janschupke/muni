@@ -1,5 +1,5 @@
-# Fast checks on the staged files only. `pnpm check` (and CI) is the full gate: typecheck,
-# tests, coverage and the build do not run here.
+# A commit runs fast checks on the staged files only; a push runs the checks for everything it
+# carries (scripts/check-changed.ts). `pnpm check` (and CI) is the full gate.
 pre-commit:
   parallel: true
   jobs:
@@ -37,3 +37,10 @@ pre-commit:
         - 'apps/**'
         - 'packages/**'
       run: pnpm exec eslint --max-warnings 0 --no-warn-ignored {staged_files}
+
+pre-push:
+  jobs:
+    # Since the upstream (or origin/main): typecheck, the related tests and the path rules of
+    # .ai/rules/gates.md. With nothing to compare with, it says so and passes.
+    - name: checks for what is pushed
+      run: node scripts/check-changed.ts --base auto

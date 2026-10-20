@@ -1,0 +1,24 @@
+---
+description: muni project rules — single source of truth in .ai/
+alwaysApply: true
+---
+
+# muni — Cursor Instructions
+
+All rules and commands live in [`.ai/`](../../.ai/) — the single source of truth. This file mirrors [`CLAUDE.md`](../../CLAUDE.md); keep them in sync.
+
+muni is a training register: Next.js 16 over Postgres (Prisma 7), Clerk, next-intl (cs/en),
+in a pnpm + Turborepo monorepo (`apps/web`; `packages/domain`, `db`, `importer`, `ui`,
+`utils`).
+
+## Rules
+
+- [Architecture](../../.ai/rules/architecture.md) · [Gates](../../.ai/rules/gates.md) · [Data](../../.ai/rules/data.md) · [UI](../../.ai/rules/ui.md) · [Messages](../../.ai/rules/i18n.md) · [Testing](../../.ai/rules/testing.md) · [Colour](../../.ai/rules/colour.md)
+
+## Critical rules (excerpt)
+
+- **`pnpm check:changed` after each change, `pnpm check` before done;** fix at the root.
+- **Policy lives once in `@muni/domain`.**
+- **Archive, never delete;** every unique lookup spreads `...ACTIVE`.
+- **A form field never changes another field.**
+- **The UI is done when it is seen,** in both themes.

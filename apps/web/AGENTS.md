@@ -1,3 +1,7 @@
+# @muni/web
+
+The repo's rules live in [`.ai/`](../../.ai/); start at [`CLAUDE.md`](../../CLAUDE.md).
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

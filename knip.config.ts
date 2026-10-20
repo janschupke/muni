@@ -3,7 +3,9 @@ import type { KnipConfig } from 'knip'
 const config: KnipConfig = {
   workspaces: {
     '.': {
-      entry: ['eslint.preset.js', 'vitest.preset.ts'],
+      // `scripts/` holds the repo's own tooling, run by the package scripts and git hooks.
+      entry: ['eslint.preset.js', 'vitest.preset.ts', 'scripts/*.ts!'],
+      project: ['scripts/*.ts!'],
     },
     'apps/web': {
       entry: [
