@@ -42,6 +42,7 @@ It needs the test database (`pnpm db:up`). Playwright and Lighthouse are not in 
 | `apps/web/src/**` (any source)                                              | `messages-parity.test.ts`, `format-rate.test.ts`, ui `tokens.test.ts` |
 | `packages/ui/src/styles/**`                                                 | `tokens.test.ts` (the colour contract)                                |
 | a Markdown file, or a file moved or deleted                                 | `scripts/docs-paths.test.ts` (every path the docs name exists)        |
+| `data/**` (the exports, the derived import files)                           | `fixtures.test.ts`, `derive.test.ts` (rerun `pnpm data:derive` first) |
 | a page, form, dialog or table                                               | rebuild, the covering e2e spec, `a11y.spec.ts`, visual shots          |
 | `tsconfig*`, `eslint.preset.js`, `vitest.preset.ts`, `turbo.json`, lockfile | `pnpm check`                                                          |
 

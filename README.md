@@ -57,17 +57,17 @@ The pages:
 
 ## Layout
 
-| Path                | Package          | What it holds                                                                    |
-| ------------------- | ---------------- | -------------------------------------------------------------------------------- |
-| `apps/web`          | `@muni/web`      | Next.js app: pages, reads, server actions, features, i18n messages               |
-| `packages/db`       | `@muni/db`       | Prisma schema and migrations, repositories (sanitised DTOs), import writer, seed |
-| `packages/importer` | `@muni/importer` | CSV decoding, parsing and validation; pure TypeScript, runs in browser and Node  |
-| `packages/domain`   | `@muni/domain`   | Enums, zod schemas, compliance, the advisor and planner, the sanitisation policy |
-| `packages/ui`       | `@muni/ui`       | Design tokens and components (Tailwind 4, Radix, lucide), `DataTable`            |
-| `packages/utils`    | `@muni/utils`    | Text folding, dates, money parsing and formatting                                |
-| `data/`             |                  | The source CSV exports                                                           |
-| `docs/`             |                  | How it works, in depth                                                           |
-| `.ai/`              |                  | Rules for coding agents (and people)                                             |
+| Path                | Package          | What it holds                                                                      |
+| ------------------- | ---------------- | ---------------------------------------------------------------------------------- |
+| `apps/web`          | `@muni/web`      | Next.js app: pages, reads, server actions, features, i18n messages                 |
+| `packages/db`       | `@muni/db`       | Prisma schema and migrations, repositories (sanitised DTOs), import writer, seed   |
+| `packages/importer` | `@muni/importer` | CSV decoding, parsing and validation; pure TypeScript, runs in browser and Node    |
+| `packages/domain`   | `@muni/domain`   | Enums, zod schemas, compliance, the advisor and planner, the sanitisation policy   |
+| `packages/ui`       | `@muni/ui`       | Design tokens and components (Tailwind 4, Radix, lucide), `DataTable`              |
+| `packages/utils`    | `@muni/utils`    | Text folding, dates, money parsing and formatting                                  |
+| `data/`             |                  | The raw CSV exports; `data/import/` the files derived from them for a new register |
+| `docs/`             |                  | How it works, in depth                                                             |
+| `.ai/`              |                  | Rules for coding agents (and people)                                               |
 
 ## Commands
 
@@ -84,6 +84,7 @@ The pages:
 | `pnpm test:lighthouse`     | Lighthouse on every page                                       |
 | `pnpm db:seed`, `db:reset` | re-import `data/`; reset the dev database                      |
 | `pnpm db:studio`           | Prisma Studio on the dev database                              |
+| `pnpm data:derive`         | rewrite `data/import/` from the raw exports in `data/`         |
 
 ## Checks
 
@@ -101,4 +102,5 @@ needs. Which change needs which check: `.ai/rules/gates.md`. Every gate and test
 - Features: [advisor](docs/features/advisor.md), [planner](docs/features/planner.md),
   [import](docs/features/import.md), [access and sensitive data](docs/features/access.md).
 - [Testing and checks](docs/testing.md), including troubleshooting.
-- [Deployment](docs/deploy.md): Vercel and Supabase, environment variables.
+- [Deployment](docs/deploy.md): Vercel and Supabase, environment variables, and the
+  [first data](docs/deploy.md#first-data) of a new register.

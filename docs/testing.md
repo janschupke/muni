@@ -4,17 +4,18 @@ The test layers, what each gate enforces, and how to run the browser suites.
 
 ## Layers
 
-| Layer                    | Where                                                                                                            | Runs with                    |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| Unit                     | `*.test.ts(x)` next to the module, in every package                                                              | `pnpm test`, `pnpm coverage` |
-| Pages and server actions | `apps/web/src/app/**`, `apps/web/src/server/**` tests: async server components rendered with mocked repositories | `pnpm test`                  |
-| Integration              | `packages/db/src/integration/`: repositories, the import writer and the seed against the test database           | `pnpm test:integration`      |
-| Colour contract          | `packages/ui/src/styles/tokens.test.ts`                                                                          | `pnpm test`                  |
-| Messages                 | `apps/web/src/i18n/messages-parity.test.ts`                                                                      | `pnpm test`                  |
-| Docs                     | `scripts/docs-paths.test.ts`: every path the docs name exists                                                    | `pnpm test:root`             |
-| e2e                      | `apps/web/e2e/*.spec.ts`: access, a11y, crud, layout, lists, register                                            | `pnpm test:e2e`              |
-| Visual                   | `apps/web/e2e/visual.shots.ts`: every page and state, both themes                                                | `pnpm test:visual`           |
-| Lighthouse               | `apps/web/e2e/lighthouse.audit.ts`                                                                               | `pnpm test:lighthouse`       |
+| Layer                    | Where                                                                                                                                                                                             | Runs with                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Unit                     | `*.test.ts(x)` next to the module, in every package                                                                                                                                               | `pnpm test`, `pnpm coverage` |
+| Pages and server actions | `apps/web/src/app/**`, `apps/web/src/server/**` tests: async server components rendered with mocked repositories                                                                                  | `pnpm test`                  |
+| Integration              | `packages/db/src/integration/`: repositories, the import writer and the seed against the test database, which it empties first; `fresh-import` fills a new database of its own from `data/import` | `pnpm test:integration`      |
+| Colour contract          | `packages/ui/src/styles/tokens.test.ts`                                                                                                                                                           | `pnpm test`                  |
+| Messages                 | `apps/web/src/i18n/messages-parity.test.ts`                                                                                                                                                       | `pnpm test`                  |
+| Docs                     | `scripts/docs-paths.test.ts`: every path the docs name exists                                                                                                                                     | `pnpm test:root`             |
+| e2e                      | `apps/web/e2e/*.spec.ts`: access, a11y, crud, import, layout, lists, register                                                                                                                     | `pnpm test:e2e`              |
+| Import files             | `packages/importer/src/derive/derive.test.ts`: `data/import` is what `pnpm data:derive` writes, and imports cleanly                                                                               | `pnpm test`                  |
+| Visual                   | `apps/web/e2e/visual.shots.ts`: every page and state, both themes                                                                                                                                 | `pnpm test:visual`           |
+| Lighthouse               | `apps/web/e2e/lighthouse.audit.ts`                                                                                                                                                                | `pnpm test:lighthouse`       |
 
 Web tests run on a fixed day (`apps/web/src/test/clock.ts`), so fixtures dated ahead stay
 ahead.
@@ -36,7 +37,7 @@ The browser suites run against `next start` and the seeded test database:
 
 ```sh
 pnpm db:up
-pnpm test:integration               # migrates and seeds the test database
+pnpm test:integration               # migrates, empties and seeds the test database
 pnpm --filter @muni/web build       # e2e, visual and Lighthouse run the production build
 pnpm test:e2e                       # or one spec: pnpm --filter @muni/web exec playwright test e2e/crud.spec.ts
 ```
@@ -147,4 +148,4 @@ What the gates enforce:
   - a word the [glossary](ui.md#glossary) replaced fails, in either locale.
 - **Git hooks**: `pnpm install` installs lefthook (`lefthook.yml`). A commit runs Prettier and each package's ESLint on the staged files only; everything else stays in `pnpm check` and CI.
 
-Playwright e2e and Lighthouse are not in `pnpm check` (they need browsers, a production build, the seeded test database and Clerk) but CI runs them in a second job, `e2e`: it migrates and seeds the test database, builds, installs Chromium and runs every e2e spec (access, a11y, crud, layout, lists, register) and Lighthouse; the visual shots are for review and stay local; on a failure it keeps the Playwright report and traces. Both jobs need the Clerk development keys as repository secrets, `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. The `check` job also runs `pnpm audit --prod --audit-level high`. Renovate (`renovate.json`) opens one pull request a week for minor and patch updates, and holds TypeScript below 7 and the prisma packages together.
+Playwright e2e and Lighthouse are not in `pnpm check` (they need browsers, a production build, the seeded test database and Clerk) but CI runs them in a second job, `e2e`: it migrates and seeds the test database, builds, installs Chromium and runs every e2e spec (access, a11y, crud, import, layout, lists, register) and Lighthouse; the visual shots are for review and stay local; on a failure it keeps the Playwright report and traces. Both jobs need the Clerk development keys as repository secrets, `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. The `check` job also runs `pnpm audit --prod --audit-level high`. Renovate (`renovate.json`) opens one pull request a week for minor and patch updates, and holds TypeScript below 7 and the prisma packages together.
