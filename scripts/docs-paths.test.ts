@@ -38,7 +38,7 @@ const NOT_FILES: Record<string, string> = {
   'apps/web/visual-shots': 'written by the visual run',
   'loading.tsx': 'the file the app has none of, on purpose',
   'mistnosti.csv': 'an optional export the user supplies',
-  'origin/main': 'a git ref',
+  'origin/master': 'a git ref',
   'import-x/no-cycle': 'an ESLint rule',
 }
 

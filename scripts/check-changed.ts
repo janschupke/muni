@@ -3,8 +3,8 @@
 // this is what to run after each change, and what the pre-push hook runs.
 //
 //   pnpm check:changed                  uncommitted and untracked files
-//   pnpm check:changed --base main      everything since main as well
-//   pnpm check:changed --base auto      since the upstream (or origin/main); the pre-push hook
+//   pnpm check:changed --base master    everything since master as well
+//   pnpm check:changed --base auto      since the upstream (or origin/master); the pre-push hook
 //   pnpm check:changed --dry-run        print the plan, run nothing
 //
 // The mapping (`planChecks`) is a pure function; scripts/check-changed.test.ts pins it.
@@ -354,7 +354,7 @@ const git = (...args: string[]) =>
 
 function resolveBase(base: string): string | null {
   if (base !== 'auto') return base
-  for (const candidate of ['@{upstream}', 'origin/main']) {
+  for (const candidate of ['@{upstream}', 'origin/master']) {
     const found = spawnSync('git', ['rev-parse', '--verify', '--quiet', candidate])
     if (found.status === 0) return candidate
   }
@@ -374,7 +374,7 @@ function main(argv: string[]): number {
   const dryRun = args.includes('--dry-run')
   const base = resolveBase(at === -1 ? 'HEAD' : (args[at + 1] ?? 'HEAD'))
   if (base === null) {
-    say('check:changed: no upstream or origin/main to compare with; nothing to check.')
+    say('check:changed: no upstream or origin/master to compare with; nothing to check.')
     return 0
   }
   const root = git('rev-parse', '--show-toplevel')[0] ?? '.'

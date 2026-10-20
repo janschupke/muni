@@ -17,3 +17,6 @@ apps/web/e2e/.auth/
 .DS_Store
 next-env.d.ts
 !packages/db/.env.test
+
+# LibreOffice lock files, left while a CSV is open
+.~lock.*#

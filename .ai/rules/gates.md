@@ -46,6 +46,6 @@ It needs the test database (`pnpm db:up`). Playwright and Lighthouse are not in 
 | `tsconfig*`, `eslint.preset.js`, `vitest.preset.ts`, `turbo.json`, lockfile | `pnpm check`                                                          |
 
 - **Git hooks** (`lefthook.yml`): a commit runs Prettier and ESLint on the staged files; a push
-  runs `check:changed --base auto` (the upstream, else `origin/main`).
+  runs `check:changed --base auto` (the upstream, else `origin/master`).
 - **Coverage is per package, 90 % of everything under `src/`**, untested files included. A new
   branch needs a test.

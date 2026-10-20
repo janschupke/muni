@@ -49,7 +49,7 @@ The most-violated. Full set in [`.ai/rules/`](.ai/rules/).
 
 - **`pnpm check:changed` after each change, `pnpm check` before done.** Fix at the root;
   never widen an ignore or lower a threshold.
-- **Never push, never branch:** commit on `main` when asked; pushing is the owner's.
+- **Never push, never branch:** commit on `master` when asked; pushing is the owner's.
 - **Policy lives once in `@muni/domain`.** No component, repository or importer rule
   re-derives it.
 - **Archive, never delete;** every unique lookup spreads `...ACTIVE`.

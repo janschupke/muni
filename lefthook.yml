@@ -40,7 +40,7 @@ pre-commit:
 
 pre-push:
   jobs:
-    # Since the upstream (or origin/main): typecheck, the related tests and the path rules of
+    # Since the upstream (or origin/master): typecheck, the related tests and the path rules of
     # .ai/rules/gates.md. With nothing to compare with, it says so and passes.
     - name: checks for what is pushed
       run: node scripts/check-changed.ts --base auto
