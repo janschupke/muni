@@ -140,6 +140,11 @@ describe('the checks a change needs', () => {
     ])
   })
 
+  it('the data: the exports’ tests and the derived files’', () => {
+    const plan = planChecks(['data/import/zamestnanci.csv'], WORKSPACES, present)
+    expect(labels(plan.checks)).toEqual(['prettier', 'the exports and the derived import files'])
+  })
+
   it('messages: the catalog checks, without a rebuild reminder', () => {
     const plan = planChecks(['apps/web/src/i18n/messages/cs.json'], WORKSPACES, present)
     expect(labels(plan.checks)).toContain('message catalogs and their keys in use')
@@ -156,5 +161,7 @@ describe('the suites that scan the source', () => {
       expect(existsSync(path.join(root, 'packages/ui', suite)), suite).toBe(true)
     for (const suite of SCANNING_SUITES.root)
       expect(existsSync(path.join(root, suite)), suite).toBe(true)
+    for (const suite of SCANNING_SUITES.importer)
+      expect(existsSync(path.join(root, 'packages/importer', suite)), suite).toBe(true)
   })
 })

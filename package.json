@@ -35,7 +35,8 @@
     "db:migrate:deploy": "pnpm --filter @muni/db migrate:deploy",
     "db:reset": "pnpm --filter @muni/db migrate:reset",
     "db:seed": "pnpm --filter @muni/db seed",
-    "db:studio": "pnpm --filter @muni/db studio"
+    "db:studio": "pnpm --filter @muni/db studio",
+    "data:derive": "pnpm --filter @muni/db exec tsx scripts/derive-import-data.ts"
   },
   "devDependencies": {
     "@eslint-react/eslint-plugin": "catalog:",

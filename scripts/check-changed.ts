@@ -68,6 +68,8 @@ export const SCANNING_SUITES = {
   web: ['src/i18n/messages-parity.test.ts', 'src/lib/format/format-rate.test.ts'],
   ui: ['src/styles/tokens.test.ts'],
   root: ['scripts/docs-paths.test.ts'],
+  /** The exports in data/ and the import files derived from them. */
+  importer: ['src/fixtures.test.ts', 'src/derive/derive.test.ts'],
 } as const
 
 const WEB = '@muni/web'
@@ -259,6 +261,20 @@ export function planChecks(
         'packages/ui',
         'pnpm',
         ['exec', 'vitest', 'run', ...SCANNING_SUITES.ui]
+      )
+    )
+  }
+
+  // The exports, and the import files derived from them (which must match what the script
+  // writes, and import cleanly).
+  if (files.some(f => f.startsWith('data/'))) {
+    checks.push(
+      check(
+        'the exports and the derived import files',
+        'data changed',
+        'packages/importer',
+        'pnpm',
+        ['exec', 'vitest', 'run', ...SCANNING_SUITES.importer]
       )
     )
   }

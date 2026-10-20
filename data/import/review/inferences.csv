@@ -1,0 +1,177 @@
+file,line,id,field,original,derived,rule
+absolvovana_skoleni.csv,9,Z000008,courseCode,BOZP-Z,BOZP-Z,CODE_NORMALIZED
+absolvovana_skoleni.csv,10,Z000009,validUntil,07.01.2024,2022-01-07,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,101,Z000099,validUntil,23.01.2023,2022-01-23,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,104,Z000102,courseCode,BOZP-Z,BOZP-Z,CODE_NORMALIZED
+absolvovana_skoleni.csv,159,Z000157,validUntil,2. 2. 2024,2022-02-02,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,160,Z000158,validUntil,2021-08-03,2022-02-03,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,204,Z000202,price,"-600,00",,NEGATIVE_PRICE
+absolvovana_skoleni.csv,226,Z000224,courseCode,POZ_OCH,POZ-OCH,CODE_NORMALIZED
+absolvovana_skoleni.csv,227,Z000225,price,"-600,00",,NEGATIVE_PRICE
+absolvovana_skoleni.csv,340,Z000338,courseCode,lead,LEAD,CODE_NORMALIZED
+absolvovana_skoleni.csv,476,Z000471,completedOn,43552,2019-03-28,EXCEL_SERIAL_DATE
+absolvovana_skoleni.csv,476,Z000471,validUntil,44283,2021-03-28,EXCEL_SERIAL_DATE
+absolvovana_skoleni.csv,518,Z000510,courseCode,BOZP Z,BOZP-Z,CODE_NORMALIZED
+absolvovana_skoleni.csv,526,Z000518,courseCode,KYBER,KYBER,CODE_NORMALIZED
+absolvovana_skoleni.csv,616,Z000607,courseCode,KYBER,KYBER,CODE_NORMALIZED
+absolvovana_skoleni.csv,632,Z000623,completedOn,44208,2021-01-12,EXCEL_SERIAL_DATE
+absolvovana_skoleni.csv,632,Z000623,validUntil,44573,2022-01-12,EXCEL_SERIAL_DATE
+absolvovana_skoleni.csv,652,Z000643,validUntil,29. 8. 2020,2023-01-30,VALIDITY_BEFORE_COMPLETION
+absolvovana_skoleni.csv,652,Z000643,validUntil,29. 8. 2020,2023-01-30,VALIDITY_DERIVED
+absolvovana_skoleni.csv,672,Z000663,validUntil,,2023-02-10,VALIDITY_DERIVED
+absolvovana_skoleni.csv,717,Z000708,courseCode,BOZP-Z,BOZP-Z,CODE_NORMALIZED
+absolvovana_skoleni.csv,722,Z000713,validUntil,26. 8. 2020,2023-03-07,VALIDITY_BEFORE_COMPLETION
+absolvovana_skoleni.csv,722,Z000713,validUntil,26. 8. 2020,2023-03-07,VALIDITY_DERIVED
+absolvovana_skoleni.csv,745,Z000736,validUntil,17. 9. 2022,2023-03-17,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,786,Z000777,validUntil,,2023-04-04,VALIDITY_DERIVED
+absolvovana_skoleni.csv,801,Z000792,validUntil,2026-04-10,2024-04-10,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,814,Z000805,validUntil,19. 4. 2021,2022-04-19,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,815,Z000806,courseCode,bozp-z,BOZP-Z,CODE_NORMALIZED
+absolvovana_skoleni.csv,817,Z000808,courseCode,POZ-OCH,POZ-OCH,CODE_NORMALIZED
+absolvovana_skoleni.csv,839,Z000830,validUntil,29. 4. 2022,2023-04-29,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,852,Z000843,validUntil,,2023-05-05,VALIDITY_DERIVED
+absolvovana_skoleni.csv,866,Z000857,validUntil,12. 5. 2024,2023-05-12,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,873,Z000864,validUntil,,2023-05-14,VALIDITY_DERIVED
+absolvovana_skoleni.csv,887,Z000878,validUntil,,2023-05-22,VALIDITY_DERIVED
+absolvovana_skoleni.csv,897,Z000888,validUntil,27.05.2025,2023-05-27,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,924,Z000914,price,zdarma,0,FREE_PRICE
+absolvovana_skoleni.csv,946,Z000936,courseCode,GDPR,GDPR,CODE_NORMALIZED
+absolvovana_skoleni.csv,1002,Z000992,validUntil,,2022-12-14,VALIDITY_DERIVED
+absolvovana_skoleni.csv,1121,Z001108,validUntil,8. 3. 2027,2025-03-08,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,1158,Z001145,price,"-700,00",,NEGATIVE_PRICE
+absolvovana_skoleni.csv,1165,Z001152,price,zdarma,0,FREE_PRICE
+absolvovana_skoleni.csv,1196,Z001183,validUntil,2021-11-15,2025-04-23,VALIDITY_BEFORE_COMPLETION
+absolvovana_skoleni.csv,1196,Z001183,validUntil,2021-11-15,2025-04-23,VALIDITY_DERIVED
+absolvovana_skoleni.csv,1223,Z001210,courseCode,GDPR,GDPR,CODE_NORMALIZED
+absolvovana_skoleni.csv,1251,Z001237,validUntil,30. 11. 2024,2025-05-31,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,1289,Z001275,courseCode,POZ-OCH,POZ-OCH,CODE_NORMALIZED
+absolvovana_skoleni.csv,1321,Z001307,validUntil,,2023-11-06,VALIDITY_DERIVED
+absolvovana_skoleni.csv,1335,Z001321,courseCode,KYBER,KYBER,CODE_NORMALIZED
+absolvovana_skoleni.csv,1344,Z001330,courseCode,KYBER,KYBER,CODE_NORMALIZED
+absolvovana_skoleni.csv,1391,Z001377,courseCode,KYBER,KYBER,CODE_NORMALIZED
+absolvovana_skoleni.csv,1394,Z001380,validUntil,7. 1. 2026,2024-01-07,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,1419,Z001405,validUntil,18. 9. 2022,2025-01-27,VALIDITY_BEFORE_COMPLETION
+absolvovana_skoleni.csv,1419,Z001405,validUntil,18. 9. 2022,2025-01-27,VALIDITY_DERIVED
+absolvovana_skoleni.csv,1457,Z001443,validUntil,19. 1. 2023,2025-03-09,VALIDITY_BEFORE_COMPLETION
+absolvovana_skoleni.csv,1457,Z001443,validUntil,19. 1. 2023,2025-03-09,VALIDITY_DERIVED
+absolvovana_skoleni.csv,1495,Z001481,courseCode,BOZP-Z,BOZP-Z,CODE_NORMALIZED
+absolvovana_skoleni.csv,1504,Z001490,validUntil,5. 4. 2026,2024-04-05,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,1521,Z001507,courseCode,POZ OCH,POZ-OCH,CODE_NORMALIZED
+absolvovana_skoleni.csv,1524,Z001510,completedOn,45032,2023-04-16,EXCEL_SERIAL_DATE
+absolvovana_skoleni.csv,1524,Z001510,validUntil,45763,2025-04-16,EXCEL_SERIAL_DATE
+absolvovana_skoleni.csv,1547,Z001533,courseCode,POZ OCH,POZ-OCH,CODE_NORMALIZED
+absolvovana_skoleni.csv,1586,Z001572,price,zdarma,0,FREE_PRICE
+absolvovana_skoleni.csv,1619,Z001604,validUntil,31.05.2027,2025-05-31,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,1700,Z001685,validUntil,24. 1. 2025,2025-07-24,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,1745,Z001730,validUntil,2026-03-15,2026-09-15,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,1776,Z001761,validUntil,19.08.2023,2024-10-26,VALIDITY_BEFORE_COMPLETION
+absolvovana_skoleni.csv,1776,Z001761,validUntil,19.08.2023,2024-10-26,VALIDITY_DERIVED
+absolvovana_skoleni.csv,1866,Z001851,validUntil,,2027-01-08,VALIDITY_DERIVED
+absolvovana_skoleni.csv,1885,Z001870,validUntil,8. 1. 2024,2025-03-29,VALIDITY_BEFORE_COMPLETION
+absolvovana_skoleni.csv,1885,Z001870,validUntil,8. 1. 2024,2025-03-29,VALIDITY_DERIVED
+absolvovana_skoleni.csv,1908,Z001893,validUntil,21. 11. 2024,2025-05-21,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,2008,Z001991,courseCode,POZ-OCH,POZ-OCH,CODE_NORMALIZED
+absolvovana_skoleni.csv,2046,Z002028,employeeExternalId,E1003,E0070,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2046,Z002028,employeeName,Hrušky Petr,Hruška Petr,NAME_MISMATCH
+absolvovana_skoleni.csv,2082,Z002064,employeeExternalId,E1003,E0070,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2082,Z002064,employeeName,Hrušky Petr,Hruška Petr,NAME_MISMATCH
+absolvovana_skoleni.csv,2103,Z002085,validUntil,28.06.2025,2025-12-28,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,2111,Z002093,courseCode,kyber,KYBER,CODE_NORMALIZED
+absolvovana_skoleni.csv,2163,Z002144,validUntil,4. 3. 2029,2028-03-04,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,2183,Z002164,employeeExternalId,E1000,E0155,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2192,Z002173,employeeExternalId,E1001,E0042,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2192,Z002173,employeeName,Zdražiy Jaroslav,Zdražil Jaroslav,NAME_MISMATCH
+absolvovana_skoleni.csv,2204,Z002185,employeeExternalId,E1000,E0155,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2228,Z002209,courseCode,BOZP_Z,BOZP-Z,CODE_NORMALIZED
+absolvovana_skoleni.csv,2266,Z002247,courseCode,LAB-BEZ,LAB-BEZ,CODE_NORMALIZED
+absolvovana_skoleni.csv,2272,Z002253,employeeExternalId,E1001,E0042,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2272,Z002253,employeeName,Zdražiy Jaroslav,Zdražil Jaroslav,NAME_MISMATCH
+absolvovana_skoleni.csv,2280,Z002261,validUntil,,2028-04-28,VALIDITY_DERIVED
+absolvovana_skoleni.csv,2281,Z002262,price,zdarma,0,FREE_PRICE
+absolvovana_skoleni.csv,2285,Z002266,employeeExternalId,E1002,E0124,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2295,Z002276,validUntil,,2027-05-03,VALIDITY_DERIVED
+absolvovana_skoleni.csv,2309,Z002289,validUntil,2027-11-06,2028-05-06,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,2328,Z002308,employeeExternalId,E1000,E0155,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2388,Z002366,employeeExternalId,E1001,E0042,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2388,Z002366,employeeName,Zdražiy Jaroslav,Zdražil Jaroslav,NAME_MISMATCH
+absolvovana_skoleni.csv,2405,Z002383,employeeExternalId,E1002,E0124,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2452,Z002430,validUntil,,2027-06-23,VALIDITY_DERIVED
+absolvovana_skoleni.csv,2456,Z002434,validUntil,24. 12. 2027,2028-06-24,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,2468,Z002446,employeeExternalId,E1002,E0124,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2527,Z002504,validUntil,22. 7. 2028,2027-07-22,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,2545,Z002521,courseCode,POZ-OCH,POZ-OCH,CODE_NORMALIZED
+absolvovana_skoleni.csv,2579,Z002555,courseCode,POZ_OCH,POZ-OCH,CODE_NORMALIZED
+absolvovana_skoleni.csv,2580,Z002556,employeeExternalId,E1002,E0124,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2592,Z002568,employeeExternalId,E1002,E0124,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2631,Z002607,validUntil,10. 4. 2027,2027-10-10,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,2669,Z002645,courseCode,KYBER,KYBER,CODE_NORMALIZED
+absolvovana_skoleni.csv,2689,Z002665,employeeExternalId,E1003,E0070,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2689,Z002665,employeeName,Hrušky Petr,Hruška Petr,NAME_MISMATCH
+absolvovana_skoleni.csv,2704,Z002680,employeeExternalId,E1003,E0070,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2704,Z002680,employeeName,Hrušky Petr,Hruška Petr,NAME_MISMATCH
+absolvovana_skoleni.csv,2738,Z002713,employeeExternalId,E1003,E0070,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2738,Z002713,employeeName,Hrušky Petr,Hruška Petr,NAME_MISMATCH
+absolvovana_skoleni.csv,2770,Z002745,employeeExternalId,E1000,E0155,EMPLOYEE_REMAPPED
+absolvovana_skoleni.csv,2778,Z002753,courseCode,KYB3R,KYBER,COURSE_CODE_TYPO
+absolvovana_skoleni.csv,2778,Z002753,validUntil,23. 2. 2028,2027-02-23,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,2803,Z002778,validUntil,25. 1. 2026,2027-05-09,VALIDITY_BEFORE_COMPLETION
+absolvovana_skoleni.csv,2803,Z002778,validUntil,25. 1. 2026,2027-05-09,VALIDITY_DERIVED
+absolvovana_skoleni.csv,2817,Z002792,courseCode,KYBER,KYBER,CODE_NORMALIZED
+absolvovana_skoleni.csv,2824,Z002799,validUntil,,2027-06-20,VALIDITY_DERIVED
+absolvovana_skoleni.csv,2834,Z002809,validUntil,24. 1. 2028,2028-07-24,VALIDITY_FROM_COURSE
+absolvovana_skoleni.csv,2857,Z002832,employeeExternalId,E1002,E0124,EMPLOYEE_REMAPPED
+katalog_skoleni.csv,9,ZDVIH,validity,2 roky,24,VALIDITY_NORMALIZED
+katalog_skoleni.csv,10,LEAD,validity,0,,VALIDITY_NONE
+mistnosti.csv,,Aula A,kind,,učebna,ROOM_KIND_FROM_NAME
+mistnosti.csv,,Aula A,capacity,,40,ROOM_SEATS_FROM_SESSIONS
+mistnosti.csv,,Aula B,kind,,učebna,ROOM_KIND_FROM_NAME
+mistnosti.csv,,Aula B,capacity,,20,ROOM_SEATS_FROM_SESSIONS
+mistnosti.csv,,Autoškola Vzor,kind,,učebna,ROOM_KIND_FROM_NAME
+mistnosti.csv,,Autoškola Vzor,capacity,,12,ROOM_SEATS_FROM_SESSIONS
+mistnosti.csv,,Dvůr – sklad,kind,,učebna,ROOM_KIND_FROM_NAME
+mistnosti.csv,,Dvůr – sklad,capacity,,8,ROOM_SEATS_FROM_SESSIONS
+mistnosti.csv,,Laboratoř 3,kind,,laboratoř,ROOM_KIND_FROM_NAME
+mistnosti.csv,,Laboratoř 3,capacity,,20,ROOM_SEATS_FROM_SESSIONS
+mistnosti.csv,,Online,kind,,online,ROOM_KIND_FROM_NAME
+mistnosti.csv,,Online,capacity,,,ROOM_SEATS_FROM_SESSIONS
+mistnosti.csv,,Seminární místnost,kind,,učebna,ROOM_KIND_FROM_NAME
+mistnosti.csv,,Seminární místnost,capacity,,12,ROOM_SEATS_FROM_SESSIONS
+mistnosti.csv,,Učebna 1,kind,,učebna,ROOM_KIND_FROM_NAME
+mistnosti.csv,,Učebna 1,capacity,,40,ROOM_SEATS_FROM_SESSIONS
+mistnosti.csv,,Učebna 2,kind,,učebna,ROOM_KIND_FROM_NAME
+mistnosti.csv,,Učebna 2,capacity,,15,ROOM_SEATS_FROM_SESSIONS
+terminy_skoleni.csv,11,T010,courseCode,KYB3R,KYBER,COURSE_CODE_TYPO
+zamestnanci.csv,3,E0002,email,tereza.jandova @vzorova.example,tereza.jandova@vzorova.example,EMAIL_NORMALIZED
+zamestnanci.csv,4,E0003,department,Studijní,Studijní oddělení,VALUE_NORMALIZED
+zamestnanci.csv,21,E0020,firstName,LUCIE,Lucie,NAME_NORMALIZED
+zamestnanci.csv,24,E0023,managerEmail,nezname.jmeno@vzorova.example,,MANAGER_NOT_FOUND
+zamestnanci.csv,26,E0025,department,Studijni oddeleni,Studijní oddělení,VALUE_NORMALIZED
+zamestnanci.csv,66,E0065,firstName,HANA,Hana,NAME_NORMALIZED
+zamestnanci.csv,67,E0066,note,-2+3,2+3,FORMULA_STRIPPED
+zamestnanci.csv,70,E0069,note,@SUM(1+1),SUM(1+1),FORMULA_STRIPPED
+zamestnanci.csv,78,E0077,firstName,Martina,Martina,NAME_NORMALIZED
+zamestnanci.csv,80,E0079,firstName,MARTINA,Martina,NAME_NORMALIZED
+zamestnanci.csv,81,E0080,managerEmail,nezname.jmeno@vzorova.example,,MANAGER_NOT_FOUND
+zamestnanci.csv,88,E0087,firstName,ZUZANA,Zuzana,NAME_NORMALIZED
+zamestnanci.csv,96,E0095,department,Sprava budov,Správa budov,VALUE_NORMALIZED
+zamestnanci.csv,98,E0097,managerEmail,nezname.jmeno@vzorova.example,,MANAGER_NOT_FOUND
+zamestnanci.csv,100,E0099,email,vojtech.bednar @vzorova.example,vojtech.bednar@vzorova.example,EMAIL_NORMALIZED
+zamestnanci.csv,104,E0103,department,SPRÁVA BUDOV,Správa budov,VALUE_NORMALIZED
+zamestnanci.csv,106,E0105,firstName,Michal,Michal,NAME_NORMALIZED
+zamestnanci.csv,106,E0105,lastName,růžička,Růžička,NAME_NORMALIZED
+zamestnanci.csv,107,E0106,department,správa budov,Správa budov,VALUE_NORMALIZED
+zamestnanci.csv,109,E0108,note,+1+1,1+1,FORMULA_STRIPPED
+zamestnanci.csv,122,E0121,email,"lucie.fialova@vzorova,example",lucie.fialova@vzorova.example,EMAIL_FIXED
+zamestnanci.csv,130,E0129,email,marek.havel@vzorova,marek.havel@vzorova.example,EMAIL_DOMAIN
+zamestnanci.csv,133,E0132,department,Laboratore,Laboratoře,VALUE_NORMALIZED
+zamestnanci.csv,135,E0134,department,Laboratore,Laboratoře,VALUE_NORMALIZED
+zamestnanci.csv,138,E0137,department,Laboratore,Laboratoře,VALUE_NORMALIZED
+zamestnanci.csv,143,E0142,firstName,JANA,Jana,NAME_NORMALIZED
+zamestnanci.csv,143,E0142,lastName,černá,Černá,NAME_NORMALIZED
+zamestnanci.csv,151,E0150,email,jiri.simek@vzorova,jiri.simek@vzorova.example,EMAIL_DOMAIN
+zamestnanci.csv,154,E0153,note,"=HYPERLINK(""https://example.com/prihlaseni"";""Klikněte pro ověření"")","HYPERLINK(""https://example.com/prihlaseni"";""Klikněte pro ověření"")",FORMULA_STRIPPED
+zamestnanci.csv,158,E0157,email,dagmar.pospisilova@vzorova,dagmar.pospisilova@vzorova.example,EMAIL_DOMAIN
+zamestnanci.csv,159,E0158,department,Personalni oddeleni,Personální oddělení,VALUE_NORMALIZED
+zamestnanci.csv,160,E0159,department,VEDENÍ,Vedení,VALUE_NORMALIZED
+zamestnanci.csv,163,E0162,firstName,ALEŠ,Aleš,NAME_NORMALIZED
+zamestnanci.csv,163,E0162,lastName,navrátil,Navrátil,NAME_NORMALIZED

@@ -1,0 +1,84 @@
+file,line,id,decision,issue,detail,row
+absolvovana_skoleni.csv,2,Z000001,left out,PLACEHOLDER_DATE,raw=1900-01-01,"Z000001;E0131;Vacková Hana;BOZP-Z;1900-01-01;1902-01-01;Interní školitel;0,00;"
+absolvovana_skoleni.csv,3,Z000002,left out,PLACEHOLDER_DATE,raw=1. 1. 1900,"Z000002;E0149;Navrátil Miroslav;BOZP-Z;1. 1. 1900;1. 1. 1902;Interní školitel;0,00;"
+absolvovana_skoleni.csv,54,Z000052,left out,DUPLICATE_ID,firstRow=53,"Z000052;E0125;Holub Martin;GDPR;2019-01-16;2022-01-16;Externí lektor;600,00;doplněno ručně"
+absolvovana_skoleni.csv,414,Z000411,left out,DUPLICATE_ID,firstRow=413,"Z000411;E0036;Šimková Zuzana;POZ-OCH;2019-03-16;2021-03-16;Vzorový školicí ústav;0,00;"
+absolvovana_skoleni.csv,457,Z000453,left out,DUPLICATE_ID,firstRow=456,"Z000453;E0116;Pokorná Simona;KYBER;24. 3. 2019;24. 3. 2020;Externí lektor;0,00;"
+absolvovana_skoleni.csv,510,Z000502,left out,DUPLICATE_ID,firstRow=509,"Z000502;E0165;Holubová Barbora;KYBER;19. 4. 2019;19. 4. 2020;Externí lektor;750,00;online verze"
+absolvovana_skoleni.csv,569,Z000561,left out,NAME_OF_ANOTHER_EMPLOYEE,id=E0029 name=Malý Adam nameOf=E0054,"Z000561;E0029;Malý Adam;KYBER;27. 5. 2020;27. 5. 2021;Interní školitel;0,00;po upomínce"
+absolvovana_skoleni.csv,600,Z000592,left out,NAME_OF_ANOTHER_EMPLOYEE,id=E0143 name=Bednář Štěpán nameOf=E0045,"Z000592;E0143;Bednář Štěpán;LAB-BEZ;16.12.2020;16.12.2022;E-learning portál;0,00;"
+absolvovana_skoleni.csv,612,,noted,COMMENT,,"# export z 1. 10. 2026 – doplněno ručně, nezapočítávat do statistik;;;;;;;;"
+absolvovana_skoleni.csv,847,Z000838,left out,NAME_OF_ANOTHER_EMPLOYEE,id=E0094 name=Dvořáková Zuzana nameOf=E0117,"Z000838;E0094;Dvořáková Zuzana;POZ-OCH;3. 5. 2021;3. 5. 2023;E-learning portál;430,00;"
+absolvovana_skoleni.csv,921,Z000911,left out,DUPLICATE_ID,firstRow=920,"Z000911;E0161;Králová Barbora;KYBER;13. 6. 2021;13. 6. 2022;E-learning portál;750,00;absolvováno v zahraničí"
+absolvovana_skoleni.csv,1015,Z001004,left out,DUPLICATE_ID,firstRow=1014,"Z001004;E0009;Hájková Pavla;KYBER;2021-12-27;2022-12-27;Interní školitel;0,00;po upomínce"
+absolvovana_skoleni.csv,1092,Z001080,left out,DUPLICATE_ID,firstRow=1091,"Z001080;E0075;Jelínek Tomáš;PRV-POM;20.02.2022;20.02.2025;Vzorový školicí ústav;1 250,00;"
+absolvovana_skoleni.csv,1385,Z001371,left out,NAME_OF_ANOTHER_EMPLOYEE,id=E0068 name=Novotná Jana nameOf=E0015,"Z001371;E0068;Novotná Jana;KYBER;31. 12. 2022;31. 12. 2023;Vzorový školicí ústav;0,00;"
+absolvovana_skoleni.csv,1416,Z001402,left out,EMPLOYEE_NOT_FOUND,value=E9006,"Z001402;E9006;Neznámý Zaměstnanec;KYBER;25. 1. 2023;25. 1. 2024;Interní školitel;450,00;"
+absolvovana_skoleni.csv,1566,Z001552,left out,EMPLOYEE_NOT_FOUND,value=E9001,"Z001552;E9001;Neznámý Zaměstnanec;GDPR;2. 5. 2023;2. 5. 2026;Interní školitel;450,00;"
+absolvovana_skoleni.csv,1578,Z001564,left out,NAME_OF_ANOTHER_EMPLOYEE,id=E0052 name=Černá Marie nameOf=E0013,"Z001564;E0052;Černá Marie;POZ-OCH;11. 5. 2023;11. 5. 2025;Interní školitel;0,00;"
+absolvovana_skoleni.csv,1710,Z001695,left out,EMPLOYEE_NOT_FOUND,value=E9008,"Z001695;E9008;Neznámý Zaměstnanec;GDPR;31.07.2023;31.07.2026;Interní školitel;450,00;"
+absolvovana_skoleni.csv,1918,Z001903,left out,COURSE_NOT_FOUND,value=GDPR-2 suggestion=none,"Z001903;E0123;Vaněk David;GDPR-2;2024-05-29;2026-05-29;Externí lektor;500,00;"
+absolvovana_skoleni.csv,1962,Z001946,left out,DUPLICATE_ID,firstRow=1961,"Z001946;E0163;Machová Jitka;KYBER;10. 9. 2024;10. 9. 2025;Externí lektor;0,00;"
+absolvovana_skoleni.csv,1969,Z001953,left out,EMPLOYEE_NOT_FOUND,value=E9009,"Z001953;E9009;Neznámý Zaměstnanec;BOZP-Z;24. 9. 2024;24. 9. 2026;Interní školitel;450,00;"
+absolvovana_skoleni.csv,1970,Z001954,left out,EMPLOYEE_NOT_FOUND,value=E9007,"Z001954;E9007;Neznámý Zaměstnanec;BOZP-Z;26.09.2024;26.09.2026;Interní školitel;450,00;"
+absolvovana_skoleni.csv,2011,Z001994,left out,EMPLOYEE_NOT_FOUND,value=E9004,"Z001994;E9004;Neznámý Zaměstnanec;BOZP-Z;2024-11-03;2026-11-03;Interní školitel;450,00;"
+absolvovana_skoleni.csv,2035,Z002017,left out,DUPLICATE_ID,firstRow=2034,"Z002017;E0160;Řezníčková Lenka;KYBER;16. 11. 2024;16. 11. 2025;Externí lektor;750,00;"
+absolvovana_skoleni.csv,2127,Z002109,left out,EMPLOYEE_NOT_FOUND,value=E9002,"Z002109;E9002;Neznámý Zaměstnanec;KYBER;01.02.2025;01.02.2026;Interní školitel;450,00;"
+absolvovana_skoleni.csv,2143,Z002124,left out,EMPLOYEE_NOT_FOUND,value=E9003,"Z002124;E9003;Neznámý Zaměstnanec;KYBER;16. 2. 2025;16. 2. 2026;Interní školitel;450,00;"
+absolvovana_skoleni.csv,2298,Z002278,left out,DUPLICATE_ID,firstRow=2297,"Z002278;E0055;Pokorná Kateřina;BOZP-Z;3. 5. 2025;3. 5. 2027;E-learning portál;0,00;online verze"
+absolvovana_skoleni.csv,2300,Z002280,left out,COURSE_NOT_FOUND,value=BOZP-X suggestion=BOZP-Z,"Z002280;E0102;Sedláček Michal;BOZP-X;3. 5. 2025;3. 5. 2027;Externí lektor;500,00;"
+absolvovana_skoleni.csv,2355,Z002334,left out,DUPLICATE_ID,firstRow=2354,"Z002334;E0035;Jelínek Jaroslav;GDPR;21. 5. 2025;21. 5. 2028;Interní školitel;550,00;"
+absolvovana_skoleni.csv,2358,Z002336,left out,DUPLICATE_ID,firstRow=2357,"Z002336;E0043;Šebestová Radka;BOZP-Z;21. 5. 2025;21. 5. 2027;Vzorový školicí ústav;550,00;"
+absolvovana_skoleni.csv,2446,Z002424,left out,COURSE_NOT_FOUND,value=BOZP-X suggestion=BOZP-Z,"Z002424;E0029;Bartoš Vojtěch;BOZP-X;22.06.2025;22.06.2027;Externí lektor;500,00;"
+absolvovana_skoleni.csv,2482,Z002459,left out,DUPLICATE_ID,firstRow=2481,"Z002459;E0022;Novák Ondřej;GDPR;06.07.2025;06.07.2028;Vzorový školicí ústav;0,00;"
+absolvovana_skoleni.csv,2536,Z002512,left out,DUPLICATE_ID,firstRow=2535,"Z002512;E0118;Konečný Pavel;PRV-POM;2025-07-26;2028-07-26;E-learning portál;1 200,00;"
+absolvovana_skoleni.csv,2614,Z002590,left out,EMPLOYEE_NOT_FOUND,value=E9005,"Z002590;E9005;Neznámý Zaměstnanec;KYBER;21.09.2025;21.09.2026;Interní školitel;450,00;"
+absolvovana_skoleni.csv,2698,Z002674,left out,COURSE_NOT_FOUND,value=BOZP-X suggestion=BOZP-Z,"Z002674;E0069;Jelínková Veronika;BOZP-X;17. 11. 2025;17. 11. 2027;Externí lektor;500,00;"
+absolvovana_skoleni.csv,2699,Z002675,left out,COURSE_NOT_FOUND,value=BOZP-X suggestion=BOZP-Z,"Z002675;E0051;Čermáková Blanka;BOZP-X;2025-11-18;2027-11-18;Externí lektor;500,00;"
+absolvovana_skoleni.csv,2711,Z002686,left out,DUPLICATE_ID,firstRow=2710,"Z002686;E0023;Svoboda Jan;KYBER;22. 11. 2025;22. 11. 2026;Vzorový školicí ústav;750,00;prezenčně"
+absolvovana_skoleni.csv,2712,Z002687,kept,COMPLETED_AFTER_LEAVING,value=2025-11-22 leftOn=2025-11-04,"Z002687;E0085;Jelínek Josef;KYBER;22. 11. 2025;22. 11. 2026;Externí lektor;900,00;"
+absolvovana_skoleni.csv,2836,Z002811,kept,COMPLETED_AFTER_LEAVING,value=2026-07-29 leftOn=2026-07-27,"Z002811;E0139;Řezníček Aleš;BOZP-Z;29. 7. 2026;29. 7. 2028;E-learning portál;450,00;po upomínce"
+absolvovana_skoleni.csv,2841,Z002816,kept,COMPLETED_AFTER_LEAVING,value=2026-08-11 leftOn=2026-02-14,"Z002816;E0073;Šimková Markéta;GDPR;2026-08-11;2029-08-11;Externí lektor;600,00;"
+absolvovana_skoleni.csv,2850,Z002825,kept,COMPLETED_AFTER_LEAVING,value=2026-09-04 leftOn=2026-07-27,"Z002825;E0139;Řezníček Aleš;LAB-BEZ;4. 9. 2026;4. 9. 2028;E-learning portál;1 550,00;"
+absolvovana_skoleni.csv,2855,Z002830,kept,COMPLETED_AFTER_LEAVING,value=2026-09-11 leftOn=2026-02-14,"Z002830;E0073;Šimková Markéta;POZ-OCH;11. 9. 2026;11. 9. 2028;E-learning portál;380,00;"
+absolvovana_skoleni.csv,2860,Z002835,kept,COMPLETED_AFTER_LEAVING,value=2026-09-30 leftOn=2025-12-31,"Z002835;E0019;Vlčková Monika;KYBER;30. 9. 2026;30. 9. 2027;Interní školitel;800,00;"
+absolvovana_skoleni.csv,2861,Z002836,left out,FUTURE_COMPLETION,value=2026-10-27,"Z002836;E0013;Černá Marie;BOZP-Z;27.10.2026;27.10.2028;Vzorový školicí ústav;450,00;zadáno předem"
+absolvovana_skoleni.csv,2862,Z002837,left out,FUTURE_COMPLETION,value=2026-11-25,"Z002837;E0121;Fialová Lucie;KYBER;25.11.2026;25.11.2027;Vzorový školicí ústav;800,00;zadáno předem"
+absolvovana_skoleni.csv,2863,Z002838,left out,FUTURE_COMPLETION,value=2026-11-28,"Z002838;E0162;Navrátil Aleš;PRV-POM;28. 11. 2026;28. 11. 2029;Vzorový školicí ústav;1 200,00;zadáno předem"
+absolvovana_skoleni.csv,2864,Z002839,left out,FUTURE_COMPLETION,value=2026-12-04,"Z002839;E0006;Blažková Klára;PRV-POM;4. 12. 2026;4. 12. 2029;Vzorový školicí ústav;1 200,00;zadáno předem"
+absolvovana_skoleni.csv,2865,Z002840,left out,FUTURE_COMPLETION,value=2026-12-31,"Z002840;E0122;Zemanová Marie;KYBER;2026-12-31;2027-12-31;Vzorový školicí ústav;800,00;zadáno předem"
+absolvovana_skoleni.csv,2866,Z915067,left out,DUPLICATE_RECORD,otherId=Z001462 firstRow=1476,"Z915067;E0028;Horák Štěpán;BOZP-Z;2023-03-20;2025-03-20;VZOROVÝ ŠKOLICÍ ÚSTAV;550,00;"
+absolvovana_skoleni.csv,2867,Z917163,left out,DUPLICATE_RECORD,otherId=Z002070 firstRow=2088,"Z917163;E0146;Burešová Blanka;KYBER;15. 12. 2024;15. 12. 2025;E-LEARNING PORTÁL;900,00;"
+absolvovana_skoleni.csv,2868,Z939960,left out,DUPLICATE_RECORD,otherId=Z000432 firstRow=435,"Z939960;E0163;Machová Jitka;GDPR;20. 3. 2019;20. 3. 2022;VZOROVÝ ŠKOLICÍ ÚSTAV;650,00;náhradní termín"
+absolvovana_skoleni.csv,2869,Z951895,left out,DUPLICATE_RECORD,otherId=Z002567 firstRow=2591,"Z951895;E0019;Vlčková Monika;POZ-OCH;29. 8. 2025;29. 8. 2027;INTERNÍ ŠKOLITEL;0,00;po upomínce"
+absolvovana_skoleni.csv,2870,Z960898,left out,DUPLICATE_RECORD,otherId=Z001538 firstRow=1552,"Z960898;E0062;Malá Hana;BOZP-Z;25.04.2023;25.04.2025;E-LEARNING PORTÁL;450,00;"
+absolvovana_skoleni.csv,2871,Z982602,left out,DUPLICATE_RECORD,otherId=Z001090 firstRow=1102,"Z982602;E0060;Černý Daniel;POZ-OCH;27. 2. 2022;27. 2. 2024;VZOROVÝ ŠKOLICÍ ÚSTAV;430,00;"
+absolvovana_skoleni.csv,2872,Z986155,left out,DUPLICATE_RECORD,otherId=Z001772 firstRow=1787,"Z986155;E0126;Růžička Roman;KYBER;6. 11. 2023;6. 11. 2024;EXTERNÍ LEKTOR;0,00;doplněno ručně"
+absolvovana_skoleni.csv,2873,Z988035,left out,DUPLICATE_RECORD,otherId=Z001074 firstRow=1085,"Z988035;E0097;Procházková Barbora;RIDIC;17. 2. 2022;17. 2. 2023;INTERNÍ ŠKOLITEL;0,00;"
+absolvovana_skoleni.csv,2874,Z988277,left out,DUPLICATE_RECORD,otherId=Z000895 firstRow=904,"Z988277;E0017;Čermáková Alena;BOZP-Z;2021-05-31;2023-05-31;E-LEARNING PORTÁL;450,00;"
+absolvovana_skoleni.csv,2875,Z993209,left out,DUPLICATE_RECORD,otherId=Z002794 firstRow=2819,"Z993209;E0081;Čermák Štěpán;GDPR;12. 6. 2026;12. 6. 2029;EXTERNÍ LEKTOR;600,00;"
+absolvovana_skoleni.csv,2876,CELKEM,left out,SUMMARY_ROW,,Celkem;;;;;;;2865;
+terminy_skoleni.csv,2,T001,kept,PLANNED_IN_PAST,value=2026-10-14,T001;KYBER;2026-10-14;09:00-12:00;Aula A;25;22;800;plánováno
+terminy_skoleni.csv,3,T002,kept,NON_WORKING_DAY,value=2026-10-28,T002;KYBER;2026-10-28;09:00-12:00;Aula A;40;0;800;plánováno
+terminy_skoleni.csv,8,T007,kept,NON_WORKING_DAY,value=2026-11-14,T007;KYBER;2026-11-14;09:00-12:00;Online;60;0;800;plánováno
+terminy_skoleni.csv,9,T008,kept,PLANNED_IN_PAST,value=2026-09-23,T008;KYBER;2026-09-23;09:00-12:00;Aula A;30;0;800;plánováno
+terminy_skoleni.csv,10,T009,left out,DUPLICATE_RECORD,otherId=T003 firstRow=4,T009;KYBER;2026-11-11;09:00-12:00;Aula A;30;5;800;plánováno
+terminy_skoleni.csv,15,T014,left out,INVALID_DATE,raw=31. 9. 2026,T014;POZ-OCH;31. 9. 2026;10:00-12:00;Učebna 1;40;0;380;plánováno
+terminy_skoleni.csv,16,T015,kept,PLANNED_IN_PAST,value=2026-10-07,T015;BOZP-Z;2026-10-07;08:00-11:00;Aula A;30;29;450;plánováno
+terminy_skoleni.csv,17,T016,kept,OVERBOOKED,booked=31 capacity=30,T016;BOZP-Z;2026-11-04;08:00-11:00;Aula A;30;31;450;plánováno
+terminy_skoleni.csv,20,T019,kept,PLANNED_IN_PAST,value=2026-09-16,T019;BOZP-Z;2026-09-16;08:00-11:00;Aula A;30;0;450;plánováno
+terminy_skoleni.csv,23,T022,kept,PLANNED_IN_PAST,value=2026-09-30,T022;GDPR;2026-09-30;14:00-16:00;Online;100;0;600;plánováno
+terminy_skoleni.csv,27,T026,kept,ZERO_CAPACITY,,T026;PRV-POM;2026-12-03;09:00-15:00;Učebna 2;0;0;1200;plánováno
+terminy_skoleni.csv,28,T027,kept,PLANNED_IN_PAST,value=2026-10-15,T027;RIDIC;2026-10-15;08:00-12:00;Autoškola Vzor;12;8;900;plánováno
+terminy_skoleni.csv,31,T030,kept,OVERBOOKED,booked=21 capacity=20,T030;LAB-BEZ;2026-10-29;09:00-13:00;Laboratoř 3;20;21;1500;plánováno
+zamestnanci.csv,8,E0007,kept,NO_DEPARTMENT,,E0007;Libor;Tomášek;libor.tomasek@vzorova.example;;Asistent;tereza.urbanova@vzorova.example;2015-03-01;;aktivní;801010/4370;
+zamestnanci.csv,12,E0011,kept,NO_DEPARTMENT,,E0011;Lucie;Němcová;lucie.nemcova@vzorova.example;;Specialista;tereza.urbanova@vzorova.example;2006-12-15;;aktivní;005823/8850;
+zamestnanci.csv,18,E0017,kept,NO_DEPARTMENT,,E0017;Alena;Čermáková;alena.cermakova@vzorova.example;;Specialista;tereza.urbanova@vzorova.example;2010-10-24;;aktivní;895916/9083;
+zamestnanci.csv,96,E0095,kept,HIRED_IN_FUTURE,value=2026-11-02,E0095;Michal;Veselý;michal.vesely@vzorova.example;Sprava budov;Technik údržby;vladimir.mares@vzorova.example;2026-11-02;;aktivní;641013/2898;
+zamestnanci.csv,117,E0116,kept,NO_DEPARTMENT,,E0116;Simona;Pokorná;simona.pokorna@vzorova.example;;Vedoucí;jitka.simkova@vzorova.example;2016-10-18;;aktivní;826124/9718;
+zamestnanci.csv,142,E0141,kept,NO_DEPARTMENT,,E0141;Kateřina;Marešová;katerina.maresova@vzorova.example;;Laborant;simona.pokorna@vzorova.example;2011-02-23;;rodičovská;775715/9017;
+zamestnanci.csv,157,E0156,kept,HIRED_IN_FUTURE,value=2026-12-01,E0156;Radka;Bartošová;radka.bartosova@vzorova.example;Personální oddělení;Referent;roman.vesely@vzorova.example;2026-12-01;;aktivní;666116/1154;
+zamestnanci.csv,172,E1000,left out,DUPLICATE_PERSON,otherId=E0155 firstRow=156,E1000;Adam;Novotny;adam.novotny@vzorova.example;Personální oddělení;Referent;roman.vesely@vzorova.example;2018-04-21;;aktivní;670501/6715;
+zamestnanci.csv,173,E1001,left out,DUPLICATE_PERSON,otherId=E0042 firstRow=43,E1001;Jaroslav;Zdražiy;jaroslav.zdrazil2@vzorova.example;Ekonomické oddělení;Účetní;alena.vesela@vzorova.example;2016-12-26;;aktivní;790212/8788;
+zamestnanci.csv,174,E1002,left out,DUPLICATE_PERSON,otherId=E0124 firstRow=125,E1002;Petra;Havlikova;petra.havlikova@vzorova.example;Laboratoře;Laborant;simona.pokorna@vzorova.example;2015-09-01;;aktivní;025926/4120;
+zamestnanci.csv,175,E1003,left out,DUPLICATE_PERSON,otherId=E0070 firstRow=71,E1003;Petr;Hrušky;petr.hruska2@vzorova.example;Knihovna;Knihovník;lucie.kovarova@vzorova.example;2022-08-07;;aktivní;610215/7302;
