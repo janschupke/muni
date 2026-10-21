@@ -8,6 +8,11 @@ Clerk signs people in (`/sign-in`) and up (`/sign-up`); sign-ups must be enabled
 dashboard. The role lives in Clerk, in the user's **public metadata**: `{"role": "viewer"}`,
 `"full"` or `"admin"`.
 
+Sign-up is open on purpose: anyone who creates an account reads the register as a viewer at
+once, and an archived account's owner can sign up again under another address. Clerk's
+Restricted sign-up mode (or an allowed email domain) is how to admit only the people invited
+(docs/deploy.md, Clerk).
+
 | Who      | Sees                                                        | How they get it                  |
 | -------- | ----------------------------------------------------------- | -------------------------------- |
 | Visitor  | the introduction on `/`, sign-in and sign-up; nothing else  | not signed in                    |
@@ -16,7 +21,9 @@ dashboard. The role lives in Clerk, in the user's **public metadata**: `{"role":
 | `admin`  | everything, plus editing, bookings, import and `/users`     | set in Clerk by an administrator |
 
 The `users` table mirrors Clerk (`apps/web/src/server/auth.ts`). On each new sign-in (a new
-Clerk session), and at most every five minutes after, the app reads the user from Clerk: a
+Clerk session, unless the row was synced in the last 30 seconds: two sessions used in turn
+would otherwise ask Clerk on every request), and at most every five minutes after, the app
+reads the user from Clerk: a
 missing or unknown role is written back as `viewer` (and `Full` as `full`), and the row is
 updated with the role, email, name and last sign-in. If Clerk cannot be reached, the stored
 role is used. Bookings record the user who made them.

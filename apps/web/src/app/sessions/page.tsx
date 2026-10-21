@@ -7,7 +7,7 @@ import { SessionsView } from '@/features/sessions/sessions-view'
 import { SESSION_SORT } from '@/lib/list/list-keys'
 import { type SessionListQuery, sessionsListInput } from '@/lib/list/read-inputs'
 import { param, parseList, type SearchParams } from '@/lib/list/search-params'
-import { requireReader } from '@/server/auth'
+import { getSessionUser, requireReader } from '@/server/auth'
 import { prefetched } from '@/server/prefetch'
 
 interface Props {
@@ -20,11 +20,15 @@ const queryOf = (params: Awaited<SearchParams>): SessionListQuery => ({
   course: param(params, 'course'),
 })
 
-/** "Sessions", or the room's or course's when the list is narrowed to one. */
+/**
+ * "Sessions", or the room's or course's when the list is narrowed to one. Names are read only
+ * for someone who may read them: the title runs before the page's own guard.
+ */
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const { room: roomId, course: code } = queryOf(await searchParams)
-  const [t, room, course] = await Promise.all([
-    getTranslations('sessions'),
+  const t = await getTranslations('sessions')
+  if (!(await getSessionUser())) return { title: t('title') }
+  const [room, course] = await Promise.all([
     roomId ? listRoomOptions().then(rooms => rooms.find(r => r.id === roomId)) : undefined,
     code ? listCourseOptions().then(courses => courses.find(c => c.code === code)) : undefined,
   ])

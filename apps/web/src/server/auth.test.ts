@@ -10,6 +10,7 @@ import {
   isAccountArchived,
   requireAdmin,
   requireReader,
+  SESSION_RESYNC_MS,
   SYNC_INTERVAL_MS,
 } from './auth'
 
@@ -116,14 +117,25 @@ describe('session user', () => {
   })
 
   it('checks Clerk again on a new sign-in, and picks up a role changed there', async () => {
+    const earlier = new Date(Date.now() - SESSION_RESYNC_MS - 1000)
     vi.mocked(findUserByClerkId).mockResolvedValue(
-      userRow('user_1', 'VIEWER', { lastSessionId: 'sess_0' })
+      userRow('user_1', 'VIEWER', { lastSessionId: 'sess_0', syncedAt: earlier })
     )
     clerkHas('full')
     expect(await getSessionUser()).toMatchObject({ role: 'FULL' })
     expect(upsertUserFromClerk).toHaveBeenCalledWith(
       expect.objectContaining({ role: 'FULL', sessionId: 'sess_1' })
     )
+  })
+
+  it('asks Clerk once for sessions used in turn: another session just synced is trusted', async () => {
+    // Synced a moment ago by the other session: a request from this one does not ask again,
+    // so two sessions alternating cannot make every request a call to Clerk.
+    vi.mocked(findUserByClerkId).mockResolvedValue(
+      userRow('user_1', 'VIEWER', { lastSessionId: 'sess_0', syncedAt: new Date() })
+    )
+    expect(await getSessionUser()).toMatchObject({ role: 'VIEWER' })
+    expect(clerkClient).not.toHaveBeenCalled()
   })
 
   it('checks Clerk again once the stored role is older than the sync interval', async () => {
@@ -156,8 +168,9 @@ describe('session user', () => {
   it('keeps the stored role when Clerk cannot be reached, and fails without one', async () => {
     const warn = expectLogged('warn')
     clerkUsers.getUser.mockRejectedValue(new Error('Clerk down'))
+    const earlier = new Date(Date.now() - SESSION_RESYNC_MS - 1000)
     vi.mocked(findUserByClerkId).mockResolvedValue(
-      userRow('user_1', 'FULL', { lastSessionId: 'sess_0' })
+      userRow('user_1', 'FULL', { lastSessionId: 'sess_0', syncedAt: earlier })
     )
     expect(await getSessionUser()).toMatchObject({ role: 'FULL' })
     expect(warn).toHaveBeenCalled()

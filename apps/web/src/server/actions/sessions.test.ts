@@ -7,6 +7,7 @@ import {
 } from '@muni/db/repositories'
 import { describe, expect, it, vi } from 'vitest'
 
+import { RateLimitedError, spendRequest } from '@/server/rate-limit'
 import { expectLogged } from '@/test/console'
 import { form, idle, redirectOf, serverSession, signedIn } from '@/test/server'
 
@@ -159,6 +160,10 @@ describe('session creation', () => {
     expect(await checkSessionSlotAction(slot, 5 as unknown as string)).toBeNull()
     expectLogged('error')
     vi.mocked(checkSessionSlot).mockRejectedValueOnce(new Error('down'))
+    expect(await checkSessionSlotAction(slot, null)).toBeNull()
+    expect(checkSessionSlot).toHaveBeenCalledTimes(2)
+    // Past the user's read limit: no answer, and nothing worth logging.
+    vi.mocked(spendRequest).mockRejectedValueOnce(new RateLimitedError(5))
     expect(await checkSessionSlotAction(slot, null)).toBeNull()
     expect(checkSessionSlot).toHaveBeenCalledTimes(2)
     for (const user of [null, 'user_2'] as const) {

@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { removeAssignmentAction } from '@/server/actions/assignments'
 import { requireAdminPage } from '@/server/auth'
-import { signInAs } from '@/test/auth'
+import { signInAs, signOut } from '@/test/auth'
 import { advisorInput, AULA_A, EXTERNAL, INTERNAL, ONLINE, session } from '@/test/fixtures'
 import { NotFoundError, route, router } from '@/test/next'
 import { params, renderServer } from '@/test/render'
@@ -147,6 +147,15 @@ describe('session list', () => {
     expect(within(row).getByText('—')).toBeTruthy()
     expect(within(screen.getByRole('row', { name: /T030/ })).getByText('Overbooked')).toBeTruthy()
     expect(within(screen.getByRole('row', { name: /T016/ })).getByText('Full')).toBeTruthy()
+  })
+
+  it('names no room or course in the title for a visitor: nothing read before the guard', async () => {
+    signOut()
+    expect(await listMetadata(search({ room: 'room_aula_a', course: 'BOZP-Z' }))).toEqual({
+      title: 'Sessions',
+    })
+    expect(listRoomOptions).not.toHaveBeenCalled()
+    expect(listCourseOptions).not.toHaveBeenCalled()
   })
 
   it('filters by room and keeps it across the upcoming/past tabs', async () => {

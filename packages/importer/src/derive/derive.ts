@@ -531,11 +531,13 @@ export function deriveImportFiles(
       [DERIVED_FILES.completions]: csvOf('completions', out.completions),
       'review/inferences.csv': toCsv(
         ['file', 'line', 'id', 'field', 'original', 'derived', 'rule'],
-        inferences.map(i => [i.file, i.line, i.id, i.field, i.original, i.derived, i.rule])
+        inferences.map(i => [i.file, i.line, i.id, i.field, i.original, i.derived, i.rule]),
+        { forPeople: true }
       ),
       'review/ambiguities.csv': toCsv(
         ['file', 'line', 'id', 'decision', 'issue', 'detail', 'row'],
-        ambiguities.map(a => [a.file, a.line, a.id, a.decision, a.issue, a.detail, a.row])
+        ambiguities.map(a => [a.file, a.line, a.id, a.decision, a.issue, a.detail, a.row]),
+        { forPeople: true }
       ),
     },
     inferences,

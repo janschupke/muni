@@ -34,11 +34,19 @@ const toSessionUser = ({ id, clerkId, role, name, email }: UserRecord): SessionU
   email,
 })
 
-/** A new sign-in (another session), or a row older than the sync interval. */
+/**
+ * How long after a sync a new session is trusted to carry the same role. Two sessions used in
+ * turn would otherwise each count as new, and every request would ask Clerk.
+ * @internal Exported for its tests.
+ */
+export const SESSION_RESYNC_MS = 30 * 1000
+
+/** A new sign-in (another session) not just synced, or a row older than the sync interval. */
 function isStale(row: UserRecord, sessionId: string | null, now: Date): boolean {
+  const age = now.getTime() - row.syncedAt.getTime()
   return (
-    (sessionId !== null && row.lastSessionId !== sessionId) ||
-    now.getTime() - row.syncedAt.getTime() > SYNC_INTERVAL_MS
+    (sessionId !== null && row.lastSessionId !== sessionId && age > SESSION_RESYNC_MS) ||
+    age > SYNC_INTERVAL_MS
   )
 }
 

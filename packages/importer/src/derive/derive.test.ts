@@ -137,14 +137,31 @@ describe('the derived import files', () => {
 
   it('match the counts their README gives', () => {
     const readme = readFileSync(path.join(IMPORT, 'README.md'), 'utf8')
-    for (const [file, { kept, leftOut }] of Object.entries(derived.accounted))
-      expect(readme, file).toContain(
-        `| \`${file}\` | ${String(kept.length)} | ${String(leftOut.length)} |`
+    for (const [file, { kept, leftOut }] of Object.entries(derived.accounted)) {
+      // The table's row for the file, however it is padded.
+      const row = new RegExp(
+        `^\\|\\s*\`${file.replaceAll('.', '\\.')}\`\\s*\\|\\s*(\\d+)\\s*\\|\\s*(\\d+)\\s*\\|$`,
+        'm'
       )
+      expect(row.exec(readme)?.slice(1), file).toEqual([
+        String(kept.length),
+        String(leftOut.length),
+      ])
+    }
   })
 })
 
 describe('toCsv', () => {
+  it('keeps a would-be formula as text in a file for people, and as it is in one to import', () => {
+    const rows = [['=HYPERLINK("x")', '-5', '+1', '@cmd', 'plain']]
+    expect(toCsv(['a', 'b', 'c', 'd', 'e'], rows, { forPeople: true })).toBe(
+      'a,b,c,d,e\n"\'=HYPERLINK(""x"")",\'-5,\'+1,\'@cmd,plain\n'
+    )
+    expect(toCsv(['a', 'b', 'c', 'd', 'e'], rows)).toBe(
+      'a,b,c,d,e\n"=HYPERLINK(""x"")",-5,+1,@cmd,plain\n'
+    )
+  })
+
   it('quotes a cell only for a comma, a quote or a line break', () => {
     expect(
       toCsv(

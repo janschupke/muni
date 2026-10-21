@@ -17,6 +17,7 @@ import * as z from 'zod'
 import { type FormState, sessionProblem } from '@/lib/form/form'
 import { parseForm, sessionCreateSpec } from '@/lib/form/form-inputs'
 import { getSessionUser } from '@/server/auth'
+import { RateLimitedError, spendRequest } from '@/server/rate-limit'
 
 import {
   asAdmin,
@@ -96,9 +97,11 @@ export async function checkSessionSlotAction(
   const parsed = slotSchema.safeParse(slot)
   if (!parsed.success || !isBoundIdOrNull(self)) return null
   try {
+    // A read like any other: within the user's limit, or no answer.
+    await spendRequest('read', user.id)
     return await checkSessionSlot(parsed.data, self)
   } catch (error) {
-    logFailure(error)
+    if (!(error instanceof RateLimitedError)) logFailure(error)
     return null
   }
 }

@@ -10,11 +10,18 @@ below set up a new deployment once; a new deployment then needs its first data: 
 1. Create a project in an EU region (Frankfurt, next to the functions in `fra1`). Keep the
    database password.
 2. **Turn off the Data API** (Project Settings → Data API). The app reaches the database only
-   through Prisma; left on, the tables in `public` are open to Supabase's REST API.
-3. From **Connect**, copy two connection strings, with the password filled in:
+   through Prisma. The tables also refuse Supabase's `anon` and `authenticated` roles
+   themselves (row-level security, migration `20261027090000_row_level_security`), so a Data
+   API turned back on still shows nothing.
+3. **Encrypted connections only** (Project Settings → Database → SSL Configuration): turn on
+   "Enforce SSL on incoming connections", and download the **SSL certificate** there (a PEM
+   file). Its content goes into `DATABASE_CA` on Vercel: the app connects to a database on
+   another host only over TLS checked against it, and refuses to start without it.
+4. From **Connect**, copy two connection strings, with the password filled in:
    - the **transaction pooler** (port 6543): `DATABASE_URL`, what the app uses at runtime;
    - the **session pooler** (port 5432), or the direct connection if your network has IPv6:
-     `DIRECT_URL`, what the migrations use.
+     `DIRECT_URL`, what the migrations use. Add `?sslmode=require` to it: the migrations then
+     refuse an unencrypted connection too.
 
 `prisma.config.ts` refuses to migrate through port 6543, so a production deploy without
 `DIRECT_URL` fails before it changes anything.
@@ -33,6 +40,12 @@ below set up a new deployment once; a new deployment then needs its first data: 
 Roles live in each user's public metadata (`{"role": "admin"}`, `full`, `viewer`); a user
 without one becomes a viewer on first sign-in. [First data](#first-data) says how to make the
 first admin.
+
+**Sign-up is open.** Anyone who creates an account is a viewer at once and reads the register
+(names, departments, employment status, training history; personal details are redacted for
+viewers, see [access](features/access.md)). Archiving an account does not stop its owner from
+signing up again with another address. To let in only the people you invite, set Clerk's
+**Restrictions → Sign-up mode** to Restricted (or allow only your email domain).
 
 ## Vercel
 
@@ -53,17 +66,18 @@ first admin.
 3. **Domains:** add your domain and the DNS record Vercel asks for.
 4. **Environment variables:** set these for Production (Settings → Environment Variables).
 
-| Variable                            | Value                                                                      |
-| ----------------------------------- | -------------------------------------------------------------------------- |
-| `DATABASE_URL`                      | Supabase transaction pooler (port 6543)                                    |
-| `DIRECT_URL`                        | Supabase session pooler or direct connection (port 5432)                   |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk production publishable key (`pk_live_`…)                             |
-| `CLERK_SECRET_KEY`                  | Clerk production secret key (`sk_live_`…)                                  |
-| `CLERK_DISABLE_AUTO_PROXY`          | `1`: see below                                                             |
-| `ENABLE_EXPERIMENTAL_COREPACK`      | `1`: Vercel then installs with the pnpm `package.json` pins, not pnpm 9/10 |
-| `MUNI_SANITIZE_POLICY`              | optional: JSON over the default field policy                               |
-| `MUNI_EXPIRING_DAYS`                | optional: days before expiry that count as expiring (default 30)           |
-| `MUNI_RATE_LIMIT_READS`, `_WRITES`  | optional: requests per user and minute (defaults 300 and 60)               |
+| Variable                            | Value                                                                               |
+| ----------------------------------- | ----------------------------------------------------------------------------------- |
+| `DATABASE_URL`                      | Supabase transaction pooler (port 6543)                                             |
+| `DIRECT_URL`                        | Supabase session pooler or direct connection (port 5432)                            |
+| `DATABASE_CA`                       | Supabase's SSL certificate (PEM): required, the app refuses an unchecked connection |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk production publishable key (`pk_live_`…)                                      |
+| `CLERK_SECRET_KEY`                  | Clerk production secret key (`sk_live_`…)                                           |
+| `CLERK_DISABLE_AUTO_PROXY`          | `1`: see below                                                                      |
+| `ENABLE_EXPERIMENTAL_COREPACK`      | `1`: Vercel then installs with the pnpm `package.json` pins, not pnpm 9/10          |
+| `MUNI_SANITIZE_POLICY`              | optional: JSON over the default field policy                                        |
+| `MUNI_EXPIRING_DAYS`                | optional: days before expiry that count as expiring (default 30)                    |
+| `MUNI_RATE_LIMIT_READS`, `_WRITES`  | optional: requests per user and minute (defaults 300 and 60)                        |
 
 `CLERK_DISABLE_AUTO_PROXY`: when Vercel's production URL is a `vercel.app` address,
 Clerk tells the browser to load it through `/__clerk` on the app's own host. Only a
@@ -101,6 +115,11 @@ it still works (add first, remove what the old code reads in a later deploy). Ve
 
 Vercel deploys whatever `master` holds, whatever CI says of it; run `pnpm check` before
 pushing (see [testing](testing.md#ci)).
+
+The read limit (`MUNI_RATE_LIMIT_READS`) is per user. Lists, the advisor and the planner work
+over the whole register on each request, which is cheap at a few hundred people; with open
+sign-up, many accounts multiply it. A register of thousands needs sign-up restricted, or a
+lower limit.
 
 ## First data
 

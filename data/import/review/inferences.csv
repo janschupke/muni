@@ -5,9 +5,9 @@ absolvovana_skoleni.csv,101,Z000099,validUntil,23.01.2023,2022-01-23,VALIDITY_FR
 absolvovana_skoleni.csv,104,Z000102,courseCode,BOZP-Z,BOZP-Z,CODE_NORMALIZED
 absolvovana_skoleni.csv,159,Z000157,validUntil,2. 2. 2024,2022-02-02,VALIDITY_FROM_COURSE
 absolvovana_skoleni.csv,160,Z000158,validUntil,2021-08-03,2022-02-03,VALIDITY_FROM_COURSE
-absolvovana_skoleni.csv,204,Z000202,price,"-600,00",,NEGATIVE_PRICE
+absolvovana_skoleni.csv,204,Z000202,price,"'-600,00",,NEGATIVE_PRICE
 absolvovana_skoleni.csv,226,Z000224,courseCode,POZ_OCH,POZ-OCH,CODE_NORMALIZED
-absolvovana_skoleni.csv,227,Z000225,price,"-600,00",,NEGATIVE_PRICE
+absolvovana_skoleni.csv,227,Z000225,price,"'-600,00",,NEGATIVE_PRICE
 absolvovana_skoleni.csv,340,Z000338,courseCode,lead,LEAD,CODE_NORMALIZED
 absolvovana_skoleni.csv,476,Z000471,completedOn,43552,2019-03-28,EXCEL_SERIAL_DATE
 absolvovana_skoleni.csv,476,Z000471,validUntil,44283,2021-03-28,EXCEL_SERIAL_DATE
@@ -38,7 +38,7 @@ absolvovana_skoleni.csv,924,Z000914,price,zdarma,0,FREE_PRICE
 absolvovana_skoleni.csv,946,Z000936,courseCode,GDPR,GDPR,CODE_NORMALIZED
 absolvovana_skoleni.csv,1002,Z000992,validUntil,,2022-12-14,VALIDITY_DERIVED
 absolvovana_skoleni.csv,1121,Z001108,validUntil,8. 3. 2027,2025-03-08,VALIDITY_FROM_COURSE
-absolvovana_skoleni.csv,1158,Z001145,price,"-700,00",,NEGATIVE_PRICE
+absolvovana_skoleni.csv,1158,Z001145,price,"'-700,00",,NEGATIVE_PRICE
 absolvovana_skoleni.csv,1165,Z001152,price,zdarma,0,FREE_PRICE
 absolvovana_skoleni.csv,1196,Z001183,validUntil,2021-11-15,2025-04-23,VALIDITY_BEFORE_COMPLETION
 absolvovana_skoleni.csv,1196,Z001183,validUntil,2021-11-15,2025-04-23,VALIDITY_DERIVED
@@ -147,8 +147,8 @@ zamestnanci.csv,21,E0020,firstName,LUCIE,Lucie,NAME_NORMALIZED
 zamestnanci.csv,24,E0023,managerEmail,nezname.jmeno@vzorova.example,,MANAGER_NOT_FOUND
 zamestnanci.csv,26,E0025,department,Studijni oddeleni,Studijní oddělení,VALUE_NORMALIZED
 zamestnanci.csv,66,E0065,firstName,HANA,Hana,NAME_NORMALIZED
-zamestnanci.csv,67,E0066,note,-2+3,2+3,FORMULA_STRIPPED
-zamestnanci.csv,70,E0069,note,@SUM(1+1),SUM(1+1),FORMULA_STRIPPED
+zamestnanci.csv,67,E0066,note,'-2+3,2+3,FORMULA_STRIPPED
+zamestnanci.csv,70,E0069,note,'@SUM(1+1),SUM(1+1),FORMULA_STRIPPED
 zamestnanci.csv,78,E0077,firstName,Martina,Martina,NAME_NORMALIZED
 zamestnanci.csv,80,E0079,firstName,MARTINA,Martina,NAME_NORMALIZED
 zamestnanci.csv,81,E0080,managerEmail,nezname.jmeno@vzorova.example,,MANAGER_NOT_FOUND
@@ -160,7 +160,7 @@ zamestnanci.csv,104,E0103,department,SPRÁVA BUDOV,Správa budov,VALUE_NORMALIZE
 zamestnanci.csv,106,E0105,firstName,Michal,Michal,NAME_NORMALIZED
 zamestnanci.csv,106,E0105,lastName,růžička,Růžička,NAME_NORMALIZED
 zamestnanci.csv,107,E0106,department,správa budov,Správa budov,VALUE_NORMALIZED
-zamestnanci.csv,109,E0108,note,+1+1,1+1,FORMULA_STRIPPED
+zamestnanci.csv,109,E0108,note,'+1+1,1+1,FORMULA_STRIPPED
 zamestnanci.csv,122,E0121,email,"lucie.fialova@vzorova,example",lucie.fialova@vzorova.example,EMAIL_FIXED
 zamestnanci.csv,130,E0129,email,marek.havel@vzorova,marek.havel@vzorova.example,EMAIL_DOMAIN
 zamestnanci.csv,133,E0132,department,Laboratore,Laboratoře,VALUE_NORMALIZED
@@ -169,7 +169,7 @@ zamestnanci.csv,138,E0137,department,Laboratore,Laboratoře,VALUE_NORMALIZED
 zamestnanci.csv,143,E0142,firstName,JANA,Jana,NAME_NORMALIZED
 zamestnanci.csv,143,E0142,lastName,černá,Černá,NAME_NORMALIZED
 zamestnanci.csv,151,E0150,email,jiri.simek@vzorova,jiri.simek@vzorova.example,EMAIL_DOMAIN
-zamestnanci.csv,154,E0153,note,"=HYPERLINK(""https://example.com/prihlaseni"";""Klikněte pro ověření"")","HYPERLINK(""https://example.com/prihlaseni"";""Klikněte pro ověření"")",FORMULA_STRIPPED
+zamestnanci.csv,154,E0153,note,"'=HYPERLINK(""https://example.com/prihlaseni"";""Klikněte pro ověření"")","HYPERLINK(""https://example.com/prihlaseni"";""Klikněte pro ověření"")",FORMULA_STRIPPED
 zamestnanci.csv,158,E0157,email,dagmar.pospisilova@vzorova,dagmar.pospisilova@vzorova.example,EMAIL_DOMAIN
 zamestnanci.csv,159,E0158,department,Personalni oddeleni,Personální oddělení,VALUE_NORMALIZED
 zamestnanci.csv,160,E0159,department,VEDENÍ,Vedení,VALUE_NORMALIZED
