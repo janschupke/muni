@@ -184,51 +184,55 @@ describe('ImportWizard', () => {
     expect(screen.queryByText(/invalid rows? (is|are) skipped/)).toBeNull()
   })
 
-  /** The completions tab of a review of three pages of rows (120). */
+  /**
+   * The completions tab of a review of two pages of rows (60): a full first page, ten on the
+   * second. Queries keep to the part of the table they are about (the header, the body, the
+   * pager): a role query over a whole page of rows weighs every cell and button in it.
+   */
   async function reviewCompletions() {
     const user = userEvent.setup()
     const { container } = renderWizard()
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')
     if (!input) throw new Error('file input missing')
-    // Three pages of rows: what paging needs, without reading a real export.
-    await user.upload(input, [csv('katalog_skoleni.csv'), completions(120)])
+    // Two pages of rows: what paging needs, without reading a real export.
+    await user.upload(input, [csv('katalog_skoleni.csv'), completions(60)])
     await user.click(await screen.findByRole('button', { name: 'Review rows' }))
     await user.click(await screen.findByRole('tab', { name: /Completions/ }))
     const panel = screen.getByRole('tabpanel')
-    const lines = () =>
-      within(panel)
-        .getAllByRole('row')
-        .slice(1)
-        .map(row => Number(within(row).getAllByRole('cell')[0]?.textContent))
-    return { user, panel, lines }
+    const [head, body] = within(panel).getAllByRole<HTMLTableSectionElement>('rowgroup')
+    if (!head || !body) throw new Error('no table')
+    // The file line each row of the page shows, from its first cell.
+    const lines = () => [...body.rows].map(row => Number(row.cells[0]?.textContent))
+    const pager = within(within(panel).getByRole('navigation'))
+    return { user, panel, head: within(head), body, pager, lines }
   }
 
   it('sorts the whole dataset before paging', async () => {
-    const { user, panel, lines } = await reviewCompletions()
+    const { user, head, lines } = await reviewCompletions()
     expect(lines()).toHaveLength(50)
-    await user.click(within(panel).getByRole('button', { name: 'Line' }))
-    await user.click(within(panel).getByRole('button', { name: 'Line' }))
-    expect(
-      within(panel).getByRole('columnheader', { name: /Line/ }).getAttribute('aria-sort')
-    ).toBe('descending')
+    await user.click(head.getByRole('button', { name: 'Line' }))
+    await user.click(head.getByRole('button', { name: 'Line' }))
+    expect(head.getByRole('columnheader', { name: /Line/ }).getAttribute('aria-sort')).toBe(
+      'descending'
+    )
     // Page 1 now starts at the file's last line, not the last line of the old first page.
     const page1 = lines()
-    expect(page1[0]).toBe(121)
+    expect(page1[0]).toBe(61)
     expect(page1).toEqual([...page1].sort((a, b) => b - a))
   })
 
   it('keeps the page through an edit', async () => {
-    const { user, panel, lines } = await reviewCompletions()
-    await user.click(within(panel).getByRole('button', { name: /Next/ }))
+    const { user, body, pager, lines } = await reviewCompletions()
+    await user.click(pager.getByRole('button', { name: /Next/ }))
     expect(lines()[0]).toBe(52)
-    expect(within(panel).getByText(/^Page 2 of/)).toBeTruthy()
-    const firstRow = within(panel).getAllByRole('row')[1]
+    expect(pager.getByText(/^Page 2 of/)).toBeTruthy()
+    const firstRow = body.rows[0]
     if (!firstRow) throw new Error('no rows')
     const [editButton] = within(firstRow).getAllByRole('button', { name: /Edit .+ on line \d+$/ })
     if (!editButton) throw new Error('no editable cell')
     await user.click(editButton)
-    await user.type(within(panel).getByRole('textbox'), ' x{Enter}')
-    expect(within(panel).getByText(/^Page 2 of/)).toBeTruthy()
+    await user.type(within(firstRow).getByRole('textbox'), ' x{Enter}')
+    expect(pager.getByText(/^Page 2 of/)).toBeTruthy()
   })
 
   it('rejects a file it cannot recognise', async () => {
