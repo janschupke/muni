@@ -26,5 +26,8 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "types": ["node"]
-  }
+  },
+  // Every environment variable the code reads, typed once (relative to this file, for every
+  // config that extends it).
+  "files": ["env.d.ts"]
 }

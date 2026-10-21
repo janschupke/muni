@@ -3,7 +3,13 @@ import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { type Check, planChecks, SCANNING_SUITES, type Workspace } from './check-changed.ts'
+import {
+  type Check,
+  planChecks,
+  SCANNING_SUITES,
+  type Workspace,
+  workspacesOf,
+} from './check-changed.ts'
 
 // The repo's own graph: web imports everything; db imports domain, importer and utils.
 const WORKSPACES: Workspace[] = [
@@ -22,6 +28,16 @@ const WORKSPACES: Workspace[] = [
 
 const present = () => true
 const labels = (checks: Check[]) => checks.map(c => c.label)
+
+describe('the workspace graph', () => {
+  it("is the repo's own, read from its package.json files: the tests below use a copy", () => {
+    const root = path.join(import.meta.dirname, '..')
+    const byName = (list: Workspace[]) => [...list].sort((a, b) => a.name.localeCompare(b.name))
+    const sorted = (list: Workspace[]) =>
+      byName(list).map(w => ({ ...w, deps: [...w.deps].sort() }))
+    expect(sorted(workspacesOf(root))).toEqual(sorted(WORKSPACES))
+  })
+})
 
 describe('the checks a change needs', () => {
   it('nothing changed: nothing to run', () => {
@@ -93,6 +109,18 @@ describe('the checks a change needs', () => {
   it('a shared config: the full gate, nothing narrower', () => {
     const plan = planChecks(['tsconfig.base.json', 'README.md'], WORKSPACES, present)
     expect(plan.checks).toEqual([expect.objectContaining({ label: 'pnpm check', args: ['check'] })])
+  })
+
+  it.each([
+    'env.d.ts',
+    'apps/web/src/app/globals.css',
+    'apps/web/vitest.config.ts',
+    'packages/db/vitest.integration.config.ts',
+    'apps/web/src/test/setup.ts',
+    'packages/db/.env.test',
+    'packages/db/test/global-setup.ts',
+  ])('%s, which no test imports but every test runs with: the full gate', file => {
+    expect(labels(planChecks([file], WORKSPACES, present).checks)).toEqual(['pnpm check'])
   })
 
   it('a test only: lint on that file, not its package', () => {

@@ -28,6 +28,5 @@ describe('rate limit', () => {
     vi.resetModules()
     const fresh = await import('./rate-limit')
     expect(fresh.RATE_LIMITS).toEqual({ read: 1000, write: 60 })
-    vi.unstubAllEnvs()
   })
 })

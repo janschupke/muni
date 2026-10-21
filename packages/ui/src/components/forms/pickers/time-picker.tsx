@@ -178,8 +178,7 @@ function Column({
 
   useEffect(() => {
     if (focusSignal > 0) items.current[active]?.focus()
-    // Only a new signal moves the focus; moving within the list is the effect above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new signal moves the focus; moving within the list is the effect above
   }, [focusSignal])
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

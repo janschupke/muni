@@ -1,6 +1,6 @@
 # muni — Agent Instructions
 
-This file is a pointer. All detailed rules and commands live in [`.ai/`](.ai/) — the single source of truth. It mirrors [CLAUDE.md](CLAUDE.md); keep them in sync.
+This file is a pointer. All detailed rules and commands live in [`.ai/`](.ai/) — the single source of truth. [CLAUDE.md](CLAUDE.md) imports this file.
 
 ## Project
 

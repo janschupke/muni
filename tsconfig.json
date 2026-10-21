@@ -3,5 +3,5 @@
   "extends": "./tsconfig.base.json",
   // The repo-root config files and scripts; every package has its own tsconfig for its sources.
   "compilerOptions": { "allowJs": true, "checkJs": true },
-  "include": ["env.d.ts", "*.ts", "*.js", "scripts/**/*.ts"]
+  "include": ["*.ts", "*.js", "scripts/**/*.ts"]
 }

@@ -78,8 +78,7 @@ export function EditableCell({
     return (
       <Input
         size="cell"
-        // The field replaces the cell the user just chose to edit, so focus follows.
-        // eslint-disable-next-line jsx-a11y-x/no-autofocus
+        // eslint-disable-next-line jsx-a11y-x/no-autofocus -- the field replaces the cell the user just chose to edit, so focus follows
         autoFocus
         defaultValue={value}
         aria-label={label}

@@ -1,8 +1,9 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
   "schedule": ["before 6am on monday"],
   "timezone": "Europe/Prague",
+  "minimumReleaseAge": "1 day",
   "lockFileMaintenance": { "enabled": true },
   "packageRules": [
     {
@@ -16,10 +17,30 @@
       "allowedVersions": "<7"
     },
     {
+      "description": "The types follow the Node the app runs on (24, .nvmrc and engines), not the newest.",
+      "matchPackageNames": ["@types/node"],
+      "allowedVersions": "<25"
+    },
+    {
       "description": "The prisma CLI and client move together, and the CLI's latest tag can be a release candidate.",
       "matchPackageNames": ["prisma", "@prisma/client", "@prisma/adapter-pg"],
       "groupName": "prisma",
       "ignoreUnstable": true
+    },
+    {
+      "description": "turbo-ignore (apps/web/vercel.json) moves with turbo.",
+      "matchPackageNames": ["turbo", "turbo-ignore"],
+      "groupName": "turbo"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The turbo-ignore version Vercel runs, pinned in apps/web/vercel.json.",
+      "managerFilePatterns": ["/^apps/web/vercel\\.json$/"],
+      "matchStrings": ["turbo-ignore@(?<currentValue>[0-9][^ \"]*)"],
+      "depNameTemplate": "turbo-ignore",
+      "datasourceTemplate": "npm"
     }
   ]
 }

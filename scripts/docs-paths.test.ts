@@ -9,15 +9,15 @@ import { describe, expect, it } from 'vitest'
 
 const ROOT = path.join(import.meta.dirname, '..')
 
-/** The docs: the README, the agent pointers, docs/ and the rules in .ai/. */
+/** The docs: the README, the agent pointers, docs/, the rules in .ai/ and Cursor's. */
 const DOCS = [
   'README.md',
   'CLAUDE.md',
   'AGENTS.md',
   'apps/web/AGENTS.md',
-  ...['docs', '.ai'].flatMap(dir =>
+  ...['docs', '.ai', '.cursor'].flatMap(dir =>
     readdirSync(path.join(ROOT, dir), { recursive: true, encoding: 'utf8' })
-      .filter(f => f.endsWith('.md'))
+      .filter(f => f.endsWith('.md') || f.endsWith('.mdc'))
       .map(f => path.join(dir, f))
   ),
 ]

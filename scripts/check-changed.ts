@@ -4,7 +4,10 @@
 //
 //   pnpm check:changed                  uncommitted and untracked files
 //   pnpm check:changed --base master    everything since master as well
-//   pnpm check:changed --base auto      since the upstream (or origin/master); the pre-push hook
+//   pnpm check:changed --base auto      since the upstream (or origin/master)
+//   pnpm check:changed --push           the pre-push hook: the commits a push carries, on a clean
+//                                       tree (else it refuses); with nothing to compare, the
+//                                       whole gate
 //   pnpm check:changed --dry-run        print the plan, run nothing
 //
 // The mapping (`planChecks`) is a pure function; scripts/check-changed.test.ts pins it.
@@ -46,14 +49,28 @@ const SHARED_CONFIG = new Set([
   'pnpm-workspace.yaml',
   'tsconfig.base.json',
   'tsconfig.react.json',
+  // Every package's tsconfig includes it.
+  'env.d.ts',
   'eslint.preset.js',
   'vitest.preset.ts',
   '.prettierrc.json',
   '.prettierignore',
+  // Prettier's Tailwind stylesheet: it orders the classes in every package.
+  'apps/web/src/app/globals.css',
   'turbo.json',
   'knip.config.ts',
   '.nvmrc',
+  // What the tests run with but never import, so no related test would run for them.
+  'apps/web/src/test/setup.ts',
+  'packages/db/.env.test',
+  'packages/db/test/global-setup.ts',
+  'packages/db/test/database.ts',
 ])
+
+/** A vitest config: how a package's whole suite runs, which no single test imports. */
+const VITEST_CONFIG = /(^|\/)vitest(\.[a-z]+)?\.config\.ts$/
+
+const isShared = (file: string) => SHARED_CONFIG.has(file) || VITEST_CONFIG.test(file)
 
 const LINTED = /\.(ts|tsx|js|mjs)$/
 const CODE = /\.(ts|tsx|js|mjs|json|css)$/
@@ -123,7 +140,7 @@ export function planChecks(
   const files = [...new Set(changed)].sort()
   if (files.length === 0) return { checks: [], notes: ['Nothing changed.'] }
 
-  const shared = files.filter(f => SHARED_CONFIG.has(f))
+  const shared = files.filter(isShared)
   if (shared.length > 0) {
     return {
       checks: [
@@ -293,6 +310,8 @@ export function planChecks(
               [
                 'exec',
                 'dotenv',
+                // The test database's URL wins over anything exported in the shell.
+                '-o',
                 '-e',
                 '.env.test',
                 '--',
@@ -336,7 +355,7 @@ export function planChecks(
 
 // ---- the command line
 
-function workspacesOf(root: string): Workspace[] {
+export function workspacesOf(root: string): Workspace[] {
   const dirs = ['apps', 'packages'].flatMap(top =>
     readdirSync(path.join(root, top), { withFileTypes: true })
       .filter(d => d.isDirectory() && existsSync(path.join(root, top, d.name, 'package.json')))
@@ -377,27 +396,51 @@ function resolveBase(base: string): string | null {
   return null
 }
 
-function changedSince(base: string): string[] {
+/**
+ * The files changed since `base`. Renames count as a deletion and an addition (a moved file
+ * must reach the checks for deleted ones). With `committed`, only what the commits since the
+ * fork changed (what a push carries); otherwise the working tree too, untracked files included.
+ */
+function changedSince(base: string, committed: boolean): string[] {
   const fork = base === 'HEAD' ? base : (git('merge-base', base, 'HEAD')[0] ?? base)
-  return [...git('diff', '--name-only', fork), ...git('ls-files', '--others', '--exclude-standard')]
+  if (committed) return git('diff', '--name-only', '--no-renames', fork, 'HEAD')
+  return [
+    ...git('diff', '--name-only', '--no-renames', fork),
+    ...git('ls-files', '--others', '--exclude-standard'),
+  ]
 }
 
 const say = (text: string) => process.stdout.write(`${text}\n`)
+
+/** The whole gate, when there is nothing to compare with. */
+const FULL_GATE: Plan = {
+  checks: [
+    check('pnpm check', 'no upstream or origin/master to compare with', '', 'pnpm', ['check']),
+  ],
+  notes: [],
+}
 
 function main(argv: string[]): number {
   const args = argv.filter(a => a !== '--')
   const at = args.indexOf('--base')
   const dryRun = args.includes('--dry-run')
-  const base = resolveBase(at === -1 ? 'HEAD' : (args[at + 1] ?? 'HEAD'))
-  if (base === null) {
-    say('check:changed: no upstream or origin/master to compare with; nothing to check.')
-    return 0
-  }
+  // The pre-push hook: what the push carries, so the working tree must be exactly that.
+  const push = args.includes('--push')
   const root = git('rev-parse', '--show-toplevel')[0] ?? '.'
   process.chdir(root)
-  const plan = planChecks(changedSince(base), workspacesOf(root), f => existsSync(f))
+  if (push) {
+    const dirty = git('status', '--porcelain')
+    if (dirty.length > 0) {
+      say('check:changed: commit or stash these first, so the checks see what is pushed:')
+      for (const line of dirty) say(`  ${line}`)
+      return 1
+    }
+  }
+  const base = resolveBase(push ? 'auto' : at === -1 ? 'HEAD' : (args[at + 1] ?? 'HEAD'))
+  const plan =
+    base === null ? FULL_GATE : planChecks(changedSince(base, push), workspacesOf(root), existsSync)
 
-  say(`check:changed since ${base}: ${String(plan.checks.length)} checks`)
+  say(`check:changed since ${base ?? 'nothing'}: ${String(plan.checks.length)} checks`)
   for (const c of plan.checks) say(`  - ${c.label}  (${c.reason})`)
   const failed: string[] = []
   if (!dryRun) {

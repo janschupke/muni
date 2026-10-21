@@ -4,7 +4,14 @@
   "type": "module",
   "packageManager": "pnpm@12.11.2",
   "engines": {
-    "node": ">=24 <25"
+    "node": "24.x"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24",
+      "onFail": "download"
+    }
   },
   "scripts": {
     "prepare": "lefthook install",
@@ -23,7 +30,7 @@
     "test:visual": "pnpm --filter @muni/web test:visual",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "knip": "knip --no-config-hints && knip --production --no-config-hints",
+    "knip": "knip && knip --production",
     "check:schema": "pnpm --filter @muni/db check:schema",
     "check:drift": "pnpm --filter @muni/db check:drift",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm check:schema && pnpm check:drift && pnpm coverage && pnpm test:root && pnpm build",
@@ -39,6 +46,7 @@
     "data:derive": "pnpm --filter @muni/db exec tsx scripts/derive-import-data.ts"
   },
   "devDependencies": {
+    "@eslint-community/eslint-plugin-eslint-comments": "catalog:",
     "@eslint-react/eslint-plugin": "catalog:",
     "@eslint/js": "catalog:",
     "@next/eslint-plugin-next": "catalog:",

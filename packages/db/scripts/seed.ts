@@ -15,7 +15,7 @@ const given = process.argv[2]
 const dir =
   given === undefined
     ? path.join(import.meta.dirname, '../../../data')
-    : path.resolve(process.env['INIT_CWD'] ?? process.cwd(), given)
+    : path.resolve(process.env.INIT_CWD ?? process.cwd(), given)
 const db = createDb()
 seedFromDirectory(db, dir)
   .then(() => db.$disconnect())

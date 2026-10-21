@@ -38,8 +38,7 @@ export async function resolveServer(node: ReactNode): Promise<ReactNode> {
   // would read as a list, and React would ask for keys the page never needed.
   const { children, ...rest } = props
   const many = Array.isArray(children) ? (children as ReactNode[]) : null
-  // The element as given, with its props resolved: what cloneElement is for.
-  // eslint-disable-next-line @eslint-react/no-clone-element
+  // eslint-disable-next-line @eslint-react/no-clone-element -- the element as given, with its props resolved: what cloneElement is for
   return many ? cloneElement(element, rest, ...many) : cloneElement(element, props)
 }
 

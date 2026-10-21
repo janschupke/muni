@@ -1,6 +1,7 @@
 // Shared flat-config factories. Each package's eslint.config.js calls one of them; the repo
 // root's eslint.config.js lints the root config files with `node`.
 import js from '@eslint/js'
+import eslintComments from '@eslint-community/eslint-plugin-eslint-comments'
 import eslintReact from '@eslint-react/eslint-plugin'
 import nextPlugin from '@next/eslint-plugin-next'
 import vitest from '@vitest/eslint-plugin'
@@ -26,6 +27,16 @@ const IGNORES = [
 const TESTS = ['**/*.test.ts', '**/*.test.tsx']
 
 /**
+ * `process.env['X']` passes the type check whatever X is: env.d.ts types the names, and only
+ * the dot form is checked against them.
+ */
+export const NO_BRACKET_ENV = {
+  selector:
+    "MemberExpression[computed=true][object.type='MemberExpression'][object.object.name='process'][object.property.name='env']",
+  message: 'Read process.env.NAME (declared in env.d.ts), not process.env[...].',
+}
+
+/**
  * @param {string} tsconfigRootDir
  * @returns {import('typescript-eslint').ConfigWithExtends[]}
  */
@@ -37,6 +48,14 @@ const base = tsconfigRootDir => [
     linterOptions: {
       reportUnusedDisableDirectives: 'error',
       reportUnusedInlineConfigs: 'error',
+    },
+  },
+  {
+    // An exception says why it is one, and names the rules it turns off.
+    plugins: { '@eslint-community/eslint-comments': eslintComments },
+    rules: {
+      '@eslint-community/eslint-comments/require-description': 'error',
+      '@eslint-community/eslint-comments/no-unlimited-disable': 'error',
     },
   },
   js.configs.recommended,
@@ -64,6 +83,7 @@ const base = tsconfigRootDir => [
         { groups: [['^\\u0000'], ['^node:'], ['^@?\\w'], ['^@/'], ['^\\.']] },
       ],
       'simple-import-sort/exports': 'error',
+      'no-restricted-syntax': ['error', NO_BRACKET_ENV],
     },
   },
   {
@@ -85,10 +105,7 @@ const base = tsconfigRootDir => [
     rules: {
       ...vitest.configs.recommended.rules,
       // Helpers that assert on their own count as assertions.
-      'vitest/expect-expect': [
-        'error',
-        { assertFunctionNames: ['expect', 'expect*', 'expectNoAxeViolations'] },
-      ],
+      'vitest/expect-expect': ['error', { assertFunctionNames: ['expect', 'expect*'] }],
       // Vitest's expect takes a message as its second argument.
       'vitest/valid-expect': ['error', { maxArgs: 2 }],
       'vitest/no-focused-tests': 'error',
@@ -123,7 +140,7 @@ const e2e = {
     // Helpers that assert on their own count as assertions.
     'playwright/expect-expect': [
       'error',
-      { assertFunctionNames: ['expectNoViolations', 'expectScores', 'expectOpenedRowFills'] },
+      { assertFunctionNames: ['expectAccessible', 'expectScores', 'expectOpenedRowFills'] },
     ],
   },
 }
@@ -191,6 +208,7 @@ export function react(tsconfigRootDir, { next = false } = {}) {
         // pass it through to one; components whose `title` prop is a heading are fine.
         'no-restricted-syntax': [
           'error',
+          NO_BRACKET_ENV,
           {
             selector:
               'JSXOpeningElement[name.name=/^(?!iframe$)[a-z]/] > JSXAttribute[name.name="title"]',

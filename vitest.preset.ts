@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 import { defineConfig, type ViteUserConfig } from 'vitest/config'
 
 /**
@@ -20,6 +22,14 @@ export const coverage = {
   reportsDirectory: 'coverage',
 } satisfies NonNullable<NonNullable<ViteUserConfig['test']>['coverage']>
 
+/**
+ * `server-only` as tests see it: an empty module. Next resolves it to one on the server; the
+ * real one throws anywhere else.
+ */
+export const serverOnly = {
+  'server-only': fileURLToPath(new URL('./vitest.server-only.ts', import.meta.url)),
+}
+
 /** Pure TypeScript packages. */
 export function node(overrides: ViteUserConfig = {}) {
   return defineConfig({
@@ -28,8 +38,9 @@ export function node(overrides: ViteUserConfig = {}) {
       environment: 'node',
       include: ['src/**/*.test.ts'],
       exclude: ['**/*.integration.test.ts', '**/node_modules/**'],
-      // Nothing one test set up leaks into the next.
+      // Nothing one test set up leaks into the next: mocks, spies and stubbed variables.
       restoreMocks: true,
+      unstubEnvs: true,
       coverage,
       ...overrides.test,
     },

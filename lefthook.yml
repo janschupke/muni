@@ -40,7 +40,8 @@ pre-commit:
 
 pre-push:
   jobs:
-    # Since the upstream (or origin/master): typecheck, the related tests and the path rules of
-    # .ai/rules/gates.md. With nothing to compare with, it says so and passes.
+    # The commits the push carries, since the upstream (or origin/master): typecheck, the
+    # related tests and the path rules of .ai/rules/gates.md. A dirty tree is refused (the
+    # checks would see what is not pushed); with nothing to compare with, the whole gate runs.
     - name: checks for what is pushed
-      run: node scripts/check-changed.ts --base auto
+      run: pnpm check:changed --push

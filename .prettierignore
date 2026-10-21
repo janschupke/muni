@@ -1,9 +1,5 @@
-data/
+# Prettier also skips what .gitignore lists (build output, coverage, the generated client).
+# The exports and the files derived from them are data, kept byte for byte.
+data/**/*.csv
 pnpm-lock.yaml
-packages/db/src/generated/
 packages/db/prisma/migrations/
-.next/
-.turbo/
-coverage/
-playwright-report/
-test-results/

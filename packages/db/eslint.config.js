@@ -1,4 +1,4 @@
-import { node } from '../../eslint.preset.js'
+import { NO_BRACKET_ENV, node } from '../../eslint.preset.js'
 
 const UNIQUE_KEYS = 'name|code|externalId|email|clerkId|companyId'
 const JOIN_ROWS =
@@ -10,8 +10,10 @@ export default [
     files: ['src/**/*.ts'],
     ignores: ['**/*.test.ts'],
     rules: {
+      // The preset's restrictions, then this package's own (a rule set here replaces it).
       'no-restricted-syntax': [
         'error',
+        NO_BRACKET_ENV,
         {
           // Nothing carrying history is deleted: it is archived (see repositories/archive/archiving.ts).
           // Bookings and join rows are the exceptions.

@@ -5,6 +5,7 @@
     "pnpm-lock.yaml",
     "tsconfig.base.json",
     "tsconfig.react.json",
+    "env.d.ts",
     "eslint.preset.js",
     "vitest.preset.ts",
     ".prettierrc.json",
@@ -12,6 +13,9 @@
   ],
   "globalPassThroughEnv": ["NODE_OPTIONS"],
   "tasks": {
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
     "generate": {
       "inputs": ["prisma/schema.prisma", "prisma.config.ts"],
       "outputs": ["src/generated/**"]
@@ -20,30 +24,39 @@
       "dependsOn": ["^build", "@muni/db#generate"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env"],
       "outputs": [".next/**", "!.next/cache/**"],
-      "env": [
-        "NEXT_PUBLIC_*",
-        "CLERK_SECRET_KEY",
-        "CLERK_DISABLE_AUTO_PROXY",
-        "DATABASE_URL",
-        "DIRECT_URL",
-        "MUNI_*",
-        "VERCEL_*"
-      ]
+      "env": ["NEXT_PUBLIC_*", "CLERK_SECRET_KEY", "CLERK_DISABLE_AUTO_PROXY"],
+      "passThroughEnv": ["DATABASE_URL", "DIRECT_URL", "DATABASE_CA", "MUNI_*", "VERCEL_*"]
     },
     "typecheck": {
-      "dependsOn": ["@muni/db#generate"],
+      "dependsOn": ["transit", "@muni/db#generate"],
       "outputs": []
     },
     "lint": {
-      "dependsOn": ["@muni/db#generate"],
+      "dependsOn": ["transit", "@muni/db#generate"],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["@muni/db#generate"],
+      "dependsOn": ["transit", "@muni/db#generate"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/data/**"],
       "outputs": []
     },
     "test:coverage": {
-      "dependsOn": ["@muni/db#generate"],
+      "dependsOn": ["transit", "@muni/db#generate"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/data/**"],
+      "outputs": ["coverage/**"]
+    },
+    "@muni/ui#test": {
+      "dependsOn": ["transit", "@muni/db#generate"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/apps/web/src/**"],
+      "outputs": []
+    },
+    "@muni/ui#test:coverage": {
+      "dependsOn": ["transit", "@muni/db#generate"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/apps/web/src/**"],
+      "outputs": ["coverage/**"]
+    },
+    "@muni/db#test:coverage": {
+      "dependsOn": ["transit", "@muni/db#generate"],
       "outputs": ["coverage/**"],
       "cache": false
     },
