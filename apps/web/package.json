@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "dotenv -e ../../.env -- next dev --port 3060",
     "build": "dotenv -e ../../.env -- next build",

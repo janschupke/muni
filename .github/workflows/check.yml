@@ -41,6 +41,16 @@ jobs:
           --health-timeout 3s
           --health-retries 30
     steps:
+      # Fails at once, naming the secrets, rather than in a build or a server that cannot start.
+      - name: Clerk development keys are set
+        run: |
+          case "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:$CLERK_SECRET_KEY" in
+            pk_test_*:sk_test_*) ;;
+            *)
+              echo "::error::Set the repository secrets CLERK_PUBLISHABLE_KEY (pk_test_…) and CLERK_SECRET_KEY (sk_test_…) to the Clerk development instance's keys (docs/testing.md, CI)."
+              exit 1
+              ;;
+          esac
       - uses: actions/checkout@v4
       # pnpm's version comes from package.json's packageManager field.
       - uses: pnpm/action-setup@v4
@@ -75,6 +85,16 @@ jobs:
     env:
       DATABASE_URL: postgresql://muni:muni@localhost:5439/muni_test
     steps:
+      # Fails at once, naming the secrets, rather than in a build or a server that cannot start.
+      - name: Clerk development keys are set
+        run: |
+          case "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:$CLERK_SECRET_KEY" in
+            pk_test_*:sk_test_*) ;;
+            *)
+              echo "::error::Set the repository secrets CLERK_PUBLISHABLE_KEY (pk_test_…) and CLERK_SECRET_KEY (sk_test_…) to the Clerk development instance's keys (docs/testing.md, CI)."
+              exit 1
+              ;;
+          esac
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4

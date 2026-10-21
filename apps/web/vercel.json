@@ -2,7 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "regions": ["fra1"],
-  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "git": {
+    "deploymentEnabled": { "**": false, "master": true }
+  },
+  "installCommand": "cd ../.. && { pnpm --version | grep -q '^12\\.' || { echo 'pnpm 12 is needed: set ENABLE_EXPERIMENTAL_COREPACK=1 on the Vercel project'; exit 1; }; } && pnpm install --frozen-lockfile",
   "buildCommand": "cd ../.. && if [ \"$VERCEL_ENV\" = production ]; then pnpm --filter @muni/db migrate:deploy; fi && pnpm turbo run build --filter=@muni/web",
-  "ignoreCommand": "npx turbo-ignore @muni/web"
+  "ignoreCommand": "npx --yes turbo-ignore@2.11.8 @muni/web"
 }

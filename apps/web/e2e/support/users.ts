@@ -2,6 +2,8 @@ import path from 'node:path'
 
 import { createClerkClient } from '@clerk/backend'
 
+import { clerkDevKeys } from './server'
+
 /** The e2e accounts in the Clerk development instance, one per role. */
 export const E2E_USERS = {
   /** No role in Clerk until the app gives it one on the first sign-in. */
@@ -21,11 +23,7 @@ export const storageState = (role: E2eRole) =>
  * which must never happen in a production instance.
  */
 export function clerkBackend() {
-  const secretKey = process.env['CLERK_SECRET_KEY']
-  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-  if (!secretKey?.startsWith('sk_test_') || !publishableKey?.startsWith('pk_test_'))
-    throw new Error('e2e needs Clerk development keys (pk_test_/sk_test_) in .env')
-  return createClerkClient({ secretKey, publishableKey })
+  return createClerkClient(clerkDevKeys())
 }
 
 /** The e2e user with this email, or null. */

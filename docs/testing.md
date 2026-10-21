@@ -31,6 +31,32 @@ files changed. It prints each check and why it ran; `--dry-run` only prints them
 The pre-push hook runs it against the remote branch. `pnpm check` is the full run, before a
 merge.
 
+## CI
+
+`.github/workflows/check.yml` runs on every push and pull request, in two jobs, each against a
+throwaway Postgres on the test database's port:
+
+- **check:** `pnpm audit` of what ships, then `pnpm check`, the full gate.
+- **e2e:** the production build, every e2e spec, then Lighthouse.
+
+Both sign in through the same Clerk **development** instance as local e2e, so the repository
+needs two secrets (Settings → Secrets and variables → Actions → New repository secret, or
+`gh secret set CLERK_PUBLISHABLE_KEY` and `gh secret set CLERK_SECRET_KEY`):
+
+| Secret                  | Value                                                                       |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `CLERK_PUBLISHABLE_KEY` | the development instance's publishable key, `pk_test_`…, as in local `.env` |
+| `CLERK_SECRET_KEY`      | the development instance's secret key, `sk_test_`…, as in local `.env`      |
+
+Never the production keys: the e2e setup creates the three e2e users and rewrites their
+roles, and refuses anything but `pk_test_` and `sk_test_` keys. Each job's first step checks
+the two secrets and stops, naming them, if either is missing or not a development key.
+
+GitHub gives no secrets to pull requests from forks, so their runs stop at that step.
+
+To keep a failing commit off `master`, protect the branch (Settings → Branches) and require
+the `check` and `e2e` jobs. Vercel deploys whatever `master` holds, whether CI passed or not.
+
 ## Browser tests
 
 The browser suites run against `next start` and the seeded test database:
