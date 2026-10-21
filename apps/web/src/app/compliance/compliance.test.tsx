@@ -11,6 +11,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { signInAs } from '@/test/auth'
+import { expectLogged } from '@/test/console'
 import { counts, courseDetail, courseForEdit, courseRow, matrix } from '@/test/fixtures'
 import { renderServer } from '@/test/render'
 
@@ -99,7 +100,7 @@ describe('compliance matrix', () => {
   })
 
   it('leaves the date out of the description while the matrix cannot be read', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(getComplianceMatrix).mockRejectedValue(new Error('database down'))
     await renderServer(CompliancePage())
     expect(

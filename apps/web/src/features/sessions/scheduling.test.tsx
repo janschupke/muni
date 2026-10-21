@@ -9,7 +9,6 @@ import { ProviderOfferingsTable } from '@/features/providers/provider-offerings-
 import { RoomFitTable } from '@/features/rooms/room-fit-table'
 import { SessionTable } from '@/features/sessions/session-table'
 import { signInAs } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
 import { advisorInput, courseRow, providerDetail, roomDetail, session } from '@/test/fixtures'
 import { renderClient } from '@/test/render'
 
@@ -138,7 +137,6 @@ describe('a session’s opened row', () => {
     expect(
       within(people).getByRole('button', { name: 'Cancel the booking of Černá Marie' })
     ).toBeTruthy()
-    await expectNoAxeViolations()
   })
 
   it('shows readers who is booked, and nothing to change', async () => {

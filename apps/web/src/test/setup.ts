@@ -1,20 +1,17 @@
-import { configure } from '@testing-library/react'
 import { afterEach, beforeEach, vi } from 'vitest'
 
 import { TODAY } from './clock'
+import { unexpectedLogs, watchConsole } from './console'
 import { installMatchMedia, resetMedia } from './media'
 import { resetNext } from './next'
 import { routeReadsToHandler } from './reads'
-
-// The whole suite runs with coverage, every file in parallel: a dialog that renders pickers
-// can take longer than Testing Library's 1 s default to settle, though nothing is wrong.
-configure({ asyncUtilTimeout: 3000 })
 
 // The fixtures are dated (sessions ahead, a planner offer tomorrow): every test runs on the
 // same day, so what is ahead or past never changes with the calendar. Only `Date` is
 // replaced; timers stay real.
 beforeEach(() => {
   vi.setSystemTime(TODAY)
+  watchConsole()
 })
 
 // Next's server modules only work inside a request; these stand in for them in every test.
@@ -109,4 +106,8 @@ afterEach(async () => {
   resetMedia()
   // Only jsdom tests render; node tests never load the DOM library.
   if (typeof document !== 'undefined') (await import('@testing-library/react')).cleanup()
+  // Last, so a failing test is still cleaned up after (unmounting may log too).
+  const logs = unexpectedLogs()
+  if (logs.length > 0)
+    throw new Error(`Logged, and the test did not expect it (expectLogged):\n${logs.join('\n')}`)
 })

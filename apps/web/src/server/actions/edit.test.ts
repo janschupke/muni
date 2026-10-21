@@ -11,6 +11,7 @@ import { revalidatePath } from 'next/cache'
 import { describe, expect, it, vi } from 'vitest'
 
 import { RateLimitedError, spendRequest } from '@/server/rate-limit'
+import { expectLogged } from '@/test/console'
 import { form, idle, redirectOf, serverSession, signedIn } from '@/test/server'
 
 import { saveCompletion, saveCourse, saveEmployee, saveSession } from './edit'
@@ -98,7 +99,7 @@ describe('edit actions', () => {
       fieldErrors: { code: 'invalid_code' },
     })
     vi.mocked(createCourse).mockRejectedValueOnce(new Error('down'))
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     expect(await saveCourse(null, idle, form({ code: 'NOVY-2', name: 'Nový' }))).toMatchObject({
       formError: 'generic',
     })
@@ -129,7 +130,7 @@ describe('edit actions', () => {
     expect(await saveCourse('GONE', idle, form({ name: 'BOZP' }))).toMatchObject({
       formError: 'not_found',
     })
-    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const log = expectLogged('error')
     vi.mocked(updateCourse).mockRejectedValueOnce(new Error('connection lost'))
     expect(await saveCourse('BOZP-Z', idle, form({ name: 'BOZP' }))).toMatchObject({
       formError: 'generic',

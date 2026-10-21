@@ -1,6 +1,7 @@
 import { saveDepartment, savePosition } from '@muni/db/repositories'
 import { describe, expect, it, vi } from 'vitest'
 
+import { expectLogged } from '@/test/console'
 import { form, idle, redirectOf, serverSession } from '@/test/server'
 
 import { saveDepartmentAction, savePositionAction } from './groups'
@@ -58,7 +59,7 @@ describe('department and position actions', () => {
     expect(await saveDepartmentAction('gone', idle, form({ name: 'X' }))).toMatchObject({
       formError: 'not_found',
     })
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(saveDepartment).mockRejectedValueOnce(new Error('down'))
     expect(await saveDepartmentAction(null, idle, form({ name: 'X' }))).toMatchObject({
       formError: 'generic',

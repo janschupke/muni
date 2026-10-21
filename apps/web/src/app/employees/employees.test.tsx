@@ -19,7 +19,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
 import { advisorInput, counts, employeeDetail, employeePage, employeeRow } from '@/test/fixtures'
 import { NotFoundError, router } from '@/test/next'
 import { at, params, renderServer } from '@/test/render'
@@ -364,7 +363,6 @@ describe('employee detail', () => {
         .getByRole('link', { name: 'Edit Z000101 · Ochrana osobních údajů' })
         .getAttribute('href')
     ).toBe('/employees/E0153/completions/cmp_Z000101/edit')
-    await expectNoAxeViolations()
   })
 
   it('books only what the person needs, from its row, on the session the dialog proposes', async () => {
@@ -528,7 +526,6 @@ describe('employee forms', () => {
     expect(screen.getByRole('link', { name: 'Back to Marie Černá' }).getAttribute('href')).toBe(
       '/employees/E0153'
     )
-    await expectNoAxeViolations()
     await userEvent.setup().click(screen.getByRole('combobox', { name: 'Manager' }))
     expect(screen.queryByRole('option', { name: 'Černá Marie' })).toBeNull()
     expect(screen.getByRole('option', { name: 'Urbanová Tereza' })).toBeTruthy()
@@ -540,7 +537,6 @@ describe('employee forms', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'New employee' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /First name/ })).toHaveProperty('value', '')
     expect(screen.getByText(/ID starting with N/)).toBeTruthy()
-    await expectNoAxeViolations()
   })
 
   it('correct a completion of this person only', async () => {
@@ -597,7 +593,6 @@ describe('employee forms', () => {
       title: 'Record completion for Marie Černá',
     })
     expect(screen.getByRole('combobox', { name: /Course/ })).toBeTruthy()
-    await expectNoAxeViolations()
   })
 })
 

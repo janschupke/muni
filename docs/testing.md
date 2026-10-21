@@ -95,7 +95,7 @@ forms, bookings, the planner and archiving as an admin.
 
 ## Accessibility and contrast
 
-Accessibility is checked twice. `e2e/a11y.spec.ts` runs axe (WCAG 2.2 A/AA and best
+Accessibility is checked in the browser. `e2e/a11y.spec.ts` runs axe (WCAG 2.2 A/AA and best
 practices, `e2e/support/a11y.ts`) on every page in `e2e/support/pages.ts` as an admin (who
 sees every control: lists, records, every form, the import, the archived lists), on the
 introduction, sign-in and sign-up signed out, in the light and dark theme, and on the open
@@ -119,8 +119,8 @@ instance, which stripes it in orange; the app's appearance sets its text colour.
 `e2e/layout.spec.ts` checks geometry at 1920px: an opened row's panel spans its table, a
 toolbar's controls share a line, the import's steps span the page. Every e2e test fails on an
 error thrown in the page (a hydration mismatch included) and on a Content-Security-Policy
-violation. Unit tests also run axe on what they render
-(`apps/web/src/test/axe.ts`, without contrast and target size, which jsdom cannot measure).
+violation. Unit tests do not run axe: jsdom has no layout, and the browser sweep above already
+reaches every page, dialog and form state, signed in.
 `pnpm test:lighthouse` requires accessibility 100, best practices 95, SEO 90 and performance
 90 (desktop) on every page as an admin, in both themes, and on the introduction. One exception: findings
 that name only Clerk's development domain (`*.clerk.accounts.dev`, whose Cloudflare cookies
@@ -134,7 +134,9 @@ Coverage has one standard for every package (`vitest.preset.ts`): at least 90 % 
 statements, functions and branches of everything under `src/`, files without tests included.
 Only tests, test helpers and the generated Prisma client are left out. `@muni/db` is measured
 over its unit and integration tests together, against the test database, so `pnpm coverage`
-needs `pnpm db:up`. In the web app, pages and server actions are unit-tested too: the tests
+needs `pnpm db:up`. `pnpm coverage` runs the packages one after another: run side by side,
+each vitest takes every core, and on a small machine (CI has four) the tests starve and time
+out though nothing is wrong. Tests keep the default timeouts. In the web app, pages and server actions are unit-tested too: the tests
 render async server components with mocked repositories (`apps/web/src/test/`). A view's
 reads go straight to the read handler (`apps/web/src/test/reads.ts`), so a page test runs the same guard
 and load as the real route, and `renderServer` waits until every read has answered.

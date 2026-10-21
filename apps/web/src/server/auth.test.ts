@@ -2,6 +2,7 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { findUserByClerkId, upsertUserFromClerk } from '@muni/db/repositories'
 import { describe, expect, it, vi } from 'vitest'
 
+import { expectLogged } from '@/test/console'
 import { clerkHas, clerkUsers, redirectOf, serverSession, signedIn, userRow } from '@/test/server'
 
 import {
@@ -153,7 +154,7 @@ describe('session user', () => {
   })
 
   it('keeps the stored role when Clerk cannot be reached, and fails without one', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const warn = expectLogged('warn')
     clerkUsers.getUser.mockRejectedValue(new Error('Clerk down'))
     vi.mocked(findUserByClerkId).mockResolvedValue(
       userRow('user_1', 'FULL', { lastSessionId: 'sess_0' })

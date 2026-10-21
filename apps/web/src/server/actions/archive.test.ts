@@ -1,6 +1,7 @@
 import { archiveImpact, archiveRecord, unarchiveRecord } from '@muni/db/repositories'
 import { describe, expect, it, vi } from 'vitest'
 
+import { expectLogged } from '@/test/console'
 import { idle, redirectOf, serverSession, signedIn } from '@/test/server'
 
 import { archiveAction, previewArchive, unarchiveAction } from './archive'
@@ -48,7 +49,7 @@ describe('archive actions', () => {
     })
     vi.mocked(archiveRecord).mockResolvedValueOnce({ ok: false, reason: 'LAST_ADMIN', count: 0 })
     expect(await archiveAction('user', 'usr_2', null, idle)).toMatchObject({ reason: 'last_admin' })
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(archiveRecord).mockRejectedValueOnce(new Error('down'))
     expect(await archiveAction('room', 'room_1', null, idle)).toMatchObject({ reason: 'generic' })
   })
@@ -111,7 +112,7 @@ describe('archive actions', () => {
     })
     vi.mocked(unarchiveRecord).mockResolvedValueOnce({ ok: true })
     expect(await unarchiveAction('session', 's1', null, idle)).toEqual({ status: 'done' })
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(unarchiveRecord).mockRejectedValueOnce(new Error('down'))
     expect(await unarchiveAction('session', 's1', null, idle)).toMatchObject({ reason: 'generic' })
   })

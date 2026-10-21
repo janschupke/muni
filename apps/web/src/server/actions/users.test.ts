@@ -1,6 +1,7 @@
 import { revertUserRole, setUserRole } from '@muni/db/repositories'
 import { describe, expect, it, vi } from 'vitest'
 
+import { expectLogged } from '@/test/console'
 import { clerkUsers, form, idle, redirectOf, serverSession } from '@/test/server'
 
 import { saveUserRole } from './users'
@@ -57,7 +58,7 @@ describe('role changes', () => {
     })
     // Nothing refused here ever reaches Clerk.
     expect(clerkUsers.updateUserMetadata).not.toHaveBeenCalled()
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(setUserRole).mockRejectedValueOnce(new Error('deadlock'))
     expect(await saveUserRole('usr_2', idle, form({ role: 'FULL' }))).toMatchObject({
       formError: 'generic',
@@ -65,7 +66,7 @@ describe('role changes', () => {
   })
 
   it('puts the role back when Clerk refuses it', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(setUserRole).mockResolvedValue({ ok: true, clerkId: 'user_2', previous: 'ADMIN' })
     clerkUsers.updateUserMetadata.mockRejectedValueOnce(new Error('Clerk down'))
     expect(await saveUserRole('usr_2', idle, form({ role: 'FULL' }))).toMatchObject({

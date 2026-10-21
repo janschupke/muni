@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { signInAs } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
+import { expectLogged } from '@/test/console'
 import { advisorInput } from '@/test/fixtures'
 import { renderClient } from '@/test/render'
 
@@ -56,7 +56,6 @@ describe('booking what a query names', () => {
     expect(choice.textContent).toMatch(/03.02.2027/)
     // One training: nothing to leave out.
     expect(within(dialog).queryByRole('checkbox')).toBeNull()
-    await expectNoAxeViolations()
     await user.click(within(dialog).getByRole('button', { name: /^Book 1 training · 450,00\sKč$/ }))
     expect(applyAssignmentsAction).toHaveBeenCalledWith([
       { sessionExternalId: 'T018', employeeExternalId: 'E0153', source: 'MANUAL' },
@@ -85,7 +84,7 @@ describe('booking what a query names', () => {
     ).toBeTruthy()
     await user.keyboard('{Escape}')
     vi.mocked(getAdvisorInput).mockRejectedValue(new Error('offline'))
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     await user.click(screen.getByRole('button', { name: 'Book for them…' }))
     const failed = await screen.findByRole('dialog', { name: 'Book trainings' })
     expect(

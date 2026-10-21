@@ -8,7 +8,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PlannerView } from '@/features/planner/planner-view'
 import { checkSessionSlotAction, createPlannedSessionAction } from '@/server/actions/sessions'
 import { signInAs } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
 import { advisorInput, plannerInput } from '@/test/fixtures'
 import { params, renderClient, renderServer } from '@/test/render'
 
@@ -68,7 +67,6 @@ describe('session planner', () => {
       '/employees/E0002'
     )
     expect(screen.getByRole('heading', { level: 3, name: /Other rooms free then/ })).toBeTruthy()
-    await expectNoAxeViolations()
   })
 
   it('says why it cannot offer a slot, and when it is late', async () => {
@@ -107,7 +105,6 @@ describe('session planner', () => {
       'Interní školitel'
     )
     expect(within(dialog).getByRole('status', { name: /^End/ }).textContent).toBe('12:00')
-    await expectNoAxeViolations()
 
     // The check runs everything on the server and writes nothing; a refusal names the person.
     vi.mocked(createPlannedSessionAction).mockResolvedValueOnce({

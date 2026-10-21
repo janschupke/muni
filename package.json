@@ -16,7 +16,7 @@
     "lint:root": "eslint . --max-warnings 0",
     "test": "turbo run test && pnpm test:root",
     "test:root": "vitest run",
-    "coverage": "turbo run test:coverage",
+    "coverage": "turbo run test:coverage --concurrency=1",
     "test:integration": "pnpm --filter @muni/db test:integration",
     "test:e2e": "pnpm --filter @muni/web test:e2e",
     "test:lighthouse": "pnpm --filter @muni/web test:lighthouse",

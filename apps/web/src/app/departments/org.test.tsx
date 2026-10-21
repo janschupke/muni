@@ -17,7 +17,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { requireReader } from '@/server/auth'
 import { signInAs, signOut } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
 import {
   booking,
   counts,
@@ -187,7 +186,6 @@ describe('departments', () => {
     ).toBeTruthy()
     for (const header of ['Department', 'Head', 'People', 'Compliance', 'Need action now'])
       await user.click(screen.getByRole('button', { name: header }))
-    await expectNoAxeViolations()
   })
 
   it('say when there are none', async () => {
@@ -226,7 +224,6 @@ describe('departments', () => {
     expect(within(peopleTable()).queryByRole('columnheader', { name: /Department/ })).toBeNull()
     expect(within(peopleTable()).getByRole('columnheader', { name: /Position/ })).toBeTruthy()
     expectPeopleBelowTheSplit('Department')
-    await expectNoAxeViolations()
   })
 
   it('show a department with no head, positions or courses; and not one that does not exist', async () => {
@@ -297,7 +294,6 @@ describe('upcoming bookings', () => {
       })
     ).toBeTruthy()
     expect(listUpcomingBookings).toHaveBeenCalledWith({ department: 'dep_lab' })
-    await expectNoAxeViolations()
   })
 
   it('say when there are none, and that a position that is not there is not found', async () => {
@@ -408,7 +404,6 @@ describe('managing departments and positions', () => {
     await renderServer(NewDepartmentPage())
     expect(screen.getByRole('heading', { level: 1, name: 'New department' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /Name/ })).toHaveProperty('value', '')
-    await expectNoAxeViolations()
     vi.mocked(getDepartmentForEdit).mockResolvedValue({
       id: 'dep_lab',
       name: 'Laboratoře',

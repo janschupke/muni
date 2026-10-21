@@ -13,7 +13,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { removeAssignmentAction } from '@/server/actions/assignments'
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
 import { advisorInput, AULA_A, EXTERNAL, INTERNAL, ONLINE, session } from '@/test/fixtures'
 import { NotFoundError, route, router } from '@/test/next'
 import { params, renderServer } from '@/test/render'
@@ -191,7 +190,6 @@ describe('session list', () => {
     )
     expect(within(people).getByText('Laboratoře')).toBeTruthy()
     expect(within(people).getByText('Advisor')).toBeTruthy()
-    await expectNoAxeViolations()
   })
 
   it('shows nothing for a room that does not exist', async () => {
@@ -319,7 +317,6 @@ describe('session detail', () => {
       'Adámek Petr · never held',
     ])
     await user.keyboard('{Escape}')
-    await expectNoAxeViolations()
     await user.click(screen.getByRole('button', { name: 'Cancel the booking of Černá Marie' }))
     const confirm = await screen.findByRole('dialog', {
       name: 'Remove Černá Marie from this session?',
@@ -377,7 +374,6 @@ describe('session edit', () => {
     // Its course can change too.
     expect(screen.getByRole('combobox', { name: /Course/ }).textContent).toContain('BOZP-Z')
     expect(screen.getByRole('link', { name: 'Cancel' }).getAttribute('href')).toBe('/sessions/T016')
-    await expectNoAxeViolations()
   })
 
   it('is a 404 for an unknown session', async () => {
@@ -428,6 +424,5 @@ describe('session edit', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'New session' })).toBeTruthy()
     expect(screen.getByRole('combobox', { name: /Course/ })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /^Start/ })).toHaveProperty('value', '09:00')
-    await expectNoAxeViolations()
   })
 })

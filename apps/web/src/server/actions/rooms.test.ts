@@ -1,6 +1,7 @@
 import { createRoom, updateRoom } from '@muni/db/repositories'
 import { describe, expect, it, vi } from 'vitest'
 
+import { expectLogged } from '@/test/console'
 import { form, idle, redirectOf, serverSession } from '@/test/server'
 
 import { saveRoom } from './rooms'
@@ -81,7 +82,7 @@ describe('room actions', () => {
     })
     vi.mocked(updateRoom).mockRejectedValueOnce({ code: 'P2025' })
     expect(await saveRoom('gone', idle, form(roomForm))).toMatchObject({ formError: 'not_found' })
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(updateRoom).mockRejectedValueOnce(new Error('down'))
     expect(await saveRoom('room_lab', idle, form(roomForm))).toMatchObject({ formError: 'generic' })
   })

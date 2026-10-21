@@ -10,6 +10,7 @@ import { NotFoundMessage } from '@/components/shell/not-found-message'
 import { setLocale } from '@/server/actions/locale'
 import { isAccountArchived } from '@/server/auth'
 import { signInAs, signOut } from '@/test/auth'
+import { expectLogged } from '@/test/console'
 import { advisorInput, dashboard, session } from '@/test/fixtures'
 import { setViewportWidth } from '@/test/media'
 import { navigate, requestCookies, route, router } from '@/test/next'
@@ -315,7 +316,7 @@ describe('error pages', () => {
   })
 
   it('a failure of the whole app still says so, in its own document', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     const error = Object.assign(new Error('boom'), { digest: '2731823015' })
     let tag: unknown = null
     // Rendered where a document cannot be: what its <html><body> holds, the app's failure.
@@ -362,7 +363,7 @@ describe('error pages', () => {
   it('an error is logged, shows its reference, and retries with fresh data', async () => {
     const user = userEvent.setup()
     const reset = vi.fn()
-    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const log = expectLogged('error')
     const error = Object.assign(new Error('db down'), { digest: '2731823015' })
     renderClient(<ErrorPage error={error} reset={reset} />)
     expect(log).toHaveBeenCalledWith(error)
@@ -376,7 +377,7 @@ describe('error pages', () => {
   it('a failure of the whole app draws its own page, in the chosen language', async () => {
     const user = userEvent.setup()
     const reset = vi.fn()
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     document.cookie = 'NEXT_LOCALE=cs; path=/'
     const { unmount } = render(
       <AppFailure error={Object.assign(new Error('x'), { digest: 'abc' })} reset={reset} />

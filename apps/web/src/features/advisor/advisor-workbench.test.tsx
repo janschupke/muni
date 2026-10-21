@@ -11,7 +11,6 @@ import userEvent from '@testing-library/user-event'
 import Link from 'next/link'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { expectNoAxeViolations } from '@/test/axe'
 import { renderClient } from '@/test/render'
 
 import { AdvisorWorkbench } from './advisor-workbench'
@@ -230,7 +229,6 @@ describe('AdvisorWorkbench', () => {
         ],
       })
       renderWorkbench({ plan, view, canApply: true })
-      await expectNoAxeViolations()
       await user.click(
         screen.getByRole('button', { name: 'Book BOZP – základní školení for Adámek Petr…' })
       )

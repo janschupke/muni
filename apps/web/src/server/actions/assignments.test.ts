@@ -6,6 +6,7 @@ import {
 } from '@muni/db/repositories'
 import { describe, expect, it, vi } from 'vitest'
 
+import { expectLogged } from '@/test/console'
 import { form, serverSession, signedIn } from '@/test/server'
 
 import {
@@ -63,7 +64,7 @@ describe('booking actions', () => {
     })
     expect(applyAssignments).toHaveBeenCalledTimes(1)
     // A write that fails says so.
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(applyAssignments).mockRejectedValueOnce(new Error('deadlock'))
     expect(await applyAssignmentsAction([pair])).toEqual({ ok: false, problem: 'failed' })
     signedIn('user_1', 'FULL')

@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
 import { NotFoundError, route } from '@/test/next'
 import { params, renderClient, renderServer } from '@/test/render'
 
@@ -71,7 +70,6 @@ describe('users', () => {
     expect(rows[1]?.textContent).toContain('16.10.2026')
     // The name opens the user; the row has no second way there.
     expect(screen.queryByRole('link', { name: /^Edit / })).toBeNull()
-    await expectNoAxeViolations()
   })
 
   it('says when nobody has signed in yet', async () => {
@@ -91,7 +89,6 @@ describe('a user', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Petr Admin' })).toBeTruthy()
     expect(screen.getByText('3')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Archive' })).toBeTruthy()
-    await expectNoAxeViolations()
     await u.click(screen.getByRole('combobox', { name: 'Role' }))
     await u.click(screen.getByRole('option', { name: 'Full access' }))
     // Nothing chosen yet: nothing to change.

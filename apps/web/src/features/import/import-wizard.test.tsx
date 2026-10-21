@@ -7,7 +7,6 @@ import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { expectNoAxeViolations } from '@/test/axe'
 import { renderClient } from '@/test/render'
 
 import { ImportWizard } from './import-wizard'
@@ -26,6 +25,23 @@ vi.mock('@/server/actions/import', () => ({
 const DATA = path.join(import.meta.dirname, '../../../../../data')
 const csv = (name: string, dir = '') =>
   new File([readFileSync(path.join(DATA, dir, name))], name, { type: 'text/csv' })
+
+/**
+ * A completions export of `count` rows, on lines 2 to count + 1, each on its own day: enough
+ * for several pages of the review, and quick to read.
+ */
+function completions(count: number) {
+  const header =
+    'id_zaznamu,id_zamestnance,zamestnanec,kod_skoleni,datum_absolvovani,platnost_do,poskytovatel,cena_kc,poznamka'
+  const rows = Array.from({ length: count }, (_, i) => {
+    const day = new Date(Date.UTC(2020, 0, 1 + i)).toISOString().slice(0, 10)
+    const id = `Z${String(i + 1).padStart(6, '0')}`
+    return `${id},E0001,Urbanová Tereza,BOZP-Z,${day},,Interní školitel,450,`
+  })
+  return new File([[header, ...rows].join('\n')], 'absolvovana_skoleni.csv', {
+    type: 'text/csv',
+  })
+}
 
 function renderWizard(today = '2026-10-16') {
   return renderClient(<ImportWizard reference={EMPTY_REFERENCE} today={today} />)
@@ -54,7 +70,6 @@ describe('ImportWizard', () => {
     expect(await screen.findByText('absolvovana_skoleni.csv')).toBeTruthy()
     expect(screen.getByText(/WINDOWS-1250 · delimiter “;” · 2,866 rows/)).toBeTruthy()
     expect(screen.getByText(/Skipped 3 blank, 1 repeated header and 1 comment lines/)).toBeTruthy()
-    await expectNoAxeViolations()
 
     await user.click(screen.getByRole('button', { name: 'Review rows' }))
 
@@ -89,7 +104,6 @@ describe('ImportWizard', () => {
     await user.type(cell, 'KYBER{Enter}')
     expect(within(panel).getByRole('button', { name: /Errors/ }).textContent).toContain('2')
     expect(within(panel).queryByRole('button', { name: /Problems on line 11/ })).toBeNull()
-    await expectNoAxeViolations()
 
     await user.click(screen.getByRole('button', { name: 'Continue' }))
 
@@ -98,7 +112,6 @@ describe('ImportWizard', () => {
     expect(screen.getByText('Employees: 170 records will be written')).toBeTruthy()
     expect(screen.getByText('Sessions: 32 records will be written')).toBeTruthy()
     expect(screen.getByText('Completions: 2,818 records will be written')).toBeTruthy()
-    await expectNoAxeViolations()
 
     await user.click(screen.getByRole('button', { name: /Import 3,030 records/ }))
 
@@ -131,7 +144,6 @@ describe('ImportWizard', () => {
     })
     expect(late).toEqual([])
     expect(screen.getByText('Completions: 2818 created, 0 updated')).toBeTruthy()
-    await expectNoAxeViolations()
   })
 
   it('imports the derived files (data/import) onto an empty register with no error', async () => {
@@ -166,24 +178,28 @@ describe('ImportWizard', () => {
     expect(screen.queryByText(/invalid rows? (is|are) skipped/)).toBeNull()
   })
 
-  it('sorts the whole dataset before paging, and keeps the page through an edit', async () => {
+  /** The completions tab of a review of three pages of rows (120). */
+  async function reviewCompletions() {
     const user = userEvent.setup()
     const { container } = renderWizard()
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')
     if (!input) throw new Error('file input missing')
-    await user.upload(input, [csv('katalog_skoleni.csv'), csv('absolvovana_skoleni.csv')])
+    // Three pages of rows: what paging needs, without reading a real export.
+    await user.upload(input, [csv('katalog_skoleni.csv'), completions(120)])
     await user.click(await screen.findByRole('button', { name: 'Review rows' }))
     await user.click(await screen.findByRole('tab', { name: /Completions/ }))
     const panel = screen.getByRole('tabpanel')
-
     const lines = () =>
       within(panel)
         .getAllByRole('row')
         .slice(1)
         .map(row => Number(within(row).getAllByRole('cell')[0]?.textContent))
+    return { user, panel, lines }
+  }
 
-    const unsorted = lines()
-    expect(unsorted).toHaveLength(50)
+  it('sorts the whole dataset before paging', async () => {
+    const { user, panel, lines } = await reviewCompletions()
+    expect(lines()).toHaveLength(50)
     await user.click(within(panel).getByRole('button', { name: 'Line' }))
     await user.click(within(panel).getByRole('button', { name: 'Line' }))
     expect(
@@ -191,14 +207,15 @@ describe('ImportWizard', () => {
     ).toBe('descending')
     // Page 1 now starts at the file's last line, not the last line of the old first page.
     const page1 = lines()
-    expect(page1[0]).toBeGreaterThan(2800)
+    expect(page1[0]).toBe(121)
     expect(page1).toEqual([...page1].sort((a, b) => b - a))
+  })
 
+  it('keeps the page through an edit', async () => {
+    const { user, panel, lines } = await reviewCompletions()
     await user.click(within(panel).getByRole('button', { name: /Next/ }))
-    const page2 = lines()
-    expect(page2[0]).toBeLessThan(page1.at(-1) ?? 0)
+    expect(lines()[0]).toBe(52)
     expect(within(panel).getByText(/^Page 2 of/)).toBeTruthy()
-
     const firstRow = within(panel).getAllByRole('row')[1]
     if (!firstRow) throw new Error('no rows')
     const [editButton] = within(firstRow).getAllByRole('button', { name: /Edit .+ on line \d+$/ })

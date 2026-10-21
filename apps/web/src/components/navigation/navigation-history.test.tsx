@@ -40,7 +40,9 @@ describe('navigation history', () => {
     })
     window.history.replaceState(null, '', '/elsewhere')
     document.title = 'Elsewhere'
-    await new Promise(resolve => setTimeout(resolve, 0))
+    // The observer's callback is a microtask queued by the change: one queued after it runs
+    // once the observer has seen the new title.
+    await Promise.resolve()
     expect(parseHistory(readHistory())[0]?.title).toBe('Kurzy · Registr školení')
   })
 

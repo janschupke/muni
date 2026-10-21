@@ -4,6 +4,7 @@ import { NO_ARCHIVED } from '@muni/importer'
 import { describe, expect, it, vi } from 'vitest'
 
 import { commitImportChunk, findArchived } from '@/server/actions/import'
+import { expectLogged } from '@/test/console'
 import { serverSession, signedIn } from '@/test/server'
 
 vi.mock('@clerk/nextjs/server', () => ({
@@ -101,7 +102,7 @@ describe('import commit', () => {
       error: 'reference_missing',
       detail: '#4: employee E0066',
     })
-    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const log = expectLogged('error')
     vi.mocked(commitChunk).mockRejectedValueOnce(new Error('deadlock'))
     expect(await commitImportChunk('sessions', [course], true)).toEqual({
       ok: false,

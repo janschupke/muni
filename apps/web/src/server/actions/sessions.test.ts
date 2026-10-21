@@ -7,6 +7,7 @@ import {
 } from '@muni/db/repositories'
 import { describe, expect, it, vi } from 'vitest'
 
+import { expectLogged } from '@/test/console'
 import { form, idle, redirectOf, serverSession, signedIn } from '@/test/server'
 
 import {
@@ -52,7 +53,7 @@ describe('cancelling and reinstating a session', () => {
     vi.mocked(reinstateSession).mockResolvedValueOnce({ ok: false, problem: 'ROOM_BUSY' })
     expect(await reinstateSessionAction('T017')).toEqual({ ok: false, reason: 'ROOM_BUSY' })
     expect(await cancelSessionAction({ id: 'T016' })).toEqual({ ok: false, reason: 'invalid' })
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(reinstateSession).mockRejectedValueOnce(new Error('deadlock'))
     expect(await reinstateSessionAction('T017')).toEqual({ ok: false, reason: 'failed' })
     expect(cancelSession).toHaveBeenCalledTimes(2)
@@ -94,7 +95,7 @@ describe('session creation', () => {
         dryRun: false,
       })
     ).toEqual({ ok: false, problem: 'invalid', refusals: [] })
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(createSessionWithBookings).mockRejectedValueOnce(new Error('down'))
     expect(await createPlannedSessionAction({ session: create, people, dryRun: false })).toEqual({
       ok: false,
@@ -134,7 +135,7 @@ describe('session creation', () => {
     expect(await saveNewSession(idle, form({ ...fields, courseId: '' }))).toMatchObject({
       fieldErrors: { courseId: 'required' },
     })
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(createSession).mockRejectedValueOnce(new Error('down'))
     expect(await saveNewSession(idle, form(fields))).toMatchObject({
       formError: 'generic',
@@ -156,7 +157,7 @@ describe('session creation', () => {
     // Nonsense in: no question asked.
     expect(await checkSessionSlotAction({ ...slot, date: 'zítra' }, null)).toBeNull()
     expect(await checkSessionSlotAction(slot, 5 as unknown as string)).toBeNull()
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(checkSessionSlot).mockRejectedValueOnce(new Error('down'))
     expect(await checkSessionSlotAction(slot, null)).toBeNull()
     expect(checkSessionSlot).toHaveBeenCalledTimes(2)

@@ -17,8 +17,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.{ts,tsx}'],
-    testTimeout: 30_000,
     setupFiles: ['src/test/setup.ts'],
+    // Every spy and mock implementation back to its original before each test: nothing one
+    // test set up leaks into the next.
+    restoreMocks: true,
     coverage,
   },
 })

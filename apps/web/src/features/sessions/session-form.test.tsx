@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type SessionDefaults, SessionForm } from '@/features/sessions/session-form'
 import { checkSessionSlotAction } from '@/server/actions/sessions'
-import { expectNoAxeViolations } from '@/test/axe'
 import { EXTERNAL, INTERNAL } from '@/test/fixtures'
 import { renderClient } from '@/test/render'
 
@@ -255,6 +254,5 @@ describe('the session form checks itself as the user types', () => {
     await user.type(capacity(), '2')
     expect(unnamed.getAttribute('aria-invalid')).toBeNull()
     expect(capacity().getAttribute('aria-invalid')).toBe('true')
-    await expectNoAxeViolations()
   })
 })

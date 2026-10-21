@@ -12,7 +12,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { archiveAction, previewArchive } from '@/server/actions/archive'
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
 import { providerDetail, providerRow } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
@@ -108,7 +107,6 @@ describe('provider list', () => {
       'Spent',
     ])
       await user.click(screen.getByRole('button', { name: header }))
-    await expectNoAxeViolations()
   })
 
   it('hides the spend from viewers who may not see prices; says when there are none', async () => {
@@ -157,7 +155,6 @@ describe('provider detail', () => {
     expect(within(upcoming).getByRole('button', { name: 'Who is booked on T016' })).toBeTruthy()
     expect(within(upcoming).queryByRole('columnheader', { name: /Provider/ })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
-    await expectNoAxeViolations()
   })
 
   it('without details, completions or prices, says so; and not one that does not exist', async () => {
@@ -203,7 +200,6 @@ describe('provider forms', () => {
     expect(screen.getByRole('textbox', { name: /Name/ })).toHaveProperty('value', '')
     // Renaming is explained only where there is a name to change.
     expect(screen.queryByText(/Renaming changes the name/)).toBeNull()
-    await expectNoAxeViolations()
   })
 
   it('edit a provider with its current values', async () => {
@@ -218,7 +214,6 @@ describe('provider forms', () => {
     ).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /IČO/ })).toHaveProperty('value', '00216224')
     expect(screen.getByText(/Renaming changes the name/)).toBeTruthy()
-    await expectNoAxeViolations()
     vi.mocked(getProviderForEdit).mockResolvedValueOnce(null)
     await expect(
       renderServer(EditProviderPage({ params: params({ id: 'gone' }) }))

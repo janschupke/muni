@@ -14,7 +14,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
 import {
   counts,
   courseDetail,
@@ -170,7 +169,6 @@ describe('course list', () => {
     expect(within(angl).getByText('Can be held online')).toBeTruthy()
     expect(within(angl).getByText('Nothing special')).toBeTruthy()
     expect(screen.getByText('Nobody active must hold it.')).toBeTruthy()
-    await expectNoAxeViolations()
   })
 
   it('points to the import when the catalogue is empty', async () => {
@@ -255,7 +253,6 @@ describe('course detail', () => {
         .getByRole('link', { name: 'Edit Z000101 · BOZP – základní školení' })
         .getAttribute('href')
     ).toBe('/employees/E0153/completions/cmp_Z000101/edit')
-    await expectNoAxeViolations()
   })
 
   it('says when nobody is required, nothing is scheduled and nobody has completed it', async () => {
@@ -292,7 +289,6 @@ describe('course detail', () => {
     expect(screen.getByRole('checkbox', { name: 'Laboratoře' }).getAttribute('aria-checked')).toBe(
       'true'
     )
-    await expectNoAxeViolations()
     vi.mocked(getCourseForEdit).mockResolvedValueOnce(null)
     await expect(renderServer(EditCoursePage(props))).rejects.toThrow(NotFoundError)
   })
@@ -351,7 +347,6 @@ describe('new session', () => {
     expect(screen.queryByRole('textbox', { name: /Other bookings/ })).toBeNull()
     // The course is chosen already, and can be changed.
     expect(screen.getByRole('combobox', { name: /Course/ }).textContent).toContain('BOZP-Z')
-    await expectNoAxeViolations()
   })
 
   it('says a course with no length cannot end, leaves the seats to set, and 404s for an unknown course', async () => {

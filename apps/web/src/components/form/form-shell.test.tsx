@@ -10,7 +10,6 @@ import { DepartmentForm } from '@/features/org/group-forms'
 import { type SessionDefaults, SessionForm } from '@/features/sessions/session-form'
 import { fieldErrors, type FormState } from '@/lib/form/form'
 import { checkSessionSlotAction } from '@/server/actions/sessions'
-import { expectNoAxeViolations } from '@/test/axe'
 import { EXTERNAL, INTERNAL } from '@/test/fixtures'
 import { router } from '@/test/next'
 import { renderClient } from '@/test/render'
@@ -161,7 +160,6 @@ describe('forms', () => {
     expect(screen.getByRole('link', { name: 'Cancel' }).getAttribute('href')).toBe(
       '/courses/BOZP-Z'
     )
-    await expectNoAxeViolations()
   })
 
   it('say at the top when fields below need a change', async () => {

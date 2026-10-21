@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { FormState } from '@/lib/form/form'
-import { expectNoAxeViolations } from '@/test/axe'
 import { renderClient } from '@/test/render'
 
 import { ProviderForm } from './provider-form'
@@ -73,7 +72,6 @@ describe('the provider form', () => {
       }),
       '0'
     )
-    await expectNoAxeViolations()
     // Removing the first row: its course is free again, and "Add" has the focus.
     await user.click(
       screen.getByRole('button', { name: 'Remove BOZP-Z · BOZP – základní školení' })

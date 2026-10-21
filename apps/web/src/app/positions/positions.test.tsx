@@ -12,7 +12,6 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { signInAs } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
 import {
   booking,
   counts,
@@ -155,7 +154,6 @@ describe('positions', () => {
     expectPeopleBelowTheSplit('Position')
     expect(within(peopleTable()).queryByRole('columnheader', { name: /Position/ })).toBeNull()
     expect(within(peopleTable()).getByRole('columnheader', { name: /Department/ })).toBeTruthy()
-    await expectNoAxeViolations()
   })
 
   it('show a position nobody holds anywhere; and not one that does not exist', async () => {

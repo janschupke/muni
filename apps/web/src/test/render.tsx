@@ -33,9 +33,14 @@ export async function resolveServer(node: ReactNode): Promise<ReactNode> {
       changed = true
     }
   }
+  if (!changed) return element
+  // Several children go back as arguments, as JSX passes them: given as one array prop they
+  // would read as a list, and React would ask for keys the page never needed.
+  const { children, ...rest } = props
+  const many = Array.isArray(children) ? (children as ReactNode[]) : null
   // The element as given, with its props resolved: what cloneElement is for.
   // eslint-disable-next-line @eslint-react/no-clone-element
-  return changed ? cloneElement(element, props) : element
+  return many ? cloneElement(element, rest, ...many) : cloneElement(element, props)
 }
 
 /**

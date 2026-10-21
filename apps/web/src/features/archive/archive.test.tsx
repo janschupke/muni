@@ -30,7 +30,6 @@ import { UnarchiveButton } from '@/features/archive/unarchive-button'
 import { archiveAction, previewArchive, unarchiveAction } from '@/server/actions/archive'
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
 import { NotFoundError, router } from '@/test/next'
 import { params, renderClient, renderServer } from '@/test/render'
 
@@ -105,7 +104,6 @@ describe('archived lists', () => {
     expect(
       screen.getByRole('button', { name: 'Bring back Archived employee #a1b2c3' })
     ).toBeTruthy()
-    await expectNoAxeViolations()
   })
 
   it('show a session with its course and start, and say when nothing is archived', async () => {
@@ -166,7 +164,6 @@ describe('archived record pages', () => {
     expect(screen.getByText('Left')).toBeTruthy()
     expect(screen.getByText('Only admins see this page.', { exact: false })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Bring back' })).toBeTruthy()
-    await expectNoAxeViolations()
   })
 
   it('are a 404 for a record that is not archived', async () => {

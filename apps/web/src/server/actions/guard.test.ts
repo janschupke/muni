@@ -14,6 +14,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { findArchived } from '@/server/actions/import'
 import { requireAdmin, requireAdminPage, requireReader } from '@/server/auth'
 import { spendRequest } from '@/server/rate-limit'
+import { expectLogged } from '@/test/console'
 import { NotFoundError, RedirectError } from '@/test/next'
 import { type AuthResult, form, idle, serverSession, signedIn } from '@/test/server'
 
@@ -75,7 +76,7 @@ describe('guards', () => {
 
 describe('the write guard', () => {
   it('answers every failure with the write’s own outcome, never a throw', async () => {
-    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const log = expectLogged('error')
     // The rate limit itself failing (the database is down) is a failure, not a refusal.
     vi.mocked(spendRequest).mockRejectedValueOnce(new Error('db down'))
     expect(await saveCourse('BOZP-Z', idle, form({ name: 'BOZP' }))).toMatchObject({

@@ -13,6 +13,7 @@ import { GET } from '@/app/api/read/[name]/route'
 import { getSessionUser, isAccountArchived } from '@/server/auth'
 import { RateLimitedError, spendRequest } from '@/server/rate-limit'
 import { signInAs, signOut } from '@/test/auth'
+import { expectLogged } from '@/test/console'
 import { advisorInput, roomRow } from '@/test/fixtures'
 
 import { handleRead } from './handle'
@@ -158,7 +159,7 @@ describe('reads', () => {
   })
 
   it('log a failure and answer 500', async () => {
-    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const logged = expectLogged('error')
     vi.mocked(listRooms).mockRejectedValueOnce(new Error('down'))
     const failed = await handleRead('rooms-list', search())
     expect([failed.status, await body(failed)]).toEqual([500, { error: 'failed' }])

@@ -8,7 +8,7 @@ import { archiveAction, previewArchive } from '@/server/actions/archive'
 import { requireAdminPage } from '@/server/auth'
 import { RateLimitedError, spendRequest } from '@/server/rate-limit'
 import { signInAs } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
+import { expectLogged } from '@/test/console'
 import { ONLINE, roomDetail, roomRow } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
@@ -102,7 +102,7 @@ describe('a page’s data from the server', () => {
     expect(await screen.findByText(/Too many requests in a short time/)).toBeTruthy()
     cleanup()
     // A read that throws on the server is the browser's to try again.
-    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const log = expectLogged('error')
     vi.mocked(listRooms).mockRejectedValueOnce(new Error('timeout'))
     await renderServer(RoomsPage({ searchParams: params({}) }))
     expect(log).toHaveBeenCalled()
@@ -213,7 +213,6 @@ describe('room fit online', () => {
         .map(c => c.textContent)
     expect(row(/osobních/)).toEqual(['Ochrana osobních údajů', 'Fits'])
     expect(row(/BOZP/)).toEqual(['BOZP – základní školení', 'Not held online'])
-    await expectNoAxeViolations()
   })
 })
 
@@ -224,7 +223,6 @@ describe('room forms', () => {
     expect(requireAdminPage).toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 1, name: 'New room' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /Name/ })).toHaveProperty('value', '')
-    await expectNoAxeViolations()
   })
 
   it('edit a room with its current values', async () => {
@@ -238,7 +236,6 @@ describe('room forms', () => {
     expect(screen.getByRole('checkbox', { name: 'Projector' }).getAttribute('aria-checked')).toBe(
       'true'
     )
-    await expectNoAxeViolations()
     vi.mocked(getRoomForEdit).mockResolvedValueOnce(null)
     await expect(renderServer(EditRoomPage({ params: params({ id: 'gone' }) }))).rejects.toThrow(
       NotFoundError
@@ -263,7 +260,6 @@ describe('archiving a room', () => {
       'disabled',
       true
     )
-    await expectNoAxeViolations()
     await user.click(within(confirm).getByRole('button', { name: 'Keep as is' }))
     expect(archiveAction).not.toHaveBeenCalled()
   })

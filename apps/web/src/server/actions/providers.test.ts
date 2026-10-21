@@ -1,6 +1,7 @@
 import { createProvider, updateProvider } from '@muni/db/repositories'
 import { describe, expect, it, vi } from 'vitest'
 
+import { expectLogged } from '@/test/console'
 import { form, idle, redirectOf, serverSession, signedIn } from '@/test/server'
 
 import { saveProvider } from './providers'
@@ -74,7 +75,7 @@ describe('provider actions', () => {
     expect(await saveProvider('gone', idle, form(providerForm))).toMatchObject({
       formError: 'not_found',
     })
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    expectLogged('error')
     vi.mocked(updateProvider).mockRejectedValueOnce(new Error('down'))
     expect(await saveProvider('prov_1', idle, form(providerForm))).toMatchObject({
       formError: 'generic',

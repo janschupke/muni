@@ -13,7 +13,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { requireAdminPage } from '@/server/auth'
 import { signInAs } from '@/test/auth'
-import { expectNoAxeViolations } from '@/test/axe'
 import { counts, courseDetail, courseForEdit, courseRow, matrix } from '@/test/fixtures'
 import { renderServer } from '@/test/render'
 
@@ -87,6 +86,5 @@ describe('import page', () => {
     expect(requireAdminPage).toHaveBeenCalled()
     expect(loadReferenceSnapshot).toHaveBeenCalledWith(getDb())
     expect(screen.getByRole('heading', { level: 1, name: 'Import' })).toBeTruthy()
-    await expectNoAxeViolations()
   })
 })
