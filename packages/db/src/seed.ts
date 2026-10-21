@@ -51,7 +51,7 @@ export async function seedFromDirectory(
     archived: await findArchivedKeys(db, archivedCandidates(batch)),
   }
   const validated = validateBatch(batch, reference)
-  const written = await importBatch(db, validated, { chunkSize })
+  const written = await importBatch(db, validated, { chunkSize, asOf: today })
   const results: Partial<
     Record<DatasetKind, { created: number; updated: number; skipped: number }>
   > = {}

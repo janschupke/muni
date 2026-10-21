@@ -40,7 +40,7 @@ vi.mock('../repositories/core/context', async importOriginal => {
 
 const db = createDb()
 const asOf = '2026-10-16'
-const options = { db, asOf }
+const options = { db, asOf, now: new Date('2026-10-16T12:00:00Z') }
 const DATA_DIR = path.join(import.meta.dirname, '../../../../data')
 const CREATED = [
   'Zkušební dodavatel',

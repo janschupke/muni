@@ -218,7 +218,7 @@ const sessionOrder = (window: SessionWindow | undefined) => [
 
 export async function listSessions(
   { limit, ...filter }: SessionFilter & { limit?: number | undefined } = {},
-  options?: RepoOptions & { now?: Date }
+  options?: RepoOptions
 ): Promise<SessionListItem[]> {
   const sessions = await dbOf(options).courseSession.findMany({
     where: sessionWhere(filter, options?.now ?? new Date()),
@@ -230,10 +230,7 @@ export async function listSessions(
 }
 
 /** How many sessions the filter matches (a course page counts its past ones). */
-export function countSessions(
-  filter: SessionFilter,
-  options?: RepoOptions & { now?: Date }
-): Promise<number> {
+export function countSessions(filter: SessionFilter, options?: RepoOptions): Promise<number> {
   return dbOf(options).courseSession.count({
     where: sessionWhere(filter, options?.now ?? new Date()),
   })

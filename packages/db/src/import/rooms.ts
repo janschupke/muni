@@ -12,7 +12,12 @@ import {
 import type { CommitResult } from './shared'
 import { archivedOnly, CommitRefusedError, withoutArchived } from './shared'
 
-export async function writeRooms(tx: Tx, all: RoomInput[]): Promise<CommitResult> {
+export async function writeRooms(
+  tx: Tx,
+  all: RoomInput[],
+  /** What counts as still ahead, for the sessions a room must keep fitting. */
+  now = new Date()
+): Promise<CommitResult> {
   const { kept: records, skipped } = withoutArchived(all, [
     [
       await archivedOnly(
@@ -40,10 +45,14 @@ export async function writeRooms(tx: Tx, all: RoomInput[]): Promise<CommitResult
     })
     if (existing) {
       const before = roomFactsOf(existing)
-      const unfit = await newlyUnfit(tx, {
-        roomId: existing.id,
-        room: { ...before, ...data, capabilities: record.capabilities ?? before.capabilities },
-      })
+      const unfit = await newlyUnfit(
+        tx,
+        {
+          roomId: existing.id,
+          room: { ...before, ...data, capabilities: record.capabilities ?? before.capabilities },
+        },
+        now
+      )
       if (unfit.length > 0)
         throw new CommitRefusedError(all.indexOf(record), 'ROOM_UNFIT', record.name)
     }

@@ -13,7 +13,7 @@ import { upcomingSessionWhere } from '../scheduling/sessions'
  * usual start, rooms used and offerings, every room, and the planned sessions that occupy rooms.
  */
 export async function getPlannerInput(
-  options?: RepoOptions & { now?: Date }
+  options?: RepoOptions
 ): Promise<Omit<PlannerInput, 'asOf' | 'items'>> {
   const db = dbOf(options)
   const now = options?.now ?? new Date()

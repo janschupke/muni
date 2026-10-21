@@ -12,7 +12,7 @@ const WINDOW_MS = 60_000
 export async function hitRateLimit(
   key: string,
   limit: number,
-  options?: RepoOptions & { now?: Date }
+  options?: RepoOptions
 ): Promise<{ ok: true } | { ok: false; retryAfterSeconds: number }> {
   const now = options?.now ?? new Date()
   const windowStart = new Date(Math.floor(now.getTime() / WINDOW_MS) * WINDOW_MS)

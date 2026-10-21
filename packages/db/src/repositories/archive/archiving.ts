@@ -49,8 +49,6 @@ export type UnarchiveOutcome =
   /** An upcoming session whose room is now taken then, or no longer suits it. */
   | { ok: false; reason: 'SESSION'; problem: SessionProblem }
 
-type ArchiveOptions = RepoOptions & { now?: Date }
-
 /** Table, Prisma model, unique keys and parents (which must be active to unarchive) per kind. */
 const KINDS = {
   employee: {
@@ -239,7 +237,7 @@ async function locked<T>(
 export async function archiveImpact(
   kind: Archivable,
   id: string,
-  options?: ArchiveOptions
+  options?: RepoOptions
 ): Promise<ArchiveImpact> {
   const now = options?.now ?? new Date()
   // A read: no locks, the write re-checks under them.
@@ -257,7 +255,7 @@ export async function archiveRecord(
   kind: Archivable,
   id: string,
   byUserId: string,
-  options?: ArchiveOptions
+  options?: RepoOptions
 ): Promise<ArchiveImpact> {
   const now = options?.now ?? new Date()
   return dbOf(options).$transaction(async tx => {
@@ -291,7 +289,7 @@ export async function archiveRecord(
 export async function unarchiveRecord(
   kind: Archivable,
   id: string,
-  options?: ArchiveOptions
+  options?: RepoOptions
 ): Promise<UnarchiveOutcome> {
   const config = KINDS[kind]
   const now = options?.now ?? new Date()

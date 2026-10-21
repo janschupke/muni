@@ -75,7 +75,7 @@ export interface CourseListItem {
 
 export async function listCourses(options?: RepoOptions): Promise<CourseListItem[]> {
   const db = dbOf(options)
-  const now = new Date()
+  const now = options?.now ?? new Date()
   const [courses, compliance, departments] = await Promise.all([
     db.course.findMany({
       where: ACTIVE,
@@ -194,7 +194,7 @@ export interface CourseDetail extends Omit<CourseListItem, 'upcoming'> {
 
 export async function getCourse(code: string, options?: RepoOptions): Promise<CourseDetail | null> {
   const db = dbOf(options)
-  const now = new Date()
+  const now = options?.now ?? new Date()
   const course = await db.course.findFirst({
     where: { code, ...ACTIVE },
     include: {

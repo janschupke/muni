@@ -155,7 +155,7 @@ export async function listEmployees(
     }),
     loadCompliance(options),
     db.course.findMany({ where: ACTIVE, select: { id: true, code: true, name: true } }),
-    loadBookingContext(db),
+    loadBookingContext(db, options?.now),
   ])
 
   const context: RequirementContext = {
@@ -288,7 +288,7 @@ export async function getEmployee(
       where: { id: { in: cells.map(c => c.courseId) } },
       select: { id: true, code: true, name: true },
     }),
-    loadBookingContext(db, undefined, [employee.id]),
+    loadBookingContext(db, options?.now, [employee.id]),
   ])
   const context: RequirementContext = {
     courses: new Map(courses.map(c => [c.id, c])),

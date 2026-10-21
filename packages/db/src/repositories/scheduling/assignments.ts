@@ -92,7 +92,7 @@ const bookedIn = async (tx: Tx, session: LockedSession) =>
 export async function applyAssignments(
   requests: AssignmentRequest[],
   userId: string,
-  options?: RepoOptions & { now?: Date }
+  options?: RepoOptions
 ): Promise<AssignmentOutcome[]> {
   const now = options?.now ?? new Date()
   return dbOf(options).$transaction(async tx => {
@@ -242,7 +242,7 @@ export type MoveOutcome =
 export async function moveSeatsMany(
   fromExternalId: string,
   moves: SeatMoveRequest[],
-  options?: RepoOptions & { now?: Date }
+  options?: RepoOptions
 ): Promise<MoveOutcome> {
   // One entry per destination, in a stable order.
   const wanted = new Map<string, number>()
@@ -314,7 +314,7 @@ export interface UpcomingBooking extends EmployeeBooking {
  */
 export async function listUpcomingBookings(
   of: BookingsOf,
-  options?: RepoOptions & { now?: Date; asOf?: IsoDate }
+  options?: RepoOptions & { asOf?: IsoDate }
 ): Promise<UpcomingBooking[]> {
   const employee = {
     ...ACTIVE,

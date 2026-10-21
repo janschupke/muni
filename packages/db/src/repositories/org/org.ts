@@ -92,7 +92,7 @@ interface Member {
   position: { id: string; name: string } | null
 }
 
-async function loadOrg(options?: RepoOptions & { now?: Date }) {
+async function loadOrg(options?: RepoOptions) {
   const db = dbOf(options)
   const now = options?.now ?? new Date()
   const [compliance, people, bookings, courses, booking, pairs] = await Promise.all([
@@ -280,16 +280,14 @@ function positionSummary(org: Org, position: { id: string; name: string }): Posi
   }
 }
 
-export async function listDepartmentSummaries(
-  options?: RepoOptions & { now?: Date }
-): Promise<DepartmentSummary[]> {
+export async function listDepartmentSummaries(options?: RepoOptions): Promise<DepartmentSummary[]> {
   const [org, departments] = await Promise.all([loadOrg(options), activeDepartments(options)])
   return departments.map(d => departmentSummary(org, d))
 }
 
 export async function getDepartment(
   id: string,
-  options?: RepoOptions & { now?: Date }
+  options?: RepoOptions
 ): Promise<DepartmentDetail | null> {
   const [org, department] = await Promise.all([
     loadOrg(options),
@@ -307,9 +305,7 @@ export async function getDepartment(
   }
 }
 
-export async function listPositionSummaries(
-  options?: RepoOptions & { now?: Date }
-): Promise<PositionSummary[]> {
+export async function listPositionSummaries(options?: RepoOptions): Promise<PositionSummary[]> {
   const [org, positions] = await Promise.all([
     loadOrg(options),
     dbOf(options).position.findMany({
@@ -323,7 +319,7 @@ export async function listPositionSummaries(
 
 export async function getPosition(
   id: string,
-  options?: RepoOptions & { now?: Date }
+  options?: RepoOptions
 ): Promise<PositionDetail | null> {
   const [org, position] = await Promise.all([
     loadOrg(options),
@@ -360,7 +356,7 @@ export async function getGroupName(
 export async function listGroupMembers(
   kind: 'department' | 'position',
   id: string,
-  options?: RepoOptions & { now?: Date }
+  options?: RepoOptions
 ): Promise<EmployeeListItem[] | null> {
   const where = { id, ...ACTIVE }
   const [org, group] = await Promise.all([

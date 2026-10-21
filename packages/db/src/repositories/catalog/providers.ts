@@ -162,7 +162,7 @@ export async function getProvider(
 ): Promise<ProviderDetail | null> {
   const db = dbOf(options)
   const prices = pricesVisible(role)
-  const now = new Date()
+  const now = options?.now ?? new Date()
   const [provider, [total = NONE], perCourse, recent, upcoming] = await Promise.all([
     db.provider.findFirst({
       where: { id, ...ACTIVE },
@@ -316,7 +316,7 @@ async function writeProvider(
           where: {
             providerId: saved.id,
             courseId: offering.courseId,
-            ...upcomingSessionWhere(new Date()),
+            ...upcomingSessionWhere(options?.now ?? new Date()),
           },
         })
         if (count > 0) throw new OfferingInUse(offering.course.name, count)

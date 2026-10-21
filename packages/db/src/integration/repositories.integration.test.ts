@@ -45,7 +45,8 @@ import { commitChunk } from '../writer'
 
 const db = createDb()
 const asOf = '2026-10-16'
-const options = { db, asOf }
+// The day the counts are pinned to, and its clock: what is ahead or past never moves.
+const options = { db, asOf, now: new Date('2026-10-16T12:00:00Z') }
 const DATA_DIR = path.join(import.meta.dirname, '../../../../data')
 
 beforeAll(async () => {
@@ -545,7 +546,7 @@ describe('departments and positions', () => {
           // Reports who have left are not listed, as on the team card.
           where: {
             manager: { externalId: 'E0001' },
-            OR: [{ leftOn: null }, { leftOn: { gt: new Date() } }],
+            OR: [{ leftOn: null }, { leftOn: { gt: new Date(asOf) } }],
           },
           select: { externalId: true },
         })
@@ -566,7 +567,7 @@ describe('planner input', () => {
     const now = new Date('2026-10-16T12:00:00Z')
     const planner = await getPlannerInput({ ...options, now })
     // Without a clock given, the real one: the same courses and rooms.
-    const live = await getPlannerInput(options)
+    const live = await getPlannerInput({ db, asOf })
     expect(live.courses.map(c => c.code)).toEqual(planner.courses.map(c => c.code))
     const bozp = planner.courses.find(c => c.code === 'BOZP-Z')
     expect(bozp).toMatchObject({ sessionMinutes: 180, seats: 30, usualStart: '08:00' })

@@ -32,6 +32,8 @@ export interface RepoOptions {
   db?: Db
   /** Override "today" (tests). */
   asOf?: string
+  /** Override the clock: what has started, what is still ahead (tests). */
+  now?: Date
 }
 
 export const dbOf = (options?: RepoOptions) => options?.db ?? getDb()

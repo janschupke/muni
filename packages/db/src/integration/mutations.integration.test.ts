@@ -54,8 +54,8 @@ import { commitChunk, CommitRefusedError, CommitValidationError } from '../write
 
 const db = createDb()
 const asOf = '2026-10-16'
-const options = { db, asOf }
 const now = new Date('2026-10-16T12:00:00Z')
+const options = { db, asOf, now }
 const DATA_DIR = path.join(import.meta.dirname, '../../../../data')
 
 // Names the tests create, which a re-seed does not remove.
@@ -1007,7 +1007,7 @@ describe('the writer refuses what it should never write', () => {
         db,
         'rooms',
         [{ name: CREATED.room, kind: 'LAB', capacity: 4, capabilities: null, note: null }],
-        { last: true }
+        { last: true, now }
       )
     ).rejects.toMatchObject({ reason: 'ROOM_UNFIT', key: CREATED.room })
   })

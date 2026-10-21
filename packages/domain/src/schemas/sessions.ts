@@ -62,15 +62,18 @@ export const sessionEditSchema = z
   .refine(s => s.unnamedBookings <= s.capacity, { path: ['capacity'], error: 'over_capacity' })
 export type SessionEdit = z.infer<typeof sessionEditSchema>
 
-/** A new session (from the planner or the course page); it starts with no bookings. */
-export const sessionCreateSchema = z
-  .object({ ...appSession, capacity: z.int().min(1).max(10_000) })
-  // A new session is planned, so ahead: one on an earlier day is a typo (record a completion for
-  // what already took place). Checked against today wherever it is parsed, form or server.
-  .refine(s => s.date >= todayIn(), {
-    path: ['date'],
-    error: 'in_past',
-  })
+/**
+ * A new session (from the planner or the course page); it starts with no bookings. It is
+ * planned, so ahead: one on a day before `today()` is a typo (record a completion for what
+ * already took place). `today` is read at each parse.
+ */
+export const sessionCreateSchemaOn = (today: () => string) =>
+  z
+    .object({ ...appSession, capacity: z.int().min(1).max(10_000) })
+    .refine(s => s.date >= today(), { path: ['date'], error: 'in_past' })
+
+/** A new session, checked against the real today wherever it is parsed, form or server. */
+export const sessionCreateSchema = sessionCreateSchemaOn(() => todayIn())
 export type SessionCreate = z.infer<typeof sessionCreateSchema>
 
 /** One named booking, added by hand. */

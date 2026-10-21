@@ -113,7 +113,7 @@ function toListItem(room: RoomRow, window: Window): RoomListItem {
   }
 }
 
-export async function listRooms(options?: RepoOptions & { now?: Date }): Promise<RoomListItem[]> {
+export async function listRooms(options?: RepoOptions): Promise<RoomListItem[]> {
   const now = options?.now ?? new Date()
   const window = utilisationWindow(now)
   const rooms = await dbOf(options).room.findMany({
@@ -124,10 +124,7 @@ export async function listRooms(options?: RepoOptions & { now?: Date }): Promise
   return rooms.map(room => toListItem(room, window))
 }
 
-export async function getRoom(
-  id: string,
-  options?: RepoOptions & { now?: Date }
-): Promise<RoomDetail | null> {
+export async function getRoom(id: string, options?: RepoOptions): Promise<RoomDetail | null> {
   const db = dbOf(options)
   const now = options?.now ?? new Date()
   const window = utilisationWindow(now)

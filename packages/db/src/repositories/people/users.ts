@@ -186,7 +186,7 @@ export async function setUserRole(
   id: string,
   role: Role,
   byUserId: string,
-  options?: RepoOptions & { now?: Date }
+  options?: RepoOptions
 ): Promise<RoleChange> {
   if (id === byUserId) return { ok: false, reason: 'SELF' }
   return dbOf(options).$transaction(async tx => {

@@ -12,9 +12,7 @@ import { roomRefSelect, sessionAheadWhere, toRoomRef } from '../scheduling/sessi
  * their named bookings (one under way still counts as its people's booking). The plan itself is `planAssignments`, a pure function of this.
  * Names and departments are already public on the employee list; nothing sensitive is read.
  */
-export async function getAdvisorInput(
-  options?: WithCompliance & { now?: Date }
-): Promise<AdvisorInput> {
+export async function getAdvisorInput(options?: WithCompliance): Promise<AdvisorInput> {
   const db = dbOf(options)
   const now = options?.now ?? new Date()
   const [compliance, employees, courses, sessions] = await Promise.all([

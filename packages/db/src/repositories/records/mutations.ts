@@ -4,12 +4,12 @@ import {
   type RoomEdit,
   roomSchema,
   type SessionCreate,
-  sessionCreateSchema,
+  sessionCreateSchemaOn,
   type SessionEdit,
   sessionEditSchema,
 } from '@muni/domain/schemas'
 import { sessionEnd, sessionIssues, sessionPhase, startsLater } from '@muni/domain/sessions'
-import { zonedTimeToUtc } from '@muni/utils/dates'
+import { todayIn, zonedTimeToUtc } from '@muni/utils/dates'
 import { cleanFreeText } from '@muni/utils/text'
 
 import type { Tx } from '../../client'
@@ -381,7 +381,7 @@ async function lockedSession(tx: Tx, externalId: string): Promise<StoredSession 
  */
 export async function cancelSession(
   externalId: string,
-  options?: RepoOptions & { now?: Date }
+  options?: RepoOptions
 ): Promise<SessionStatusWrite> {
   const now = options?.now ?? new Date()
   return dbOf(options).$transaction(async tx => {
@@ -401,7 +401,7 @@ export async function cancelSession(
  */
 export async function reinstateSession(
   externalId: string,
-  options?: RepoOptions & { now?: Date }
+  options?: RepoOptions
 ): Promise<SessionStatusWrite> {
   const now = options?.now ?? new Date()
   return dbOf(options).$transaction(async tx => {
@@ -421,6 +421,10 @@ export async function reinstateSession(
   })
 }
 
+/** A new session, judged ahead or past on the options' clock. */
+const newSession = (options?: RepoOptions) =>
+  sessionCreateSchemaOn(() => todayIn(undefined, options?.now ?? new Date()))
+
 /**
  * Schedules a new session with no bookings. Its ID takes the app's own prefix (S001, S002,
  * …), which imports refuse, so a later export can never overwrite it.
@@ -429,7 +433,7 @@ export async function createSession(
   input: SessionCreate,
   options?: RepoOptions
 ): Promise<SessionWrite> {
-  const data = sessionCreateSchema.parse(input)
+  const data = newSession(options).parse(input)
   return dbOf(options).$transaction(tx => insertSession(tx, data))
 }
 
@@ -507,9 +511,9 @@ export async function createSessionWithBookings(
   input: SessionCreate,
   people: readonly string[],
   userId: string,
-  options?: RepoOptions & { now?: Date; dryRun?: boolean }
+  options?: RepoOptions & { dryRun?: boolean }
 ): Promise<PlannedSessionWrite> {
-  const data = sessionCreateSchema.parse(input)
+  const data = newSession(options).parse(input)
   const now = options?.now ?? new Date()
   try {
     return await dbOf(options).$transaction(async tx => {
@@ -630,14 +634,18 @@ async function writeRoom(
         select: roomFactsSelect,
       })
       const before = roomFactsOf(current)
-      const unfit = await newlyUnfit(tx, {
-        roomId: id,
-        room: {
-          ...before,
-          ...fields,
-          capabilities: data.capabilities ?? before.capabilities,
+      const unfit = await newlyUnfit(
+        tx,
+        {
+          roomId: id,
+          room: {
+            ...before,
+            ...fields,
+            capabilities: data.capabilities ?? before.capabilities,
+          },
         },
-      })
+        options?.now
+      )
       const first = unfit[0]
       if (first)
         return {

@@ -52,13 +52,18 @@ async function guarded(run: () => Promise<{ id: string }>): Promise<GroupWrite> 
  * Makes `headId` (or nobody) the department's head. The department row is locked so two
  * saves cannot each set a head; the head must be an active member who has not left.
  */
-async function setHead(tx: Tx, departmentId: string, headId: string | null) {
+async function setHead(
+  tx: Tx,
+  departmentId: string,
+  headId: string | null,
+  asOf: string | undefined
+) {
   await tx.$queryRaw`SELECT id FROM departments WHERE id = ${departmentId} FOR UPDATE`
   if (headId) {
     // The person's row too, as archiving them takes it: an archived person never becomes head.
     await tx.$queryRaw`SELECT id FROM employees WHERE id = ${headId} FOR UPDATE`
     const head = await tx.employee.findFirst({
-      where: { id: headId, departmentId, ...ACTIVE, ...stillEmployed() },
+      where: { id: headId, departmentId, ...ACTIVE, ...stillEmployed(asOf) },
       select: { id: true },
     })
     if (!head) throw new Refused({ field: 'headId', reason: 'not_a_member' })
@@ -86,7 +91,7 @@ export function saveDepartment(
             select: { id: true },
           })
         : await tx.department.create({ data: { name }, select: { id: true } })
-      await setHead(tx, saved.id, headId)
+      await setHead(tx, saved.id, headId, options?.asOf)
       return saved
     })
   )
@@ -159,7 +164,7 @@ export async function getDepartmentForEdit(id: string, options?: RepoOptions) {
       id: true,
       name: true,
       employees: {
-        where: { ...ACTIVE, ...stillEmployed() },
+        where: { ...ACTIVE, ...stillEmployed(options?.asOf) },
         select: { id: true, firstName: true, lastName: true, leadsDepartment: true },
       },
     },
@@ -229,7 +234,7 @@ export async function listDepartmentPositions(
 export async function fillDepartmentHeads(options?: RepoOptions): Promise<number> {
   const db = dbOf(options)
   const people = await db.employee.findMany({
-    where: { ...ACTIVE, ...stillEmployed() },
+    where: { ...ACTIVE, ...stillEmployed(options?.asOf) },
     select: {
       id: true,
       firstName: true,
@@ -251,7 +256,7 @@ export async function fillDepartmentHeads(options?: RepoOptions): Promise<number
     // elsewhere): only a member can lead it, so such a department is left for the form.
     const head = headOf(members, everyone)
     if (!head || !members.some(m => m.id === head.id)) continue
-    await db.$transaction(tx => setHead(tx, departmentId, head.id))
+    await db.$transaction(tx => setHead(tx, departmentId, head.id, options?.asOf))
     filled++
   }
   return filled

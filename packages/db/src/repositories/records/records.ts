@@ -163,14 +163,18 @@ export async function updateCourse(
         where: { code, ...ACTIVE },
         select: { id: true, ...needsSelect },
       })
-      const unfit = await newlyUnfit(tx, {
-        courseId: current.id,
-        needs: {
-          seats: data.seats,
-          onlineAllowed: data.onlineAllowed,
-          capabilities: data.capabilities,
+      const unfit = await newlyUnfit(
+        tx,
+        {
+          courseId: current.id,
+          needs: {
+            seats: data.seats,
+            onlineAllowed: data.onlineAllowed,
+            capabilities: data.capabilities,
+          },
         },
-      })
+        options?.now
+      )
       if (unfit.length > 0)
         throw new Refused({
           field: unfit.some(m => m.kind === 'ONLINE_NOT_ALLOWED')

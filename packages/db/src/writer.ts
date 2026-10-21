@@ -88,13 +88,15 @@ export function revalidate<K extends DatasetKind>(kind: K, records: unknown[]): 
  * `last` marks a dataset's final chunk, after which what needs all of it is worked out once:
  * the departments' heads from the reporting lines (people); the offerings the completions
  * show, at the latest price paid, and the default provider (completions). Each only fills
- * what is not set, so a repeat changes nothing.
+ * what is not set, so a repeat changes nothing. Who still works there is judged on `asOf`,
+ * and which sessions are still ahead on `now` (today and the real clock unless a caller says
+ * otherwise).
  */
 export async function commitChunk(
   db: Db,
   kind: DatasetKind,
   untrusted: unknown[],
-  { last }: { last: boolean }
+  { last, asOf, now }: { last: boolean; asOf?: string | undefined; now?: Date | undefined }
 ): Promise<CommitResult> {
   if (untrusted.length > COMMIT_CHUNK_SIZE) {
     throw new Error(`At most ${COMMIT_CHUNK_SIZE} records per chunk`)
@@ -104,7 +106,7 @@ export async function commitChunk(
     const result = await db.$transaction(async tx => {
       switch (kind) {
         case 'rooms':
-          return writeRooms(tx, records as RoomInput[])
+          return writeRooms(tx, records as RoomInput[], now)
         case 'courses':
           return writeCourses(tx, records as CourseInput[])
         case 'employees': {
@@ -125,7 +127,7 @@ export async function commitChunk(
         }
       }
     }, TX_OPTIONS)
-    if (last && kind === 'employees') await fillDepartmentHeads({ db })
+    if (last && kind === 'employees') await fillDepartmentHeads({ db, ...(asOf && { asOf }) })
     return result
   } catch (error) {
     // Named by its record, as the other refusals are, rather than a bare failure.
@@ -146,7 +148,10 @@ export async function commitChunk(
 export async function importBatch(
   db: Db,
   batch: ImportBatch,
-  { chunkSize = COMMIT_CHUNK_SIZE }: { chunkSize?: number | undefined } = {}
+  {
+    chunkSize = COMMIT_CHUNK_SIZE,
+    asOf,
+  }: { chunkSize?: number | undefined; asOf?: string | undefined } = {}
 ): Promise<Partial<Record<DatasetKind, CommitResult>>> {
   const results: Partial<Record<DatasetKind, CommitResult>> = {}
   for (const kind of COMMIT_ORDER) {
@@ -155,7 +160,10 @@ export async function importBatch(
     const sum = { created: 0, updated: 0, skipped: 0 }
     for (let i = 0; i < records.length; i += chunkSize) {
       const part = records.slice(i, i + chunkSize)
-      const result = await commitChunk(db, kind, part, { last: i + chunkSize >= records.length })
+      const result = await commitChunk(db, kind, part, {
+        last: i + chunkSize >= records.length,
+        asOf,
+      })
       sum.created += result.created
       sum.updated += result.updated
       sum.skipped += result.skipped

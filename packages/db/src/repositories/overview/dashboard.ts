@@ -122,7 +122,7 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
         position: { select: { name: true } },
       },
     }),
-    loadBookingContext(db),
+    loadBookingContext(db, options?.now),
   ])
   const cellsByPerson = Map.groupBy(compliance.cells, c => c.employeeId)
   const peopleByDepartment = Map.groupBy(people.toSorted(compareNames), p => p.departmentId)
