@@ -34,9 +34,17 @@ export interface RepoOptions {
   asOf?: string
   /** Override the clock: what has started, what is still ahead (tests). */
   now?: Date
+  /** Override the sanitisation policy (tests). */
+  policy?: SanitizePolicy
 }
 
 export const dbOf = (options?: RepoOptions) => options?.db ?? getDb()
+
+/** The clock a read or write judges by: the one it was given, else the real one. */
+export const nowOf = (options?: RepoOptions) => options?.now ?? new Date()
+
+/** The policy a read applies: the one it was given, else the configured one. */
+export const policyOf = (options?: RepoOptions) => options?.policy ?? getPolicy()
 
 /** A stored amount (a Prisma Decimal, or a sum of them) in crowns; null stays null. */
 export function toAmount(value: { toString(): string }): number

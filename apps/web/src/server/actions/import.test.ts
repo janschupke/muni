@@ -32,11 +32,12 @@ describe('import commit', () => {
   const course = { code: 'BOZP-Z', name: 'BOZP', validityMonths: 24, requirements: [] }
 
   it('writes a chunk for a signed-in user', async () => {
-    vi.mocked(commitChunk).mockResolvedValue({ created: 1, updated: 0, skipped: 2 })
+    vi.mocked(commitChunk).mockResolvedValue({ created: 1, updated: 0, unchanged: 4, skipped: 2 })
     expect(await commitImportChunk('courses', [course], true)).toEqual({
       ok: true,
       created: 1,
       updated: 0,
+      unchanged: 4,
       skipped: 2,
     })
     expect(commitChunk).toHaveBeenCalledWith('db', 'courses', [course], { last: true })

@@ -11,7 +11,7 @@ import { ACTIVE } from '../archive/archive'
 import { mandatoryCourse } from '../catalog/audience'
 import type { SessionListItem } from '../catalog/courses'
 import { loadBookingContext, type RequirementContext, requirementOf } from '../catalog/requirements'
-import { dbOf, loadCompliance, type RepoOptions, type WithCompliance } from '../core/context'
+import { dbOf, loadCompliance, nowOf, type RepoOptions, type WithCompliance } from '../core/context'
 import { activeDepartments } from '../core/lookups'
 import { compareNames } from '../people/employee-sort'
 import type { EmployeeListRequirement } from '../people/employees'
@@ -122,7 +122,7 @@ export async function getComplianceMatrix(options?: RepoOptions): Promise<Compli
         position: { select: { name: true } },
       },
     }),
-    loadBookingContext(db, options?.now),
+    loadBookingContext(db, nowOf(options)),
   ])
   const cellsByPerson = Map.groupBy(compliance.cells, c => c.employeeId)
   const peopleByDepartment = Map.groupBy(people.toSorted(compareNames), p => p.departmentId)

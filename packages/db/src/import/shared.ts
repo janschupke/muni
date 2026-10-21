@@ -2,12 +2,38 @@ import { fold } from '@muni/utils/text'
 
 import type { Tx } from '../client'
 import { ACTIVE } from '../repositories/archive/archive'
+import { toAmount } from '../repositories/core/context'
 
 export interface CommitResult {
   created: number
   updated: number
+  /** Records the register already holds as they are: nothing written. */
+  unchanged: number
   /** Records left alone because they are, or refer to, something archived. */
   skipped: number
+}
+
+/**
+ * Whether writing `data` would change what the row holds, each field compared as the database
+ * keeps it (a date by its instant, a decimal by its value). An unchanged record is not
+ * written: a re-import costs a read, and `updatedAt` keeps the time of the last real change.
+ */
+export function differs(held: Record<string, unknown>, data: Record<string, unknown>): boolean {
+  return Object.entries(data).some(([field, value]) => !same(held[field], value))
+}
+
+function same(held: unknown, value: unknown): boolean {
+  if (held instanceof Date) return value instanceof Date && held.getTime() === value.getTime()
+  // A Prisma Decimal against the number the import writes.
+  if (held !== null && typeof held === 'object') return toAmount(held) === value
+  return held === value
+}
+
+/** The same values, in any order and however often each comes. */
+export function sameSet(a: readonly string[], b: readonly string[]): boolean {
+  const left = new Set(a)
+  const right = new Set(b)
+  return left.size === right.size && [...left].every(value => right.has(value))
 }
 
 // Every lookup here is among active records: an archived record's name, code or ID is free for
@@ -126,18 +152,21 @@ export async function upsertNames(
   return ids
 }
 
-/** Splits records into new and existing by external key, then writes each set. */
-export async function partition<T>(
+/**
+ * Splits records into new and existing by external key; each existing one comes with the row
+ * as the register holds it (`held`), to compare with what the import would write.
+ */
+export async function partition<T, H extends { id: string }>(
   records: T[],
   keyOf: (r: T) => string,
-  findExisting: (keys: string[]) => Promise<{ key: string; id: string }[]>
-): Promise<{ fresh: T[]; existing: { record: T; id: string }[] }> {
-  const found = new Map((await findExisting(records.map(keyOf))).map(e => [e.key, e.id]))
+  findExisting: (keys: string[]) => Promise<{ key: string; held: H }[]>
+): Promise<{ fresh: T[]; existing: { record: T; held: H }[] }> {
+  const found = new Map((await findExisting(records.map(keyOf))).map(e => [e.key, e.held]))
   const fresh: T[] = []
-  const existing: { record: T; id: string }[] = []
+  const existing: { record: T; held: H }[] = []
   for (const record of records) {
-    const id = found.get(keyOf(record))
-    if (id) existing.push({ record, id })
+    const held = found.get(keyOf(record))
+    if (held) existing.push({ record, held })
     else fresh.push(record)
   }
   return { fresh, existing }

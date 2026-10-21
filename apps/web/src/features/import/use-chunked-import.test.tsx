@@ -37,14 +37,20 @@ const wrapper = ({ children }: { children: ReactNode }) => <Providers>{children}
 
 describe('useChunkedImport', () => {
   it('writes only the datasets the batch has, and totals what the server did', async () => {
-    vi.mocked(commitImportChunk).mockResolvedValue({ ok: true, created: 1, updated: 1, skipped: 0 })
+    vi.mocked(commitImportChunk).mockResolvedValue({
+      ok: true,
+      created: 1,
+      updated: 1,
+      unchanged: 3,
+      skipped: 0,
+    })
     const { result } = renderHook(() => useChunkedImport(), { wrapper })
     await act(() => result.current.run(coursesOnly()))
     expect(vi.mocked(commitImportChunk).mock.calls.map(([kind]) => kind)).toEqual(['courses'])
     expect(result.current.job).toEqual({
       status: 'succeeded',
       total: 2,
-      results: { courses: { created: 1, updated: 1, skipped: 0 } },
+      results: { courses: { created: 1, updated: 1, unchanged: 3, skipped: 0 } },
     })
     act(() => {
       result.current.clear()

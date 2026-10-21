@@ -12,11 +12,11 @@ import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 import { useAfterWrite } from '@/lib/query/use-after-write'
-import { commitImportChunk } from '@/server/actions/import'
+import { type CommitCounts, commitImportChunk } from '@/server/actions/import'
 
 import type { ImportJob } from './progress-step'
 
-type Results = Partial<Record<DatasetKind, { created: number; updated: number; skipped: number }>>
+type Results = Partial<Record<DatasetKind, CommitCounts>>
 
 /**
  * Writes a batch in commit order, a chunk at a time, reporting progress as it goes. The first
@@ -51,10 +51,11 @@ export function useChunkedImport() {
           afterWrite()
           return
         }
-        const sum = results[kind] ?? { created: 0, updated: 0, skipped: 0 }
+        const sum = results[kind] ?? { created: 0, updated: 0, unchanged: 0, skipped: 0 }
         results[kind] = {
           created: sum.created + result.created,
           updated: sum.updated + result.updated,
+          unchanged: sum.unchanged + result.unchanged,
           skipped: sum.skipped + result.skipped,
         }
         done += Math.min(CHUNK, records.length - i)

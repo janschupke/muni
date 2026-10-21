@@ -40,7 +40,7 @@ export interface BookingContext {
  */
 export async function loadBookingContext(
   db: Db,
-  now = new Date(),
+  now: Date,
   employeeIds?: readonly string[]
 ): Promise<BookingContext> {
   const [bookings, sessions] = await Promise.all([

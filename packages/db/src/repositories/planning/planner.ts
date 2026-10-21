@@ -4,7 +4,7 @@ import { toZonedParts } from '@muni/utils/dates'
 
 import { ACTIVE } from '../archive/archive'
 import { offeringsInclude, toOffering } from '../catalog/offerings'
-import { dbOf, type RepoOptions } from '../core/context'
+import { dbOf, nowOf, type RepoOptions } from '../core/context'
 import { needsOf, needsSelect } from '../scheduling/session-fit'
 import { upcomingSessionWhere } from '../scheduling/sessions'
 
@@ -16,7 +16,7 @@ export async function getPlannerInput(
   options?: RepoOptions
 ): Promise<Omit<PlannerInput, 'asOf' | 'items'>> {
   const db = dbOf(options)
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   const [courses, rooms, sessions] = await Promise.all([
     db.course.findMany({
       where: ACTIVE,

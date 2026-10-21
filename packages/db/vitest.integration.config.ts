@@ -1,17 +1,17 @@
-import { fileURLToPath } from 'node:url'
+import { node } from '../../vitest.preset.ts'
+import { resolve } from './vitest.config.ts'
 
-import { defineConfig } from 'vitest/config'
-
-export default defineConfig({
-  resolve: {
-    alias: { 'server-only': fileURLToPath(new URL('./test/server-only-stub.ts', import.meta.url)) },
-  },
+/**
+ * The repositories, the import writer and the seed against Postgres (the test server,
+ * packages/db/.env.test). global-setup builds a seeded template; each file runs on a copy of
+ * its own (test/database.ts), so files run side by side and clean up after nobody.
+ */
+export default node({
+  resolve,
   test: {
-    environment: 'node',
     include: ['src/**/*.integration.test.ts'],
+    exclude: ['**/node_modules/**'],
     globalSetup: ['./test/global-setup.ts'],
-    fileParallelism: false,
-    testTimeout: 60_000,
-    hookTimeout: 120_000,
+    setupFiles: ['./test/database.ts'],
   },
 })

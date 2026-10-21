@@ -1,4 +1,4 @@
-import { dbOf, type RepoOptions } from './context'
+import { dbOf, nowOf, type RepoOptions } from './context'
 
 /** One minute: the window requests are counted in. */
 const WINDOW_MS = 60_000
@@ -14,7 +14,7 @@ export async function hitRateLimit(
   limit: number,
   options?: RepoOptions
 ): Promise<{ ok: true } | { ok: false; retryAfterSeconds: number }> {
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   const windowStart = new Date(Math.floor(now.getTime() / WINDOW_MS) * WINDOW_MS)
   const db = dbOf(options)
   const [row] = await db.$queryRaw<{ count: number }[]>`
@@ -23,8 +23,7 @@ export async function hitRateLimit(
     RETURNING count`
   const count = row?.count ?? 1
   if (count === 1)
-    // A counter, not a record: its old windows carry nothing worth archiving.
-    // eslint-disable-next-line no-restricted-syntax
+    // eslint-disable-next-line no-restricted-syntax -- a counter, not a record: its old windows carry nothing worth archiving
     await db.rateLimit.deleteMany({ where: { key, windowStart: { lt: windowStart } } })
   if (count <= limit) return { ok: true }
   const retryAfterSeconds = Math.ceil((windowStart.getTime() + WINDOW_MS - now.getTime()) / 1000)

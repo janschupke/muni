@@ -15,7 +15,7 @@ import {
   requirementViews,
 } from '../catalog/audience'
 import { loadBookingContext } from '../catalog/requirements'
-import { dbOf, loadCompliance, type RepoOptions } from '../core/context'
+import { dbOf, loadCompliance, nowOf, type RepoOptions } from '../core/context'
 import { activeDepartments } from '../core/lookups'
 import { compareNames, sortEmployees } from '../people/employee-sort'
 import { type EmployeeListItem, employeeRecord } from '../people/employees'
@@ -94,7 +94,7 @@ interface Member {
 
 async function loadOrg(options?: RepoOptions) {
   const db = dbOf(options)
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   const [compliance, people, bookings, courses, booking, pairs] = await Promise.all([
     loadCompliance(options),
     db.employee.findMany({

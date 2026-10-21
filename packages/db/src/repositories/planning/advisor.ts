@@ -2,7 +2,7 @@ import { type AdvisorInput, type AdvisorNeed, forecastEnd, inForecast } from '@m
 import { sortName } from '@muni/domain/names'
 
 import { ACTIVE } from '../archive/archive'
-import { dbOf, loadCompliance, toAmount, type WithCompliance } from '../core/context'
+import { dbOf, loadCompliance, nowOf, toAmount, type WithCompliance } from '../core/context'
 import { stillEmployed } from '../people/employment'
 import { roomRefSelect, sessionAheadWhere, toRoomRef } from '../scheduling/sessions'
 
@@ -14,7 +14,7 @@ import { roomRefSelect, sessionAheadWhere, toRoomRef } from '../scheduling/sessi
  */
 export async function getAdvisorInput(options?: WithCompliance): Promise<AdvisorInput> {
   const db = dbOf(options)
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   const [compliance, employees, courses, sessions] = await Promise.all([
     options?.compliance ?? loadCompliance(options),
     db.employee.findMany({

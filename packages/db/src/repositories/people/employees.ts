@@ -29,8 +29,9 @@ import {
 import {
   countedCells,
   dbOf,
-  getPolicy,
   loadCompliance,
+  nowOf,
+  policyOf,
   type RepoOptions,
   toAmount,
 } from '../core/context'
@@ -155,7 +156,7 @@ export async function listEmployees(
     }),
     loadCompliance(options),
     db.course.findMany({ where: ACTIVE, select: { id: true, code: true, name: true } }),
-    loadBookingContext(db, options?.now),
+    loadBookingContext(db, nowOf(options)),
   ])
 
   const context: RequirementContext = {
@@ -288,14 +289,14 @@ export async function getEmployee(
       where: { id: { in: cells.map(c => c.courseId) } },
       select: { id: true, code: true, name: true },
     }),
-    loadBookingContext(db, options?.now, [employee.id]),
+    loadBookingContext(db, nowOf(options), [employee.id]),
   ])
   const context: RequirementContext = {
     courses: new Map(courses.map(c => [c.id, c])),
     asOf: compliance.options.asOf,
     ...booking,
   }
-  const policy = getPolicy()
+  const policy = policyOf(options)
 
   const base = sanitizeRecord(
     policy,

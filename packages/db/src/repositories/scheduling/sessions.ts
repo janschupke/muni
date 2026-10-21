@@ -4,7 +4,7 @@ import type { RoomFacts, RoomRef } from '@muni/domain/rooms'
 import type { Prisma } from '../../generated/prisma/client'
 import { ACTIVE, isArchived, personSelect, toPersonRef } from '../archive/archive'
 import type { SessionListItem } from '../catalog/courses'
-import { dbOf, type RepoOptions, toAmount } from '../core/context'
+import { dbOf, nowOf, type RepoOptions, toAmount } from '../core/context'
 import { needsOf, needsSelect } from './fit-selects'
 
 /** Not archived and not yet ended, whatever its status: a cancelled one ahead included. */
@@ -221,7 +221,7 @@ export async function listSessions(
   options?: RepoOptions
 ): Promise<SessionListItem[]> {
   const sessions = await dbOf(options).courseSession.findMany({
-    where: sessionWhere(filter, options?.now ?? new Date()),
+    where: sessionWhere(filter, nowOf(options)),
     include: sessionInclude,
     orderBy: sessionOrder(filter.window),
     ...(limit && { take: limit }),
@@ -232,7 +232,7 @@ export async function listSessions(
 /** How many sessions the filter matches (a course page counts its past ones). */
 export function countSessions(filter: SessionFilter, options?: RepoOptions): Promise<number> {
   return dbOf(options).courseSession.count({
-    where: sessionWhere(filter, options?.now ?? new Date()),
+    where: sessionWhere(filter, nowOf(options)),
   })
 }
 

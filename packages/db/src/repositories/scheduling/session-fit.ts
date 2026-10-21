@@ -27,7 +27,7 @@ export { needsOf, needsSelect, roomFactsOf, roomFactsSelect } from './fit-select
 export async function newlyUnfit(
   tx: Tx,
   change: { roomId: string; room: RoomFacts } | { courseId: string; needs: SessionNeeds },
-  now: Date = new Date()
+  now: Date
 ): Promise<RoomMismatch[]> {
   const sessions = await tx.courseSession.findMany({
     where: {

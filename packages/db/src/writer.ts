@@ -106,7 +106,7 @@ export async function commitChunk(
     const result = await db.$transaction(async tx => {
       switch (kind) {
         case 'rooms':
-          return writeRooms(tx, records as RoomInput[], now)
+          return writeRooms(tx, records as RoomInput[], now ?? new Date())
         case 'courses':
           return writeCourses(tx, records as CourseInput[])
         case 'employees': {
@@ -157,7 +157,7 @@ export async function importBatch(
   for (const kind of COMMIT_ORDER) {
     if ((batch[kind]?.length ?? 0) === 0) continue
     const records = committable(batch, kind)
-    const sum = { created: 0, updated: 0, skipped: 0 }
+    const sum = { created: 0, updated: 0, unchanged: 0, skipped: 0 }
     for (let i = 0; i < records.length; i += chunkSize) {
       const part = records.slice(i, i + chunkSize)
       const result = await commitChunk(db, kind, part, {
@@ -166,6 +166,7 @@ export async function importBatch(
       })
       sum.created += result.created
       sum.updated += result.updated
+      sum.unchanged += result.unchanged
       sum.skipped += result.skipped
     }
     results[kind] = sum

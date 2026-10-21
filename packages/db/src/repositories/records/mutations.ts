@@ -15,7 +15,7 @@ import { cleanFreeText } from '@muni/utils/text'
 import type { Tx } from '../../client'
 import type { Prisma } from '../../generated/prisma/client'
 import { ACTIVE, isArchived } from '../archive/archive'
-import { dbOf, type RepoOptions } from '../core/context'
+import { dbOf, nowOf, type RepoOptions } from '../core/context'
 import { applyOne, type AssignmentFailure, BATCH_TX, lockPeople } from '../scheduling/assignments'
 import {
   lockSessionWrites,
@@ -383,7 +383,7 @@ export async function cancelSession(
   externalId: string,
   options?: RepoOptions
 ): Promise<SessionStatusWrite> {
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   return dbOf(options).$transaction(async tx => {
     const session = await lockedSession(tx, externalId)
     if (!session) return { ok: false, problem: 'NOT_FOUND' }
@@ -403,7 +403,7 @@ export async function reinstateSession(
   externalId: string,
   options?: RepoOptions
 ): Promise<SessionStatusWrite> {
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   return dbOf(options).$transaction(async tx => {
     const session = await lockedSession(tx, externalId)
     if (!session) return { ok: false, problem: 'NOT_FOUND' }
@@ -423,7 +423,7 @@ export async function reinstateSession(
 
 /** A new session, judged ahead or past on the options' clock. */
 const newSession = (options?: RepoOptions) =>
-  sessionCreateSchemaOn(() => todayIn(undefined, options?.now ?? new Date()))
+  sessionCreateSchemaOn(() => todayIn(undefined, nowOf(options)))
 
 /**
  * Schedules a new session with no bookings. Its ID takes the app's own prefix (S001, S002,
@@ -514,7 +514,7 @@ export async function createSessionWithBookings(
   options?: RepoOptions & { dryRun?: boolean }
 ): Promise<PlannedSessionWrite> {
   const data = newSession(options).parse(input)
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   try {
     return await dbOf(options).$transaction(async tx => {
       const created = await insertSession(tx, data)
@@ -644,7 +644,7 @@ async function writeRoom(
             capabilities: data.capabilities ?? before.capabilities,
           },
         },
-        options?.now
+        nowOf(options)
       )
       const first = unfit[0]
       if (first)

@@ -1,12 +1,9 @@
-import path from 'node:path'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-
-import { deleteCourses, deleteRooms, unarchiveAll } from '../../test/archive'
 import { needing } from '../../test/needs'
 import { defaultProviderId, offer } from '../../test/providers'
 import { completionOf, courseIdOf } from '../../test/records'
-import { createTestUser, deleteTestUser, TEST_USER } from '../../test/users'
+import { TEST_USER } from '../../test/users'
 import { createDb } from '../connect'
 import {
   applyAssignments,
@@ -47,67 +44,17 @@ import {
   updateRoom,
   updateSession,
 } from '../repositories'
-import { seedFromDirectory } from '../seed'
 
 // Creating and editing courses, people, completions, departments and positions, and the
-// pickers' lists. Everything created here is removed again.
+// pickers' lists.
 
 const db = createDb()
 const asOf = '2026-10-16'
 const now = new Date('2026-10-16T12:00:00Z')
 const options = { db, asOf, now }
-const DATA_DIR = path.join(import.meta.dirname, '../../../../data')
 const NAME = 'Záznam test'
 
-const cleanUp = async () => {
-  await db.sessionAssignment.deleteMany({ where: { createdById: TEST_USER } })
-  await db.courseCompletion.deleteMany({
-    where: {
-      OR: [
-        { employee: { externalId: { startsWith: 'N' } } },
-        { course: { code: { startsWith: 'TEST-REC' } } },
-      ],
-    },
-  })
-  await db.employee.updateMany({
-    where: { manager: { externalId: { startsWith: 'N' } } },
-    data: { managerId: null },
-  })
-  await db.employee.deleteMany({ where: { externalId: { startsWith: 'N' } } })
-  await deleteCourses(db, { code: { startsWith: 'TEST-REC' } })
-  await deleteRooms(db, { startsWith: NAME })
-  await unarchiveAll(db)
-  await db.employee.updateMany({
-    where: {
-      OR: [
-        { department: { name: { startsWith: NAME } } },
-        { position: { name: { startsWith: NAME } } },
-      ],
-    },
-    data: { departmentId: null, positionId: null, leadsDepartment: false },
-  })
-  await db.departmentPosition.deleteMany({
-    where: {
-      OR: [
-        { department: { name: { startsWith: NAME } } },
-        { position: { name: { startsWith: NAME } } },
-      ],
-    },
-  })
-  await db.department.deleteMany({ where: { name: { startsWith: NAME } } })
-  await db.position.deleteMany({ where: { name: { startsWith: NAME } } })
-  await db.provider.deleteMany({ where: { name: { startsWith: NAME } } })
-  await db.user.deleteMany({ where: { clerkId: { startsWith: 'user_it_rec' } } })
-  await seedFromDirectory(db, DATA_DIR, asOf)
-}
-
-beforeAll(async () => {
-  await cleanUp()
-  await createTestUser(db)
-})
 afterAll(async () => {
-  await cleanUp()
-  await deleteTestUser(db)
   await db.$disconnect()
 })
 
@@ -764,7 +711,17 @@ describe('sessions keep fitting their rooms', () => {
       )
     await book('E0153')
     await book('E0131')
-    const [cut, booking] = await Promise.all([
+    // The test holds the session's row lock, which both writes take, until both are waiting
+    // for it: they are certainly in flight together, and only the lock decides who goes first.
+    const release = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<undefined>()
+    const holder = db.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM course_sessions WHERE external_id = ${created.externalId} FOR UPDATE`
+      held.resolve(undefined)
+      await release.promise
+    })
+    await held.promise
+    const race = Promise.all([
       updateSession(
         created.externalId,
         {
@@ -780,6 +737,15 @@ describe('sessions keep fitting their rooms', () => {
       ),
       book('E0001'),
     ])
+    await vi.waitFor(async () => {
+      const [waiting] = await db.$queryRaw<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM pg_stat_activity
+        WHERE datname = current_database() AND wait_event_type = 'Lock'`
+      expect(waiting?.n).toBe(2)
+    })
+    release.resolve(undefined)
+    await holder
+    const [cut, booking] = await race
     // Exactly one of them wins, whichever goes first.
     expect([cut.ok, booking[0]?.ok].filter(Boolean)).toHaveLength(1)
     const session = await db.courseSession.findFirstOrThrow({

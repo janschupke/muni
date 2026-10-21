@@ -1,7 +1,7 @@
 import type { Role } from '@muni/domain/enums'
 
 import { ACTIVE } from '../archive/archive'
-import { dbOf, type RepoOptions } from '../core/context'
+import { dbOf, nowOf, type RepoOptions } from '../core/context'
 import { isPrismaCode } from '../core/errors'
 
 // Users mirrored from Clerk. Clerk owns sign-in and the role (`publicMetadata.role`); this
@@ -201,7 +201,7 @@ export async function setUserRole(
       return { ok: false, reason: 'LAST_ADMIN' }
     await tx.user.update({
       where: { id },
-      data: { role, roleChangedAt: options?.now ?? new Date() },
+      data: { role, roleChangedAt: nowOf(options) },
     })
     return { ok: true, clerkId: user.clerkId, previous: user.role }
   })

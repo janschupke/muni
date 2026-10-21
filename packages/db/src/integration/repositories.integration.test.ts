@@ -2,13 +2,12 @@ import path from 'node:path'
 
 import { forecastEnd, planAssignments } from '@muni/domain/advisor'
 import { addDays } from '@muni/utils/dates'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
-import { unarchiveAll } from '../../test/archive'
 import { needing } from '../../test/needs'
 import { defaultProviderId } from '../../test/providers'
 import { completionOf, courseIdOf } from '../../test/records'
-import { createTestUser, deleteTestUser, TEST_USER } from '../../test/users'
+import { TEST_USER } from '../../test/users'
 import { createDb } from '../connect'
 import {
   applyAssignments,
@@ -48,11 +47,6 @@ const asOf = '2026-10-16'
 // The day the counts are pinned to, and its clock: what is ahead or past never moves.
 const options = { db, asOf, now: new Date('2026-10-16T12:00:00Z') }
 const DATA_DIR = path.join(import.meta.dirname, '../../../../data')
-
-beforeAll(async () => {
-  await unarchiveAll(db)
-  await seedFromDirectory(db, DATA_DIR, asOf)
-})
 
 afterAll(async () => {
   await db.$disconnect()
@@ -144,9 +138,19 @@ describe('seed', () => {
     expect(Number(t001.pricePerPerson)).toBe(800)
   })
 
-  it('is idempotent', async () => {
+  it('is idempotent: the same files again write nothing', async () => {
+    const lastChange = async () => ({
+      employees: (await db.employee.aggregate({ _max: { updatedAt: true } }))._max.updatedAt,
+      completions: (await db.courseCompletion.aggregate({ _max: { updatedAt: true } }))._max
+        .updatedAt,
+      sessions: (await db.courseSession.aggregate({ _max: { updatedAt: true } }))._max.updatedAt,
+    })
+    const before = await lastChange()
     const results = await seedFromDirectory(db, DATA_DIR, asOf)
-    expect(results.completions).toEqual({ created: 0, updated: 2818, skipped: 48 })
+    expect(results.completions).toEqual({ created: 0, updated: 0, unchanged: 2818, skipped: 48 })
+    expect(results.employees).toMatchObject({ created: 0, updated: 0, unchanged: 170 })
+    expect(results.sessions).toMatchObject({ created: 0, updated: 0 })
+    expect(await lastChange()).toEqual(before)
     expect(await importedCompletions()).toBe(2818)
     expect(await db.employee.count()).toBe(170)
   })
@@ -647,20 +651,6 @@ describe('assignments', () => {
     sessionExternalId,
     employeeExternalId,
     source: 'MANUAL',
-  })
-
-  // Assignments outlive a run; start (and leave) the test database without any, re-seeded.
-  const reset = async () => {
-    await db.sessionAssignment.deleteMany()
-    await seedFromDirectory(db, DATA_DIR, asOf)
-  }
-  beforeAll(async () => {
-    await reset()
-    await createTestUser(db)
-  })
-  afterAll(async () => {
-    await reset()
-    await deleteTestUser(db)
   })
 
   it('feeds the advisor what is non-compliant now and what lapses within the forecast', async () => {

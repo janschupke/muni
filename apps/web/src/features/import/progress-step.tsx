@@ -7,6 +7,8 @@ import { Card, CardBody } from '@muni/ui/card'
 import { Meter } from '@muni/ui/meter'
 import { RotateCcw } from 'lucide-react'
 
+import type { CommitCounts } from '@/server/actions/import'
+
 import { useImportText } from './use-issue-text'
 
 export type ImportJob =
@@ -14,7 +16,7 @@ export type ImportJob =
   | {
       status: 'succeeded'
       total: number
-      results: Partial<Record<DatasetKind, { created: number; updated: number; skipped: number }>>
+      results: Partial<Record<DatasetKind, CommitCounts>>
     }
   | { status: 'failed'; total: number; written: number; message: string }
 
@@ -67,17 +69,13 @@ export function ProgressStep({ job, onReset }: { job: ImportJob; onReset: () => 
               </Alert>
             </div>
             <ul className="flex flex-col gap-1">
-              {(
-                Object.entries(job.results) as [
-                  DatasetKind,
-                  { created: number; updated: number; skipped: number },
-                ][]
-              ).map(([kind, r]) => (
+              {(Object.entries(job.results) as [DatasetKind, CommitCounts][]).map(([kind, r]) => (
                 <li key={kind}>
                   {t('progress.result', {
                     kind: t(`kinds.${kind}`),
                     created: r.created,
                     updated: r.updated,
+                    unchanged: r.unchanged,
                     skipped: r.skipped,
                   })}
                 </li>

@@ -19,8 +19,16 @@ import * as z from 'zod'
 
 import { asAdmin, type Denied, logFailure } from '@/server/actions/guard'
 
+/** What a chunk wrote: records created, changed, already as they are, and left alone. */
+export interface CommitCounts {
+  created: number
+  updated: number
+  unchanged: number
+  skipped: number
+}
+
 export type CommitChunkResult =
-  | { ok: true; created: number; updated: number; skipped: number }
+  | ({ ok: true } & CommitCounts)
   | {
       ok: false
       error: Denied | 'invalid' | Lowercase<CommitRefusal> | 'failed'

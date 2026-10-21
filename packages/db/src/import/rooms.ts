@@ -10,13 +10,13 @@ import {
   roomFactsSelect,
 } from '../repositories/scheduling/session-fit'
 import type { CommitResult } from './shared'
-import { archivedOnly, CommitRefusedError, withoutArchived } from './shared'
+import { archivedOnly, CommitRefusedError, differs, sameSet, withoutArchived } from './shared'
 
 export async function writeRooms(
   tx: Tx,
   all: RoomInput[],
   /** What counts as still ahead, for the sessions a room must keep fitting. */
-  now = new Date()
+  now: Date
 ): Promise<CommitResult> {
   const { kept: records, skipped } = withoutArchived(all, [
     [
@@ -33,6 +33,7 @@ export async function writeRooms(
   await lockSessionWrites(tx)
   let created = 0
   let updated = 0
+  let unchanged = 0
   for (const record of records) {
     const data = {
       kind: record.kind,
@@ -41,8 +42,17 @@ export async function writeRooms(
     }
     const existing = await tx.room.findFirst({
       where: { name: record.name, ...ACTIVE },
-      select: roomFactsSelect,
+      select: { ...roomFactsSelect, note: true },
     })
+    if (
+      existing &&
+      !differs(existing, data) &&
+      (record.capabilities === null ||
+        sameSet(roomFactsOf(existing).capabilities, record.capabilities))
+    ) {
+      unchanged++
+      continue
+    }
     if (existing) {
       const before = roomFactsOf(existing)
       const unfit = await newlyUnfit(
@@ -68,5 +78,5 @@ export async function writeRooms(
       skipDuplicates: true,
     })
   }
-  return { created, updated, skipped }
+  return { created, updated, unchanged, skipped }
 }

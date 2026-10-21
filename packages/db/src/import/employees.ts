@@ -5,7 +5,7 @@ import { cleanFreeText } from '@muni/utils/text'
 import type { Tx } from '../client'
 import { ACTIVE } from '../repositories/archive/archive'
 import type { CommitResult } from './shared'
-import { archivedOnly, partition, upsertNames, withoutArchived } from './shared'
+import { archivedOnly, differs, partition, upsertNames, withoutArchived } from './shared'
 
 /** Employee records that touch nothing archived (shared by both employee passes). */
 export async function activeEmployeeRecords(tx: Tx, all: EmployeeInput[]) {
@@ -92,31 +92,43 @@ export async function writeEmployees(tx: Tx, records: EmployeeInput[]): Promise<
       (
         await tx.employee.findMany({
           where: { externalId: { in: keys }, ...ACTIVE },
-          select: { id: true, externalId: true },
+          select: {
+            id: true,
+            externalId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            nationalId: true,
+            departmentId: true,
+            positionId: true,
+            hiredOn: true,
+            leftOn: true,
+            status: true,
+            note: true,
+          },
         })
-      ).map(e => ({ key: e.externalId, id: e.id }))
+      ).map(held => ({ key: held.externalId, held }))
   )
   await tx.employee.createMany({
     data: fresh.map(r => ({ externalId: r.externalId, ...toData(r) })),
   })
-  const departmentNow = new Map(
-    (
-      await tx.employee.findMany({
-        where: { id: { in: existing.map(e => e.id) } },
-        select: { id: true, departmentId: true },
-      })
-    ).map(e => [e.id, e.departmentId])
-  )
-  for (const { record, id } of existing) {
-    const data = toData(record)
+  const changed = existing
+    .map(({ record, held }) => ({ held, data: toData(record) }))
+    .filter(({ held, data }) => differs(held, data))
+  for (const { held, data } of changed) {
     // Moved to another department: they no longer lead the one they left.
-    const moved = departmentNow.get(id) !== data.departmentId
+    const moved = held.departmentId !== data.departmentId
     await tx.employee.update({
-      where: { id },
+      where: { id: held.id },
       data: { ...data, ...(moved && { leadsDepartment: false }) },
     })
   }
-  return { created: fresh.length, updated: existing.length, skipped: 0 }
+  return {
+    created: fresh.length,
+    updated: changed.length,
+    unchanged: existing.length - changed.length,
+    skipped: 0,
+  }
 }
 
 /**
@@ -134,6 +146,8 @@ export async function linkManagers(tx: Tx, records: EmployeeInput[]): Promise<vo
   const idByEmail = new Map(people.flatMap(p => (p.email ? [[p.email, p.id] as const] : [])))
   const idByExternal = new Map(people.map(p => [p.externalId, p.id]))
   const links = new Map(people.map(p => [p.id, p.managerId]))
+  // Only links that change are written: the rest of the register is left as it was.
+  const held = new Map(people.map(p => [p.externalId, p.managerId]))
   const loops = (self: string, managerId: string) => {
     const seen = new Set<string>()
     for (let up: string | null = managerId; up && !seen.has(up); up = links.get(up) ?? null) {
@@ -148,6 +162,7 @@ export async function linkManagers(tx: Tx, records: EmployeeInput[]): Promise<vo
     let managerId = record.managerEmail ? (idByEmail.get(record.managerEmail) ?? null) : null
     if (self && managerId && loops(self, managerId)) managerId = null
     if (self) links.set(self, managerId)
+    if (held.get(record.externalId) === managerId) continue
     const list = byManager.get(managerId) ?? []
     list.push(record.externalId)
     byManager.set(managerId, list)

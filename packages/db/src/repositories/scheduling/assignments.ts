@@ -7,7 +7,7 @@ import { type IsoDate, isoDateFromUtc } from '@muni/utils/dates'
 import type { Prisma } from '../../generated/prisma/client'
 import { ACTIVE } from '../archive/archive'
 import { audienceSelect, rulesOf } from '../catalog/audience'
-import { complianceOptions, dbOf, type RepoOptions } from '../core/context'
+import { complianceOptions, dbOf, nowOf, type RepoOptions } from '../core/context'
 import { stillEmployed } from '../people/employment'
 import { roomRefSelect, toRoomRef, upcomingSessionWhere } from './sessions'
 
@@ -94,7 +94,7 @@ export async function applyAssignments(
   userId: string,
   options?: RepoOptions
 ): Promise<AssignmentOutcome[]> {
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   return dbOf(options).$transaction(async tx => {
     await lockSessionRows(
       tx,
@@ -249,7 +249,7 @@ export async function moveSeatsMany(
   for (const { to, count } of moves) wanted.set(to, (wanted.get(to) ?? 0) + count)
   if (wanted.has(fromExternalId)) return { ok: false, reason: 'SAME_SESSION' }
   const total = [...wanted.values()].reduce((n, c) => n + c, 0)
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   return dbOf(options).$transaction(async (tx): Promise<MoveOutcome> => {
     const locked = await lockSessionRows(tx, [fromExternalId, ...wanted.keys()])
     const from = locked.get(fromExternalId)
@@ -322,7 +322,7 @@ export async function listUpcomingBookings(
     ...('department' in of ? { departmentId: of.department } : { positionId: of.position }),
   }
   const rows = await dbOf(options).sessionAssignment.findMany({
-    where: { employee, session: upcomingSessionWhere(options?.now ?? new Date()) },
+    where: { employee, session: upcomingSessionWhere(nowOf(options)) },
     select: {
       source: true,
       employee: { select: { externalId: true, firstName: true, lastName: true } },

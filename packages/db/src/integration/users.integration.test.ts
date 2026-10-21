@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
 import { createDb } from '../connect'
 import { findUserByClerkId, hitRateLimit, listUsers, upsertUserFromClerk } from '../repositories'
@@ -7,18 +7,7 @@ const db = createDb()
 const options = { db }
 const PREFIX = 'user_it_'
 
-const cleanUp = async () => {
-  // Archived-by points at users too; clear it before the rows go.
-  await db.user.updateMany({
-    where: { clerkId: { startsWith: PREFIX } },
-    data: { archivedAt: null, archivedById: null },
-  })
-  await db.user.deleteMany({ where: { clerkId: { startsWith: PREFIX } } })
-  await db.rateLimit.deleteMany({ where: { key: { startsWith: PREFIX } } })
-}
-beforeAll(cleanUp)
 afterAll(async () => {
-  await cleanUp()
   await db.$disconnect()
 })
 

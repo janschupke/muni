@@ -101,7 +101,7 @@ beforeAll(async () => {
     env: { ...process.env, DATABASE_URL: url, DIRECT_URL: url },
   })
   db = createDb(url)
-}, 120_000)
+})
 
 afterAll(async () => {
   await db.$disconnect()
@@ -110,23 +110,34 @@ afterAll(async () => {
 })
 
 describe('a fresh register filled from data/import', () => {
+  // The import onto the empty register, once: what each test below compares with.
+  let before: { employees: number; providers: number }
+  let results: Awaited<ReturnType<typeof seedFromDirectory>>
   let first: Awaited<ReturnType<typeof stateOf>>
+  beforeAll(async () => {
+    before = { employees: await db.employee.count(), providers: await db.provider.count() }
+    results = await seedFromDirectory(db, IMPORT, DERIVED_AS_OF)
+    first = await stateOf()
+  })
 
-  it('starts empty: no provider, so none is the default', async () => {
-    expect(await db.employee.count()).toBe(0)
-    expect(await db.provider.count()).toBe(0)
+  /** The register as the first import left it, for a test that writes on top of it. */
+  const imported = async (chunkSize?: number) => {
+    await empty()
+    await seedFromDirectory(db, IMPORT, DERIVED_AS_OF, { chunkSize })
+  }
+
+  it('starts empty: no provider, so none is the default', () => {
+    expect(before).toEqual({ employees: 0, providers: 0 })
   })
 
   it('takes every row of the import files, and works out what the files leave open', async () => {
-    const results = await seedFromDirectory(db, IMPORT, DERIVED_AS_OF)
     expect(results).toEqual({
-      rooms: { created: 9, updated: 0, skipped: 0 },
-      courses: { created: 10, updated: 0, skipped: 0 },
-      employees: { created: 170, updated: 0, skipped: 0 },
-      completions: { created: 2814, updated: 0, skipped: 0 },
-      sessions: { created: 32, updated: 0, skipped: 0 },
+      rooms: { created: 9, updated: 0, unchanged: 0, skipped: 0 },
+      courses: { created: 10, updated: 0, unchanged: 0, skipped: 0 },
+      employees: { created: 170, updated: 0, unchanged: 0, skipped: 0 },
+      completions: { created: 2814, updated: 0, unchanged: 0, skipped: 0 },
+      sessions: { created: 32, updated: 0, unchanged: 0, skipped: 0 },
     })
-    first = await stateOf()
     expect(first.counts).toEqual({
       employees: 170,
       courses: 10,
@@ -146,6 +157,7 @@ describe('a fresh register filled from data/import', () => {
     // The default is chosen from all the completions: the internal trainer.
     expect(first.providers.filter(p => p.isDefault).map(p => p.name)).toEqual(['Interní školitel'])
     // Every session's provider offers its course.
+    await imported()
     const sessions = await db.courseSession.findMany({
       select: {
         courseId: true,
@@ -155,7 +167,7 @@ describe('a fresh register filled from data/import', () => {
     expect(
       sessions.filter(s => !s.provider.offerings.some(o => o.courseId === s.courseId))
     ).toEqual([])
-  }, 300_000)
+  })
 
   it('links every person to the manager the file names, and gives departments heads', () => {
     const emails = new Map(rowsOf('zamestnanci.csv').map(r => [r['email'], r['id_zamestnance']]))
@@ -170,22 +182,23 @@ describe('a fresh register filled from data/import', () => {
   })
 
   it('comes out the same written in small chunks: links, heads and the default do not depend on them', async () => {
-    await empty()
-    await seedFromDirectory(db, IMPORT, DERIVED_AS_OF, { chunkSize: 40 })
+    await imported(40)
     expect(await stateOf()).toEqual(first)
-  }, 300_000)
+  })
 
   it('changes nothing imported again', async () => {
+    await imported()
     const again = await seedFromDirectory(db, IMPORT, DERIVED_AS_OF)
     expect(Object.values(again).map(r => r.created)).toEqual([0, 0, 0, 0, 0])
     expect(await stateOf()).toEqual(first)
-  }, 300_000)
+  })
 
   it('takes the raw exports on top without failing, adding only what the derived files left out', async () => {
+    await imported()
     const raw = await seedFromDirectory(db, DATA, DERIVED_AS_OF)
     // The five completions whose name belongs to another person are valid to the importer.
     expect(raw.completions?.created).toBe(5)
     expect(raw.sessions?.created).toBe(0)
     expect(raw.employees?.created).toBe(0)
-  }, 300_000)
+  })
 })

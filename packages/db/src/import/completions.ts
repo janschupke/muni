@@ -7,7 +7,15 @@ import { ACTIVE } from '../repositories/archive/archive'
 import { chooseDefaultProvider } from '../repositories/catalog/default-provider'
 import { toAmount } from '../repositories/core/context'
 import type { CommitResult } from './shared'
-import { archivedOnly, courseIds, lookup, partition, upsertNames, withoutArchived } from './shared'
+import {
+  archivedOnly,
+  courseIds,
+  differs,
+  lookup,
+  partition,
+  upsertNames,
+  withoutArchived,
+} from './shared'
 
 export async function writeCompletions(tx: Tx, all: CompletionInput[]): Promise<CommitResult> {
   const { kept: records, skipped } = withoutArchived(all, [
@@ -84,16 +92,33 @@ export async function writeCompletions(tx: Tx, all: CompletionInput[]): Promise<
       (
         await tx.courseCompletion.findMany({
           where: { externalId: { in: keys }, ...ACTIVE },
-          select: { id: true, externalId: true },
+          select: {
+            id: true,
+            externalId: true,
+            employeeId: true,
+            courseId: true,
+            completedOn: true,
+            validUntil: true,
+            providerId: true,
+            price: true,
+            note: true,
+          },
         })
-      ).map(e => ({ key: e.externalId, id: e.id }))
+      ).map(held => ({ key: held.externalId, held }))
   )
   await tx.courseCompletion.createMany({
     data: fresh.map(r => ({ externalId: r.externalId, ...toData(r) })),
   })
-  for (const { record, id } of existing)
-    await tx.courseCompletion.update({ where: { id }, data: toData(record) })
-  return { created: fresh.length, updated: existing.length, skipped }
+  const changed = existing
+    .map(({ record, held }) => ({ id: held.id, held, data: toData(record) }))
+    .filter(({ held, data }) => differs(held, data))
+  for (const { id, data } of changed) await tx.courseCompletion.update({ where: { id }, data })
+  return {
+    created: fresh.length,
+    updated: changed.length,
+    unchanged: existing.length - changed.length,
+    skipped,
+  }
 }
 
 /**

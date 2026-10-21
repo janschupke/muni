@@ -5,7 +5,7 @@ import { cleanFreeText } from '@muni/utils/text'
 
 import { Prisma } from '../../generated/prisma/client'
 import { ACTIVE, isArchived, type PersonRef, personSelect, toPersonRef } from '../archive/archive'
-import { dbOf, getPolicy, type RepoOptions, toAmount } from '../core/context'
+import { dbOf, nowOf, policyOf, type RepoOptions, toAmount } from '../core/context'
 import { isPrismaCode } from '../core/errors'
 import { lockSessionWrites } from '../scheduling/session-fit'
 import { listSessions, upcomingSessionWhere } from '../scheduling/sessions'
@@ -80,7 +80,8 @@ export interface ProviderDetail extends ProviderListItem {
   }[]
 }
 
-const pricesVisible = (role: Role) => getPolicy()['completion.price'][role].mode === 'show'
+const pricesVisible = (role: Role, options: RepoOptions | undefined) =>
+  policyOf(options)['completion.price'][role].mode === 'show'
 
 interface TotalsRow {
   completions: number
@@ -136,7 +137,7 @@ function totalsByCourse(options: RepoOptions | undefined, providerId: string) {
 }
 
 export async function listProviders(role: Role, options?: RepoOptions): Promise<ProviderList> {
-  const prices = pricesVisible(role)
+  const prices = pricesVisible(role, options)
   const [providers, totals] = await Promise.all([
     dbOf(options).provider.findMany({
       where: ACTIVE,
@@ -161,8 +162,8 @@ export async function getProvider(
   options?: RepoOptions
 ): Promise<ProviderDetail | null> {
   const db = dbOf(options)
-  const prices = pricesVisible(role)
-  const now = options?.now ?? new Date()
+  const prices = pricesVisible(role, options)
+  const now = nowOf(options)
   const [provider, [total = NONE], perCourse, recent, upcoming] = await Promise.all([
     db.provider.findFirst({
       where: { id, ...ACTIVE },
@@ -316,7 +317,7 @@ async function writeProvider(
           where: {
             providerId: saved.id,
             courseId: offering.courseId,
-            ...upcomingSessionWhere(options?.now ?? new Date()),
+            ...upcomingSessionWhere(nowOf(options)),
           },
         })
         if (count > 0) throw new OfferingInUse(offering.course.name, count)

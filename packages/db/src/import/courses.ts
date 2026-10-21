@@ -3,7 +3,7 @@ import { type CourseInput } from '@muni/domain/schemas'
 import type { Tx } from '../client'
 import { ACTIVE } from '../repositories/archive/archive'
 import type { CommitResult } from './shared'
-import { archivedOnly, lookup, upsertNames, withoutArchived } from './shared'
+import { archivedOnly, differs, lookup, sameSet, upsertNames, withoutArchived } from './shared'
 
 const departmentsOf = (r: CourseInput) =>
   r.requirements.flatMap(q => (q.scope === 'DEPARTMENT' ? [q.department] : []))
@@ -24,24 +24,22 @@ export async function writeCourses(tx: Tx, all: CourseInput[]): Promise<CommitRe
     [await archivedOnly(tx, 'department', 'name', all.flatMap(departmentsOf)), departmentsOf],
     [await archivedOnly(tx, 'position', 'name', all.flatMap(positionsOf)), positionsOf],
   ])
-  const departments = await upsertNames(
-    tx,
-    'department',
-    records.flatMap(r =>
-      r.requirements.flatMap(q => (q.scope === 'DEPARTMENT' ? [q.department] : []))
-    )
-  )
-  const positions = await upsertNames(
-    tx,
-    'position',
-    records.flatMap(r => r.requirements.flatMap(q => (q.scope === 'POSITION' ? [q.position] : [])))
-  )
+  const departments = await upsertNames(tx, 'department', records.flatMap(departmentsOf))
+  const positions = await upsertNames(tx, 'position', records.flatMap(positionsOf))
   let created = 0
   let updated = 0
+  let unchanged = 0
   for (const record of records) {
     const existing = await tx.course.findFirst({
       where: { code: record.code, ...ACTIVE },
-      select: { id: true },
+      select: {
+        id: true,
+        name: true,
+        validityMonths: true,
+        requiredForAll: true,
+        departmentRequirements: { select: { departmentId: true } },
+        positionRequirements: { select: { positionId: true } },
+      },
     })
     // The catalog says who must hold the course; what a session needs is set in the app
     // (or derived from sessions) and never touched by an import.
@@ -49,6 +47,21 @@ export async function writeCourses(tx: Tx, all: CourseInput[]): Promise<CommitRe
       name: record.name,
       validityMonths: record.validityMonths,
       requiredForAll: record.requirements.some(q => q.scope === 'ALL'),
+    }
+    if (
+      existing &&
+      !differs(existing, audience) &&
+      sameSet(
+        existing.departmentRequirements.map(q => q.departmentId),
+        departmentsOf(record).map(name => lookup(departments, name, 'department'))
+      ) &&
+      sameSet(
+        existing.positionRequirements.map(q => q.positionId),
+        positionsOf(record).map(name => lookup(positions, name, 'position'))
+      )
+    ) {
+      unchanged++
+      continue
     }
     const course = existing
       ? await tx.course.update({ where: { id: existing.id }, data: audience, select: { id: true } })
@@ -74,5 +87,5 @@ export async function writeCourses(tx: Tx, all: CourseInput[]): Promise<CommitRe
       skipDuplicates: true,
     })
   }
-  return { created, updated, skipped }
+  return { created, updated, unchanged, skipped }
 }

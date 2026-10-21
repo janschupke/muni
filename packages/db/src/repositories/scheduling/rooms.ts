@@ -12,7 +12,7 @@ import {
 
 import { ACTIVE } from '../archive/archive'
 import type { SessionListItem } from '../catalog/courses'
-import { dbOf, type RepoOptions } from '../core/context'
+import { dbOf, nowOf, type RepoOptions } from '../core/context'
 import { needsOf, needsSelect } from './session-fit'
 import { listSessions, upcomingSessionWhere } from './sessions'
 
@@ -114,7 +114,7 @@ function toListItem(room: RoomRow, window: Window): RoomListItem {
 }
 
 export async function listRooms(options?: RepoOptions): Promise<RoomListItem[]> {
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   const window = utilisationWindow(now)
   const rooms = await dbOf(options).room.findMany({
     where: ACTIVE,
@@ -126,7 +126,7 @@ export async function listRooms(options?: RepoOptions): Promise<RoomListItem[]> 
 
 export async function getRoom(id: string, options?: RepoOptions): Promise<RoomDetail | null> {
   const db = dbOf(options)
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   const window = utilisationWindow(now)
   const [room, upcoming, pastCount, courses] = await Promise.all([
     db.room.findFirst({ where: { id, ...ACTIVE }, select: roomQuery(now, window) }),

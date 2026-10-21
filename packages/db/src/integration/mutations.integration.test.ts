@@ -4,13 +4,11 @@ import path from 'node:path'
 
 import { roomMismatch } from '@muni/domain/rooms'
 import { COMMIT_CHUNK_SIZE } from '@muni/importer'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
-import { deleteCourses, deleteRooms, unarchiveAll } from '../../test/archive'
 import { needing } from '../../test/needs'
 import { defaultProviderId, offer } from '../../test/providers'
-import { createTestUser, deleteTestUser, TEST_USER } from '../../test/users'
-import { getDb } from '../client'
+import { TEST_USER } from '../../test/users'
 import { createDb } from '../connect'
 import {
   applyAssignments,
@@ -45,18 +43,15 @@ import {
   updateRoom,
   updateSession,
 } from '../repositories'
-import { complianceOptions, dbOf } from '../repositories/core/context'
 import { seedFromDirectory } from '../seed'
 import { commitChunk, CommitRefusedError, CommitValidationError } from '../writer'
 
-// Writes that the main suite does not exercise. Everything here is undone in afterAll:
-// a re-seed restores edited rows (upsert by source ID) and app-created rows are deleted.
+// Writes that the main suite does not exercise.
 
 const db = createDb()
 const asOf = '2026-10-16'
 const now = new Date('2026-10-16T12:00:00Z')
 const options = { db, asOf, now }
-const DATA_DIR = path.join(import.meta.dirname, '../../../../data')
 
 // Names the tests create, which a re-seed does not remove.
 const CREATED = {
@@ -67,47 +62,8 @@ const CREATED = {
   importedRoom: 'Posluchárna 9',
   derivedRoom: 'Venkovní hřiště',
 } as const
-const CREATED_ROOMS = [CREATED.room, CREATED.importedRoom, CREATED.derivedRoom]
 
-const restore = async () => {
-  await db.sessionAssignment.deleteMany()
-  await db.courseCompletion.deleteMany({ where: { externalId: { startsWith: 'A' } } })
-  await db.courseSession.deleteMany({ where: { room: { name: { in: CREATED_ROOMS } } } })
-  await db.courseSession.deleteMany({ where: { externalId: { startsWith: 'S' } } })
-  await deleteCourses(db, { code: { startsWith: 'TEST-' } })
-  await deleteRooms(db, CREATED_ROOMS)
-  await unarchiveAll(db)
-  // What a course's sessions are, cleared, so the seed fills it in afresh (it fills only what
-  // is unset).
-  await db.courseCapability.deleteMany()
-  await db.course.updateMany({
-    data: {
-      sessionMinutes: null,
-      seats: null,
-      onlineAllowed: false,
-    },
-  })
-  await seedFromDirectory(db, DATA_DIR, asOf)
-  await db.departmentPosition.deleteMany({
-    where: {
-      OR: [{ department: { name: CREATED.department } }, { position: { name: CREATED.position } }],
-    },
-  })
-  await db.department.deleteMany({ where: { name: CREATED.department } })
-  // An import gives a provider that delivered a course an offering of it (the app-made
-  // completion with the new provider, here): that goes first.
-  await db.providerCourse.deleteMany({ where: { provider: { name: CREATED.provider } } })
-  await db.provider.deleteMany({ where: { name: CREATED.provider } })
-  await db.position.deleteMany({ where: { name: CREATED.position } })
-}
-
-beforeAll(async () => {
-  await restore()
-  await createTestUser(db)
-})
 afterAll(async () => {
-  await restore()
-  await deleteTestUser(db)
   await db.$disconnect()
 })
 
@@ -713,7 +669,7 @@ describe('rooms', () => {
         ],
         { last: true }
       )
-    ).toEqual({ created: 1, updated: 0, skipped: 0 })
+    ).toEqual({ created: 1, updated: 0, unchanged: 0, skipped: 0 })
     expect(
       await commitChunk(
         db,
@@ -729,7 +685,24 @@ describe('rooms', () => {
         ],
         { last: true }
       )
-    ).toEqual({ created: 0, updated: 1, skipped: 0 })
+    ).toEqual({ created: 0, updated: 1, unchanged: 0, skipped: 0 })
+    // The same room again: nothing to write.
+    expect(
+      await commitChunk(
+        db,
+        'rooms',
+        [
+          {
+            name: CREATED.importedRoom,
+            kind: 'CLASSROOM',
+            capacity: 80,
+            capabilities: [],
+            note: null,
+          },
+        ],
+        { last: true }
+      )
+    ).toEqual({ created: 0, updated: 0, unchanged: 1, skipped: 0 })
     const imported = await db.room.findUniqueOrThrow({
       where: { name: CREATED.importedRoom },
       include: { capabilities: true },
@@ -999,7 +972,7 @@ describe('the writer refuses what it should never write', () => {
       await commitChunk(db, 'sessions', [{ ...session, externalId: 'T952', status: 'CANCELLED' }], {
         last: true,
       })
-    ).toEqual({ created: 1, updated: 0, skipped: 0 })
+    ).toEqual({ created: 1, updated: 0, unchanged: 0, skipped: 0 })
 
     // Four seats would no longer hold S001's sixteen.
     await expect(
@@ -1061,7 +1034,7 @@ describe('the writer refuses what it should never write', () => {
       ],
       { last: true }
     )
-    expect(result).toEqual({ created: 2, updated: 0, skipped: 0 })
+    expect(result).toEqual({ created: 2, updated: 0, unchanged: 0, skipped: 0 })
   })
 })
 
@@ -1144,34 +1117,9 @@ describe('seeding a directory', () => {
         'kod,nazev,platnost_mesicu,povinne_pro\nANGL,Anglický jazyk – kurz,,NEPOVINNE\n'
       )
       const results = await seedFromDirectory(db, dir, asOf)
-      expect(results).toEqual({ courses: { created: 0, updated: 1, skipped: 0 } })
+      expect(results).toEqual({ courses: { created: 0, updated: 1, unchanged: 0, skipped: 0 } })
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
-  })
-})
-
-describe('settings from the environment', () => {
-  it('reads the expiring window, falling back to 30 days on anything but a positive whole number', () => {
-    vi.stubEnv('MUNI_EXPIRING_DAYS', '45')
-    expect(complianceOptions(asOf)).toEqual({ asOf, expiringWithinDays: 45 })
-    for (const value of ['abc', '-5', '7.5']) {
-      vi.stubEnv('MUNI_EXPIRING_DAYS', value)
-      expect(complianceOptions(asOf).expiringWithinDays).toBe(30)
-    }
-    vi.unstubAllEnvs()
-  })
-})
-
-describe('the client', () => {
-  it('needs a connection string', () => {
-    expect(() => createDb('')).toThrow('DATABASE_URL is not set')
-  })
-
-  it('shares one lazy client per process', async () => {
-    const client = getDb()
-    expect(getDb()).toBe(client)
-    expect(dbOf()).toBe(client)
-    await client.$disconnect()
   })
 })

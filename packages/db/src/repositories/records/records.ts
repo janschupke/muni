@@ -16,7 +16,7 @@ import { cleanFreeText } from '@muni/utils/text'
 
 import type { Tx } from '../../client'
 import { ACTIVE } from '../archive/archive'
-import { dbOf, type RepoOptions, toAmount } from '../core/context'
+import { dbOf, nowOf, type RepoOptions, toAmount } from '../core/context'
 import { isPrismaCode } from '../core/errors'
 import { lockSessionWrites, needsSelect, newlyUnfit } from '../scheduling/session-fit'
 
@@ -173,7 +173,7 @@ export async function updateCourse(
             capabilities: data.capabilities,
           },
         },
-        options?.now
+        nowOf(options)
       )
       if (unfit.length > 0)
         throw new Refused({

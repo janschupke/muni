@@ -69,7 +69,7 @@ normalised:
 
 Source IDs (`E0001`,
 `T001`, `Z000001`) are kept as `externalId`, and imports upsert on them, so re-importing a file
-updates records instead of duplicating them. Records created in the app get their own prefix
+updates records instead of duplicating them, and writes only the ones that changed. Records created in the app get their own prefix
 (`S001` sessions, `A…` completions, `N0001` people), which imports refuse (`RESERVED_ID`), so
 an export can never overwrite them. Date-only values are Postgres `date` columns;
 session times are `timestamptz` converted from Europe/Prague wall-clock time.

@@ -39,7 +39,9 @@ The wizard at `/import` has four steps: upload, review, confirm, progress.
     the latest price paid, and, with no default provider, a default: "Interní školitel" if
     it is there, else the provider with the most completions.
 - **A refused chunk** changes nothing; the chunks before it stay written. Importing the same
-  files again is safe: records are matched by ID (courses by code, rooms by name).
+  files again is safe: records are matched by ID (courses by code, rooms by name), and one
+  the register already holds as it is is not written at all (its `updatedAt` stays). The
+  summary counts each dataset's records as created, updated, unchanged and skipped.
 
 What the importer does with the defects in `data/`:
 

@@ -12,6 +12,7 @@ import {
   archivedOnly,
   CommitRefusedError,
   courseIds,
+  differs,
   lookup,
   partition,
   withoutArchived,
@@ -215,21 +216,38 @@ async function skipArchived(tx: Tx, all: SessionInput[]) {
 /**
  * The batch's sessions the register already has, locked (as booking locks a session) before
  * their named bookings are counted: one booked meanwhile is counted, not stored again as an
- * unnamed seat. Fills `assigned` with each one's named bookings.
+ * unnamed seat. Fills `assigned` with each one's named bookings; each comes as it is held.
  */
 function lockExisting(tx: Tx, assigned: Map<string, number>) {
   return async (keys: string[]) => {
-    const found = await tx.$queryRaw<{ id: string; external_id: string }[]>`
-      SELECT id, external_id FROM course_sessions
+    const found = await tx.$queryRaw<{ id: string }[]>`
+      SELECT id FROM course_sessions
       WHERE external_id = ANY(${keys}) AND archived_at IS NULL
       ORDER BY id FOR UPDATE`
+    const ids = found.map(f => f.id)
     const counts = await tx.sessionAssignment.groupBy({
       by: ['sessionId'],
-      where: { sessionId: { in: found.map(f => f.id) } },
+      where: { sessionId: { in: ids } },
       _count: { _all: true },
     })
     for (const c of counts) assigned.set(c.sessionId, c._count._all)
-    return found.map(f => ({ key: f.external_id, id: f.id }))
+    const held = await tx.courseSession.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        externalId: true,
+        courseId: true,
+        startsAt: true,
+        endsAt: true,
+        roomId: true,
+        capacity: true,
+        unnamedBookings: true,
+        pricePerPerson: true,
+        status: true,
+        providerId: true,
+      },
+    })
+    return held.map(session => ({ key: session.externalId, held: session }))
   }
 }
 
@@ -279,16 +297,23 @@ export async function writeSessions(tx: Tx, all: SessionInput[]): Promise<Commit
       providerId: freshProvider(r),
     })),
   })
-  for (const { record, id } of existing) {
-    const provider = providers.get(record) ?? null
-    await tx.courseSession.update({
-      where: { id },
-      data: {
-        ...toData(record, assignedBySession.get(id) ?? 0),
+  const changed = existing
+    .map(({ record, held }) => {
+      const provider = providers.get(record) ?? null
+      const data = {
+        ...toData(record, assignedBySession.get(held.id) ?? 0),
         ...(provider !== null && { providerId: provider }),
-      },
+      }
+      return { held, data }
     })
-  }
+    .filter(({ held, data }) => differs(held, data))
+  for (const { held, data } of changed)
+    await tx.courseSession.update({ where: { id: held.id }, data })
   await fillCourseDefaults(tx, [...courses.values()])
-  return { created: fresh.length, updated: existing.length, skipped }
+  return {
+    created: fresh.length,
+    updated: changed.length,
+    unchanged: existing.length - changed.length,
+    skipped,
+  }
 }

@@ -752,7 +752,7 @@
     "progress": {
       "running": "{done} z {total} záznamů",
       "doneTitle": "Import dokončen",
-      "result": "{kind}: vytvořeno {created}, aktualizováno {updated}{skipped, plural, =0 {} other {, přeskočeno # (archivované)}}",
+      "result": "{kind}: vytvořeno {created}, aktualizováno {updated}{unchanged, plural, =0 {} other {, beze změny #}}{skipped, plural, =0 {} other {, přeskočeno # (archivované)}}",
       "failed": "Import selhal: {message}",
       "partial": "Před selháním se zapsalo {count, plural, one {# záznam} few {# záznamy} other {# záznamů}}.",
       "again": "Importovat další soubory",

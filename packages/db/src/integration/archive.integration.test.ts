@@ -1,5 +1,3 @@
-import path from 'node:path'
-
 import { archiveTag } from '@muni/domain/archive'
 import {
   archivedCandidates,
@@ -8,11 +6,10 @@ import {
   parseFile,
   validateBatch,
 } from '@muni/importer'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
-import { deleteCourses, deleteRooms, unarchiveAll } from '../../test/archive'
 import { defaultProviderId, offer } from '../../test/providers'
-import { createTestUser, deleteTestUser, TEST_USER } from '../../test/users'
+import { TEST_USER } from '../../test/users'
 import { createDb } from '../connect'
 import { findArchivedKeys, loadReferenceSnapshot } from '../reference'
 import {
@@ -47,53 +44,22 @@ import {
   unarchiveRecord,
 } from '../repositories'
 import { loadCompliance } from '../repositories/core/context'
-import { seedFromDirectory } from '../seed'
 import { commitChunk } from '../writer'
 
 // Archiving: unique keys free for new records, archived records out of every list and count,
 // the rules on what may be archived, imports that skip archived records, archived people
 // anonymised everywhere but on their own admin page, and no foreign key left that cascades.
-// Everything this file creates is deleted, and everything it archives brought back.
 
 const db = createDb()
 const asOf = '2026-10-16'
 const now = new Date('2026-10-16T12:00:00Z')
 const options = { db, asOf, now }
-const DATA_DIR = path.join(import.meta.dirname, '../../../../data')
 
 const NAME = 'Archiv test'
 const ROOM = `${NAME} místnost`
 const ADMIN = 'user_it_archive_admin'
 
-const cleanUp = async () => {
-  await db.sessionAssignment.deleteMany({
-    where: { OR: [{ createdById: TEST_USER }, { employee: { externalId: { startsWith: 'XA' } } }] },
-  })
-  await db.courseCompletion.deleteMany({ where: { externalId: { startsWith: 'X' } } })
-  await db.courseSession.deleteMany({ where: { externalId: { startsWith: 'XA' } } })
-  await db.courseSession.deleteMany({ where: { room: { name: { startsWith: ROOM } } } })
-  await db.employee.deleteMany({ where: { externalId: { startsWith: 'XA' } } })
-  await deleteCourses(db, { code: { startsWith: 'TEST-ARCH' } })
-  await deleteRooms(db, { startsWith: ROOM })
-  await db.department.deleteMany({ where: { name: { startsWith: NAME } } })
-  await db.position.deleteMany({ where: { name: { startsWith: NAME } } })
-  await db.provider.deleteMany({ where: { name: { startsWith: NAME } } })
-  // An active twin of an archived test user (from a failed run) would block bringing it back.
-  await db.user.deleteMany({
-    where: { clerkId: { startsWith: 'user_it_archive' }, archivedAt: null },
-  })
-  await unarchiveAll(db)
-  await db.user.deleteMany({ where: { clerkId: { startsWith: 'user_it_archive' } } })
-  await seedFromDirectory(db, DATA_DIR, asOf)
-}
-
-beforeAll(async () => {
-  await cleanUp()
-  await createTestUser(db)
-})
 afterAll(async () => {
-  await cleanUp()
-  await deleteTestUser(db)
   await db.$disconnect()
 })
 
@@ -532,6 +498,7 @@ describe('imports skip archived records', () => {
     expect(await commitChunk(db, 'employees', [record], { last: true })).toEqual({
       created: 0,
       updated: 0,
+      unchanged: 0,
       skipped: 1,
     })
     expect(await db.employee.findUniqueOrThrow({ where: { id } })).toEqual(stored)
@@ -550,6 +517,7 @@ describe('imports skip archived records', () => {
     expect(await commitChunk(db, 'completions', [completion], { last: true })).toEqual({
       created: 0,
       updated: 0,
+      unchanged: 0,
       skipped: 1,
     })
 

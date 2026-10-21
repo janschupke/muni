@@ -1,29 +1,36 @@
 import { execFileSync } from 'node:child_process'
+import path from 'node:path'
 
 import { createDb } from '../src/connect'
+import { seedFromDirectory } from '../src/seed'
+import { TEMPLATE, testServer, withDatabase } from './databases'
+import { createTestUser } from './users'
 
 /**
- * Brings the test database (port 5439) up to the committed migrations and empties it, so every
- * run starts from what the seed writes onto an empty register, as a fresh deployment does.
- * Left over from an earlier run, rows the importer no longer writes would stay and move every
- * count the suite pins.
+ * Builds the template every test file starts from (test/database.ts copies it per file): the
+ * committed migrations, then the raw exports in data/ seeded as of 2026-10-16. A file then
+ * changes its own copy as it likes, and no other file sees it.
  */
 export default async function setup() {
-  const url = process.env.DATABASE_URL ?? ''
-  if (!url.includes(':5439/')) {
-    throw new Error(`Integration tests only run against the test database on 5439, got "${url}"`)
-  }
-  execFileSync('prisma', ['migrate', 'deploy'], { stdio: 'inherit' })
-  const db = createDb()
+  const server = testServer()
+  const admin = createDb(server)
   try {
-    const tables = await db.$queryRaw<{ tablename: string }[]>`
-      SELECT tablename FROM pg_tables
-      WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`
-    if (tables.length > 0)
-      await db.$executeRawUnsafe(
-        `TRUNCATE ${tables.map(t => `"${t.tablename}"`).join(', ')} RESTART IDENTITY CASCADE`
-      )
+    await admin.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${TEMPLATE}" WITH (FORCE)`)
+    await admin.$executeRawUnsafe(`CREATE DATABASE "${TEMPLATE}"`)
   } finally {
+    await admin.$disconnect()
+  }
+  const url = withDatabase(server, TEMPLATE)
+  execFileSync('prisma', ['migrate', 'deploy'], {
+    stdio: 'inherit',
+    env: { ...process.env, DATABASE_URL: url, DIRECT_URL: url },
+  })
+  const db = createDb(url)
+  try {
+    await seedFromDirectory(db, path.join(import.meta.dirname, '../../../data'), '2026-10-16')
+    await createTestUser(db)
+  } finally {
+    // A template is copied only while nobody is connected to it.
     await db.$disconnect()
   }
 }

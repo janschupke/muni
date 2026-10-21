@@ -2,7 +2,7 @@ import type { Archivable } from '@muni/domain/archive'
 import { sessionPhase } from '@muni/domain/sessions'
 
 import type { Tx } from '../../client'
-import { dbOf, type RepoOptions } from '../core/context'
+import { dbOf, nowOf, type RepoOptions } from '../core/context'
 import { isPrismaCode } from '../core/errors'
 import { type SessionProblem, storedSessionProblem } from '../records/mutations'
 import { lockSessionWrites } from '../scheduling/session-fit'
@@ -239,7 +239,7 @@ export async function archiveImpact(
   id: string,
   options?: RepoOptions
 ): Promise<ArchiveImpact> {
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   // A read: no locks, the write re-checks under them.
   const db = dbOf(options)
   const exists = await delegate(db, kind).count({ where: { id, ...ACTIVE } })
@@ -257,7 +257,7 @@ export async function archiveRecord(
   byUserId: string,
   options?: RepoOptions
 ): Promise<ArchiveImpact> {
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   return dbOf(options).$transaction(async tx => {
     const result = await locked(tx, kind, id, async () => {
       const impact = await IMPACT[kind](tx, id, { by: byUserId, now })
@@ -292,7 +292,7 @@ export async function unarchiveRecord(
   options?: RepoOptions
 ): Promise<UnarchiveOutcome> {
   const config = KINDS[kind]
-  const now = options?.now ?? new Date()
+  const now = nowOf(options)
   try {
     return await dbOf(options).$transaction(async tx => {
       // A session comes back into a room and a course: it takes turns with session writes and

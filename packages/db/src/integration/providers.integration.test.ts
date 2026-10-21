@@ -1,8 +1,7 @@
 import path from 'node:path'
 
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
-import { unarchiveAll } from '../../test/archive'
 import { completionOf } from '../../test/records'
 import { createDb } from '../connect'
 import {
@@ -17,65 +16,19 @@ import {
   listProviders,
   updateProvider,
 } from '../repositories'
-import type * as Context from '../repositories/core/context'
+import { getPolicy } from '../repositories/core/context'
 import { seedFromDirectory } from '../seed'
-
-// Whether the policy withholds prices from viewers (the default shows them).
-const policy = vi.hoisted(() => ({ hidePrices: false }))
-vi.mock('../repositories/core/context', async importOriginal => {
-  const actual = await importOriginal<typeof Context>()
-  return {
-    ...actual,
-    getPolicy: () => {
-      const loaded = actual.getPolicy()
-      return policy.hidePrices
-        ? {
-            ...loaded,
-            'completion.price': { ...loaded['completion.price'], VIEWER: { mode: 'omit' } },
-          }
-        : loaded
-    },
-  }
-})
 
 const db = createDb()
 const asOf = '2026-10-16'
 const options = { db, asOf, now: new Date('2026-10-16T12:00:00Z') }
 const DATA_DIR = path.join(import.meta.dirname, '../../../../data')
-const CREATED = [
-  'Zkušební dodavatel',
-  'Zkušební dodavatel s.r.o.',
-  'Druhý dodavatel',
-  'Třetí dodavatel',
-  'Čtvrtý dodavatel',
-]
 
 const details = { companyId: null, email: null, phone: null, website: null, note: null }
 /** A provider form with no details, not the default, offering nothing. */
 const blank = { ...details, isDefault: false, offerings: [] }
 
-const cleanUp = async () => {
-  await db.courseCompletion.deleteMany({
-    where: { externalId: { startsWith: 'A' }, provider: { name: { in: CREATED } } },
-  })
-  await db.sessionAssignment.deleteMany({
-    where: { session: { provider: { name: { in: CREATED } } } },
-  })
-  await db.courseSession.deleteMany({ where: { provider: { name: { in: CREATED } } } })
-  await db.providerCourse.deleteMany({ where: { provider: { name: { in: CREATED } } } })
-  await db.provider.deleteMany({ where: { name: { in: CREATED } } })
-  await db.provider.updateMany({ data: { ...details, isDefault: false } })
-  await db.provider.update({ where: { name: 'Interní školitel' }, data: { isDefault: true } })
-  await unarchiveAll(db)
-}
-
-beforeAll(async () => {
-  await seedFromDirectory(db, DATA_DIR, asOf)
-  await cleanUp()
-})
-
 afterAll(async () => {
-  await cleanUp()
   await db.$disconnect()
 })
 
@@ -156,21 +109,24 @@ describe('provider figures', () => {
   })
 
   it('withholds every price, sums included, from a viewer the policy hides them from', async () => {
-    policy.hidePrices = true
-    try {
-      const { providers, prices } = await listProviders('VIEWER', options)
-      expect(prices).toBe(false)
-      expect(providers.every(p => p.spend === null && p.completions > 0)).toBe(true)
-      const provider = await getProvider(providers[0]?.id ?? '', 'VIEWER', options)
-      expect(provider?.prices).toBe(false)
-      expect(provider?.spend).toBeNull()
-      expect(provider?.byCourse.every(c => c.spend === null)).toBe(true)
-      expect(provider?.completionList.every(c => c.price === null)).toBe(true)
-      // The full role still sees them.
-      expect((await listProviders('FULL', options)).prices).toBe(true)
-    } finally {
-      policy.hidePrices = false
+    const shown = getPolicy()
+    const hidden = {
+      ...options,
+      policy: {
+        ...shown,
+        'completion.price': { ...shown['completion.price'], VIEWER: { mode: 'omit' as const } },
+      },
     }
+    const { providers, prices } = await listProviders('VIEWER', hidden)
+    expect(prices).toBe(false)
+    expect(providers.every(p => p.spend === null && p.completions > 0)).toBe(true)
+    const provider = await getProvider(providers[0]?.id ?? '', 'VIEWER', hidden)
+    expect(provider?.prices).toBe(false)
+    expect(provider?.spend).toBeNull()
+    expect(provider?.byCourse.every(c => c.spend === null)).toBe(true)
+    expect(provider?.completionList.every(c => c.price === null)).toBe(true)
+    // The full role still sees them.
+    expect((await listProviders('FULL', hidden)).prices).toBe(true)
   })
 })
 

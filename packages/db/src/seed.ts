@@ -53,17 +53,21 @@ export async function seedFromDirectory(
   const validated = validateBatch(batch, reference)
   const written = await importBatch(db, validated, { chunkSize, asOf: today })
   const results: Partial<
-    Record<DatasetKind, { created: number; updated: number; skipped: number }>
+    Record<DatasetKind, { created: number; updated: number; unchanged: number; skipped: number }>
   > = {}
   for (const kind of COMMIT_ORDER) {
     const rows = (validated[kind] ?? []) as ParsedRow<unknown>[]
     if (rows.length === 0) continue
-    const { created, updated } = written[kind] ?? { created: 0, updated: 0 }
+    const { created, updated, unchanged } = written[kind] ?? {
+      created: 0,
+      updated: 0,
+      unchanged: 0,
+    }
     const summary = summarize(rows)
     const skipped = summary.invalid + summary.skipped
-    results[kind] = { created, updated, skipped }
+    results[kind] = { created, updated, unchanged, skipped }
     log(
-      `\n${kind}: ${created} created, ${updated} updated, ${skipped} skipped, ${summary.warnings} with warnings`
+      `\n${kind}: ${created} created, ${updated} updated, ${unchanged} unchanged, ${skipped} skipped, ${summary.warnings} with warnings`
     )
     const codes = new Map<string, number>()
     for (const row of rows) {

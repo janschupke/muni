@@ -752,7 +752,7 @@
     "progress": {
       "running": "{done} of {total} records",
       "doneTitle": "Import complete",
-      "result": "{kind}: {created} created, {updated} updated{skipped, plural, =0 {} other {, # skipped (archived)}}",
+      "result": "{kind}: {created} created, {updated} updated{unchanged, plural, =0 {} other {, # unchanged}}{skipped, plural, =0 {} other {, # skipped (archived)}}",
       "failed": "The import failed: {message}",
       "partial": "{count, plural, one {# record was} other {# records were}} written before the failure.",
       "again": "Import more files",

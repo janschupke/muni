@@ -1,12 +1,6 @@
-import { fileURLToPath } from 'node:url'
+import { node, serverOnly } from '../../vitest.preset.ts'
 
-import { mergeConfig } from 'vitest/config'
+/** The repositories and writer import `server-only`, which tests replace. */
+export const resolve = { alias: serverOnly }
 
-import { node } from '../../vitest.preset.ts'
-
-// Vitest runs outside the react-server condition, where the real `server-only` throws.
-export default mergeConfig(node(), {
-  resolve: {
-    alias: { 'server-only': fileURLToPath(new URL('./test/server-only-stub.ts', import.meta.url)) },
-  },
-})
+export default node({ resolve })
