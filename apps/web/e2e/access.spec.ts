@@ -1,12 +1,8 @@
 import { baseUrlOf } from './support/server'
-import { expect, test } from './support/test'
+import { clerkLoaded, expect, test } from './support/test'
 import { E2E_USERS, findUser, storageState } from './support/users'
 
 const DATA_PATHS = ['/employees', '/employees/E0153', '/compliance', '/advisor', '/users']
-
-test.beforeEach(async ({ page, baseURL }) => {
-  await page.context().addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: baseUrlOf(baseURL) }])
-})
 
 test.describe('visitors', () => {
   test('get the introduction, with sign-in and sign-up, and no data', async ({ page }) => {
@@ -22,6 +18,7 @@ test.describe('visitors', () => {
 
     await page.getByRole('link', { name: 'Create account' }).click()
     await expect(page).toHaveURL(/\/sign-up/)
+    await clerkLoaded(page)
     await expect(page.locator('.cl-signUp-root, .cl-rootBox').first()).toBeVisible()
     await page.goto('/')
     await page.getByRole('main').getByRole('link', { name: 'Sign in' }).click()

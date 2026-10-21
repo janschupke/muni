@@ -22,18 +22,32 @@ const COLLECT = `(({ selector, root }) => {
   canvas.width = 1
   canvas.height = 1
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  // Each colour string is read through the canvas once, and each element's layers once: every
+  // element's chain walks the same ancestors.
+  const colours = new Map()
   function rgba(css) {
-    ctx.clearRect(0, 0, 1, 1)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0)'
-    ctx.fillStyle = css
-    ctx.fillRect(0, 0, 1, 1)
-    const d = ctx.getImageData(0, 0, 1, 1).data
-    return [d[0], d[1], d[2], d[3] / 255]
+    let colour = colours.get(css)
+    if (!colour) {
+      ctx.clearRect(0, 0, 1, 1)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0)'
+      ctx.fillStyle = css
+      ctx.fillRect(0, 0, 1, 1)
+      const d = ctx.getImageData(0, 0, 1, 1).data
+      colour = [d[0], d[1], d[2], d[3] / 255]
+      colours.set(css, colour)
+    }
+    return colour
   }
+  const painted = new Map()
   function layers(el) {
-    const style = getComputedStyle(el)
-    const gradient = /^linear-gradient\\((.+?(?:\\)|[a-z]))\\s*,/.exec(style.backgroundImage)
-    return [rgba(style.backgroundColor), gradient ? rgba(gradient[1]) : null]
+    let own = painted.get(el)
+    if (!own) {
+      const style = getComputedStyle(el)
+      const gradient = /^linear-gradient\\((.+?(?:\\)|[a-z]))\\s*,/.exec(style.backgroundImage)
+      own = [rgba(style.backgroundColor), gradient ? rgba(gradient[1]) : null]
+      painted.set(el, own)
+    }
+    return own
   }
   const scope = root ? document.querySelector(root) : document
   if (!scope) return []
@@ -150,14 +164,24 @@ export async function expectRowHover(page: Page, label: string) {
     await page.mouse.move(0, 0)
     const before = await cellColours(row)
     await row.hover({ position: { x: 4, y: 4 } })
-    await page.evaluate(
-      'new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))'
-    )
-    const after = await cellColours(row)
-    before.forEach((colour, i) => {
-      const changed = after[i] ? deltaE(colour, after[i]) : 0
-      if (changed < 0.005) problems.push(`table ${String(t)}, cell ${String(i)}: no hover`)
-    })
+    // Until every cell shows the hover (a transition takes a few frames), or the wait ends:
+    // then the cells still unchanged are the problem.
+    const unchanged = (after: readonly Rgba[]) =>
+      before.flatMap((colour, i) => {
+        const now = after[i]
+        return now && deltaE(colour, now) >= 0.005 ? [] : [i]
+      })
+    let still: number[] = []
+    const settled = await expect
+      .poll(async () => (still = unchanged(await cellColours(row))).length)
+      .toBe(0)
+      .then(
+        () => true,
+        () => false
+      )
+    // A wait that ran out is not the failure: the cells that never changed are, all listed.
+    if (!settled)
+      for (const i of still) problems.push(`table ${String(t)}, cell ${String(i)}: no hover`)
   }
   await page.mouse.move(0, 0)
   expect(problems, label).toEqual([])
@@ -294,18 +318,32 @@ const COLLECT_TEXT = `(({ selectors }) => {
   canvas.width = 1
   canvas.height = 1
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  // Each colour string is read through the canvas once, and each element's layers once: every
+  // element's chain walks the same ancestors.
+  const colours = new Map()
   function rgba(css) {
-    ctx.clearRect(0, 0, 1, 1)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0)'
-    ctx.fillStyle = css
-    ctx.fillRect(0, 0, 1, 1)
-    const d = ctx.getImageData(0, 0, 1, 1).data
-    return [d[0], d[1], d[2], d[3] / 255]
+    let colour = colours.get(css)
+    if (!colour) {
+      ctx.clearRect(0, 0, 1, 1)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0)'
+      ctx.fillStyle = css
+      ctx.fillRect(0, 0, 1, 1)
+      const d = ctx.getImageData(0, 0, 1, 1).data
+      colour = [d[0], d[1], d[2], d[3] / 255]
+      colours.set(css, colour)
+    }
+    return colour
   }
+  const painted = new Map()
   function layers(el) {
-    const style = getComputedStyle(el)
-    const gradient = /^linear-gradient\\((.+?(?:\\)|[a-z]))\\s*,/.exec(style.backgroundImage)
-    return [rgba(style.backgroundColor), gradient ? rgba(gradient[1]) : null]
+    let own = painted.get(el)
+    if (!own) {
+      const style = getComputedStyle(el)
+      const gradient = /^linear-gradient\\((.+?(?:\\)|[a-z]))\\s*,/.exec(style.backgroundImage)
+      own = [rgba(style.backgroundColor), gradient ? rgba(gradient[1]) : null]
+      painted.set(el, own)
+    }
+    return own
   }
   return selectors.flatMap(selector => {
     const el = document.querySelector(selector)

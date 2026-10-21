@@ -1,12 +1,11 @@
 import { expect, type Page } from '@playwright/test'
 
+import { firstRecordPath, type SeededRecord } from './db'
+
 type AppPage =
   | { name: string; path: string; status?: number }
-  /**
-   * A page whose id the database picks: the first link under `prefix` on the `via` page,
-   * then `suffix` (`/edit`).
-   */
-  | { name: string; via: string; prefix: string; suffix?: string; status?: number }
+  /** A page of a seeded record the database picks (the first by name), then `suffix`. */
+  | { name: string; record: SeededRecord; suffix?: string; status?: number }
 
 /**
  * Every page of the register, with seeded examples for the dynamic ones (an admin reaches all
@@ -18,24 +17,19 @@ export const APP_PAGES: readonly AppPage[] = [
   { name: 'employees', path: '/employees' },
   { name: 'employee', path: '/employees/E0153' },
   { name: 'departments', path: '/departments' },
-  { name: 'department', via: '/departments', prefix: '/departments/' },
-  {
-    name: 'department-bookings',
-    via: '/departments',
-    prefix: '/departments/',
-    suffix: '/bookings',
-  },
+  { name: 'department', record: 'department' },
+  { name: 'department-bookings', record: 'department', suffix: '/bookings' },
   { name: 'positions', path: '/positions' },
-  { name: 'position', via: '/positions', prefix: '/positions/' },
-  { name: 'position-bookings', via: '/positions', prefix: '/positions/', suffix: '/bookings' },
+  { name: 'position', record: 'position' },
+  { name: 'position-bookings', record: 'position', suffix: '/bookings' },
   { name: 'courses', path: '/courses' },
   { name: 'course', path: '/courses/BOZP-Z' },
   { name: 'sessions', path: '/sessions' },
   { name: 'session', path: '/sessions/T016' },
   { name: 'rooms', path: '/rooms' },
-  { name: 'room', via: '/rooms', prefix: '/rooms/' },
+  { name: 'room', record: 'room' },
   { name: 'providers', path: '/providers' },
-  { name: 'provider', via: '/providers', prefix: '/providers/' },
+  { name: 'provider', record: 'provider' },
   { name: 'compliance', path: '/compliance' },
   { name: 'planner', path: '/planner' },
   { name: 'advisor', path: '/advisor' },
@@ -45,7 +39,7 @@ export const APP_PAGES: readonly AppPage[] = [
   { name: 'advisor-upcoming', path: '/advisor?bucket=upcoming' },
   { name: 'advisor-page-2', path: '/advisor?page=2' },
   { name: 'users', path: '/users' },
-  { name: 'user', via: '/users', prefix: '/users/' },
+  { name: 'user', record: 'user' },
   // Forms (admins): the heading row's actions, the date and time fields.
   { name: 'course-new', path: '/courses/new' },
   { name: 'course-edit', path: '/courses/BOZP-Z/edit' },
@@ -54,21 +48,16 @@ export const APP_PAGES: readonly AppPage[] = [
   { name: 'employee-new', path: '/employees/new' },
   { name: 'employee-edit', path: '/employees/E0153/edit' },
   { name: 'completion-new', path: '/employees/E0153/completions/new' },
-  {
-    name: 'completion-edit',
-    via: '/employees/E0153',
-    prefix: '/employees/E0153/completions/',
-    suffix: '/edit',
-  },
+  { name: 'completion-edit', record: 'completion of E0153', suffix: '/edit' },
   { name: 'course-session-new', path: '/courses/BOZP-Z/sessions/new' },
   { name: 'department-new', path: '/departments/new' },
-  { name: 'department-edit', via: '/departments', prefix: '/departments/', suffix: '/edit' },
+  { name: 'department-edit', record: 'department', suffix: '/edit' },
   { name: 'position-new', path: '/positions/new' },
-  { name: 'position-edit', via: '/positions', prefix: '/positions/', suffix: '/edit' },
+  { name: 'position-edit', record: 'position', suffix: '/edit' },
   { name: 'room-new', path: '/rooms/new' },
-  { name: 'room-edit', via: '/rooms', prefix: '/rooms/', suffix: '/edit' },
+  { name: 'room-edit', record: 'room', suffix: '/edit' },
   { name: 'provider-new', path: '/providers/new' },
-  { name: 'provider-edit', via: '/providers', prefix: '/providers/', suffix: '/edit' },
+  { name: 'provider-edit', record: 'provider', suffix: '/edit' },
   // Administration (admins).
   { name: 'import', path: '/import' },
   // Archived records (admins).
@@ -86,18 +75,10 @@ export const APP_PAGES: readonly AppPage[] = [
   { name: 'not-found', path: '/no-such-page', status: 404 },
 ]
 
-/** The page's path; for one reached through another page, the first matching link there. */
-export async function pathOf(
-  page: AppPage,
-  fetchHtml: (path: string) => Promise<string>
-): Promise<string> {
+/** The page's path; a record's page is that of the first seeded one (read once). */
+export async function pathOf(page: AppPage): Promise<string> {
   if ('path' in page) return page.path
-  const html = await fetchHtml(page.via)
-  const escaped = page.prefix.replace(/[/.]/g, '\\$&')
-  // A record, not the list's own "new" and "archived" pages an admin sees first.
-  const match = new RegExp(`href="(${escaped}(?!new[/"]|archived")[^"/?]+)[/"]`).exec(html)
-  if (!match?.[1]) throw new Error(`No ${page.prefix} link on ${page.via}`)
-  return match[1] + (page.suffix ?? '')
+  return (await firstRecordPath(page.record)) + (page.suffix ?? '')
 }
 
 /**
@@ -110,3 +91,6 @@ export async function loaded(page: Page): Promise<void> {
   await expect(page.locator('html[data-hydrated]')).toHaveCount(1)
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
 }
+
+/** A form's own submit button, on its heading row ("Create department", "Save changes"). */
+export const save = (page: Page) => page.getByRole('main').locator('form button[type="submit"]')

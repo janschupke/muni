@@ -12,7 +12,7 @@ The test layers, what each gate enforces, and how to run the browser suites.
 | Colour contract          | `packages/ui/src/styles/tokens.test.ts`                                                                                                                                                           | `pnpm test`                  |
 | Messages                 | `apps/web/src/i18n/messages-parity.test.ts`                                                                                                                                                       | `pnpm test`                  |
 | Docs                     | `scripts/docs-paths.test.ts`: every path the docs name exists                                                                                                                                     | `pnpm test:root`             |
-| e2e                      | `apps/web/e2e/*.spec.ts`: access, a11y, crud, import, layout, lists, register                                                                                                                     | `pnpm test:e2e`              |
+| e2e                      | `apps/web/e2e/*.spec.ts`: access, a11y, bookings, crud, import, layout, lists, register                                                                                                           | `pnpm test:e2e`              |
 | Import files             | `packages/importer/src/derive/derive.test.ts`: `data/import` is what `pnpm data:derive` writes, and imports cleanly                                                                               | `pnpm test`                  |
 | Visual                   | `apps/web/e2e/visual.shots.ts`: every page and state, both themes                                                                                                                                 | `pnpm test:visual`           |
 | Lighthouse               | `apps/web/e2e/lighthouse.audit.ts`                                                                                                                                                                | `pnpm test:lighthouse`       |
@@ -27,8 +27,8 @@ Prettier on those files; ESLint, typecheck and the related tests in their packag
 packages that depend on them (type-aware lint rules read other files' types, so a package
 lints whole; when only tests changed, only those files), and the schema, drift, message or colour suites when their
 files changed. It prints each check and why it ran; `--dry-run` only prints them, `--base
-<ref>` compares against another commit. For a UI change it names the e2e spec to run by hand.
-The pre-push hook runs it against the remote branch. `pnpm check` is the full run, before a
+<ref>` compares against another commit. For a UI change it says to rebuild and run the e2e spec that covers it, by hand.
+The pre-push hook runs it on the commits a push carries (`--push`): a dirty tree is refused, and with nothing to compare with the whole gate runs. `pnpm check` is the full run, before a
 merge.
 
 ## CI
@@ -81,7 +81,7 @@ missing, `muni-e2e-{viewer,full,admin}+clerk_test@example.com`, resets their rol
 to none, so the first sign-in has to fill it in), signs each in with `@clerk/testing` and
 saves the session in `apps/web/e2e/.auth/`. `access.spec.ts` checks what each role and a
 visitor get; `register.spec.ts` walks the register as a viewer; `crud.spec.ts` drives the
-forms, bookings, the planner and archiving as an admin.
+forms and archiving as an admin, `bookings.spec.ts` sessions, booking and the planner.
 
 ### Troubleshooting
 
@@ -122,7 +122,8 @@ error thrown in the page (a hydration mismatch included) and on a Content-Securi
 violation. Unit tests do not run axe: jsdom has no layout, and the browser sweep above already
 reaches every page, dialog and form state, signed in.
 `pnpm test:lighthouse` requires accessibility 100, best practices 95, SEO 90 and performance
-90 (desktop) on every page as an admin, in both themes, and on the introduction. One exception: findings
+90 (desktop) on every page as an admin, in the light theme (the theme changes only colours,
+whose contrast the a11y suite checks in both), and on the introduction. One exception: findings
 that name only Clerk's development domain (`*.clerk.accounts.dev`, whose Cloudflare cookies
 are third-party) do not fail it, and `summary.json` lists them under `clerkDevOnly`. A
 production Clerk instance on the app's own domain has none; with a development instance,
@@ -178,4 +179,4 @@ What the gates enforce:
   - a word the [glossary](ui.md#glossary) replaced fails, in either locale.
 - **Git hooks**: `pnpm install` installs lefthook (`lefthook.yml`). A commit runs Prettier and each package's ESLint on the staged files only; everything else stays in `pnpm check` and CI.
 
-Playwright e2e and Lighthouse are not in `pnpm check` (they need browsers, a production build, the test database and Clerk) but CI runs them in a second job, `e2e`: it builds, installs Chromium and runs every e2e spec (the register setup migrates and seeds the database first) (access, a11y, crud, import, layout, lists, register) and Lighthouse; the visual shots are for review and stay local; on a failure it keeps the Playwright report and traces. Both jobs need the Clerk development keys as repository secrets, `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. The `check` job also runs `pnpm audit --prod --audit-level high`. Renovate (`renovate.json`) opens one pull request a week for minor and patch updates, and holds TypeScript below 7 and the prisma packages together.
+Playwright e2e and Lighthouse are not in `pnpm check` (they need browsers, a production build, the test database and Clerk) but CI runs them in a second job, `e2e`: it builds, installs Chromium and runs every e2e spec (the register setup migrates and seeds the database first) (access, a11y, bookings, crud, import, layout, lists, register) and Lighthouse; the visual shots are for review and stay local; on a failure it keeps the Playwright report and traces. Both jobs need the Clerk development keys as repository secrets, `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. The `check` job also runs `pnpm audit --prod --audit-level high`. Renovate (`renovate.json`) opens one pull request a week for minor and patch updates, and holds TypeScript below 7 and the prisma packages together.

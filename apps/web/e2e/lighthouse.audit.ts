@@ -64,6 +64,10 @@ test.beforeAll(async ({ baseURL }) => {
   ])
   keepAlive = await context.newPage()
   await keepAlive.goto(baseUrlOf(baseURL))
+  // The light theme, for every audit below.
+  await keepAlive.evaluate(() => {
+    localStorage.setItem('muni.theme', 'light')
+  })
 })
 
 test.afterAll(async () => {
@@ -144,27 +148,26 @@ test('introduction page, signed out', async ({ baseURL }) => {
   }
 })
 
-// Every page in both themes: the theme is the browser's stored choice, which the persistent
-// profile keeps for Lighthouse's own tabs (storage is never reset).
-for (const theme of ['light', 'dark'] as const) {
-  for (const entry of APP_PAGES.filter(p => p.status === undefined)) {
-    const { name } = entry
+// One page of each kind, in the light theme (stored for Lighthouse's own tabs, whose storage is
+// never reset): pages of a kind share their layout, components and reads, so they score alike,
+// and every page's accessibility is checked in both themes by a11y.spec.ts.
+const KINDS = new Set([
+  'overview', // the dashboard
+  'employees', // a server-paged list with filters
+  'employee', // a record with its tables
+  'compliance', // the largest table: people by courses
+  'advisor', // charts and proposals
+  'planner', // offers, a page at a time
+  'session-edit', // a form with pickers and live checks
+  'import', // the import wizard
+  'courses-archived', // an archived list
+])
 
-    test(`${name} page, ${theme}`, async ({ baseURL }) => {
-      const route = await pathOf(entry, async url => {
-        await keepAlive.goto(`${baseUrlOf(baseURL)}${url}`)
-        await loaded(keepAlive)
-        return keepAlive.content()
-      })
-      await keepAlive.evaluate(value => {
-        localStorage.setItem('muni.theme', value)
-      }, theme)
-      await expectScores(
-        `${name}-${theme}`,
-        `${route} (${theme})`,
-        `${baseUrlOf(baseURL)}${route}`,
-        SIGNED_IN_PORT
-      )
-    })
-  }
+for (const entry of APP_PAGES.filter(p => KINDS.has(p.name))) {
+  const { name } = entry
+
+  test(`${name} page`, async ({ baseURL }) => {
+    const route = await pathOf(entry)
+    await expectScores(name, route, `${baseUrlOf(baseURL)}${route}`, SIGNED_IN_PORT)
+  })
 }

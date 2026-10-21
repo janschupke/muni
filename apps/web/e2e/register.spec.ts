@@ -1,7 +1,6 @@
-import type { Page } from '@playwright/test'
-
+import { activeProviders } from './support/db'
+import { columnTexts, expectSortedColumn } from './support/paging'
 import { seededMonth } from './support/register'
-import { baseUrlOf } from './support/server'
 import { expect, test } from './support/test'
 import { storageState } from './support/users'
 
@@ -11,15 +10,9 @@ const MONTH = seededMonth('2026-11-15')
 // The register as a viewer sees it: every page, read-only, personal data redacted.
 test.use({ storageState: storageState('viewer') })
 
-const setLocale = (page: Page, locale: 'cs' | 'en') =>
-  page
-    .context()
-    .addCookies([
-      { name: 'NEXT_LOCALE', value: locale, url: baseUrlOf(test.info().project.use.baseURL) },
-    ])
-
 test.describe('Czech browser', () => {
-  test.use({ locale: 'cs-CZ' })
+  // No language chosen in the app: it follows the browser's.
+  test.use({ locale: 'cs-CZ', appLocale: null })
 
   test('dashboard follows Accept-Language and renders live data', async ({ page }) => {
     await page.goto('/')
@@ -33,19 +26,7 @@ test.describe('Czech browser', () => {
 })
 
 test.describe('register (viewer)', () => {
-  test('language switch persists across navigation', async ({ page }) => {
-    await page.goto('/')
-    await page.getByRole('radio', { name: 'English' }).click()
-    await expect(page.getByRole('heading', { level: 1, name: 'Overview' })).toBeVisible()
-    await page
-      .getByRole('navigation', { name: 'Main navigation' })
-      .getByRole('link', { name: 'Courses' })
-      .click()
-    await expect(page.getByRole('heading', { level: 1, name: 'Courses' })).toBeVisible()
-  })
-
   test('employees filter by department and compliance', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.goto('/employees')
     // Radix selects apply on change: no submit needed.
     await page.getByRole('combobox', { name: 'Department' }).click()
@@ -67,17 +48,15 @@ test.describe('register (viewer)', () => {
   })
 
   test('employees sort on the server, across pages', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.goto('/employees')
     const nameHeader = page.getByRole('columnheader', { name: 'Name' })
     await expect(nameHeader).toHaveAttribute('aria-sort', 'ascending')
-    const firstName = () => page.locator('tbody tr').first().locator('td').nth(1).locator('a')
-    const first = await firstName().textContent()
+    expectSortedColumn(await columnTexts(page, 'Name'), false, 'names')
 
     await nameHeader.getByRole('button').click()
     await expect(page).toHaveURL(/sort=name&dir=desc/)
     await expect(nameHeader).toHaveAttribute('aria-sort', 'descending')
-    await expect(firstName()).not.toHaveText(first ?? '')
+    expectSortedColumn(await columnTexts(page, 'Name'), true, 'names')
 
     // The order holds on the next page: the sort travels with the page link.
     await page.getByRole('link', { name: 'Next' }).click()
@@ -86,7 +65,6 @@ test.describe('register (viewer)', () => {
   })
 
   test('employee detail hides personal data from viewers', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.goto('/employees/E0153')
     await expect(page.getByRole('heading', { level: 1, name: 'Alena Malá' })).toBeVisible()
     const html = await page.content()
@@ -98,7 +76,6 @@ test.describe('register (viewer)', () => {
   })
 
   test('compliance matrix prints values, not colour alone', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.goto('/compliance')
     const row = page.getByRole('row', { name: /Knihovna/ })
     await expect(row.getByRole('cell').nth(2)).toHaveText(/\d+\s?%/)
@@ -107,7 +84,6 @@ test.describe('register (viewer)', () => {
   test('compliance matrix opens a department into its people and a cell into a list', async ({
     page,
   }) => {
-    await setLocale(page, 'en')
     await page.goto('/compliance')
     await page.getByRole('button', { name: 'People in Knihovna' }).click()
     const person = page.getByRole('row').filter({ has: page.locator('a[href^="/employees/E"]') })
@@ -131,7 +107,6 @@ test.describe('register (viewer)', () => {
   })
 
   test('sessions show overbooking', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.goto('/sessions')
     await expect(page.getByText('Overbooked').first()).toBeVisible()
     // T032: 8 of 8 seats taken.
@@ -141,7 +116,6 @@ test.describe('register (viewer)', () => {
   })
 
   test('past sessions narrow to one course, with a chip that removes it', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.goto('/sessions?when=past&course=BOZP-Z')
     await expect(
       page.getByRole('heading', { level: 1, name: 'Sessions of BOZP – základní školení' })
@@ -158,7 +132,6 @@ test.describe('register (viewer)', () => {
   })
 
   test('sessions sort by price in the browser, unpriced last', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.goto('/sessions')
     const header = page.getByRole('columnheader', { name: 'Price' })
     await header.getByRole('button').click()
@@ -175,7 +148,6 @@ test.describe('register (viewer)', () => {
   })
 
   test('overview cards open the list they count, and the numbers agree', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.goto('/')
     const card = page.getByRole('link', { name: /^Expired/ })
     // The card's last line is "<n> people": the list behind it must hold exactly them.
@@ -188,7 +160,6 @@ test.describe('register (viewer)', () => {
   })
 
   test('an employee row opens to their trainings and expiry', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.goto('/employees?q=E0153')
     const toggle = page.getByRole('button', { name: 'Details for Malá Alena' })
     await toggle.click()
@@ -200,7 +171,6 @@ test.describe('register (viewer)', () => {
   })
 
   test('back links return to the page the reader came from, filters included', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.goto('/employees?department=Laborato%C5%99e&sort=compliance')
     await page.locator('tbody tr').first().locator('td').nth(1).locator('a').click()
     const back = page.getByRole('link', { name: 'Back to Employees' })
@@ -219,7 +189,6 @@ test.describe('register (viewer)', () => {
   test('the advisor breaks non-compliance down and links what it names, read-only for viewers', async ({
     page,
   }) => {
-    await setLocale(page, 'en')
     await page.goto('/advisor')
     await expect(page.getByRole('heading', { level: 1, name: 'Advisor' })).toBeVisible()
     await expect(
@@ -271,7 +240,6 @@ test.describe('register (viewer)', () => {
   test('the advisor’s counts and rows agree, and its pages live in the address', async ({
     page,
   }) => {
-    await setLocale(page, 'en')
     await page.goto('/advisor')
     // The forecast card opens the row that lists exactly what it counts.
     const card = page.getByRole('link', { name: /^Lapsing by / }).first()
@@ -301,7 +269,6 @@ test.describe('register (viewer)', () => {
   test('planner proposes sessions with a room for training nothing else can take', async ({
     page,
   }) => {
-    await setLocale(page, 'en')
     await page.goto('/planner')
     await expect(page.getByRole('heading', { level: 1, name: 'Session planner' })).toBeVisible()
     await expect(page.getByText('Only admins can create sessions.')).toBeVisible()
@@ -315,7 +282,6 @@ test.describe('register (viewer)', () => {
   test('providers: the list, one provider, and the way there from a completion', async ({
     page,
   }) => {
-    await setLocale(page, 'en')
     await page.goto('/employees/E0153')
     const provider = page.locator('main a[href^="/providers/"]').first()
     const name = (await provider.textContent()) ?? ''
@@ -327,11 +293,11 @@ test.describe('register (viewer)', () => {
     await expect(page.getByRole('link', { name: 'Edit' })).toHaveCount(0)
     await page.getByRole('link', { name: 'Providers' }).first().click()
     await expect(page.getByRole('heading', { level: 1, name: 'Providers' })).toBeVisible()
-    await expect(page.locator('tbody a[href^="/providers/"]')).toHaveCount(4)
+    // Every active provider, as many as the register holds.
+    await expect(page.locator('tbody a[href^="/providers/"]')).toHaveCount(await activeProviders())
   })
 
   test('footer, and tab strips without a scrollbar', async ({ page }) => {
-    await setLocale(page, 'en')
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 900 })
       await page.goto('/sessions')
@@ -349,7 +315,6 @@ test.describe('register (viewer)', () => {
   })
 
   test('the sidebar collapses to icons and stays collapsed', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/courses')
     await page.getByRole('button', { name: 'Collapse sidebar' }).click()
@@ -365,8 +330,33 @@ test.describe('register (viewer)', () => {
     await expect(nav.getByRole('link', { name: 'Courses' })).toHaveText('Courses')
   })
 
+  test('the language switch turns the page into the other language, and the next pages follow', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await expect(page.getByRole('heading', { level: 1, name: 'Overview' })).toBeVisible()
+    await page.evaluate(() => {
+      ;(window as { before?: boolean }).before = true
+    })
+    await page
+      .getByRole('banner')
+      .getByRole('radiogroup', { name: 'Language' })
+      .getByRole('radio', { name: 'Čeština' })
+      .click()
+    // The same page, rendered again in Czech: no navigation, no reload.
+    await expect(page.locator('html')).toHaveAttribute('lang', 'cs')
+    await expect(page.getByRole('heading', { level: 1, name: 'Přehled' })).toBeVisible()
+    await expect(page.getByRole('radiogroup', { name: 'Jazyk' })).toBeVisible()
+    expect(await page.evaluate(() => (window as { before?: boolean }).before)).toBe(true)
+    // The choice is kept: the next page is Czech too.
+    await page
+      .getByRole('navigation', { name: 'Hlavní navigace' })
+      .getByRole('link', { name: 'Kurzy' })
+      .click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Kurzy' })).toBeVisible()
+  })
+
   test('on a phone the navigation opens from the menu and closes on the way', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/')
     await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeHidden()
@@ -379,7 +369,6 @@ test.describe('register (viewer)', () => {
   })
 
   test('no page scrolls sideways, from a phone to a wide screen', async ({ page }) => {
-    await setLocale(page, 'en')
     // Each page loaded once and resized through the widths: the layout follows the viewport
     // (CSS and media queries), so a reload per width would only repeat the same page.
     for (const path of [
@@ -413,7 +402,6 @@ test.describe('register (viewer)', () => {
   })
 
   test('a missing record says which one, and leads back to its list', async ({ page }) => {
-    await setLocale(page, 'en')
     const response = await page.goto('/employees/E9999')
     expect(response?.status()).toBe(404)
     await expect(page.getByRole('heading', { level: 1, name: 'Employee not found' })).toBeVisible()
@@ -439,7 +427,6 @@ test.describe('register (viewer)', () => {
   })
 
   test('theme switch is one tab stop driven by arrow keys', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.goto('/')
     await page.getByRole('radio', { name: 'Light' }).click()
     // Held like a real key: Radix moves focus on a timer and checks the item only while the
@@ -453,13 +440,23 @@ test.describe('register (viewer)', () => {
   })
 
   test('dark theme persists without a flash', async ({ page }) => {
-    await setLocale(page, 'en')
     await page.goto('/')
+    // The page's lightness: 0 black to 1 white (the mean of its red, green and blue).
+    const lightness = () =>
+      page.evaluate(() => {
+        const [r = 0, g = 0, b = 0] = getComputedStyle(document.body)
+          .backgroundColor.match(/\d+/g)
+          ?.map(Number) ?? [0, 0, 0]
+        return (r + g + b) / (3 * 255)
+      })
+    await page.getByRole('radio', { name: 'Light' }).click()
+    const light = await lightness()
     await page.getByRole('radio', { name: 'Dark' }).click()
     await page.reload()
     // The boot script sets data-theme before first paint; read it from the first response's DOM.
     expect(await page.evaluate(() => document.documentElement.dataset['theme'])).toBe('dark')
-    const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor)
-    expect(bg).toBe('rgb(13, 13, 13)')
+    // The dark page itself, not the light one: whatever the tokens' exact values.
+    expect(light).toBeGreaterThan(0.8)
+    expect(await lightness()).toBeLessThan(0.2)
   })
 })

@@ -2,7 +2,6 @@ import path from 'node:path'
 
 import { loaded } from './support/pages'
 import { REGISTER_DIR } from './support/register'
-import { baseUrlOf } from './support/server'
 import { expect, test } from './support/test'
 import { storageState } from './support/users'
 
@@ -14,10 +13,6 @@ import { storageState } from './support/users'
 // (packages/db/src/integration/fresh-import.integration.test.ts).
 
 test.use({ storageState: storageState('admin') })
-
-test.beforeEach(async ({ page, baseURL }) => {
-  await page.context().addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: baseUrlOf(baseURL) }])
-})
 
 const DATA = path.join(import.meta.dirname, '../../../data')
 
@@ -45,7 +40,6 @@ test('reviews the raw exports: a mistyped course, an impossible date and a copy 
 test('imports the register’s files: reviewed, confirmed, written, and nothing new', async ({
   page,
 }) => {
-  test.setTimeout(180_000)
   await page.goto('/import')
   await loaded(page)
   await page
@@ -68,13 +62,13 @@ test('imports the register’s files: reviewed, confirmed, written, and nothing 
   await page.getByRole('button', { name: /^Import [\d,]+ records/ }).click()
 
   const status = page.getByRole('status').filter({ hasText: 'Import complete' })
-  await expect(status).toBeVisible({ timeout: 150_000 })
+  await expect(status).toBeVisible()
   for (const line of [
-    'Rooms: 0 created, 9 updated',
-    'Courses: 0 created, 10 updated',
-    'Employees: 0 created, 170 updated',
-    'Completions: 0 created, 2814 updated',
-    'Sessions: 0 created, 32 updated',
+    'Rooms: 0 created, 0 updated, 9 unchanged',
+    'Courses: 0 created, 0 updated, 10 unchanged',
+    'Employees: 0 created, 0 updated, 170 unchanged',
+    'Completions: 0 created, 0 updated, 2,814 unchanged',
+    'Sessions: 0 created, 0 updated, 32 unchanged',
   ])
     await expect(page.getByText(line)).toBeVisible()
 })

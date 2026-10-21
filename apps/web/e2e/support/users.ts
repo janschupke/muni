@@ -38,18 +38,21 @@ export async function findUser(email: string) {
  */
 export async function provisionE2eUsers(): Promise<void> {
   const users = clerkBackend().users
-  for (const { email, role, name } of Object.values(E2E_USERS)) {
-    const [firstName = name, lastName = ''] = name.split(' ')
-    const publicMetadata = role === null ? {} : { role }
-    const existing = await findUser(email)
-    if (existing) await users.updateUser(existing.id, { publicMetadata })
-    else
-      await users.createUser({
-        emailAddress: [email],
-        firstName,
-        lastName,
-        publicMetadata,
-        skipPasswordRequirement: true,
-      })
-  }
+  // Each user on its own, side by side: every call is a round trip to Clerk.
+  await Promise.all(
+    Object.values(E2E_USERS).map(async ({ email, role, name }) => {
+      const [firstName = name, lastName = ''] = name.split(' ')
+      const publicMetadata = role === null ? {} : { role }
+      const existing = await findUser(email)
+      if (existing) await users.updateUser(existing.id, { publicMetadata })
+      else
+        await users.createUser({
+          emailAddress: [email],
+          firstName,
+          lastName,
+          publicMetadata,
+          skipPasswordRequirement: true,
+        })
+    })
+  )
 }

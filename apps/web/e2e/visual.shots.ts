@@ -1,11 +1,9 @@
 import path from 'node:path'
 
-import { setupClerkTestingToken } from '@clerk/testing/playwright'
 import type { Page } from '@playwright/test'
 
 import { APP_PAGES, loaded, pathOf } from './support/pages'
-import { baseUrlOf } from './support/server'
-import { expect, test } from './support/test'
+import { clerkLoaded, expect, test } from './support/test'
 import { storageState } from './support/users'
 
 // Shots for review, not comparison: every page, and the states a page-load never shows.
@@ -17,55 +15,54 @@ const SHOTS = path.join(import.meta.dirname, '../visual-shots')
 test.use({ storageState: storageState('admin'), viewport: { width: 1440, height: 900 } })
 
 for (const theme of ['light', 'dark'] as const) {
-  // Two frames first: a state just changed (a click, a hover) paints on the next one.
+  // As a person sees the page: Clerk started, and a signed-in user's account button drawn with
+  // its picture (the app is usable before both, so a visit does not wait for them). Transitions
+  // run to their end first: a state just changed (a click, a hover) is shot as it settles, not
+  // halfway.
   const shot = async (page: Page, name: string, fullPage = true) => {
-    await page.evaluate(
-      'new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))'
-    )
-    await page.screenshot({ path: path.join(SHOTS, theme, `${name}.png`), fullPage })
+    await clerkLoaded(page)
+    await page.waitForFunction(() => {
+      if (!(window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user) return true
+      const button = document.querySelector('.cl-userButtonTrigger')
+      return button !== null && [...button.querySelectorAll('img')].every(img => img.complete)
+    })
+    await page.screenshot({
+      path: path.join(SHOTS, theme, `${name}.png`),
+      fullPage,
+      animations: 'disabled',
+    })
   }
 
   test.describe(`${theme} theme`, () => {
-    test.beforeEach(async ({ page, baseURL }) => {
-      await page
-        .context()
-        .addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: baseUrlOf(baseURL) }])
+    test.beforeEach(async ({ page }) => {
       await page.addInitScript(value => {
         localStorage.setItem('muni.theme', value)
       }, theme)
     })
 
-    test('introduction, signed out', async ({ browser, baseURL }) => {
-      const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
-      await setupClerkTestingToken({ context })
-      await context.addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: baseUrlOf(baseURL) }])
-      const page = await context.newPage()
-      await page.addInitScript(value => {
-        localStorage.setItem('muni.theme', value)
-      }, theme)
-      await page.goto('/')
-      await expect(page.getByRole('link', { name: 'Create account' })).toBeVisible()
-      await shot(page, 'introduction')
-      // Clerk's form in the app's colours, in each theme.
-      await page.goto('/sign-in')
-      await expect(page.locator('.cl-rootBox').first()).toBeVisible()
-      await shot(page, 'sign-in')
-      await context.close()
+    test.describe('signed out', () => {
+      test.use({ storageState: { cookies: [], origins: [] } })
+
+      test('introduction', async ({ page }) => {
+        await page.goto('/')
+        await expect(page.getByRole('link', { name: 'Create account' })).toBeVisible()
+        await shot(page, 'introduction')
+        // Clerk's form in the app's colours, in each theme.
+        await page.goto('/sign-in')
+        await clerkLoaded(page)
+        await expect(page.locator('.cl-rootBox').first()).toBeVisible()
+        await shot(page, 'sign-in')
+      })
     })
 
-    test('every page', async ({ page }) => {
-      for (const entry of APP_PAGES) {
-        const route = await pathOf(entry, async url => {
-          await page.goto(url)
-          await loaded(page)
-          return page.content()
-        })
-        await page.goto(route)
+    for (const entry of APP_PAGES) {
+      test(`${entry.name} page`, async ({ page }) => {
+        await page.goto(await pathOf(entry))
         await loaded(page)
         await expect(page.locator('h1').first()).toBeVisible()
         await shot(page, `page-${entry.name}`)
-      }
-    })
+      })
+    }
 
     test('rows hovered and opened', async ({ page }) => {
       await page.goto('/employees')
@@ -422,8 +419,12 @@ for (const theme of ['light', 'dark'] as const) {
       await page.locator('tbody a[href*="?employee="]').first().click()
       await expect(page).toHaveURL(/\?employee=/)
       await loaded(page)
-      await page.route('**/sessions/**', route =>
-        route.request().method() === 'POST' ? route.abort() : route.continue()
+      // The app's own requests only: Clerk renews its token with a POST to its own
+      // `/client/sessions/…`, which must still get through.
+      const app = new URL(page.url()).origin
+      await page.route(
+        url => url.origin === app && url.pathname.includes('/sessions/'),
+        route => (route.request().method() === 'POST' ? route.abort() : route.continue())
       )
       await page.getByRole('button', { name: 'Book', exact: true }).click()
       await expect(

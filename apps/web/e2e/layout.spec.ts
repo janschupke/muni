@@ -1,7 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 
 import { loaded } from './support/pages'
-import { baseUrlOf } from './support/server'
 import { expect, test } from './support/test'
 import { storageState } from './support/users'
 
@@ -10,10 +9,6 @@ import { storageState } from './support/users'
 
 // Wide, so a width cap on anything shows.
 test.use({ storageState: storageState('admin'), viewport: { width: 1920, height: 1080 } })
-
-test.beforeEach(async ({ page, baseURL }) => {
-  await page.context().addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: baseUrlOf(baseURL) }])
-})
 
 async function box(locator: Locator) {
   const found = await locator.boundingBox()

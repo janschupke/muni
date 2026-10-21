@@ -1,8 +1,5 @@
-import type { Page } from '@playwright/test'
-
-import { removeE2eRecords } from './support/db'
 import { loaded } from './support/pages'
-import { baseUrlOf } from './support/server'
+import { columnTexts, expectSortedColumn } from './support/paging'
 import { expect, test } from './support/test'
 import { storageState } from './support/users'
 
@@ -12,22 +9,13 @@ import { storageState } from './support/users'
 
 test.use({ storageState: storageState('admin') })
 
-test.beforeEach(async ({ page, baseURL }) => {
-  await page.context().addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: baseUrlOf(baseURL) }])
-})
-
-async function rows(page: Page) {
-  const table = page.locator('[data-paging="server"] table').first()
-  return table.locator('tbody > tr:not([id])').allInnerTexts()
-}
-
-const LISTS: { path: string; header: string; sort: string }[] = [
+const LISTS: { path: string; header: string; sort: string; blank?: string }[] = [
   { path: '/employees', header: 'Department', sort: 'department' },
-  { path: '/courses', header: 'Valid for', sort: 'validity' },
+  { path: '/courses', header: 'Valid for', sort: 'validity', blank: 'No expiry' },
   { path: '/departments', header: 'People', sort: 'people' },
   { path: '/positions', header: 'People', sort: 'people' },
   { path: '/providers', header: 'Completions', sort: 'completions' },
-  { path: '/rooms', header: 'Seats', sort: 'capacity' },
+  { path: '/rooms', header: 'Seats', sort: 'capacity', blank: 'No limit' },
   { path: '/users', header: 'Email', sort: 'email' },
   { path: '/sessions', header: 'Room', sort: 'room' },
   { path: '/sessions?when=past', header: 'Room', sort: 'room' },
@@ -38,28 +26,28 @@ for (const list of LISTS) {
   test(`${list.path} sorts on the server`, async ({ page }) => {
     await page.goto(list.path)
     await loaded(page)
-    const before = await rows(page)
     const header = page.getByRole('button', { name: list.header, exact: true }).first()
     await header.click()
     await expect(page).toHaveURL(new RegExp(`[?&]sort=${list.sort}(&|$)`))
     expect(new URL(page.url()).searchParams.get('page')).toBeNull()
     await loaded(page)
-    // Descending: the server's order flips, the first rows with it.
+    expectSortedColumn(await columnTexts(page, list.header), false, list.path, list.blank)
     await header.click()
     await expect(page).toHaveURL(/[?&]dir=desc(&|$)/)
     await loaded(page)
-    expect(await rows(page)).not.toEqual(before)
+    expectSortedColumn(await columnTexts(page, list.header), true, list.path, list.blank)
   })
 }
 
 // Lists the seed fills past one page.
-for (const path of ['/employees', '/advisor?view=action']) {
+for (const { path, sort, header } of [
+  { path: '/employees', sort: 'name', header: 'Name' },
+  { path: '/advisor?view=action', sort: 'person', header: 'Person' },
+]) {
   test(`${path} pages on the server, keeping its sort`, async ({ page }) => {
-    await page.goto(
-      `${path}${path.includes('?') ? '&' : '?'}sort=${path === '/employees' ? 'name' : 'person'}&dir=desc`
-    )
+    await page.goto(`${path}${path.includes('?') ? '&' : '?'}sort=${sort}&dir=desc`)
     await loaded(page)
-    const first = await rows(page)
+    const first = await columnTexts(page, header)
     await page
       .getByRole('navigation', { name: 'Pages' })
       .getByRole('link', { name: /Next/ })
@@ -67,15 +55,15 @@ for (const path of ['/employees', '/advisor?view=action']) {
     await expect(page).toHaveURL(/[?&]page=2(&|$)/)
     await expect(page).toHaveURL(/[?&]dir=desc(&|$)/)
     await loaded(page)
-    const second = await rows(page)
+    const second = await columnTexts(page, header)
     expect(second.length).toBeGreaterThan(0)
-    expect(second[0]).not.toEqual(first[0])
+    // The second page goes on where the first ended: one order across both.
+    expectSortedColumn([...first, ...second], true, path)
   })
 }
 
 test.describe('a department’s upcoming bookings', () => {
   // The seed books nobody by name: a page of the advisor's proposals first, removed after.
-  test.afterAll(removeE2eRecords)
 
   test('sort on the server', async ({ page }) => {
     await page.goto('/advisor?view=action')
@@ -96,14 +84,14 @@ test.describe('a department’s upcoming bookings', () => {
       .click()
     await expect(page).toHaveURL(/\/bookings$/)
     await loaded(page)
-    const before = await rows(page)
     const header = page.getByRole('button', { name: 'Person', exact: true })
     await header.click()
     await expect(page).toHaveURL(/[?&]sort=person(&|$)/)
     await loaded(page)
+    expectSortedColumn(await columnTexts(page, 'Person'), false, 'bookings')
     await header.click()
     await expect(page).toHaveURL(/[?&]dir=desc(&|$)/)
     await loaded(page)
-    expect(await rows(page)).not.toEqual(before)
+    expectSortedColumn(await columnTexts(page, 'Person'), true, 'bookings')
   })
 })
