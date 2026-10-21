@@ -16,6 +16,10 @@ const config: KnipConfig = {
       // The test helpers are not production code. The stylesheets are read too, so what they
       // import (tailwindcss) counts as used.
       project: ['src/**/*.{ts,tsx,css}!', '!src/test/**!', 'e2e/**/*.ts'],
+      // The e2e files are entries above. Knip's Playwright plugin would load the configs to find
+      // them, and a config refuses to load without the Clerk keys (its servers need them): the
+      // gate must run without secrets (CI's check job, a fresh clone).
+      playwright: false,
     },
     'packages/db': {
       entry: ['src/seed.ts!', 'scripts/*.ts!', 'src/**/*.test.ts', 'test/**/*.ts'],
