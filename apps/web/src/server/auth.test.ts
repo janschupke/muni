@@ -138,6 +138,19 @@ describe('session user', () => {
     expect(clerkClient).not.toHaveBeenCalled()
   })
 
+  it('asks Clerk once when a sign-in sends two requests at once (the redirect and its refresh)', async () => {
+    const earlier = new Date(Date.now() - SESSION_RESYNC_MS - 1000)
+    vi.mocked(findUserByClerkId).mockResolvedValue(
+      userRow('user_1', 'VIEWER', { lastSessionId: 'sess_0', syncedAt: earlier })
+    )
+    clerkHas('full')
+    const [first, second] = await Promise.all([getSessionUser(), getSessionUser()])
+    expect(first).toMatchObject({ role: 'FULL' })
+    expect(second).toMatchObject({ role: 'FULL' })
+    expect(clerkUsers.getUser).toHaveBeenCalledTimes(1)
+    expect(upsertUserFromClerk).toHaveBeenCalledTimes(1)
+  })
+
   it('checks Clerk again once the stored role is older than the sync interval', async () => {
     const stale = new Date(Date.now() - SYNC_INTERVAL_MS - 1000)
     vi.mocked(findUserByClerkId).mockResolvedValue(userRow('user_1', 'ADMIN', { syncedAt: stale }))

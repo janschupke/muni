@@ -51,6 +51,22 @@ function isStale(row: UserRecord, sessionId: string | null, now: Date): boolean 
 }
 
 /**
+ * The syncs under way, by user: a sign-in sends two requests at once (Clerk's redirect home and
+ * its refresh), and the second shares the first's answer instead of asking Clerk again.
+ */
+const syncing = new Map<string, Promise<UserRecord>>()
+
+function syncOnce(clerkId: string, sessionId: string | null, now: Date): Promise<UserRecord> {
+  const running = syncing.get(clerkId)
+  if (running) return running
+  const sync = syncFromClerk(clerkId, sessionId, now).finally(() => {
+    syncing.delete(clerkId)
+  })
+  syncing.set(clerkId, sync)
+  return sync
+}
+
+/**
  * Reads the user from Clerk and stores it. A missing or unknown role becomes `viewer`, and a
  * role spelled differently (`Full`) is rewritten, so Clerk always holds a valid lowercase role.
  */
@@ -90,7 +106,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const now = new Date()
   if (row && !isStale(row, sessionId, now)) return toSessionUser(row)
   try {
-    const synced = await syncFromClerk(userId, sessionId, now)
+    const synced = await syncOnce(userId, sessionId, now)
     return synced.archived ? null : toSessionUser(synced)
   } catch (error) {
     // Without a stored role there is nothing safe to fall back on: show the error page.
