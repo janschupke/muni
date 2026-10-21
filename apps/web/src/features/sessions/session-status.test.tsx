@@ -74,14 +74,16 @@ describe('reinstating a session', () => {
     await user.click(screen.getByRole('button', { name: 'Reinstate…' }))
     const dialog = await screen.findByRole('dialog', { name: `Plan ${NAME} again?` })
     const confirm = () => within(dialog).getByRole('button', { name: 'Reinstate' })
+    // The reason and the button's return come together: once the reason shows, the button
+    // can be pressed again (it no longer says it is working).
+    const refused = async (reason: string) => {
+      await within(dialog).findByText(reason)
+      expect((confirm() as HTMLButtonElement).disabled).toBe(false)
+    }
     await user.click(confirm())
-    expect(
-      await within(dialog).findByText('Another planned session uses this room at that time.')
-    ).toBeTruthy()
+    await refused('Another planned session uses this room at that time.')
     await user.click(confirm())
-    expect(
-      await within(dialog).findByText('your account may no longer make changes; sign in again')
-    ).toBeTruthy()
+    await refused('your account may no longer make changes; sign in again')
     await user.click(confirm())
     expect(await screen.findByText(`Session planned again: ${NAME}`)).toBeTruthy()
   })

@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
 import type { ClientError } from '@/components/form/form-context'
+import { useSettled } from '@/lib/use-settled'
 import { checkSessionSlotAction } from '@/server/actions/sessions'
 
 // What the session form and the planner's review both check as the user types: the same rule
@@ -28,27 +29,24 @@ interface Slot {
  */
 function useRoomBusy(slot: Slot | null, self: string | null): boolean {
   const key = slot && `${slot.roomId}|${slot.date}|${slot.startTime}|${slot.endTime}`
+  // Asked only once the slot has stayed the same for a moment: not at every keystroke.
+  const settled = useSettled(key)
   const [answer, setAnswer] = useState<{ key: string; busy: boolean } | null>(null)
   const roomId = slot?.roomId
   const date = slot?.date
   const startTime = slot?.startTime
   const endTime = slot?.endTime
   useEffect(() => {
-    if (key === null || !roomId || !date || !startTime || !endTime) return
-    const timer = setTimeout(() => {
-      checkSessionSlotAction({ roomId, date, startTime, endTime }, self).then(
-        found => {
-          setAnswer({ key, busy: found === 'ROOM_BUSY' })
-        },
-        () => {
-          setAnswer({ key, busy: false })
-        }
-      )
-    }, 400)
-    return () => {
-      clearTimeout(timer)
-    }
-  }, [key, roomId, date, startTime, endTime, self])
+    if (key === null || settled !== key || !roomId || !date || !startTime || !endTime) return
+    checkSessionSlotAction({ roomId, date, startTime, endTime }, self).then(
+      found => {
+        setAnswer({ key, busy: found === 'ROOM_BUSY' })
+      },
+      () => {
+        setAnswer({ key, busy: false })
+      }
+    )
+  }, [key, settled, roomId, date, startTime, endTime, self])
   return key !== null && answer?.key === key && answer.busy
 }
 

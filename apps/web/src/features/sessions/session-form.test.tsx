@@ -11,6 +11,9 @@ import { renderClient } from '@/test/render'
 // @vitest-environment jsdom
 
 vi.mock('@/server/actions/sessions', () => ({ checkSessionSlotAction: vi.fn() }))
+// The pause before asking about the room is useSettled's own (use-settled.test.ts): here a
+// slot is asked about at once, so what is asked does not depend on how fast the test runs.
+vi.mock('@/lib/use-settled', () => ({ useSettled: <T,>(value: T) => value }))
 
 afterEach(() => {
   sessionStorage.clear()
@@ -164,16 +167,15 @@ describe('the session form checks itself as the user types', () => {
     expect(screen.getAllByText('This course is not held online.')).toHaveLength(2)
     await choose(user, /Course/, /BOZP-Z/)
     expect(screen.queryByText('This course is not held online.')).toBeNull()
-    // An online room is never taken; a real one is asked about, after a pause.
-    expect(checkSessionSlotAction).not.toHaveBeenCalled()
+    // An online room is never asked about; a real one is.
+    const askedRooms = () =>
+      vi.mocked(checkSessionSlotAction).mock.calls.map(([slot]) => slot.roomId)
+    expect(askedRooms()).not.toContain('room_online')
     await choose(user, /Room/, /Aula A/)
     expect(
-      await screen.findByText(
-        'Another planned session uses this room at that time.',
-        {},
-        { timeout: 2000 }
-      )
+      await screen.findByText('Another planned session uses this room at that time.')
     ).toBeTruthy()
+    expect(askedRooms()).not.toContain('room_online')
     expect(checkSessionSlotAction).toHaveBeenLastCalledWith(
       { roomId: 'room_aula_a', date: '2027-03-01', startTime: '09:00', endTime: '12:00' },
       null

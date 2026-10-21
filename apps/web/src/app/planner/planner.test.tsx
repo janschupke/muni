@@ -22,6 +22,9 @@ vi.mock('@muni/db/repositories', async importOriginal => ({
   recordExists: vi.fn(() => Promise.resolve(true)),
 }))
 vi.mock('@/server/auth')
+// The pause before asking about the room is useSettled's own (use-settled.test.ts): here a
+// slot is asked about at once.
+vi.mock('@/lib/use-settled', () => ({ useSettled: <T,>(value: T) => value }))
 vi.mock('@/server/actions/sessions', () => ({
   createPlannedSessionAction: vi.fn(),
   checkSessionSlotAction: vi.fn(() => Promise.resolve(null)),
@@ -172,11 +175,7 @@ describe('session planner', () => {
     await user.click(screen.getByRole('button', { name: 'Review session 1 of Požární ochrana' }))
     const dialog = await screen.findByRole('dialog', { name: 'New session: Požární ochrana' })
     expect(
-      await within(dialog).findByText(
-        'Another planned session uses this room at that time.',
-        {},
-        { timeout: 2000 }
-      )
+      await within(dialog).findByText('Another planned session uses this room at that time.')
     ).toBeTruthy()
     expect(within(dialog).getByRole('button', { name: 'Check' })).toHaveProperty('disabled', true)
   })

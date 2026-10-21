@@ -49,7 +49,11 @@ export function ConfirmArchiveButton({
     setImpact('loading')
     startTransition(async () => {
       // Unreachable server: no preview, so nothing to confirm; the dialog says so.
-      setImpact(await previewArchive(kind, id).catch(() => null))
+      const preview = await previewArchive(kind, id).catch(() => null)
+      // In the transition again: updates after an await leave it.
+      startTransition(() => {
+        setImpact(preview)
+      })
     })
   }
 

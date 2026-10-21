@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { SessionOffer } from '@muni/domain/planner'
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -12,6 +12,9 @@ import { OfferReview } from './offer-review'
 import { OfferSummary } from './offer-summary'
 import { useOfferDraft } from './use-offer-draft'
 
+// The pause before asking about the room is useSettled's own (use-settled.test.ts): here a
+// slot is asked about at once.
+vi.mock('@/lib/use-settled', () => ({ useSettled: <T,>(value: T) => value }))
 vi.mock('@/server/actions/sessions', () => ({
   createPlannedSessionAction: vi.fn(),
   checkSessionSlotAction: vi.fn(() => Promise.resolve(null)),
@@ -21,11 +24,9 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-/** Clicks a button once it is enabled: a request still settling keeps it disabled. */
-async function clickWhenReady(user: ReturnType<typeof userEvent.setup>, button: HTMLElement) {
-  await waitFor(() => {
-    expect(button).toHaveProperty('disabled', false)
-  })
+/** Clicks a button the last answer made ready: it is enabled the moment the answer shows. */
+async function clickReady(user: ReturnType<typeof userEvent.setup>, button: HTMLElement) {
+  expect(button).toHaveProperty('disabled', false)
   await user.click(button)
 }
 
@@ -157,7 +158,7 @@ describe('OfferReview', () => {
     ).toBeTruthy()
     // Offline: nothing written, and a reason to show.
     vi.mocked(createPlannedSessionAction).mockRejectedValueOnce(new Error('offline'))
-    await clickWhenReady(user, within(dialog).getByRole('button', { name: 'Check' }))
+    await clickReady(user, within(dialog).getByRole('button', { name: 'Check' }))
     expect(
       await within(dialog).findByText('The session could not be created. Try again.')
     ).toBeTruthy()
@@ -201,7 +202,7 @@ describe('OfferReview', () => {
     expect(onOpenChange).not.toHaveBeenCalled()
     answer(CHECKED)
     expect(await within(dialog).findByText('What will be created')).toBeTruthy()
-    await clickWhenReady(user, within(dialog).getByRole('button', { name: 'Keep as is' }))
+    await clickReady(user, within(dialog).getByRole('button', { name: 'Keep as is' }))
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
@@ -284,11 +285,7 @@ describe('OfferReview', () => {
     vi.mocked(checkSessionSlotAction).mockResolvedValue('ROOM_BUSY')
     const { dialog } = renderReview()
     expect(
-      await within(dialog).findByText(
-        'Another planned session uses this room at that time.',
-        {},
-        { timeout: 2000 }
-      )
+      await within(dialog).findByText('Another planned session uses this room at that time.')
     ).toBeTruthy()
   })
 })

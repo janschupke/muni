@@ -236,7 +236,10 @@ describe('archive and bring-back buttons', () => {
     expect(
       await within(dialog).findByText('Their 2 bookings on sessions ahead are removed.')
     ).toBeTruthy()
-    await user.click(within(dialog).getByRole('button', { name: 'Archive' }))
+    // The preview and the button it unlocks arrive together.
+    const archive = within(dialog).getByRole('button', { name: 'Archive' })
+    expect(archive).toHaveProperty('disabled', false)
+    await user.click(archive)
     expect(archiveAction).toHaveBeenCalledWith('employee', 'emp_1', null, { status: 'idle' })
     await vi.waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull()

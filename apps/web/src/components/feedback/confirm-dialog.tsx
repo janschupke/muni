@@ -71,29 +71,38 @@ export function ConfirmDialog({
     onOpenChange(next)
   }
 
+  /** What the answer changes, in the transition: it shows as the button stops working. */
+  const settle = (outcome: ConfirmOutcome | null) => {
+    if (outcome === null) {
+      setProblem(t('failed'))
+      return
+    }
+    if (outcome.kind === 'refused') {
+      setProblem(outcome.message)
+      return
+    }
+    if (outcome.kind === 'go') {
+      onOpenChange(false)
+      return
+    }
+    toast(outcome.toast)
+    if (outcome.kind === 'partial') {
+      setProblem(outcome.message)
+      setFinished(true)
+      return
+    }
+    onOpenChange(false)
+  }
+
   const confirm = () => {
     setProblem(null)
     startTransition(async () => {
-      try {
-        const outcome = await onConfirm()
-        if (outcome.kind === 'refused') {
-          setProblem(outcome.message)
-          return
-        }
-        if (outcome.kind === 'go') {
-          onOpenChange(false)
-          return
-        }
-        toast(outcome.toast)
-        if (outcome.kind === 'partial') {
-          setProblem(outcome.message)
-          setFinished(true)
-          return
-        }
-        onOpenChange(false)
-      } catch {
-        setProblem(t('failed'))
-      }
+      const outcome = await onConfirm().catch(() => null)
+      // Updates after an await leave the transition unless wrapped again: unwrapped, the
+      // answer would show while the button still says it is working.
+      startTransition(() => {
+        settle(outcome)
+      })
     })
   }
 

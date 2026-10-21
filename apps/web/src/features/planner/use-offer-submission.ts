@@ -63,14 +63,18 @@ export function useOfferSubmission(onCreated: () => void) {
         problem: 'failed' as const,
         refusals: [] as [],
       }))
-      dispatch({ type: 'answered', answer, dryRun })
-      if (!answer.ok || dryRun) return
-      afterWrite()
-      toast({
-        title: t('created', { id: answer.externalId, count: answer.booked }),
-        action: { label: t('openSession'), href: `/sessions/${answer.externalId}` },
+      // In the transition again (updates after an await leave it): the answer shows as the
+      // sending ends, never beside a button still sending.
+      startTransition(() => {
+        dispatch({ type: 'answered', answer, dryRun })
+        if (!answer.ok || dryRun) return
+        afterWrite()
+        toast({
+          title: t('created', { id: answer.externalId, count: answer.booked }),
+          action: { label: t('openSession'), href: `/sessions/${answer.externalId}` },
+        })
+        onCreated()
       })
-      onCreated()
     })
   }
 
