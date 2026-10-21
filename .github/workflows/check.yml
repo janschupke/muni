@@ -103,9 +103,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
-      # The test database with the seeded register the suites read.
-      - run: pnpm --filter @muni/db migrate:deploy
-      - run: pnpm --filter @muni/db exec tsx --conditions=react-server scripts/seed.ts
       - run: pnpm --filter @muni/web exec playwright install --with-deps chromium
       - run: pnpm --filter @muni/web build
       - run: pnpm --filter @muni/web exec playwright test --project=chromium --workers=1

@@ -1,8 +1,12 @@
 import type { Page } from '@playwright/test'
 
+import { seededMonth } from './support/register'
 import { baseUrlOf } from './support/server'
 import { expect, test } from './support/test'
 import { storageState } from './support/users'
+
+/** A month of the advisor's forecast with trainings lapsing in it, in today's frame. */
+const MONTH = seededMonth('2026-11-15')
 
 // The register as a viewer sees it: every page, read-only, personal data redacted.
 test.use({ storageState: storageState('viewer') })
@@ -223,10 +227,10 @@ test.describe('register (viewer)', () => {
     ).toBeVisible()
 
     // A month in the chart selects its trainings.
-    await page.getByRole('link', { name: /^November 2026/ }).click()
-    await expect(page).toHaveURL(/\/advisor\?bucket=2026-11$/)
+    await page.getByRole('link', { name: new RegExp(`^${MONTH.label}`) }).click()
+    await expect(page).toHaveURL(new RegExp(`/advisor\\?bucket=${MONTH.bucket}$`))
     await expect(
-      page.getByRole('heading', { name: /^November 2026: \d+ trainings?$/ })
+      page.getByRole('heading', { name: new RegExp(`^${MONTH.label}: \\d+ trainings?$`) })
     ).toBeVisible()
 
     // A count opens its view; viewers see the proposals but cannot save them.
@@ -285,11 +289,11 @@ test.describe('register (viewer)', () => {
     await page.getByRole('link', { name: /^Next/ }).click()
     await expect(page).toHaveURL(/\/advisor\?page=2$/)
     await expect(page.getByText(/^Page 2 of \d+$/)).toBeVisible()
-    await page.getByRole('link', { name: /^November 2026/ }).click()
-    await expect(page).toHaveURL(/\/advisor\?bucket=2026-11$/)
+    await page.getByRole('link', { name: new RegExp(`^${MONTH.label}`) }).click()
+    await expect(page).toHaveURL(new RegExp(`/advisor\\?bucket=${MONTH.bucket}$`))
     await expect(page.locator('tbody tr').first()).toBeVisible()
     // A page past the end shows the last one, with its rows.
-    await page.goto('/advisor?bucket=2026-11&page=9')
+    await page.goto(`/advisor?bucket=${MONTH.bucket}&page=9`)
     await expect(page.getByText(/^Page (\d+) of \1$/)).toBeVisible()
     await expect(page.locator('tbody tr').first()).toBeVisible()
   })
@@ -376,22 +380,33 @@ test.describe('register (viewer)', () => {
 
   test('no page scrolls sideways, from a phone to a wide screen', async ({ page }) => {
     await setLocale(page, 'en')
-    for (const width of [360, 390, 1024, 1920]) {
-      await page.setViewportSize({ width, height: 900 })
-      for (const path of [
-        '/',
-        '/employees',
-        '/compliance',
-        '/advisor',
-        '/planner',
-        '/rooms',
-        '/providers',
-      ]) {
-        await page.goto(path)
-        const { scrollWidth, clientWidth } = await page.evaluate(() => ({
-          scrollWidth: document.documentElement.scrollWidth,
-          clientWidth: document.documentElement.clientWidth,
-        }))
+    // Each page loaded once and resized through the widths: the layout follows the viewport
+    // (CSS and media queries), so a reload per width would only repeat the same page.
+    for (const path of [
+      '/',
+      '/employees',
+      '/compliance',
+      '/advisor',
+      '/planner',
+      '/rooms',
+      '/providers',
+    ]) {
+      await page.setViewportSize({ width: 360, height: 900 })
+      await page.goto(path)
+      for (const width of [360, 390, 1024, 1920]) {
+        await page.setViewportSize({ width, height: 900 })
+        // A frame, so what listens to the width (media queries in script) has answered.
+        const { scrollWidth, clientWidth } = await page.evaluate(
+          () =>
+            new Promise<{ scrollWidth: number; clientWidth: number }>(resolve => {
+              requestAnimationFrame(() => {
+                resolve({
+                  scrollWidth: document.documentElement.scrollWidth,
+                  clientWidth: document.documentElement.clientWidth,
+                })
+              })
+            })
+        )
         expect(scrollWidth, `${path} at ${String(width)}px`).toBeLessThanOrEqual(clientWidth)
       }
     }

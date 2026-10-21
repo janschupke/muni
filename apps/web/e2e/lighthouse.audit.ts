@@ -124,13 +124,23 @@ async function expectScores(name: string, route: string, url: string, port: numb
 }
 
 test('introduction page, signed out', async ({ baseURL }) => {
-  const browser = await chromium.launch({
+  // A development instance first sends a browser it has not seen to its own domain and back
+  // (Clerk's handshake, a second before the page is even asked for); production does not. One
+  // visit first, still signed out, so the audit measures the page and not that detour. The
+  // profile is persistent: Lighthouse's tabs open in its default context, which keeps it.
+  const signedOut = await mkdtemp(path.join(tmpdir(), 'muni-lighthouse-out-'))
+  const browser = await chromium.launchPersistentContext(signedOut, {
     args: [`--remote-debugging-port=${String(SIGNED_OUT_PORT)}`],
   })
   try {
+    const first = await browser.newPage()
+    await first.goto(`${baseUrlOf(baseURL)}/`)
+    await loaded(first)
+    await first.close()
     await expectScores('introduction', '/ (signed out)', `${baseUrlOf(baseURL)}/`, SIGNED_OUT_PORT)
   } finally {
     await browser.close()
+    await rm(signedOut, { recursive: true, force: true })
   }
 })
 

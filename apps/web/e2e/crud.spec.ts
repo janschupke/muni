@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test'
 
 import { expectNoViolations } from './support/a11y'
 import { removeE2eRecords } from './support/db'
+import { seededCzech } from './support/register'
 import { baseUrlOf } from './support/server'
 import { expect, test } from './support/test'
 import { storageState } from './support/users'
@@ -122,7 +123,7 @@ test('plans a session with the time picker, books a person, cancels, reinstates 
   await page.getByRole('combobox', { name: /Course/ }).click()
   await page.getByRole('option', { name: /^GDPR/ }).click()
   const date = page.getByRole('textbox', { name: /Date/ })
-  await date.fill('15.03.2027')
+  await date.fill(seededCzech('2027-03-15'))
   await date.blur()
   // Start from the lists: hour, then minute.
   await page.getByRole('button', { name: 'Choose Start from a list' }).click()
@@ -287,7 +288,7 @@ test('checks a session’s room and seats as they are typed, and changes its cou
   await page.getByRole('combobox', { name: /Provider/ }).click()
   await page.getByRole('option', { name: /^Interní školitel/ }).click()
   const date = page.getByRole('textbox', { name: /Date/ })
-  await date.fill('12.04.2027')
+  await date.fill(seededCzech('2027-04-12'))
   await date.blur()
   // A room never changes the seats: they are the user's to type.
   await page.getByRole('combobox', { name: /Room/ }).click()
@@ -510,7 +511,7 @@ test('a provider offers courses at prices, holds sessions of them, and stops onl
   await expect(page.getByRole('combobox', { name: /Provider/ })).toContainText('E2E dodavatel')
   await expect(page.getByRole('status', { name: 'Price per person' })).toHaveText(/300,00/)
   const date = page.getByRole('textbox', { name: /Date/ })
-  await date.fill('20.04.2027')
+  await date.fill(seededCzech('2027-04-20'))
   await date.blur()
   await pick(page, /Room/, /^Online/)
   await page.getByRole('textbox', { name: /^Seats/ }).fill('5')
@@ -523,7 +524,7 @@ test('a provider offers courses at prices, holds sessions of them, and stops onl
       .getByRole('row', { name: /Ochrana osobních údajů/ })
       .getByRole('cell', { name: '1', exact: true })
   ).toBeVisible()
-  await main.getByRole('link', { name: /20\.04\.2027/ }).click()
+  await main.getByRole('link', { name: seededCzech('2027-04-20') }).click()
   await expect(page).toHaveURL(/\/sessions\/S\d{3}$/)
   // Its provider among its facts (the way back names it too).
   const held = page.getByRole('definition').getByRole('link', { name: 'E2E dodavatel' })
@@ -594,14 +595,14 @@ test('a course sets what its sessions are; one is scheduled from its row, by a p
   // Its own seats, fewer than the course's.
   await seats.fill('6')
   const date = page.getByRole('textbox', { name: /Date/ })
-  await date.fill('21.04.2027')
+  await date.fill(seededCzech('2027-04-21'))
   await date.blur()
   await pick(page, /Room/, /^Učebna 1/)
   await save(page).click()
   // Back on the list it was scheduled from; the course has the session, with its own seats.
   await expect(page).toHaveURL(/\/courses$/)
   await page.goto('/courses/E2E-KURZ')
-  const row = page.getByRole('row', { name: /21\.04\.2027/ })
+  const row = page.getByRole('row', { name: seededCzech('2027-04-21') })
   await expect(row).toContainText('Učebna 1')
   await expect(row).toContainText(/0 of 6/)
 })

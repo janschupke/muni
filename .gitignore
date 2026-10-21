@@ -13,6 +13,7 @@ apps/web/playwright-report/
 apps/web/test-results/
 apps/web/visual-shots/
 apps/web/e2e/.auth/
+apps/web/e2e/.register/
 .clerk/
 .DS_Store
 next-env.d.ts

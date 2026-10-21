@@ -56,3 +56,19 @@ export async function removeE2eRecords(): Promise<void> {
     await db.$disconnect()
   }
 }
+
+/** Empties every table of the test database but the migrations' own, for a seed from scratch. */
+export async function emptyTestDb(): Promise<void> {
+  const db = createDb(TEST_DB)
+  try {
+    const tables = await db.$queryRaw<{ tablename: string }[]>`
+      SELECT tablename FROM pg_tables
+      WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`
+    if (tables.length > 0)
+      await db.$executeRawUnsafe(
+        `TRUNCATE ${tables.map(t => `"${t.tablename}"`).join(', ')} RESTART IDENTITY CASCADE`
+      )
+  } finally {
+    await db.$disconnect()
+  }
+}

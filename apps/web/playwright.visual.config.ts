@@ -21,7 +21,8 @@ export default defineConfig({
   reporter: [['list']],
   use: { baseURL: `http://localhost:${String(PORT)}`, reducedMotion: 'reduce' },
   projects: [
-    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    { name: 'register', testMatch: /register\.setup\.ts/ },
+    { name: 'setup', testMatch: /auth\.setup\.ts/, dependencies: ['register'] },
     { name: 'visual', testMatch: '**/*.shots.ts', dependencies: ['setup'] },
   ],
   webServer: productionServer(PORT),

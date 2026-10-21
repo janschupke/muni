@@ -3,6 +3,11 @@ import { expect, test as base } from '@playwright/test'
 
 export { expect }
 
+/** What the specs read of Clerk in the page. */
+interface ClerkWindow {
+  Clerk?: { loaded?: boolean; session?: { getToken(): Promise<string | null> } | null }
+}
+
 /**
  * Playwright's `test`, with Clerk's testing token on every page (Clerk's bot protection
  * would otherwise refuse the browser's requests to its Frontend API), every visit waiting
@@ -25,9 +30,22 @@ export const test = base.extend({
     // Pages arrive with their data from the server; a click before the app starts would
     // reload instead of navigating in the app. Every visit waits for the app to start.
     const goto = page.goto.bind(page)
+    let tokenFresh = false
     page.goto = async (url, options) => {
       const response = await goto(url, options)
       await page.locator('html[data-hydrated]').waitFor({ state: 'attached' })
+      // The stored sign-in's session token is long expired. The server renews it for a page
+      // load (a GET), but only Clerk in the browser writes a fresh one to the cookie; a save
+      // made before that posts the old token, and Clerk sends a POST to sign-in. A person is
+      // never that quick; a test is. Once written, Clerk keeps it fresh: only the first visit
+      // of a test waits.
+      if (!tokenFresh) {
+        await page.waitForFunction(() => (window as unknown as ClerkWindow).Clerk?.loaded === true)
+        await page.evaluate(async () => {
+          await (window as unknown as ClerkWindow).Clerk?.session?.getToken()
+        })
+        tokenFresh = true
+      }
       return response
     }
     await provide(page)

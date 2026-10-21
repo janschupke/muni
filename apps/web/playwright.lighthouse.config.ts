@@ -19,7 +19,8 @@ export default defineConfig({
   reporter: [['list']],
   use: { baseURL: `http://localhost:${String(PORT)}` },
   projects: [
-    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    { name: 'register', testMatch: /register\.setup\.ts/ },
+    { name: 'setup', testMatch: /auth\.setup\.ts/, dependencies: ['register'] },
     { name: 'lighthouse', testMatch: '**/*.audit.ts', dependencies: ['setup'] },
   ],
   webServer: productionServer(PORT),

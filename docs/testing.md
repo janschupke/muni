@@ -59,16 +59,21 @@ the `check` and `e2e` jobs. Vercel deploys whatever `master` holds, whether CI p
 
 ## Browser tests
 
-The browser suites run against `next start` and the seeded test database:
+The browser suites run against `next start` and the test database:
 
 ```sh
 pnpm db:up
-pnpm test:integration               # migrates, empties and seeds the test database
 pnpm --filter @muni/web build       # e2e, visual and Lighthouse run the production build
 pnpm test:e2e                       # or one spec: pnpm --filter @muni/web exec playwright test e2e/crud.spec.ts
 ```
 
 Rebuild after every source change; the suites do not.
+
+Each run starts with `apps/web/e2e/register.setup.ts`: it migrates the test database, empties
+it and seeds the register the suites read. The register is `data/import` with every date
+moved so that the day it is seen from (`E2E_AS_OF` in `apps/web/e2e/support/register.ts`) is
+today: what is ahead stays ahead, whatever the date, on every machine. Specs that type or
+name a date take it from the same frame (`seeded`, `seededCzech`, `seededMonth`).
 
 They sign in for real, through the Clerk development instance in `.env` (they refuse
 production keys): the setup project (`apps/web/e2e/auth.setup.ts`) creates three users if
@@ -77,9 +82,6 @@ to none, so the first sign-in has to fill it in), signs each in with `@clerk/tes
 saves the session in `apps/web/e2e/.auth/`. `access.spec.ts` checks what each role and a
 visitor get; `register.spec.ts` walks the register as a viewer; `crud.spec.ts` drives the
 forms, bookings, the planner and archiving as an admin.
-
-The seed's session dates are fixed. The e2e tests that need a session ahead use the latest
-ones (`T016`, `T018`); once those dates pass, the seed data needs new dates.
 
 ### Troubleshooting
 
@@ -174,4 +176,4 @@ What the gates enforce:
   - a word the [glossary](ui.md#glossary) replaced fails, in either locale.
 - **Git hooks**: `pnpm install` installs lefthook (`lefthook.yml`). A commit runs Prettier and each package's ESLint on the staged files only; everything else stays in `pnpm check` and CI.
 
-Playwright e2e and Lighthouse are not in `pnpm check` (they need browsers, a production build, the seeded test database and Clerk) but CI runs them in a second job, `e2e`: it migrates and seeds the test database, builds, installs Chromium and runs every e2e spec (access, a11y, crud, import, layout, lists, register) and Lighthouse; the visual shots are for review and stay local; on a failure it keeps the Playwright report and traces. Both jobs need the Clerk development keys as repository secrets, `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. The `check` job also runs `pnpm audit --prod --audit-level high`. Renovate (`renovate.json`) opens one pull request a week for minor and patch updates, and holds TypeScript below 7 and the prisma packages together.
+Playwright e2e and Lighthouse are not in `pnpm check` (they need browsers, a production build, the test database and Clerk) but CI runs them in a second job, `e2e`: it builds, installs Chromium and runs every e2e spec (the register setup migrates and seeds the database first) (access, a11y, crud, import, layout, lists, register) and Lighthouse; the visual shots are for review and stay local; on a failure it keeps the Playwright report and traces. Both jobs need the Clerk development keys as repository secrets, `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. The `check` job also runs `pnpm audit --prod --audit-level high`. Renovate (`renovate.json`) opens one pull request a week for minor and patch updates, and holds TypeScript below 7 and the prisma packages together.
