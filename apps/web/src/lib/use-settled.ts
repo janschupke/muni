@@ -2,23 +2,20 @@
 
 import { useEffect, useState } from 'react'
 
-/** How long a value must stay the same before it counts as settled: the user has paused. */
-export const SETTLE_MS = 400
-
 /**
- * `value` once it has stayed the same for SETTLE_MS, so a question asked of the server
- * waits for the user to pause; `undefined` until the first one settles. Compared with
- * `Object.is`, so pass a primitive (a key) rather than a new object each render.
+ * `value` once it has stayed the same for `pauseMs`, so a question asked of the server waits
+ * for the user to pause; `undefined` until the first one settles. Compared with `Object.is`,
+ * so pass a primitive (a key) rather than a new object each render.
  */
-export function useSettled<T>(value: T): T | undefined {
+export function useSettled<T>(value: T, pauseMs: number): T | undefined {
   const [settled, setSettled] = useState<{ value: T } | undefined>(undefined)
   useEffect(() => {
     const timer = setTimeout(() => {
       setSettled({ value })
-    }, SETTLE_MS)
+    }, pauseMs)
     return () => {
       clearTimeout(timer)
     }
-  }, [value])
+  }, [value, pauseMs])
   return settled?.value
 }

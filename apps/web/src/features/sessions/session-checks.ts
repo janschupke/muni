@@ -13,6 +13,9 @@ import { checkSessionSlotAction } from '@/server/actions/sessions'
 // What the session form and the planner's review both check as the user types: the same rule
 // says the same thing on both screens.
 
+/** How long the slot must stay the same before the room is asked about. */
+const ROOM_CHECK_PAUSE_MS = 400
+
 interface Slot {
   roomId: string
   date: string
@@ -30,7 +33,7 @@ interface Slot {
 function useRoomBusy(slot: Slot | null, self: string | null): boolean {
   const key = slot && `${slot.roomId}|${slot.date}|${slot.startTime}|${slot.endTime}`
   // Asked only once the slot has stayed the same for a moment: not at every keystroke.
-  const settled = useSettled(key)
+  const settled = useSettled(key, ROOM_CHECK_PAUSE_MS)
   const [answer, setAnswer] = useState<{ key: string; busy: boolean } | null>(null)
   const roomId = slot?.roomId
   const date = slot?.date

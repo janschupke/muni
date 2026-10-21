@@ -1,7 +1,9 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SETTLE_MS, useSettled } from './use-settled'
+import { useSettled } from './use-settled'
+
+const PAUSE = 400
 
 // @vitest-environment jsdom
 
@@ -15,26 +17,26 @@ afterEach(() => {
 
 describe('useSettled', () => {
   it('gives a value once it has stayed the same for the pause, and nothing before', () => {
-    const { result } = renderHook(({ value }) => useSettled(value), {
+    const { result } = renderHook(({ value }) => useSettled(value, PAUSE), {
       initialProps: { value: 'a' },
     })
     expect(result.current).toBeUndefined()
     act(() => {
-      vi.advanceTimersByTime(SETTLE_MS)
+      vi.advanceTimersByTime(PAUSE)
     })
     expect(result.current).toBe('a')
   })
 
   it('starts the pause again on every change: only the last value settles', () => {
-    const { result, rerender } = renderHook(({ value }) => useSettled(value), {
+    const { result, rerender } = renderHook(({ value }) => useSettled(value, PAUSE), {
       initialProps: { value: 'a' },
     })
     act(() => {
-      vi.advanceTimersByTime(SETTLE_MS - 1)
+      vi.advanceTimersByTime(PAUSE - 1)
     })
     rerender({ value: 'b' })
     act(() => {
-      vi.advanceTimersByTime(SETTLE_MS - 1)
+      vi.advanceTimersByTime(PAUSE - 1)
     })
     // 'a' never settled; 'b' has not yet.
     expect(result.current).toBeUndefined()
