@@ -22,6 +22,7 @@ test('reviews the raw exports: a mistyped course, an impossible date and a copy 
   await page.goto('/import')
   await loaded(page)
   await page
+    .getByRole('main')
     .locator('input[type=file]')
     .setInputFiles(['katalog_skoleni.csv', 'terminy_skoleni.csv'].map(f => path.join(DATA, f)))
   await expect(page.getByRole('button', { name: /^Remove / })).toHaveCount(2)
@@ -43,6 +44,7 @@ test('imports the register’s files: reviewed, confirmed, written, and nothing 
   await page.goto('/import')
   await loaded(page)
   await page
+    .getByRole('main')
     .locator('input[type=file]')
     .setInputFiles(
       [

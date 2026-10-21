@@ -2,7 +2,7 @@ import path from 'node:path'
 
 import type { Page } from '@playwright/test'
 
-import { APP_PAGES, loaded, pathOf } from './support/pages'
+import { APP_PAGES, holdPage, loaded, pathOf, pointAt } from './support/pages'
 import { clerkLoaded, expect, test } from './support/test'
 import { storageState } from './support/users'
 
@@ -309,6 +309,7 @@ for (const theme of ['light', 'dark'] as const) {
       await loaded(page)
       const data = path.join(import.meta.dirname, '../../../data')
       await page
+        .getByRole('main')
         .locator('input[type=file]')
         .setInputFiles(
           ['katalog_skoleni.csv', 'zamestnanci.csv', 'terminy_skoleni.csv'].map(f =>
@@ -433,6 +434,23 @@ for (const theme of ['light', 'dark'] as const) {
         })
       ).toBeVisible()
       await shot(page, 'toast-failure', false)
+    })
+
+    test('a page as a click opens it, before its data', async ({ page }) => {
+      // The page's own answer is held back: what shows is its loading state, fetched as the
+      // pointer reached the menu link.
+      const release = await holdPage(page, '/employees')
+      await page.goto('/')
+      await loaded(page)
+      const link = page
+        .getByRole('navigation', { name: 'Main navigation' })
+        .getByRole('link', { name: 'Employees' })
+      await pointAt(link, '/employees')
+      await link.click()
+      await expect(page.getByRole('main').getByRole('status')).toHaveAttribute('aria-busy', 'true')
+      await shot(page, 'loading-employees', false)
+      release()
+      await expect(page.getByRole('main').getByRole('table')).toBeVisible()
     })
   })
 }

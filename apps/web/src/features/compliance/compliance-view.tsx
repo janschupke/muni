@@ -7,10 +7,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
 import { ReadView } from '@/components/views/read-view'
-import { TableSkeleton } from '@/components/views/skeletons'
+import { PageLoading, TableSkeleton } from '@/components/views/skeletons'
 import { readQuery } from '@/lib/query/queries'
 
 import { ComplianceMatrixTable } from './compliance-matrix'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <TableSkeleton rows={10} columns={8} />
 
 /** Every course against every department, and each department's people. */
 export function ComplianceView({ canBook }: { canBook: boolean }) {
@@ -23,7 +26,7 @@ export function ComplianceView({ canBook }: { canBook: boolean }) {
         title={t('title')}
         description={asOf ? t('descriptionOn', { date: formatDate(asOf) }) : t('description')}
       />
-      <ReadView titled query={read} skeleton={<TableSkeleton rows={10} columns={8} />}>
+      <ReadView titled query={read} skeleton={SKELETON}>
         {matrix =>
           matrix.courses.length === 0 ? (
             <EmptyState title={t('empty')} />
@@ -33,5 +36,15 @@ export function ComplianceView({ canBook }: { canBook: boolean }) {
         }
       </ReadView>
     </>
+  )
+}
+
+/** The page until its data is there (its route's `loading.tsx`): its heading, then the rows. */
+export function ComplianceLoading() {
+  const t = useTranslations('compliance')
+  return (
+    <PageLoading title={t('title')} description={t('description')}>
+      {SKELETON}
+    </PageLoading>
   )
 }

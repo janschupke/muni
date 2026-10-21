@@ -11,12 +11,12 @@ import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger, formatPercent } from '@muni/utils/format'
 import { History } from 'lucide-react'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { Link } from '@/components/navigation/link'
 import { ReadView } from '@/components/views/read-view'
 import { RecordHeader, useRecordRead } from '@/components/views/record-view'
-import { DetailSkeleton } from '@/components/views/skeletons'
+import { DetailSkeleton, PageLoading } from '@/components/views/skeletons'
 import { CapabilityList, RoomKindBadge } from '@/features/rooms/room-badges'
 import { RoomFitTable } from '@/features/rooms/room-fit-table'
 import { SessionTable } from '@/features/sessions/session-table'
@@ -24,12 +24,15 @@ import { SESSION_SORT } from '@/lib/list/list-keys'
 import { type PageInfo, useListUrl } from '@/lib/list/use-list-url'
 import type { ReadOutput } from '@/server/reads/core/registry'
 
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <DetailSkeleton />
+
 /** A room's page: what it holds and has, a page of its sessions ahead, the courses it fits. */
 export function RoomView({ id, canEdit }: { id: string; canEdit: boolean }) {
   const sessions = useListUrl(SESSION_SORT, { id: 'date', desc: false }, 'sessions')
   const read = useRecordRead('room', { id, ...sessions.input }, room => room.name)
   return (
-    <ReadView query={read} skeleton={<DetailSkeleton />} entity="rooms">
+    <ReadView query={read} skeleton={SKELETON} entity="rooms">
       {data => <RoomDetail data={data} canEdit={canEdit} paging={sessions.paging} />}
     </ReadView>
   )
@@ -127,4 +130,9 @@ function RoomDetail({
       )}
     </>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function RoomLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

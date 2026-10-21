@@ -5,10 +5,10 @@ import { createDataColumns, DataTable } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatInteger } from '@muni/utils/format'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { Link } from '@/components/navigation/link'
 import { actionsColumn } from '@/components/table/table-columns'
 import { ScheduleSessionButton } from '@/features/sessions/schedule-button'
 

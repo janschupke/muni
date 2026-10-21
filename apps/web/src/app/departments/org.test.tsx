@@ -30,22 +30,22 @@ import {
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
+import PositionsPage from '../positions/(index)/page'
+import PositionPage from '../positions/[id]/(index)/page'
 import PositionBookingsPage, {
   generateMetadata as positionBookingsMetadata,
 } from '../positions/[id]/bookings/page'
 import EditPositionPage, {
   generateMetadata as editPositionMetadata,
 } from '../positions/[id]/edit/page'
-import PositionPage from '../positions/[id]/page'
 import NewPositionPage, { generateMetadata as newPositionMetadata } from '../positions/new/page'
-import PositionsPage from '../positions/page'
+import DepartmentsPage, { generateMetadata as departmentsMetadata } from './(index)/page'
+import DepartmentPage, { generateMetadata as departmentMetadata } from './[id]/(index)/page'
 import DepartmentBookingsPage, {
   generateMetadata as departmentBookingsMetadata,
 } from './[id]/bookings/page'
 import EditDepartmentPage, { generateMetadata as editDepartmentMetadata } from './[id]/edit/page'
-import DepartmentPage, { generateMetadata as departmentMetadata } from './[id]/page'
 import NewDepartmentPage, { generateMetadata as newDepartmentMetadata } from './new/page'
-import DepartmentsPage, { generateMetadata as departmentsMetadata } from './page'
 
 /**
  * The people list is full width: it sits outside the grid that holds the facts card and the

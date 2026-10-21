@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl'
 
 import { formShell, useFormRead } from '@/components/form/form-view'
 import { ReadView } from '@/components/views/read-view'
-import { FormSkeleton } from '@/components/views/skeletons'
+import { FormSkeleton, PageLoading } from '@/components/views/skeletons'
 import { ProviderForm } from '@/features/providers/provider-form'
 import { saveProvider } from '@/server/actions/providers'
 
@@ -19,12 +19,15 @@ const EMPTY = {
   offerings: [],
 }
 
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <FormSkeleton fields={8} />
+
 /** A new provider (no `id`), or one to edit, with the courses it can offer. */
 export function ProviderFormView({ id }: { id?: string | undefined }) {
   const t = useTranslations()
   const read = useFormRead('provider-form', { id })
   return (
-    <ReadView query={read} skeleton={<FormSkeleton fields={8} />} entity="providers">
+    <ReadView query={read} skeleton={SKELETON} entity="providers">
       {({ provider, courses }) =>
         provider && id ? (
           <ProviderForm
@@ -51,4 +54,9 @@ export function ProviderFormView({ id }: { id?: string | undefined }) {
       }
     </ReadView>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function ProviderFormLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

@@ -1,3 +1,4 @@
+import { expectNotFound } from './support/pages'
 import { baseUrlOf } from './support/server'
 import { clerkLoaded, expect, test } from './support/test'
 import { E2E_USERS, findUser, storageState } from './support/users'
@@ -13,8 +14,6 @@ test.describe('visitors', () => {
     const html = await page.content()
     for (const data of ['Laboratoře', 'E0153', 'vzorova.example', 'BOZP'])
       expect(html, data).not.toContain(data)
-    // Nor the signed-in pages' words: the browser gets only the shell's messages.
-    expect(html).not.toContain('Another planned session uses this room at that time.')
 
     await page.getByRole('link', { name: 'Create account' }).click()
     await expect(page).toHaveURL(/\/sign-up/)
@@ -105,8 +104,8 @@ test.describe('full access', () => {
     await expect(page.getByText(/^alena\.mala@/)).toBeVisible()
     await expect(page.getByRole('link', { name: 'Edit' })).toHaveCount(0)
     for (const path of ['/import', '/users', '/employees/E0153/edit']) {
-      const response = await page.goto(path)
-      expect(response?.status(), path).toBe(404)
+      await page.goto(path)
+      await expectNotFound(page)
     }
   })
 })

@@ -7,9 +7,10 @@ import { type TablePaging } from '@muni/ui/data-table'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import dynamic from 'next/dynamic'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
+
+import { Link } from '@/components/navigation/link'
 
 import { OfferTable } from './offer-table'
 

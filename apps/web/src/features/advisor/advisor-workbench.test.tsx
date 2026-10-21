@@ -8,9 +8,9 @@ import {
 } from '@muni/domain/advisor'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import Link from 'next/link'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { Link } from '@/components/navigation/link'
 import { renderClient } from '@/test/render'
 
 import { AdvisorWorkbench } from './advisor-workbench'

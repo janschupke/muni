@@ -13,7 +13,7 @@ import { useTranslations } from 'next-intl'
 import { EmailLink } from '@/components/badges/email-link'
 import { ReadView } from '@/components/views/read-view'
 import { RecordHeader, useRecordRead } from '@/components/views/record-view'
-import { DetailSkeleton } from '@/components/views/skeletons'
+import { DetailSkeleton, PageLoading } from '@/components/views/skeletons'
 import { SessionTable } from '@/features/sessions/session-table'
 import { COMPLETION_SORT, PROVIDER_COURSE_SORT, SESSION_SORT } from '@/lib/list/list-keys'
 import { type PageInfo, useListUrl } from '@/lib/list/use-list-url'
@@ -22,6 +22,9 @@ import type { ReadOutput } from '@/server/reads/core/registry'
 import { ProviderCompletionsTable } from './provider-completions-table'
 import { ProviderCoursesTable } from './provider-courses-table'
 import { ProviderOfferingsTable } from './provider-offerings-table'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <DetailSkeleton />
 
 /**
  * A provider's page: its details and totals, what it offers, and a page each of its sessions
@@ -37,7 +40,7 @@ export function ProviderView({ id, canEdit }: { id: string; canEdit: boolean }) 
     provider => provider.name
   )
   return (
-    <ReadView query={read} skeleton={<DetailSkeleton />} entity="providers">
+    <ReadView query={read} skeleton={SKELETON} entity="providers">
       {data => (
         <ProviderDetail
           data={data}
@@ -202,4 +205,9 @@ function ProviderDetail({
       )}
     </>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function ProviderLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

@@ -1,8 +1,9 @@
 import type { Archivable } from '@muni/domain/archive'
 import { Button } from '@muni/ui/button'
 import { Archive } from 'lucide-react'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+
+import { Link } from '@/components/navigation/link'
 
 import { archivedListPath } from './paths'
 

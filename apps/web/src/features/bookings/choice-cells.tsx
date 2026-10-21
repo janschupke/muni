@@ -6,9 +6,9 @@ import { Badge } from '@muni/ui/badge'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDate } from '@muni/utils/format'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
+import { Link } from '@/components/navigation/link'
 import { RoomLink, SessionDateLink } from '@/features/sessions/session-links'
 
 /** A new session of the training's course: its form returns to the page that asked. */

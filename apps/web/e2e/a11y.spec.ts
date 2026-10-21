@@ -249,6 +249,7 @@ test.describe('accessibility', () => {
     await loaded(page)
     const data = path.join(import.meta.dirname, '../../../data')
     await page
+      .getByRole('main')
       .locator('input[type=file]')
       .setInputFiles(
         ['katalog_skoleni.csv', 'zamestnanci.csv', 'terminy_skoleni.csv'].map(f =>

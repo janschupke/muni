@@ -60,8 +60,9 @@ export async function titleOf<N extends ReadName>(
 
 /**
  * Runs a page's reads on the server and hands the answers to the browser's read cache, so the
- * page paints with its data and the view's first query asks nothing. The page awaits it, so
- * a record that is not there is the page's 404 (the status too, before anything is sent).
+ * page paints with its data and the view's first query asks nothing. The page awaits it,
+ * behind its loading state (`loading.tsx`), so a record that is not there is the page's
+ * not-found page; the answer has started by then, so it is 200, marked `noindex`.
  * Anything else (past the read limit, a failure) leaves the read to the browser, which shows
  * its own message and a way to try again.
  */

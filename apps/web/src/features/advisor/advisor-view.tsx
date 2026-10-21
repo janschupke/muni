@@ -6,7 +6,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
 import { ReadView } from '@/components/views/read-view'
-import { AdvisorSkeleton } from '@/components/views/skeletons'
+import { AdvisorSkeleton, PageLoading } from '@/components/views/skeletons'
 import { ADVISOR_SORT } from '@/lib/list/list-keys'
 import { advisorInput } from '@/lib/list/read-inputs'
 import { useListUrl } from '@/lib/list/use-list-url'
@@ -18,6 +18,9 @@ import type { AdvisorView as View } from './labels'
 
 /** The plan arrives packed (each session once). */
 const unpacked = ({ plan, ...rest }: ReadOutput<'advisor'>) => ({ ...rest, plan: unpack(plan) })
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <AdvisorSkeleton />
 
 /**
  * The advisor: its plan, in the view and row the address asks for (`?view=`, `?bucket=`),
@@ -43,7 +46,7 @@ export function AdvisorView({
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
-      <ReadView titled query={read} skeleton={<AdvisorSkeleton />}>
+      <ReadView titled query={read} skeleton={SKELETON}>
         {({ plan, asOf, bucket: row, page, counts }) => (
           <AdvisorWorkbench
             plan={plan}
@@ -58,5 +61,15 @@ export function AdvisorView({
         )}
       </ReadView>
     </>
+  )
+}
+
+/** The page until its data is there (its route's `loading.tsx`): its heading, then the rows. */
+export function AdvisorLoading() {
+  const t = useTranslations('advisor')
+  return (
+    <PageLoading title={t('title')} description={t('description')}>
+      {SKELETON}
+    </PageLoading>
   )
 }

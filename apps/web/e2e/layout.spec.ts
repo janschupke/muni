@@ -23,6 +23,8 @@ async function expectOpenedRowFills(page: Page, path: string) {
   await page.locator('tbody button[aria-expanded="false"]').first().click()
   const inset = page.locator('tbody tr > td[colspan] .sticky').first()
   await expect(inset).toBeVisible()
+  // The opened row reads its own data: measured once it is there, not its skeleton.
+  await expect(inset.locator('[aria-busy="true"]')).toHaveCount(0)
   // The table's frame inside its 1px border.
   const inner = await inset.locator('xpath=ancestor::table/..').evaluate(el => el.clientWidth)
   const padding = await box(inset)

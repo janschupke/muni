@@ -2,9 +2,9 @@ import type { CourseCompliance } from '@muni/db/repositories'
 import { BarRow } from '@muni/ui/bar-row'
 import { Table, TableContainer, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
+import { Link } from '@/components/navigation/link'
 import { ComplianceBar, useHeldText } from '@/features/compliance/compliance-breakdown'
 import { RequirementList } from '@/features/courses/requirement-list'
 

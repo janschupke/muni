@@ -2,6 +2,7 @@
 
 import { surfaceClass } from '@muni/ui/card'
 import { cn } from '@muni/ui/cn'
+import { PageHeader } from '@muni/ui/page-header'
 import { Skeleton, SkeletonText } from '@muni/ui/skeleton'
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
@@ -16,6 +17,33 @@ export function LoadingRegion({ children }: { children: ReactNode }) {
       <span className="sr-only">{t('loading')}</span>
       {children}
     </div>
+  )
+}
+
+/**
+ * A page as it shows until its data is there: the heading it has before its data (a list's,
+ * the advisor's), then its skeleton. A route shows it at once on a click (its `loading.tsx`),
+ * and the page's view shows the same until its first answer, so one replaces the other in
+ * place.
+ */
+export function PageLoading({
+  title,
+  description,
+  eyebrow,
+  children,
+}: {
+  title?: ReactNode
+  description?: string | undefined
+  eyebrow?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <>
+      {title !== undefined && (
+        <PageHeader title={title} description={description} eyebrow={eyebrow} />
+      )}
+      <LoadingRegion>{children}</LoadingRegion>
+    </>
   )
 }
 
@@ -205,5 +233,20 @@ export function DashboardSkeleton() {
         <CardSkeleton lines={8} className="lg:col-span-2" />
       </div>
     </>
+  )
+}
+
+/** Clerk's sign-in or sign-up form, centred as the page holds it, until Clerk draws it. */
+export function AuthFormSkeleton() {
+  return (
+    <div className="flex justify-center py-8">
+      <div className={cn(surfaceClass, 'flex w-full max-w-sm flex-col gap-4 p-8')}>
+        <Skeleton className="mx-auto h-6 w-40" />
+        <Skeleton className="mx-auto h-4 w-56 max-w-full" />
+        <Skeleton className="mt-4 h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+      </div>
+    </div>
   )
 }

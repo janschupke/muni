@@ -7,9 +7,9 @@ import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { Table, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDate, PLACEHOLDER } from '@muni/utils/format'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
+import { Link } from '@/components/navigation/link'
 import { RoomLink } from '@/features/sessions/session-links'
 
 /** An opened offer: the people it is for, and the other rooms free at its slot. */

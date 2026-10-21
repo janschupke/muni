@@ -7,13 +7,16 @@ import { useTranslations } from 'next-intl'
 
 import { ReadView } from '@/components/views/read-view'
 import { RecordHeader, useRecordRead } from '@/components/views/record-view'
-import { DetailSkeleton } from '@/components/views/skeletons'
+import { DetailSkeleton, PageLoading } from '@/components/views/skeletons'
 import { SessionBookings } from '@/features/sessions/session-bookings'
 import { SessionFacts } from '@/features/sessions/session-details'
 import { sessionTitle } from '@/lib/format/titles'
 import type { ReadOutput } from '@/server/reads/core/registry'
 
 import { sessionTarget } from './session-target'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <DetailSkeleton />
 
 /**
  * A session's page: everything its opened row shows (when, the room against what the course
@@ -31,7 +34,7 @@ export function SessionView({
 }) {
   const read = useRecordRead('session', { externalId }, data => sessionTitle(data.session))
   return (
-    <ReadView query={read} skeleton={<DetailSkeleton />} entity="sessions">
+    <ReadView query={read} skeleton={SKELETON} entity="sessions">
       {data => <SessionDetail {...data} canEdit={canEdit} employee={employee} />}
     </ReadView>
   )
@@ -85,4 +88,9 @@ function SessionDetail({
       />
     </>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function SessionLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

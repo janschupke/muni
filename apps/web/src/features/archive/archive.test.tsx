@@ -5,26 +5,26 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import ArchivedCompletions from '@/app/completions/archived/(index)/page'
 import ArchivedCompletion from '@/app/completions/archived/[id]/page'
-import ArchivedCompletions from '@/app/completions/archived/page'
+import ArchivedCourses from '@/app/courses/archived/(index)/page'
 import ArchivedCourse from '@/app/courses/archived/[id]/page'
-import ArchivedCourses from '@/app/courses/archived/page'
+import ArchivedDepartments from '@/app/departments/archived/(index)/page'
 import ArchivedDepartment from '@/app/departments/archived/[id]/page'
-import ArchivedDepartments from '@/app/departments/archived/page'
-import ArchivedEmployee from '@/app/employees/archived/[id]/page'
 import ArchivedEmployees, {
   generateMetadata as employeesMetadata,
-} from '@/app/employees/archived/page'
+} from '@/app/employees/archived/(index)/page'
+import ArchivedEmployee from '@/app/employees/archived/[id]/page'
+import ArchivedPositions from '@/app/positions/archived/(index)/page'
 import ArchivedPosition from '@/app/positions/archived/[id]/page'
-import ArchivedPositions from '@/app/positions/archived/page'
+import ArchivedProviders from '@/app/providers/archived/(index)/page'
 import ArchivedProvider from '@/app/providers/archived/[id]/page'
-import ArchivedProviders from '@/app/providers/archived/page'
+import ArchivedRooms from '@/app/rooms/archived/(index)/page'
 import ArchivedRoom from '@/app/rooms/archived/[id]/page'
-import ArchivedRooms from '@/app/rooms/archived/page'
+import ArchivedSessions from '@/app/sessions/archived/(index)/page'
 import ArchivedSession from '@/app/sessions/archived/[id]/page'
-import ArchivedSessions from '@/app/sessions/archived/page'
+import ArchivedUsers from '@/app/users/archived/(index)/page'
 import ArchivedUser from '@/app/users/archived/[id]/page'
-import ArchivedUsers from '@/app/users/archived/page'
 import { ConfirmArchiveButton } from '@/features/archive/confirm-archive-button'
 import { UnarchiveButton } from '@/features/archive/unarchive-button'
 import { archiveAction, previewArchive, unarchiveAction } from '@/server/actions/archive'
@@ -68,7 +68,8 @@ beforeEach(() => {
 describe('archived lists', () => {
   it('each kind has its archived list, named after it', async () => {
     const pages = import.meta.glob<{ generateMetadata: () => Promise<{ title: string }> }>(
-      '@/app/*/archived/page.tsx',
+      // A route group's parentheses are glob syntax: escaped to match the folder.
+      '@/app/*/archived/\\(index\\)/page.tsx',
       { eager: true }
     )
     const titles = await Promise.all(Object.values(pages).map(page => page.generateMetadata()))

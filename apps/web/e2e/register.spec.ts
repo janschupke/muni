@@ -1,4 +1,5 @@
 import { activeProviders } from './support/db'
+import { expectNotFound, holdPage, loaded, pointAt } from './support/pages'
 import { columnTexts, expectSortedColumn } from './support/paging'
 import { seededMonth } from './support/register'
 import { expect, test } from './support/test'
@@ -330,6 +331,28 @@ test.describe('register (viewer)', () => {
     await expect(nav.getByRole('link', { name: 'Courses' })).toHaveText('Courses')
   })
 
+  test('a menu click shows the next page at once, and its data as it comes', async ({ page }) => {
+    // The page's own answer is held back: what shows meanwhile is the loading state the menu
+    // fetched as the pointer reached the link, never the old page waiting.
+    const release = await holdPage(page, '/employees')
+    await page.goto('/')
+    await loaded(page)
+    const link = page
+      .getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('link', { name: 'Employees' })
+    await pointAt(link, '/employees')
+    await link.click()
+    // At once: a second is far more than a click in the app takes, and far less than a wait.
+    await expect(page).toHaveURL(/\/employees$/, { timeout: 1000 })
+    await expect(page.getByRole('heading', { level: 1, name: 'Employees' })).toBeVisible({
+      timeout: 1000,
+    })
+    await expect(page.getByRole('main').getByRole('status')).toHaveAttribute('aria-busy', 'true')
+    release()
+    await expect(page.getByRole('main').getByRole('table')).toBeVisible()
+    await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
+  })
+
   test('the language switch turns the page into the other language, and the next pages follow', async ({
     page,
   }) => {
@@ -402,9 +425,10 @@ test.describe('register (viewer)', () => {
   })
 
   test('a missing record says which one, and leads back to its list', async ({ page }) => {
-    const response = await page.goto('/employees/E9999')
-    expect(response?.status()).toBe(404)
-    await expect(page.getByRole('heading', { level: 1, name: 'Employee not found' })).toBeVisible()
+    await page.goto('/employees/E9999')
+    await expectNotFound(page, 'Employee not found')
+    // An address no route matches has no page to stream: that one still answers 404.
+    expect((await page.request.get('/no-such-page')).status()).toBe(404)
     await expect(page.getByText('There is no employee E9999 in the register.')).toBeVisible()
     await expect(page.getByRole('link', { name: 'All employees' })).toHaveAttribute(
       'href',
@@ -412,7 +436,7 @@ test.describe('register (viewer)', () => {
     )
   })
 
-  test('edit, import and user pages are 404 for viewers', async ({ page }) => {
+  test('edit, import and user pages are not found for viewers', async ({ page }) => {
     for (const path of [
       '/import',
       '/users',
@@ -421,8 +445,8 @@ test.describe('register (viewer)', () => {
       '/employees/E0001/edit',
       '/providers/new',
     ]) {
-      const response = await page.goto(path)
-      expect(response?.status(), path).toBe(404)
+      await page.goto(path)
+      await expectNotFound(page)
     }
   })
 

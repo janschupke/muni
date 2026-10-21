@@ -6,9 +6,9 @@ import { compareUrgency, complianceOf } from '@muni/domain/compliance'
 import { Dialog } from '@muni/ui/dialog'
 import { TextLink } from '@muni/ui/text-link'
 import { BookOpen, Users } from 'lucide-react'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { Link } from '@/components/navigation/link'
 import { BookNeedButton } from '@/features/bookings/book-button'
 import { formatRate } from '@/lib/format/format-rate'
 

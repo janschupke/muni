@@ -4,11 +4,14 @@ import { EMPLOYEE_SORT_KEYS } from '@muni/domain/enums'
 import { useTranslations } from 'next-intl'
 
 import { ListView, useListRead } from '@/components/views/list-view'
-import { ListSkeleton } from '@/components/views/skeletons'
+import { ListSkeleton, PageLoading } from '@/components/views/skeletons'
 import { EmployeeFilters } from '@/features/employees/employee-filters'
 import { EmployeesTable } from '@/features/employees/employees-table'
 import { type EmployeeListFilters, employeesListInput } from '@/lib/list/read-inputs'
 import { useListUrl } from '@/lib/list/use-list-url'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <ListSkeleton columns={6} />
 
 /**
  * The employee list as the address asks for it (filters, sort, page). Changing them keeps the
@@ -34,7 +37,7 @@ export function EmployeesView({
       canEdit={canEdit}
       create={{ href: '/employees/new', label: t('new') }}
       read={useListRead('employees-list', employeesListInput(filters, list.input))}
-      skeleton={<ListSkeleton columns={6} />}
+      skeleton={SKELETON}
       totalOf={({ result }) => result.total}
       above={({ result, departments, positions, managerName }) => (
         <EmployeeFilters
@@ -59,5 +62,15 @@ export function EmployeesView({
         />
       )}
     </ListView>
+  )
+}
+
+/** The page until its data is there (its route's `loading.tsx`): its heading, then the rows. */
+export function EmployeesLoading() {
+  const t = useTranslations('employees')
+  return (
+    <PageLoading title={t('title')} description={t('description')}>
+      {SKELETON}
+    </PageLoading>
   )
 }

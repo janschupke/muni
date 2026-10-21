@@ -12,11 +12,11 @@ const read = (path: string) => parseEnv(readFileSync(new URL(path, import.meta.u
 export const TEST_DB = read('../../../../packages/db/.env.test')['DATABASE_URL'] ?? ''
 
 /**
- * The specs that create, book and archive: each on a database and a server of its own,
- * seeded like the readers' (register.setup.ts), so none sees what another wrote and all run
- * at once.
+ * The specs that create, book and archive, and the sign-in, whose timing a server shared with
+ * the readers would skew: each on a database and a server of its own, seeded like the readers'
+ * (register.setup.ts), so none sees what another wrote and all run at once.
  */
-export const WRITERS = ['crud', 'bookings', 'lists', 'import'] as const
+export const WRITERS = ['crud', 'bookings', 'lists', 'import', 'signin'] as const
 export type Writer = (typeof WRITERS)[number]
 
 /**

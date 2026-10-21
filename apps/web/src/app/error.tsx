@@ -3,10 +3,11 @@
 import { Button } from '@muni/ui/button'
 import { PageMessage } from '@muni/ui/page-message'
 import { House, RotateCw, ServerCrash } from 'lucide-react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useEffect, useTransition } from 'react'
+
+import { Link } from '@/components/navigation/link'
 
 /**
  * A page that failed to render, inside the app frame. The error is logged; its digest (the

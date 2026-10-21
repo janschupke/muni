@@ -5,8 +5,9 @@ import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { Legend } from '@muni/ui/charts/legend'
 import { StackedBar } from '@muni/ui/charts/stacked-bar'
 import { cn } from '@muni/ui/cn'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+
+import { Link } from '@/components/navigation/link'
 
 import { advisorHref, REMEDIATION_FILL, useBucketName } from './labels'
 

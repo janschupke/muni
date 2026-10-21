@@ -4,9 +4,10 @@ import { Button } from '@muni/ui/button'
 import { PageMessage } from '@muni/ui/page-message'
 import { TextLink } from '@muni/ui/text-link'
 import { ArrowLeft, House, SearchX } from 'lucide-react'
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+
+import { Link } from '@/components/navigation/link'
 
 /** The lists everyone signed in can open: where a lost reader can go next. */
 const LISTS = [

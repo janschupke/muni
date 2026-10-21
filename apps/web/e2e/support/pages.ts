@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
 import { firstRecordPath, type SeededRecord } from './db'
 
@@ -94,3 +94,55 @@ export async function loaded(page: Page): Promise<void> {
 
 /** A form's own submit button, on its heading row ("Create department", "Save changes"). */
 export const save = (page: Page) => page.getByRole('main').locator('form button[type="submit"]')
+
+/**
+ * The not-found page in place of the one asked for: a record that is not there, or a page the
+ * role may not see. The page streams in behind its loading state, so the answer is already
+ * under way (200) when the page finds out: Next marks it `noindex` instead of a 404 status.
+ */
+export async function expectNotFound(
+  page: Page,
+  // "Page not found", or the record's own ("Employee not found") under a record's address.
+  heading: string | RegExp = / not found$/
+): Promise<void> {
+  await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible()
+  await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached()
+}
+
+/**
+ * Holds back the page at `pathname` when the app navigates to it (its prefetches pass), until
+ * the returned release: meanwhile the screen shows what the click shows before the page's
+ * own answer, its loading state.
+ */
+export async function holdPage(page: Page, pathname: string): Promise<() => void> {
+  const { promise: held, resolve } = Promise.withResolvers<undefined>()
+  await page.route(
+    url => url.pathname === pathname,
+    async route => {
+      const headers = route.request().headers()
+      if (headers['rsc'] === '1' && headers['next-router-prefetch'] === undefined) await held
+      await route.continue()
+    }
+  )
+  return () => {
+    resolve(undefined)
+  }
+}
+
+/**
+ * Points at a menu link and waits until its page's loading state is in the browser: the menu
+ * prefetches on the pointer (IntentLink), first the route's tree, then its segments down to
+ * the loading state (the request that carries the router's state tree).
+ */
+export async function pointAt(link: Locator, pathname: string): Promise<void> {
+  const fetched = link.page().waitForResponse(response => {
+    const headers = response.request().headers()
+    return (
+      new URL(response.url()).pathname === pathname &&
+      headers['next-router-prefetch'] !== undefined &&
+      headers['next-router-state-tree'] !== undefined
+    )
+  })
+  await link.hover()
+  await fetched
+}

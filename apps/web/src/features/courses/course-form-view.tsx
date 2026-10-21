@@ -4,16 +4,19 @@ import { useTranslations } from 'next-intl'
 
 import { formShell, useFormRead } from '@/components/form/form-view'
 import { ReadView } from '@/components/views/read-view'
-import { FormSkeleton } from '@/components/views/skeletons'
+import { FormSkeleton, PageLoading } from '@/components/views/skeletons'
 import { CourseForm } from '@/features/courses/course-form'
 import { saveCourse } from '@/server/actions/edit'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <FormSkeleton fields={8} />
 
 /** A new course (no `code`), or one to edit. */
 export function CourseFormView({ code }: { code?: string | undefined }) {
   const t = useTranslations()
   const read = useFormRead('course-form', { code })
   return (
-    <ReadView query={read} skeleton={<FormSkeleton fields={8} />} entity="courses">
+    <ReadView query={read} skeleton={SKELETON} entity="courses">
       {({ course, departments, positions }) =>
         course && code ? (
           <CourseForm
@@ -52,4 +55,9 @@ export function CourseFormView({ code }: { code?: string | undefined }) {
       }
     </ReadView>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function CourseFormLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

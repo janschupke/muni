@@ -9,9 +9,9 @@ import { signInAs } from '@/test/auth'
 import { NotFoundError, route } from '@/test/next'
 import { params, renderClient, renderServer } from '@/test/render'
 
+import UsersPage, { generateMetadata } from './(index)/page'
 import UserNotFound from './[id]/not-found'
 import UserPage, { generateMetadata as userMetadata } from './[id]/page'
-import UsersPage, { generateMetadata } from './page'
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),

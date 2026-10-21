@@ -2,8 +2,8 @@ import type { Archivable } from '@muni/domain/archive'
 import { Button } from '@muni/ui/button'
 import { EmptyState } from '@muni/ui/empty-state'
 import { Plus } from 'lucide-react'
-import Link from 'next/link'
 
+import { Link } from '@/components/navigation/link'
 import { ArchivedListLink } from '@/features/archive/archived-list-link'
 
 /** A list's new record: where it is made, and the button's label. */

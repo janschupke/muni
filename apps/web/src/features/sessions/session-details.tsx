@@ -8,12 +8,12 @@ import { Table, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { toZonedParts } from '@muni/utils/dates'
 import { formatCurrency, formatDate, formatSessionTime } from '@muni/utils/format'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 
 import { PersonLink, RecordLink } from '@/components/badges/archived'
 import { SessionStatusBadge } from '@/components/badges/status-badges'
+import { Link } from '@/components/navigation/link'
 import { OrgLink } from '@/features/org/org-links'
 
 import { SeatMeter } from './seat-meter'

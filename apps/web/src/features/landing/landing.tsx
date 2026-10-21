@@ -3,8 +3,9 @@ import { Button } from '@muni/ui/button'
 import { Card, CardBody } from '@muni/ui/card'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { CalendarRange, Grid3x3, Lightbulb, LogIn, Upload, UserPlus } from 'lucide-react'
-import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
+
+import { Link } from '@/components/navigation/link'
 
 const FEATURES = [
   { key: 'compliance', Icon: Grid3x3 },

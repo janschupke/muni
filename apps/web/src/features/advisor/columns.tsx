@@ -5,11 +5,11 @@ import { createDataColumns } from '@muni/ui/data-table'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { PLACEHOLDER } from '@muni/utils/format'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { ComplianceBadge } from '@/components/badges/status-badges'
+import { Link } from '@/components/navigation/link'
 
 import { LapsesText, WindowText } from './labels'
 

@@ -1,10 +1,10 @@
 import { DescriptionItem, DescriptionList } from '@muni/ui/description-list'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger } from '@muni/utils/format'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 
+import { Link } from '@/components/navigation/link'
 import { ComplianceSummary } from '@/features/compliance/compliance-breakdown'
 
 /** The numbers every department and position page opens with. */

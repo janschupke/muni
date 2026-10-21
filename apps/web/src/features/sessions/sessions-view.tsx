@@ -5,12 +5,12 @@ import { LinkTab, LinkTabs } from '@muni/ui/nav'
 import { Select } from '@muni/ui/select'
 import { Toolbar, ToolbarChip } from '@muni/ui/toolbar'
 import { CalendarClock, History, X } from 'lucide-react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
+import { Link } from '@/components/navigation/link'
 import { ListView, useListRead } from '@/components/views/list-view'
-import { TableSkeleton } from '@/components/views/skeletons'
+import { PageLoading, TableSkeleton } from '@/components/views/skeletons'
 import { SessionTable } from '@/features/sessions/session-table'
 import { SESSION_SORT } from '@/lib/list/list-keys'
 import { type SessionListQuery, sessionsListInput } from '@/lib/list/read-inputs'
@@ -18,6 +18,9 @@ import { withParams } from '@/lib/list/search-params'
 import { useListUrl } from '@/lib/list/use-list-url'
 
 const WINDOWS = ['upcoming', 'past'] as const
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <TableSkeleton columns={6} />
 
 /**
  * Upcoming or past sessions, everywhere or in one room or of one course (`?when=past`,
@@ -56,7 +59,7 @@ export function SessionsView({ query, canEdit }: { query: SessionListQuery; canE
       canEdit={canEdit}
       create={{ href: '/sessions/new', label: t('new') }}
       read={read}
-      skeleton={<TableSkeleton columns={6} />}
+      skeleton={SKELETON}
       totalOf={({ sessions }) => sessions.total}
       before={
         <>
@@ -102,5 +105,15 @@ export function SessionsView({ query, canEdit }: { query: SessionListQuery; canE
         <SessionTable sessions={sessions.items} paging={list.paging(sessions)} canEdit={canEdit} />
       )}
     </ListView>
+  )
+}
+
+/** The page until its data is there (its route's `loading.tsx`): its heading, then the rows. */
+export function SessionsLoading() {
+  const t = useTranslations('sessions')
+  return (
+    <PageLoading title={t('title')} description={t('description')}>
+      {SKELETON}
+    </PageLoading>
   )
 }

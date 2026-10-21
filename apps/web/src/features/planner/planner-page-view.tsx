@@ -3,13 +3,13 @@
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
 import { Pagination } from '@muni/ui/pagination'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
+import { Link } from '@/components/navigation/link'
 import { usePaginationLabels } from '@/components/table/pagination-labels'
 import { useListRead } from '@/components/views/list-view'
 import { ReadView } from '@/components/views/read-view'
-import { PlannerSkeleton } from '@/components/views/skeletons'
+import { PageLoading, PlannerSkeleton } from '@/components/views/skeletons'
 import { RulesCard } from '@/features/advisor/rules-card'
 import { OFFER_SORT } from '@/lib/list/list-keys'
 import { useListUrl } from '@/lib/list/use-list-url'
@@ -17,6 +17,9 @@ import { useListUrl } from '@/lib/list/use-list-url'
 import { PlannerView } from './planner-view'
 
 const RULES = ['group', 'split', 'day', 'room'] as const
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <PlannerSkeleton />
 
 /**
  * The planner: sessions to open, one section per course, most urgent first, ten courses a page;
@@ -30,7 +33,7 @@ export function PlannerPageView({ canCreate }: { canCreate: boolean }) {
   return (
     <>
       <PageHeader title={t('title')} description={t('description')} />
-      <ReadView titled query={read} skeleton={<PlannerSkeleton />}>
+      <ReadView titled query={read} skeleton={SKELETON}>
         {({ groups, rooms }) => {
           if (groups.total === 0) return <EmptyState title={t('empty')} />
           // The courses page below; each course's table shows all its offers.
@@ -58,5 +61,15 @@ export function PlannerPageView({ canCreate }: { canCreate: boolean }) {
         <RulesCard title={t('rules.title')} rules={RULES.map(rule => t(`rules.${rule}`))} />
       </div>
     </>
+  )
+}
+
+/** The page until its data is there (its route's `loading.tsx`): its heading, then the rows. */
+export function PlannerLoading() {
+  const t = useTranslations('planner')
+  return (
+    <PageLoading title={t('title')} description={t('description')}>
+      {SKELETON}
+    </PageLoading>
   )
 }

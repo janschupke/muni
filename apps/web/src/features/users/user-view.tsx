@@ -10,7 +10,7 @@ import { EmailLink } from '@/components/badges/email-link'
 import { RoleBadge } from '@/components/badges/status-badges'
 import { ReadView } from '@/components/views/read-view'
 import { RecordHeader, useRecordRead } from '@/components/views/record-view'
-import { DetailSkeleton } from '@/components/views/skeletons'
+import { DetailSkeleton, PageLoading } from '@/components/views/skeletons'
 import { RoleForm } from '@/features/users/role-form'
 import { saveUserRole } from '@/server/actions/users'
 import type { ReadOutput } from '@/server/reads/core/registry'
@@ -19,10 +19,13 @@ import type { ReadOutput } from '@/server/reads/core/registry'
 const nameOf = (user: { name: string | null; email: string | null; clerkId: string }) =>
   user.name ?? user.email ?? user.clerkId
 
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <DetailSkeleton />
+
 export function UserView({ id }: { id: string }) {
   const read = useRecordRead('user', { id }, ({ user }) => nameOf(user))
   return (
-    <ReadView query={read} skeleton={<DetailSkeleton />} entity="users">
+    <ReadView query={read} skeleton={SKELETON} entity="users">
       {data => <UserDetail data={data} />}
     </ReadView>
   )
@@ -79,4 +82,9 @@ function UserDetail({ data }: { data: ReadOutput<'user'> }) {
       />
     </>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function UserLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

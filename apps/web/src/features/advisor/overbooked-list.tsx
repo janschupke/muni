@@ -12,10 +12,10 @@ import { TextLink } from '@muni/ui/text-link'
 import { formatSessionTime } from '@muni/utils/format'
 import { ArrowRightLeft } from 'lucide-react'
 import dynamic from 'next/dynamic'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
+import { Link } from '@/components/navigation/link'
 import { RoomLink, SessionDateLink } from '@/features/sessions/session-links'
 
 // Loaded when needed: the dialog opens when a session is chosen.

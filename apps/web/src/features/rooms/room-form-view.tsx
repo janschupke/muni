@@ -4,16 +4,19 @@ import { useTranslations } from 'next-intl'
 
 import { formShell, useFormRead } from '@/components/form/form-view'
 import { ReadView } from '@/components/views/read-view'
-import { FormSkeleton } from '@/components/views/skeletons'
+import { FormSkeleton, PageLoading } from '@/components/views/skeletons'
 import { RoomForm } from '@/features/rooms/room-form'
 import { saveRoom } from '@/server/actions/rooms'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <FormSkeleton fields={5} />
 
 /** A new room (no `id`), or one to edit. */
 export function RoomFormView({ id }: { id?: string | undefined }) {
   const t = useTranslations()
   const read = useFormRead('room-form', { id })
   return (
-    <ReadView query={read} skeleton={<FormSkeleton fields={5} />} entity="rooms">
+    <ReadView query={read} skeleton={SKELETON} entity="rooms">
       {({ room }) =>
         room && id ? (
           <RoomForm
@@ -38,4 +41,9 @@ export function RoomFormView({ id }: { id?: string | undefined }) {
       }
     </ReadView>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function RoomFormLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

@@ -3,9 +3,10 @@ import { Badge } from '@muni/ui/badge'
 import { TextLink } from '@muni/ui/text-link'
 import { PLACEHOLDER } from '@muni/utils/format'
 import { Archive } from 'lucide-react'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
+
+import { Link } from '@/components/navigation/link'
 
 // How archived records appear where other records still point to them: muted, with an archive
 // mark, and never a link (their pages are for admins, from the archived lists).

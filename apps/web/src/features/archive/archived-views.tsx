@@ -10,14 +10,14 @@ import { PageHeader } from '@muni/ui/page-header'
 import { formatDateTime, PLACEHOLDER } from '@muni/utils/format'
 import { useQuery } from '@tanstack/react-query'
 import { Archive } from 'lucide-react'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
 import { ArchivedBadge, UserName } from '@/components/badges/archived'
 import { BackLink } from '@/components/navigation/back-link'
+import { Link } from '@/components/navigation/link'
 import { useListRead } from '@/components/views/list-view'
 import { ReadView } from '@/components/views/read-view'
-import { ArchivedRecordSkeleton, TableSkeleton } from '@/components/views/skeletons'
+import { ArchivedRecordSkeleton, PageLoading, TableSkeleton } from '@/components/views/skeletons'
 import { UnarchiveButton } from '@/features/archive/unarchive-button'
 import type en from '@/i18n/messages/en.json'
 import { ARCHIVED_SORT } from '@/lib/list/list-keys'
@@ -35,6 +35,10 @@ type ArchivedFieldKey = keyof (typeof en)['archive']['fields']
 
 // The archived records of every kind, for admins only: a list per kind, and a page per record
 // with its real details (the one place an archived person's name shows).
+
+// What the page shows until its data is there, here and as its route's loading state.
+const LIST_SKELETON = <TableSkeleton columns={4} />
+const RECORD_SKELETON = <ArchivedRecordSkeleton />
 
 /** The archived records of one kind, newest first. */
 export function ArchivedListView({ kind }: { kind: Archivable }) {
@@ -60,7 +64,7 @@ export function ArchivedListView({ kind }: { kind: Archivable }) {
           )
         }
       />
-      <ReadView titled query={read} skeleton={<TableSkeleton columns={4} />}>
+      <ReadView titled query={read} skeleton={LIST_SKELETON}>
         {items =>
           items.total === 0 ? (
             <EmptyState title={t('list.empty')} />
@@ -86,7 +90,7 @@ export function ArchivedRecordView({ kind, id }: { kind: Archivable; id: string 
   const read = useQuery(readQuery('archived-record', { kind, id }))
   useDocumentTitle(read.data?.title)
   return (
-    <ReadView query={read} skeleton={<ArchivedRecordSkeleton />}>
+    <ReadView query={read} skeleton={RECORD_SKELETON}>
       {record => <ArchivedRecordDetail kind={kind} record={record} />}
     </ReadView>
   )
@@ -139,4 +143,24 @@ function ArchivedRecordDetail({
       </Card>
     </>
   )
+}
+
+/** An archived list until its data is there (its route's `loading.tsx`): its heading, then the rows. */
+export function ArchivedListLoading({ kind }: { kind: Archivable }) {
+  const t = useTranslations('archive')
+  const tk = useTranslations('archive.kinds')
+  return (
+    <PageLoading
+      eyebrow={<BackLink fallback={{ href: LIST_PATH[kind], label: tk(`${kind}.list`) }} />}
+      title={tk(`${kind}.title`)}
+      description={t('list.description')}
+    >
+      {LIST_SKELETON}
+    </PageLoading>
+  )
+}
+
+/** An archived record until its data is there (its route's `loading.tsx`). */
+export function ArchivedRecordLoading() {
+  return <PageLoading>{RECORD_SKELETON}</PageLoading>
 }

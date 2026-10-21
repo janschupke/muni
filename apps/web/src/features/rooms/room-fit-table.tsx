@@ -5,9 +5,9 @@ import { Table, TableContainer, TBody, Td, Th, THead, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger } from '@muni/utils/format'
 import { CircleCheck, CircleX } from 'lucide-react'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { Link } from '@/components/navigation/link'
 import { CapabilityFitList } from '@/features/rooms/room-badges'
 import { ScheduleSessionButton } from '@/features/sessions/schedule-button'
 

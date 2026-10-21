@@ -5,10 +5,10 @@ import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-ta
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatCurrency, formatDate, formatInteger, PLACEHOLDER } from '@muni/utils/format'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
+import { Link } from '@/components/navigation/link'
 import { usePaginationLabels } from '@/components/table/pagination-labels'
 
 type CourseRow = ProviderDetail['byCourse'][number]

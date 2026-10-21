@@ -140,7 +140,14 @@ const e2e = {
     // Helpers that assert on their own count as assertions.
     'playwright/expect-expect': [
       'error',
-      { assertFunctionNames: ['expectAccessible', 'expectScores', 'expectOpenedRowFills'] },
+      {
+        assertFunctionNames: [
+          'expectAccessible',
+          'expectNotFound',
+          'expectScores',
+          'expectOpenedRowFills',
+        ],
+      },
     ],
   },
 }

@@ -22,7 +22,7 @@ advisor and planner) in `@muni/domain`, generic helpers in `@muni/utils`, querie
 
 - **`apps/web/src`:**
   - `app/` holds the routes: each page checks access, prefetches its reads and renders a
-    view.
+    view, with its loading state beside it (`loading.tsx`).
   - `features/<domain>/` holds each domain's views, tables, forms and hooks.
   - `components/` holds what every domain shares, in folders: shell, navigation, views (the
     read, list and record scaffolds, skeletons), table, form (the form kit), feedback,
@@ -61,24 +61,35 @@ outside the app open their own client from `@muni/db/connect`; the seed runs und
 
 ## Reads, caching and writes
 
-Pages read their data in the browser through TanStack Query; the server only guards them.
+A page reads its data on the server and hands it to its view, which keeps it fresh in the
+browser through TanStack Query.
 
 - **A page on the server** checks who may see it (`requireReader` / `requireAdminPage`), reads
-  its address (search params) and, for a record's page, whether the record is there
-  (`recordExists`), so a missing one still answers 404. It then renders a client view.
+  its address (search params), runs its reads (`prefetched` in `apps/web/src/server/prefetch.tsx`)
+  and renders a client view with the answers already in its cache. A record that is not
+  there shows the not-found page.
 - **A view reads** with `useQuery(readQuery(name, input))` from `/api/read/<name>`. Every
   read is defined once in `apps/web/src/server/reads/` (who may run it, its input as a zod
   schema, its load) and checked by one handler: 401 signed out, 403 archived or not an
   admin, 400 bad input, 404 unknown read or missing record. A read returns plain JSON;
   one that returns a `Date` or a `Map` does not compile.
-- **Caching:** data stays fresh for 5 minutes. A revisit inside that time renders from the
-  cache with no request; after it, the page shows what it has and refetches in the
-  background, also when the window regains focus. Only server errors are retried. The
+- **Caching:** in the browser a read stays fresh for 5 minutes: a view that asks for it again
+  inside that time (a filter set back, a page of a list seen before) gets it from the cache
+  with no request; after it, the view shows what it has and refetches in the background,
+  also when the window regains focus. Going to a page reads it on the server again. Only server errors are retried. The
   cache belongs to one user and role: another sign-in starts empty.
-- **Loading:** the first visit shows a skeleton shaped like the page (`apps/web/src/components/views/skeletons.tsx`,
-  in a `role="status"` region). Filtering, sorting or paging a list keeps the current rows,
-  dimmed, until the next ones arrive. A failed read offers to try again. There is no
-  `loading.tsx`: it would flash on every navigation, cached or not.
+- **Loading:** every page has a `loading.tsx` beside it that shows the page's skeleton
+  (`apps/web/src/components/views/skeletons.tsx`, in a `role="status"` region). It is the
+  view's own loading state (each view exports it, from the same skeleton), so one replaces
+  the other in place. Next prefetches it for the links on screen, so a click shows it at once,
+  then the page streams in with its data. A loading state covers every route below its
+  folder, so a page with routes below it keeps its page and loading state in an `(index)`
+  route group, and a test fails on one that would stand in for another route's. Filtering,
+  sorting or paging a list keeps the current rows, dimmed, until the next ones arrive. A
+  failed read offers to try again.
+- **Not found:** a missing record, or a page the role may not see, shows the not-found page.
+  The page has already started streaming when it finds out, so the answer is 200 with
+  Next's `noindex` tag, not a 404 status; an address no route matches is still a 404.
 - **Forms read fresh:** a form's read is never cached or refetched while it is open, so an
   edit starts from what is saved and typing is never overwritten.
 - **After a write,** the action returns the record's address (`{ status: 'saved', href }`),

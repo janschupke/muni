@@ -11,7 +11,7 @@ import { useTranslations } from 'next-intl'
 import { PersonLink } from '@/components/badges/archived'
 import { ReadView } from '@/components/views/read-view'
 import { RecordHeader, useRecordRead } from '@/components/views/record-view'
-import { DetailSkeleton } from '@/components/views/skeletons'
+import { DetailSkeleton, PageLoading } from '@/components/views/skeletons'
 import { useListUrl } from '@/lib/list/use-list-url'
 import type { ReadOutput } from '@/server/reads/core/registry'
 
@@ -20,6 +20,9 @@ import { GroupFacts } from './group-facts'
 import { GroupCourses, GroupPeople } from './group-sections'
 
 const PLURAL = { department: 'departments', position: 'positions' } as const
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <DetailSkeleton />
 
 /**
  * A department's or a position's page: its facts (a department's head and positions, a
@@ -39,7 +42,7 @@ export function GroupView({
   const people = useListUrl(EMPLOYEE_SORT_KEYS, undefined, 'people')
   const read = useRecordRead(kind, { id, ...people.input }, group => group.name)
   return (
-    <ReadView query={read} skeleton={<DetailSkeleton />} entity={plural}>
+    <ReadView query={read} skeleton={SKELETON} entity={plural}>
       {group => (
         <>
           <RecordHeader
@@ -102,4 +105,9 @@ function OwnFacts({ group }: { group: ReadOutput<'department'> | ReadOutput<'pos
       </DescriptionItem>
     </>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function GroupLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

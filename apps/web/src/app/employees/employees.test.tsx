@@ -23,6 +23,8 @@ import { advisorInput, counts, employeeDetail, employeePage, employeeRow } from 
 import { NotFoundError, router } from '@/test/next'
 import { at, params, renderServer } from '@/test/render'
 
+import EmployeesPage, { generateMetadata as listMetadata } from './(index)/page'
+import EmployeePage, { generateMetadata as employeeMetadata } from './[externalId]/(index)/page'
 import EditCompletionPage, {
   generateMetadata as editCompletionMetadata,
 } from './[externalId]/completions/[id]/edit/page'
@@ -32,9 +34,7 @@ import NewCompletionPage, {
 import EditEmployeePage, {
   generateMetadata as editEmployeeMetadata,
 } from './[externalId]/edit/page'
-import EmployeePage, { generateMetadata as employeeMetadata } from './[externalId]/page'
 import NewEmployeePage, { generateMetadata as newMetadata } from './new/page'
-import EmployeesPage, { generateMetadata as listMetadata } from './page'
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),

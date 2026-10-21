@@ -8,9 +8,9 @@ import { ExpandButton } from '@muni/ui/expand-button'
 import { Td, Th, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger } from '@muni/utils/format'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { Link } from '@/components/navigation/link'
 import { formatRate } from '@/lib/format/format-rate'
 
 import { STICKY } from './matrix-styles'

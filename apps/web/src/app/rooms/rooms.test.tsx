@@ -13,10 +13,10 @@ import { ONLINE, roomDetail, roomRow } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
+import RoomsPage, { generateMetadata as listMetadata } from './(index)/page'
+import RoomPage, { generateMetadata as roomMetadata } from './[id]/(index)/page'
 import EditRoomPage, { generateMetadata as editRoomMetadata } from './[id]/edit/page'
-import RoomPage, { generateMetadata as roomMetadata } from './[id]/page'
 import NewRoomPage, { generateMetadata as newMetadata } from './new/page'
-import RoomsPage, { generateMetadata as listMetadata } from './page'
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),

@@ -5,9 +5,12 @@ import { useTranslations } from 'next-intl'
 
 import { formShell, useFormRead } from '@/components/form/form-view'
 import { ReadView } from '@/components/views/read-view'
-import { FormSkeleton } from '@/components/views/skeletons'
+import { FormSkeleton, PageLoading } from '@/components/views/skeletons'
 import { CompletionForm } from '@/features/employees/completion-form'
 import { saveCompletion } from '@/server/actions/edit'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <FormSkeleton fields={8} />
 
 /** A new completion for a person (no `id`), or one of theirs to correct. */
 export function CompletionFormView({
@@ -21,7 +24,7 @@ export function CompletionFormView({
   const read = useFormRead('completion-form', { externalId, id })
   const href = `/employees/${externalId}`
   return (
-    <ReadView query={read} skeleton={<FormSkeleton fields={8} />} entity="employees">
+    <ReadView query={read} skeleton={SKELETON} entity="employees">
       {({ person, completion, employees, courses, providers }) =>
         completion ? (
           <CompletionForm
@@ -61,4 +64,9 @@ export function CompletionFormView({
       }
     </ReadView>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function CompletionFormLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

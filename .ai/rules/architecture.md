@@ -27,7 +27,8 @@ TypeScript source (no build step). Deep reference: [docs/architecture.md](../../
   sanitised DTOs; the policy (`sanitize.config.ts`) is applied there.
 - **`server-only` is a build-time fence.** `@muni/db`'s client, repositories, writer and
   reference import it; scripts and tests open their own client from `@muni/db/connect`.
-- **Web layout:** `app/` holds routes (server guards and prefetch only); `features/<domain>/`
+- **Web layout:** `app/` holds routes (server guards and prefetch only, and a `loading.tsx`
+  beside every page that renders its view's exported loading state); `features/<domain>/`
   holds that domain's views, tables, forms and hooks; `components/` holds only what no single
   domain owns (shell, navigation, page scaffolds, the form kit, badges); `lib/` holds
   browser-and-server helpers; `server/` holds reads, actions and auth.

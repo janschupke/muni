@@ -11,23 +11,26 @@ import { StatCard } from '@muni/ui/stat-card'
 import { TextLink } from '@muni/ui/text-link'
 import { formatDate, formatInteger } from '@muni/utils/format'
 import { useQuery } from '@tanstack/react-query'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { rateTone } from '@/components/badges/status-badges'
+import { Link } from '@/components/navigation/link'
 import { ReadView } from '@/components/views/read-view'
-import { DashboardSkeleton } from '@/components/views/skeletons'
+import { DashboardSkeleton, PageLoading } from '@/components/views/skeletons'
 import { ComplianceBar, ComplianceLegend } from '@/features/compliance/compliance-breakdown'
 import { SessionTable } from '@/features/sessions/session-table'
 import { formatRate } from '@/lib/format/format-rate'
 import { readQuery } from '@/lib/query/queries'
 import type { ReadOutput } from '@/server/reads/core/registry'
 
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <DashboardSkeleton />
+
 /** The overview: compliance at a glance, what the advisor has waiting, the next sessions. */
 export function DashboardView({ canEdit }: { canEdit: boolean }) {
   const read = useQuery(readQuery('dashboard', {}))
   return (
-    <ReadView query={read} skeleton={<DashboardSkeleton />}>
+    <ReadView query={read} skeleton={SKELETON}>
       {data => <Dashboard {...data} canEdit={canEdit} />}
     </ReadView>
   )
@@ -149,4 +152,9 @@ function Dashboard({ data, advisor, canEdit }: ReadOutput<'dashboard'> & { canEd
       </div>
     </>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function DashboardLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

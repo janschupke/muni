@@ -2,10 +2,10 @@ import type { Archivable } from '@muni/domain/archive'
 import { Button } from '@muni/ui/button'
 import { IconButton } from '@muni/ui/icon-button'
 import { Pencil } from 'lucide-react'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 
+import { Link } from '@/components/navigation/link'
 import { ConfirmArchiveButton } from '@/features/archive/confirm-archive-button'
 
 /** The record an action acts on, and its edit form when it has one. */

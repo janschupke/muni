@@ -5,12 +5,15 @@ import { useTranslations } from 'next-intl'
 
 import { formShell, useFormRead } from '@/components/form/form-view'
 import { ReadView } from '@/components/views/read-view'
-import { FormSkeleton } from '@/components/views/skeletons'
+import { FormSkeleton, PageLoading } from '@/components/views/skeletons'
 import { SessionForm } from '@/features/sessions/session-form'
 import { saveSession } from '@/server/actions/edit'
 import { saveNewSession } from '@/server/actions/sessions'
 
 import { newSessionDefaults } from './new-session'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <FormSkeleton fields={9} />
 
 /**
  * The session form: a session to edit (`externalId`), a new one of a course (`courseCode`,
@@ -29,11 +32,7 @@ export function SessionFormView({
   const t = useTranslations()
   const read = useFormRead('session-form', { externalId })
   return (
-    <ReadView
-      query={read}
-      skeleton={<FormSkeleton fields={9} />}
-      entity={courseCode ? 'courses' : 'sessions'}
-    >
+    <ReadView query={read} skeleton={SKELETON} entity={courseCode ? 'courses' : 'sessions'}>
       {({ session, courses, rooms }) => {
         if (session) {
           const start = toZonedParts(session.startsAt)
@@ -93,4 +92,9 @@ export function SessionFormView({
       }}
     </ReadView>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function SessionFormLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

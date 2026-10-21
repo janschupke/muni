@@ -3,9 +3,9 @@ import { Container } from '@muni/ui/layout'
 import { TextLink } from '@muni/ui/text-link'
 import { todayIn } from '@muni/utils/dates'
 import { formatDate } from '@muni/utils/format'
-import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 
+import { Link } from '@/components/navigation/link'
 import type { SessionUser } from '@/server/auth'
 
 import { LogoMark } from './logo-mark'

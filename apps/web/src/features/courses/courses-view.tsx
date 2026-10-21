@@ -3,11 +3,14 @@
 import { useTranslations } from 'next-intl'
 
 import { ListView, useListRead } from '@/components/views/list-view'
-import { TableSkeleton } from '@/components/views/skeletons'
+import { PageLoading, TableSkeleton } from '@/components/views/skeletons'
 import { ComplianceLegend } from '@/features/compliance/compliance-breakdown'
 import { CoursesTable } from '@/features/courses/courses-table'
 import { COURSE_SORT } from '@/lib/list/list-keys'
 import { useListUrl } from '@/lib/list/use-list-url'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <TableSkeleton columns={5} />
 
 /** The course catalogue, a page at a time, sorted on the server. */
 export function CoursesView({ canEdit }: { canEdit: boolean }) {
@@ -22,7 +25,7 @@ export function CoursesView({ canEdit }: { canEdit: boolean }) {
       canEdit={canEdit}
       create={{ href: '/courses/new', label: t('new') }}
       read={useListRead('courses-list', list.input)}
-      skeleton={<TableSkeleton columns={5} />}
+      skeleton={SKELETON}
       totalOf={courses => courses.total}
     >
       {courses => (
@@ -32,5 +35,15 @@ export function CoursesView({ canEdit }: { canEdit: boolean }) {
         </>
       )}
     </ListView>
+  )
+}
+
+/** The page until its data is there (its route's `loading.tsx`): its heading, then the rows. */
+export function CoursesLoading() {
+  const t = useTranslations('courses')
+  return (
+    <PageLoading title={t('title')} description={t('description')}>
+      {SKELETON}
+    </PageLoading>
   )
 }

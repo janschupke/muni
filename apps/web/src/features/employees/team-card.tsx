@@ -3,10 +3,10 @@ import { Card, CardBody, CardHeader } from '@muni/ui/card'
 import { ItemList, ItemListRow } from '@muni/ui/item-list'
 import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
 import { ComplianceBadge } from '@/components/badges/status-badges'
+import { Link } from '@/components/navigation/link'
 import { ComplianceSummary } from '@/features/compliance/compliance-breakdown'
 
 /** A manager's direct reports and how their mandatory training stands together. */

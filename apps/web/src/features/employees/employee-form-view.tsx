@@ -6,16 +6,19 @@ import { useTranslations } from 'next-intl'
 
 import { formShell, useFormRead } from '@/components/form/form-view'
 import { ReadView } from '@/components/views/read-view'
-import { FormSkeleton } from '@/components/views/skeletons'
+import { FormSkeleton, PageLoading } from '@/components/views/skeletons'
 import { EmployeeForm } from '@/features/employees/employee-form'
 import { saveEmployee } from '@/server/actions/edit'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <FormSkeleton fields={10} />
 
 /** A new person (no `externalId`), or one to edit; the form opens once its choices are read. */
 export function EmployeeFormView({ externalId }: { externalId?: string | undefined }) {
   const t = useTranslations()
   const read = useFormRead('employee-form', { externalId })
   return (
-    <ReadView query={read} skeleton={<FormSkeleton fields={10} />} entity="employees">
+    <ReadView query={read} skeleton={SKELETON} entity="employees">
       {({ employee, departments, positions, pairs, heads, managers }) => {
         const choices = {
           departments,
@@ -67,4 +70,9 @@ export function EmployeeFormView({ externalId }: { externalId?: string | undefin
       }}
     </ReadView>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function EmployeeFormLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

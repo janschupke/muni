@@ -11,15 +11,15 @@ import { SplitLayout } from '@muni/ui/layout'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { formatDate, formatOptional, PLACEHOLDER } from '@muni/utils/format'
 import { Plus } from 'lucide-react'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { PersonLink } from '@/components/badges/archived'
 import { EmailLink } from '@/components/badges/email-link'
 import { EmploymentBadge } from '@/components/badges/status-badges'
+import { Link } from '@/components/navigation/link'
 import { ReadView } from '@/components/views/read-view'
 import { RecordHeader, useRecordRead } from '@/components/views/record-view'
-import { DetailSkeleton } from '@/components/views/skeletons'
+import { DetailSkeleton, PageLoading } from '@/components/views/skeletons'
 import { BookNeedButton } from '@/features/bookings/book-button'
 import { HeldMeter } from '@/features/compliance/compliance-breakdown'
 import { RequirementTable } from '@/features/compliance/requirement-panel'
@@ -31,6 +31,9 @@ import { HISTORY_SORT } from '@/lib/list/list-keys'
 import { type PageInfo, useListUrl } from '@/lib/list/use-list-url'
 import type { ReadOutput } from '@/server/reads/core/registry'
 
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <DetailSkeleton />
+
 /**
  * A person's page: profile, requirements (with their bookings) and history, read for the
  * signed-in role.
@@ -41,7 +44,7 @@ export function EmployeeView({ externalId, canEdit }: { externalId: string; canE
     displayName(data.employee)
   )
   return (
-    <ReadView query={read} skeleton={<DetailSkeleton />} entity="employees">
+    <ReadView query={read} skeleton={SKELETON} entity="employees">
       {data => <EmployeeDetail {...data} canEdit={canEdit} paging={completions.paging} />}
     </ReadView>
   )
@@ -223,4 +226,9 @@ function PlaceLinks({
       ))}
     </span>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function EmployeeLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

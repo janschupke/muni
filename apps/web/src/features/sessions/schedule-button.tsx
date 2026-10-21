@@ -4,8 +4,9 @@ import type { ScheduleBlock } from '@muni/domain/sessions'
 import { Button } from '@muni/ui/button'
 import { UnavailableButton } from '@muni/ui/unavailable-button'
 import { CalendarPlus } from 'lucide-react'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+
+import { Link } from '@/components/navigation/link'
 
 /**
  * The one way to schedule a session of a course, from wherever the course shows: the course

@@ -11,12 +11,12 @@ import { SplitLayout } from '@muni/ui/layout'
 import { SectionHeading } from '@muni/ui/section-heading'
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger } from '@muni/utils/format'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { Link } from '@/components/navigation/link'
 import { ReadView } from '@/components/views/read-view'
 import { RecordHeader, useRecordRead } from '@/components/views/record-view'
-import { DetailSkeleton } from '@/components/views/skeletons'
+import { DetailSkeleton, PageLoading } from '@/components/views/skeletons'
 import { ComplianceBar, ComplianceLegend } from '@/features/compliance/compliance-breakdown'
 import { CourseByDepartment, CourseNeeds, CourseOfferings } from '@/features/courses/course-panel'
 import { RequirementList } from '@/features/courses/requirement-list'
@@ -27,6 +27,9 @@ import { formatRate } from '@/lib/format/format-rate'
 import { COMPLETION_SORT, SESSION_SORT } from '@/lib/list/list-keys'
 import { type PageInfo, useListUrl } from '@/lib/list/use-list-url'
 import type { ReadOutput } from '@/server/reads/core/registry'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <DetailSkeleton />
 
 /**
  * A course's page: who must hold it, what a session needs, how many hold it and where, its
@@ -42,7 +45,7 @@ export function CourseView({ code, canEdit }: { code: string; canEdit: boolean }
     course => course.name
   )
   return (
-    <ReadView query={read} skeleton={<DetailSkeleton />} entity="courses">
+    <ReadView query={read} skeleton={SKELETON} entity="courses">
       {course => (
         <CourseDetail
           course={course}
@@ -196,4 +199,9 @@ function CourseDetail({
       )}
     </>
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function CourseLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

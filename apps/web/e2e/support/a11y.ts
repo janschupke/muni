@@ -8,6 +8,7 @@ import {
   expectRowHover,
   textContrastFailures,
 } from './contrast'
+import { loaded } from './pages'
 import { expectTablesPaged } from './paging'
 
 // WCAG 2.2 A/AA plus axe's best practices; any violation fails. Each state is also checked
@@ -150,6 +151,8 @@ async function showTheme(page: Page, theme: Theme) {
  * step of its own, so a failure names it.
  */
 export async function expectAccessible(page: Page, label: string, check: Check = {}) {
+  // The page itself, never its loading state: a click shows that first.
+  await loaded(page)
   const first = await shownTheme(page)
 
   await test.step(`${label}, ${first} theme`, () => expectAll(page, label, check))

@@ -3,13 +3,16 @@
 import { useTranslations } from 'next-intl'
 
 import { ListView, useListRead } from '@/components/views/list-view'
-import { TableSkeleton } from '@/components/views/skeletons'
+import { PageLoading, TableSkeleton } from '@/components/views/skeletons'
 import { GROUP_SORT } from '@/lib/list/list-keys'
 import { useListUrl } from '@/lib/list/use-list-url'
 
 import { GroupsTable } from './groups-table'
 
 type Kind = 'departments' | 'positions'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <TableSkeleton columns={4} />
 
 /** The departments or the positions, each with its people and compliance, a page at a time. */
 export function GroupsView({ kind, canEdit }: { kind: Kind; canEdit: boolean }) {
@@ -32,7 +35,7 @@ function useGroupList(kind: Kind, canEdit: boolean) {
       empty: t('empty'),
       canEdit,
       create: { href: `/${kind}/new`, label: t('new') },
-      skeleton: <TableSkeleton columns={4} />,
+      skeleton: SKELETON,
       totalOf: (groups: { total: number }) => groups.total,
     },
   }
@@ -67,5 +70,15 @@ function PositionsList({ canEdit }: { canEdit: boolean }) {
         />
       )}
     </ListView>
+  )
+}
+
+/** The list until its data is there (its route's `loading.tsx`): its heading, then the rows. */
+export function GroupsLoading({ kind }: { kind: Kind }) {
+  const t = useTranslations(kind)
+  return (
+    <PageLoading title={t('title')} description={t('description')}>
+      {SKELETON}
+    </PageLoading>
   )
 }

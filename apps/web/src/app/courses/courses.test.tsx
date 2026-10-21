@@ -26,13 +26,13 @@ import {
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
+import CoursesPage, { generateMetadata as listMetadata } from './(index)/page'
+import CoursePage, { generateMetadata as courseMetadata } from './[code]/(index)/page'
 import EditCoursePage, { generateMetadata as editCourseMetadata } from './[code]/edit/page'
-import CoursePage, { generateMetadata as courseMetadata } from './[code]/page'
 import NewSessionPage, {
   generateMetadata as newCourseSessionMetadata,
 } from './[code]/sessions/new/page'
 import NewCoursePage, { generateMetadata as newCourseMetadata } from './new/page'
-import CoursesPage, { generateMetadata as listMetadata } from './page'
 
 // @vitest-environment jsdom
 

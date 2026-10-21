@@ -8,11 +8,11 @@ import { IconButton } from '@muni/ui/icon-button'
 import { Select } from '@muni/ui/select'
 import { Toolbar, ToolbarChip, ToolbarSummary } from '@muni/ui/toolbar'
 import { ChevronDown, FilterX, Search, SlidersHorizontal, X } from 'lucide-react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useId, useState, useTransition } from 'react'
 
+import { Link } from '@/components/navigation/link'
 import { withParams } from '@/lib/list/search-params'
 
 type Query = Record<string, string | undefined>

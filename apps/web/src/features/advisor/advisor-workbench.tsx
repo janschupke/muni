@@ -14,8 +14,9 @@ import type { TablePaging } from '@muni/ui/data-table'
 import { LinkTab, LinkTabs } from '@muni/ui/nav'
 import { StatCard } from '@muni/ui/stat-card'
 import { formatDate, formatInteger } from '@muni/utils/format'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
+
+import { Link } from '@/components/navigation/link'
 
 import { ActionTable } from './action-table'
 import { BreakdownChart } from './breakdown-chart'

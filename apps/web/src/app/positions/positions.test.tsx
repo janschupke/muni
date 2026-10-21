@@ -24,8 +24,8 @@ import {
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
-import PositionPage, { generateMetadata as positionMetadata } from './[id]/page'
-import PositionsPage, { generateMetadata as positionsMetadata } from './page'
+import PositionsPage, { generateMetadata as positionsMetadata } from './(index)/page'
+import PositionPage, { generateMetadata as positionMetadata } from './[id]/(index)/page'
 
 /**
  * The people list is full width: it sits outside the grid that holds the facts card and the

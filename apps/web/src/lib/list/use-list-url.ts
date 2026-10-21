@@ -1,8 +1,9 @@
 'use client'
 
 import type { SortingState, TablePaging } from '@muni/ui/data-table'
-import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+
+import { Link } from '@/components/navigation/link'
 
 import { type ListInput, listParam, listQuery, parseList, withParams } from './search-params'
 

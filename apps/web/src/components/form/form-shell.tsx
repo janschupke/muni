@@ -5,7 +5,6 @@ import { Button, CancelButton } from '@muni/ui/button'
 import { Card, CardBody } from '@muni/ui/card'
 import { PageHeader } from '@muni/ui/page-header'
 import { Save, X } from 'lucide-react'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
   type ReactNode,
@@ -18,6 +17,7 @@ import {
 } from 'react'
 
 import { ConfirmDialog } from '@/components/feedback/confirm-dialog'
+import { Link } from '@/components/navigation/link'
 import { useOrigin } from '@/components/navigation/navigation-history'
 import { type FormState, IDLE } from '@/lib/form/form'
 import type { FormSpec } from '@/lib/form/form-inputs'

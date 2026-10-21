@@ -2,9 +2,10 @@
 
 import { buttonClass } from '@muni/ui/button'
 import { Toast, ToastProvider, type ToastTone, ToastViewport } from '@muni/ui/toast'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { createContext, type ReactNode, useCallback, useContext, useState } from 'react'
+
+import { Link } from '@/components/navigation/link'
 
 /** A message about a write that just finished. */
 export interface ToastMessage {

@@ -5,9 +5,9 @@ import { CellStack } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import type { IsoDate } from '@muni/utils/dates'
 import { formatCurrency, formatDate, PLACEHOLDER } from '@muni/utils/format'
-import Link from 'next/link'
 import type { ReactNode } from 'react'
 
+import { Link } from '@/components/navigation/link'
 import { RowActions, type Target } from '@/components/views/record-actions'
 
 // Columns every list has, built the same way in each: the record's name, linked and kept in

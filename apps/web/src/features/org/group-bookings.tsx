@@ -5,16 +5,16 @@ import { createDataColumns, DataTable, type TablePaging } from '@muni/ui/data-ta
 import { EmptyState } from '@muni/ui/empty-state'
 import { PageHeader } from '@muni/ui/page-header'
 import { TextLink } from '@muni/ui/text-link'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useMemo } from 'react'
 
 import { BackLink } from '@/components/navigation/back-link'
+import { Link } from '@/components/navigation/link'
 import { usePaginationLabels } from '@/components/table/pagination-labels'
 import { actionsColumn } from '@/components/table/table-columns'
 import { useListRead } from '@/components/views/list-view'
 import { ReadView } from '@/components/views/read-view'
-import { TableSkeleton } from '@/components/views/skeletons'
+import { PageLoading, TableSkeleton } from '@/components/views/skeletons'
 import { RemoveBookingButton } from '@/features/bookings/remove-booking-button'
 import { RoomLink, SessionDateLink } from '@/features/sessions/session-links'
 import { BOOKING_SORT } from '@/lib/list/list-keys'
@@ -24,6 +24,9 @@ import { useDocumentTitle } from '@/lib/query/use-document-title'
 export type GroupKind = 'department' | 'position'
 
 const ENTITY = { department: 'departments', position: 'positions' } as const
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <TableSkeleton columns={4} />
 
 /**
  * A department's or position's upcoming bookings: what its list's count stands for. Each of
@@ -45,7 +48,7 @@ export function GroupBookingsView({
   const title = read.data && `${t('title')}: ${read.data.name}`
   useDocumentTitle(title)
   return (
-    <ReadView query={read} skeleton={<TableSkeleton columns={4} />} entity={ENTITY[kind]}>
+    <ReadView query={read} skeleton={SKELETON} entity={ENTITY[kind]}>
       {({ name, bookings }) => (
         <>
           <PageHeader
@@ -160,4 +163,9 @@ function BookingsTable({
       paginationLabels={paginationLabels}
     />
   )
+}
+
+/** The page until its data is there (its route's `loading.tsx`). */
+export function GroupBookingsLoading() {
+  return <PageLoading>{SKELETON}</PageLoading>
 }

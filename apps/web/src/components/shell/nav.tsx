@@ -1,7 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import type { ReactNode } from 'react'
+
+import { IntentLink } from '@/components/navigation/intent-link'
 
 import { LogoMark } from './logo-mark'
 import { NavLink } from './nav-link'
@@ -24,7 +25,7 @@ export interface ShellLabels {
 export function Brand({ name }: { name: string }) {
   return (
     // The app's mark and name: known as the way home by its place, not by a link colour.
-    <Link
+    <IntentLink
       href="/"
       data-slot="brand"
       className="flex min-h-9 min-w-0 items-center gap-2.5 rounded-md font-semibold text-fg transition-colors hover:text-accent-text"
@@ -32,7 +33,7 @@ export function Brand({ name }: { name: string }) {
       <LogoMark />
       {/* A phone keeps the mark only; the name stays the link's accessible text. */}
       <span className="truncate max-sm:sr-only">{name}</span>
-    </Link>
+    </IntentLink>
   )
 }
 

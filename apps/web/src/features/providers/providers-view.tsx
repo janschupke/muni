@@ -3,11 +3,14 @@
 import { useTranslations } from 'next-intl'
 
 import { ListView, useListRead } from '@/components/views/list-view'
-import { TableSkeleton } from '@/components/views/skeletons'
+import { PageLoading, TableSkeleton } from '@/components/views/skeletons'
 import { PROVIDER_SORT } from '@/lib/list/list-keys'
 import { useListUrl } from '@/lib/list/use-list-url'
 
 import { ProvidersTable } from './providers-table'
+
+// What the page shows until its data is there, here and as its route's loading state.
+const SKELETON = <TableSkeleton columns={5} />
 
 /** Providers, a page at a time, sorted on the server. */
 export function ProvidersView({ canEdit }: { canEdit: boolean }) {
@@ -22,7 +25,7 @@ export function ProvidersView({ canEdit }: { canEdit: boolean }) {
       canEdit={canEdit}
       create={{ href: '/providers/new', label: t('new') }}
       read={useListRead('providers-list', list.input)}
-      skeleton={<TableSkeleton columns={5} />}
+      skeleton={SKELETON}
       totalOf={({ providers }) => providers.total}
     >
       {({ providers, prices }) => (
@@ -34,5 +37,15 @@ export function ProvidersView({ canEdit }: { canEdit: boolean }) {
         />
       )}
     </ListView>
+  )
+}
+
+/** The page until its data is there (its route's `loading.tsx`): its heading, then the rows. */
+export function ProvidersLoading() {
+  const t = useTranslations('providers')
+  return (
+    <PageLoading title={t('title')} description={t('description')}>
+      {SKELETON}
+    </PageLoading>
   )
 }

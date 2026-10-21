@@ -116,15 +116,19 @@ export const test = base.extend<AppOptions>({
     if (appLocale && baseURL)
       await page.context().addCookies([{ name: 'NEXT_LOCALE', value: appLocale, url: baseURL }])
     else await page.context().clearCookies({ name: 'NEXT_LOCALE' })
-    // Anything the Content-Security-Policy blocked fails the test that loaded it.
+    // Anything the Content-Security-Policy blocked fails the test that loaded it, and so does
+    // a word the browser has no message for (next-intl logs it and shows the key instead).
     const blocked: string[] = []
+    const untranslated: string[] = []
     const thrown: string[] = []
     page.on('pageerror', error => {
       thrown.push(error.message)
     })
     page.on('console', message => {
-      if (message.type() === 'error' && /Content Security Policy/i.test(message.text()))
-        blocked.push(message.text())
+      if (message.type() !== 'error') return
+      if (/Content Security Policy/i.test(message.text())) blocked.push(message.text())
+      if (/MISSING_MESSAGE|INSUFFICIENT_PATH|INVALID_MESSAGE|FORMATTING_ERROR/.test(message.text()))
+        untranslated.push(message.text().split('\n')[0] ?? '')
     })
     // Pages arrive with their data from the server; a click before the app starts would
     // reload instead of navigating in the app. Every visit waits for the app to start (its
@@ -136,6 +140,14 @@ export const test = base.extend<AppOptions>({
     page.goto = async (url, options) => {
       const response = await goto(url, { waitUntil: 'domcontentloaded', ...options })
       await page.locator('html[data-hydrated]').waitFor({ state: 'attached' })
+      // And React has put every streamed part of it in place: a part that arrives late waits
+      // hidden at the end of the body for React's batched reveal, a few frames, and until then
+      // a text or CSS query finds it twice. The document is parsed by now, so every part is in
+      // React's reveal queue (`$RB`, its streaming runtime's) or needs none (a not-found page
+      // renders in the browser): the queue empties when all are in place.
+      await page.waitForFunction(
+        () => ((window as unknown as { $RB?: unknown[] }).$RB?.length ?? 0) === 0
+      )
       if (!tokenFresh) {
         await clerkLoaded(page)
         await page.evaluate(async () => {
@@ -167,6 +179,7 @@ export const test = base.extend<AppOptions>({
     // Requests still in flight as the test ends (Clerk's polling) go unanswered, not as errors.
     await page.context().unrouteAll({ behavior: 'ignoreErrors' })
     expect(blocked, 'Content-Security-Policy violations').toEqual([])
+    expect(untranslated, 'words the browser had no message for').toEqual([])
     expect(thrown, 'errors thrown in the page').toEqual([])
   },
 })

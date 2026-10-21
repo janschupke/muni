@@ -2,11 +2,11 @@
 
 import { TextLink } from '@muni/ui/text-link'
 import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Suspense, useSyncExternalStore } from 'react'
 
+import { Link } from '@/components/navigation/link'
 import { pageLabel, previousEntry } from '@/lib/navigation/navigation-stack'
 
 import { parseHistory, readHistory, subscribeHistory } from './navigation-history'

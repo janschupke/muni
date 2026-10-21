@@ -2,10 +2,10 @@ import type { RoomRef } from '@muni/domain/rooms'
 import { TextLink } from '@muni/ui/text-link'
 import { formatSessionTime } from '@muni/utils/format'
 import { Wifi } from 'lucide-react'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 
 import { RecordLink } from '@/components/badges/archived'
+import { Link } from '@/components/navigation/link'
 
 const sessionHref = (externalId: string, employee?: string) =>
   `/sessions/${externalId}${employee ? `?employee=${encodeURIComponent(employee)}` : ''}`

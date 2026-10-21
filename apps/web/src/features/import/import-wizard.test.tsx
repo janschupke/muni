@@ -108,7 +108,7 @@ describe('ImportWizard', () => {
     const cell = within(panel).getByRole('textbox', { name: 'Edit Course on line 11' })
     await user.clear(cell)
     await user.type(cell, 'KYBER{Enter}')
-    expect(within(panel).getByRole('button', { name: /Errors/ }).textContent).toContain('2')
+    expect(errorsCard.textContent).toContain('2')
     expect(within(panel).queryByRole('button', { name: /Problems on line 11/ })).toBeNull()
 
     await user.click(screen.getByRole('button', { name: 'Continue' }))

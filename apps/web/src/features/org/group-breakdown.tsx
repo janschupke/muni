@@ -1,7 +1,8 @@
 import { TextLink } from '@muni/ui/text-link'
 import { formatInteger } from '@muni/utils/format'
-import Link from 'next/link'
 import { useLocale } from 'next-intl'
+
+import { Link } from '@/components/navigation/link'
 
 /** How many people of a group hold each position (or sit in each department), linked. */
 export function GroupBreakdown({

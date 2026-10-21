@@ -7,10 +7,10 @@ import { cn } from '@muni/ui/cn'
 import { Table, TableContainer, TBody, Th, THead } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { Tooltip } from '@muni/ui/tooltip'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { Fragment, useId, useRef, useState } from 'react'
 
+import { Link } from '@/components/navigation/link'
 import { formatRate } from '@/lib/format/format-rate'
 import { useToggleSet } from '@/lib/use-toggle-set'
 

@@ -16,10 +16,10 @@ import { providerDetail, providerRow } from '@/test/fixtures'
 import { NotFoundError } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
+import ProvidersPage, { generateMetadata as listMetadata } from './(index)/page'
+import ProviderPage, { generateMetadata as providerMetadata } from './[id]/(index)/page'
 import EditProviderPage, { generateMetadata as editMetadata } from './[id]/edit/page'
-import ProviderPage, { generateMetadata as providerMetadata } from './[id]/page'
 import NewProviderPage, { generateMetadata as newMetadata } from './new/page'
-import ProvidersPage, { generateMetadata as listMetadata } from './page'
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),

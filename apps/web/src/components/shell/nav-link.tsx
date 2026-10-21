@@ -3,9 +3,10 @@
 import { cn } from '@muni/ui/cn'
 import { NavItem } from '@muni/ui/nav'
 import { Tooltip } from '@muni/ui/tooltip'
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
+
+import { IntentLink } from '@/components/navigation/intent-link'
 
 /** Current for its route and everything below it; the overview only for itself. */
 function isActive(href: string, pathname: string): boolean {
@@ -36,7 +37,7 @@ export function NavLink({
       active={isActive(href, pathname)}
       className={cn('w-full', collapsed ? 'justify-center px-0' : 'justify-start')}
     >
-      <Link
+      <IntentLink
         href={href}
         // Next's Link types `onClick` without `undefined`: pass it only when there is one.
         {...(onNavigate && { onClick: onNavigate })}
@@ -44,7 +45,7 @@ export function NavLink({
       >
         {icon}
         {!collapsed && label}
-      </Link>
+      </IntentLink>
     </NavItem>
   )
   return collapsed ? (

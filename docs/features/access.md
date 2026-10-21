@@ -26,7 +26,8 @@ would otherwise ask Clerk on every request), and at most every five minutes afte
 reads the user from Clerk: a
 missing or unknown role is written back as `viewer` (and `Full` as `full`), and the row is
 updated with the role, email, name and last sign-in. If Clerk cannot be reached, the stored
-role is used. Bookings record the user who made them.
+role is used. Requests that need the same sync at once (a sign-in sends two: Clerk's redirect
+home and its refresh) share one call to Clerk. Bookings record the user who made them.
 
 To change a role, an admin opens the user from `/users` and saves the new role there: it is
 written to Clerk's public metadata first, then to the users table (setting `role` in the Clerk
@@ -36,7 +37,7 @@ everything; the home page tells them their access has ended.
 
 Enforcement is on the server, in three layers: `proxy.ts` sends visitors to sign-in on every
 path except `/`, `/sign-in` and `/sign-up`; every page calls `requireReader()` (or
-`requireAdminPage()`, a 404 for non-admins) before reading data; every server action calls
+`requireAdminPage()`, the not-found page for non-admins) before reading data; every server action calls
 `requireAdmin()`.
 
 ## Sensitive data

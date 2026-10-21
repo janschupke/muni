@@ -11,11 +11,11 @@ import { Td, Th, Tr } from '@muni/ui/table'
 import { TextLink } from '@muni/ui/text-link'
 import { Tooltip } from '@muni/ui/tooltip'
 import { CalendarCheck } from 'lucide-react'
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { ComponentProps } from 'react'
 
 import { COMPLIANCE } from '@/components/badges/status-badges'
+import { Link } from '@/components/navigation/link'
 
 import { STATUS_CELL, STICKY } from './matrix-styles'
 import { useRequirementText } from './use-requirement-text'

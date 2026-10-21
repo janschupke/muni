@@ -17,10 +17,10 @@ import { advisorInput, AULA_A, EXTERNAL, INTERNAL, ONLINE, session } from '@/tes
 import { NotFoundError, route, router } from '@/test/next'
 import { params, renderServer } from '@/test/render'
 
+import SessionsPage, { generateMetadata as listMetadata } from './(index)/page'
+import SessionPage, { generateMetadata as sessionMetadata } from './[externalId]/(index)/page'
 import EditSessionPage, { generateMetadata as editSessionMetadata } from './[externalId]/edit/page'
-import SessionPage, { generateMetadata as sessionMetadata } from './[externalId]/page'
 import NewSessionsPage, { generateMetadata as newSessionMetadata } from './new/page'
-import SessionsPage, { generateMetadata as listMetadata } from './page'
 
 vi.mock('@muni/db/repositories', async importOriginal => ({
   ...(await importOriginal<object>()),
