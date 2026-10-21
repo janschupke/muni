@@ -7,7 +7,7 @@ import { THEME_BOOT_SCRIPT } from '@muni/ui/theme/boot'
 import { TooltipProvider } from '@muni/ui/tooltip'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
-import { type Messages, NextIntlClientProvider } from 'next-intl'
+import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import type { ReactNode } from 'react'
 
@@ -25,15 +25,6 @@ export async function generateMetadata(): Promise<Metadata> {
     description: t('description'),
   }
 }
-
-/**
- * What the browser needs translated before anyone signs in: the shell's own words (the
- * landing and the sign-in pages are rendered on the server). Signed in, every page's views
- * are in the browser, and they use nearly the whole catalog.
- */
-const SIGNED_OUT = ['common', 'errors', 'back', 'nav'] as const
-const signedOut = (messages: Messages) =>
-  Object.fromEntries(SIGNED_OUT.map(namespace => [namespace, messages[namespace]]))
 
 /**
  * Clerk's sign-in and sign-up forms in the app's colours, read from its tokens, so they
@@ -89,7 +80,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         </head>
         <body className="min-h-dvh">
-          <NextIntlClientProvider messages={user ? messages : signedOut(messages)}>
+          {/* The whole catalog, signed in or not: this layout is not rendered again when
+              someone signs in in the page, so what it gives a visitor must serve the app. */}
+          <NextIntlClientProvider messages={messages}>
             {/* One read cache per user and role: another account never sees this one's data. */}
             <QueryProvider scope={user ? `${user.id}:${user.role}` : 'anon'}>
               <TooltipProvider>
