@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -32,11 +32,12 @@ const BASES = [
 
 /** Names in backticks that look like paths but are not files of the repo, and why. */
 const NOT_FILES: Record<string, string> = {
-  'e2e/.auth/': 'written by the e2e setup',
+  'apps/web/e2e/.auth/': 'written by the e2e setup',
+  'node_modules/next/dist/docs/': 'installed by pnpm',
+  'node_modules/next/dist/server/lib/generate-agent-files.js': 'installed by pnpm',
   'test-results/lighthouse': 'written by the Lighthouse run',
   'summary.json': 'written by the Lighthouse run',
   'apps/web/visual-shots': 'written by the visual run',
-  'loading.tsx': 'the file the app has none of, on purpose',
   'mistnosti.csv': 'an optional export the user supplies',
   'origin/master': 'a git ref',
   'import-x/no-cycle': 'an ESLint rule',
@@ -53,6 +54,12 @@ const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclud
   .split('\n')
   .filter(Boolean)
 const basenames = new Set(files.map(f => path.basename(f)))
+/** The repo's files and their folders: what a fresh clone has, not what a run left on disk. */
+const inRepo = new Set([
+  '.',
+  ...files.flatMap(f => f.split('/').map((_, i, parts) => parts.slice(0, i + 1).join('/'))),
+])
+const exists = (rel: string) => inRepo.has(path.normalize(rel).replace(/\/$/, ''))
 
 /** The spans in backticks that name a file or a folder, outside code blocks. */
 function namedPaths(text: string): string[] {
@@ -70,17 +77,13 @@ function linkedPaths(text: string): string[] {
 }
 
 const found = (span: string) =>
-  span.includes('/')
-    ? BASES.some(base => existsSync(path.join(ROOT, base, span)))
-    : basenames.has(span)
+  span.includes('/') ? BASES.some(base => exists(path.join(base, span))) : basenames.has(span)
 
 describe('the paths the docs name', () => {
   it.each(DOCS)('%s names only files that exist', doc => {
     const text = readFileSync(path.join(ROOT, doc), 'utf8')
     const missing = namedPaths(text).filter(span => !(span in NOT_FILES) && !found(span))
-    const broken = linkedPaths(text).filter(
-      href => !existsSync(path.join(ROOT, path.dirname(doc), href))
-    )
+    const broken = linkedPaths(text).filter(href => !exists(path.join(path.dirname(doc), href)))
     expect({ missing, broken }).toEqual({ missing: [], broken: [] })
   })
 
